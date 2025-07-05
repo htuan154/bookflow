@@ -1,19 +1,24 @@
-# --- General ---
+# -- General --
 .DS_Store
 .idea/
 .vscode/
 
-# --- Node.js / Backend ---
+# -- Backend (Node.js) --
 backend/node_modules
 backend/.env
 backend/logs/
 backend/*.log
 
-# --- Flutter / Frontend ---
-frontend/.dart_tool/
-frontend/.idea/
-frontend/.metadata
-frontend/.packages
-frontend/build/
-frontend/pubspec.lock
-frontend/*.iml
+# -- Web App (React) --
+web_app/node_modules
+web_app/.env
+web_app/build/
+web_app/coverage/
+
+# -- Mobile App (Flutter) --
+mobile_app/.dart_tool/
+mobile_app/.metadata
+mobile_app/.packages
+mobile_app/build/
+mobile_app/pubspec.lock
+mobile_app/*.iml
