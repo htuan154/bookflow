@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "jest",
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "npm run swagger-autogen && nodemon index.js",
+    "start": "npm run swagger-autogen && node index.js",
+    "swagger-autogen": "node swagger-autogen.js",
+    "docs": "open http://localhost:8080/api-docs",
+    "test": "jest"
   },
   "keywords": [],
   "author": "",
@@ -13,12 +15,21 @@
   "description": "",
   "dependencies": {
     "@supabase/supabase-js": "^2.50.3",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
     "dotenv": "^17.0.1",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "yamljs": "^0.3.0"
   },
   "devDependencies": {
     "jest": "^30.0.4",
     "nodemon": "^3.1.10",
-    "supertest": "^7.1.1"
+    "supertest": "^7.1.1",
+    "swagger-autogen": "^2.23.7"
   }
 }
