@@ -3,11 +3,11 @@
 .idea/
 .vscode/
 
-# -- Backend (Node.js) --
-backend/node_modules
-backend/.env
-backend/logs/
-backend/*.log
+# -- Server (Node.js) --
+server/node_modules
+server/.env
+server/logs/
+server/*.log
 
 # -- Web App (React) --
 web_app/node_modules
