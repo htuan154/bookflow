@@ -68,5 +68,5 @@ module.exports = {
   findByEmailOrUsername,
   findByEmail,
   create,
-  findById, // <-- Thêm hàm mới vào export
+  findById,
 };
