@@ -2,7 +2,11 @@ Bookflow - Nền Tảng Đặt Phòng Khách Sạn & Du Lịch
 Bookflow là một dự án đa nền tảng toàn diện, cung cấp giải pháp đặt phòng khách sạn và khám phá du lịch, phục vụ cho ba đối tượng người dùng chính: Khách hàng, Chủ khách sạn, và Quản trị viên.
 
 ✨ Tính Năng Nổi Bật
+
+
+
 👤 Đối với Khách Hàng (Customer)
+
 Tìm kiếm & Khám phá: Tìm kiếm khách sạn thông minh theo địa điểm, tên, tiện nghi.
 
 Đặt phòng dễ dàng: Quy trình đặt phòng nhanh chóng, an toàn.
@@ -16,6 +20,7 @@ Quản lý tài khoản: Xem lại lịch sử đặt phòng, quản lý thông 
 Khám phá du lịch: Đọc các bài blog, gợi ý về địa điểm và món ăn.
 
 🏨 Đối với Chủ Khách Sạn (Hotel Owner)
+
 Dashboard quản lý: Giao diện trực quan để theo dõi hoạt động kinh doanh.
 
 Quản lý Khách sạn: Dễ dàng cập nhật thông tin, hình ảnh, tiện nghi.
@@ -27,6 +32,8 @@ Xử lý Đặt phòng: Xác nhận, check-in, check-out cho các lượt đặt
 Thống kê & Báo cáo: Xem báo cáo doanh thu, lượt đặt phòng theo thời gian.
 
 👑 Đối với Quản Trị Viên (Admin)
+
+
 Dashboard tổng quan: Theo dõi toàn bộ hoạt động của hệ thống.
 
 Quản lý Người dùng: Quản lý tất cả các tài khoản trong hệ thống.
