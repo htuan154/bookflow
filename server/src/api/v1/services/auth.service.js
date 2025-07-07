@@ -21,15 +21,34 @@ const registerUser = async (userData) => {
   return newUser;
 };
 
-const loginUser = async (email, password) => {
-  const user = await userRepository.findByEmail(email);
-  if (!user) {
-    throw new Error('Invalid email or password');
+/**
+ * Đăng nhập người dùng bằng email hoặc username
+ * @param {string} identifier - Email hoặc username
+ * @param {string} password - Mật khẩu
+ * @returns {Promise<{user: object, token: string}>} - User info và token
+ */
+const loginUser = async (identifier, password) => {
+  // Kiểm tra xem identifier có phải là email không (chứa @)
+  const isEmail = identifier.includes('@');
+  
+  let user;
+  if (isEmail) {
+    // Nếu là email, tìm bằng email
+    user = await userRepository.findByEmail(identifier);
+  } else {
+    // Nếu không phải email, tìm bằng username
+    user = await userRepository.findByUsername(identifier);
   }
+  
+  if (!user) {
+    throw new Error('Invalid credentials');
+  }
+  
   const isPasswordMatch = await bcrypt.compare(password, user.passwordHash);
   if (!isPasswordMatch) {
-    throw new Error('Invalid email or password');
+    throw new Error('Invalid credentials');
   }
+  
   const tokenPayload = {
     userId: user.userId,
     roleId: user.roleId,
