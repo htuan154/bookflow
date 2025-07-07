@@ -112,7 +112,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "email": {
+                  "identifier": {
                     "example": "any"
                   },
                   "password": {
