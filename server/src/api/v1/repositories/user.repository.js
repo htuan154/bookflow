@@ -36,6 +36,22 @@ const findByEmail = async (email) => {
 };
 
 /**
+ * Tìm một user chỉ bằng username.
+ * @param {string} username
+ * @returns {Promise<User|null>} - Trả về một instance của User hoặc null.
+ */
+const findByUsername = async (username) => {
+  const result = await pool.query(
+    'SELECT * FROM users WHERE username = $1',
+    [username]
+  );
+  if (!result.rows[0]) {
+    return null;
+  }
+  return new User(result.rows[0]);
+};
+
+/**
  * Tạo một user mới trong database.
  * @param {object} userData - Dữ liệu của user mới.
  * @returns {Promise<User>} - Trả về instance của User vừa được tạo.
@@ -67,6 +83,7 @@ const findById = async (userId) => {
 module.exports = {
   findByEmailOrUsername,
   findByEmail,
+  findByUsername,
   create,
   findById,
 };

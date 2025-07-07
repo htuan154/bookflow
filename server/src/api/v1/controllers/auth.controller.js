@@ -16,8 +16,8 @@ const handleRegister = async (req, res) => {
 
 const handleLogin = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const result = await authService.loginUser(email, password);
+    const { identifier, password } = req.body; 
+    const result = await authService.loginUser(identifier, password);
     res.status(200).json({
       status: 'success',
       message: 'Login successful!',

@@ -15,8 +15,7 @@ const doc = {
       description: 'Development Server'
     }
   ],
-  // Dùng 'definitions' để định nghĩa các schema tái sử dụng
-  // swagger-autogen hoạt động rất tốt với cấu trúc này
+
   definitions: {
       UserObject: {
         type: 'object',
@@ -63,5 +62,4 @@ const outputFile = './swagger-output.json';
 // Trỏ đến file server chính (index.js) để swagger có thể quét toàn bộ route
 const endpointsFiles = ['./index.js'];
 
-// Chạy generator
 swaggerAutogen(outputFile, endpointsFiles, doc);

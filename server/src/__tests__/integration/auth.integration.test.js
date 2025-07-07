@@ -1,81 +1,114 @@
 // src/__tests__/integration/auth.integration.test.js
-
 const request = require('supertest');
-const bcrypt = require('bcrypt');
-const app = require('../../../index');
+const app = require('../../../index'); 
 const pool = require('../../config/db');
 
 describe('Auth Endpoints - Integration Tests', () => {
-  let userToken; // Biến để lưu token sau khi đăng nhập
+  let userToken;
 
-  // Setup: Chạy trước tất cả các bài test trong file này
   beforeAll(async () => {
-    // Dọn dẹp user cũ nếu có để đảm bảo môi trường test sạch
-    await pool.query("DELETE FROM users WHERE email IN ('testuser@example.com', 'logintest@example.com')");
-
-    // Tạo một user mẫu để dùng cho các bài test đăng nhập và profile
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash('password123', salt);
-    await pool.query(
-      `INSERT INTO users (username, email, password_hash, full_name, role_id)
-       VALUES ($1, $2, $3, $4, $5)`,
-      ['logintestuser', 'logintest@example.com', passwordHash, 'Login Test User', 3]
-    );
+    // Tạo user test trước khi chạy test
+    await request(app)
+      .post('/api/v1/auth/register')
+      .send({
+        username: 'logintest',
+        email: 'logintest@example.com',
+        password: 'password123',
+        fullName: 'Login Test User',
+      });
   });
 
-  // Teardown: Chạy sau khi tất cả các bài test đã hoàn thành
   afterAll(async () => {
-    // Dọn dẹp toàn bộ dữ liệu test
-    await pool.query("DELETE FROM users WHERE email IN ('testuser@example.com', 'logintest@example.com')");
-    await pool.end(); // Đóng kết nối database
+    // Xóa user test sau khi chạy xong
+    await pool.query('DELETE FROM users WHERE email = $1', ['logintest@example.com']);
+    await pool.end();
   });
 
   describe('POST /api/v1/auth/register', () => {
     it('should register a new user successfully', async () => {
-      const newUser = {
-        username: 'testuser',
-        email: 'testuser@example.com',
-        password: 'password123',
-        fullName: 'Test User',
-      };
-
       const response = await request(app)
         .post('/api/v1/auth/register')
-        .send(newUser);
+        .send({
+          username: 'integrationtestuser',
+          email: 'integrationtest@example.com',
+          password: 'password123',
+          fullName: 'Integration Test User',
+        });
 
       expect(response.statusCode).toBe(201);
-      expect(response.body.data.user).toHaveProperty('email', newUser.email);
+      expect(response.body.data.user).toHaveProperty('email', 'integrationtest@example.com');
+      expect(response.body.data.user).toHaveProperty('username', 'integrationtestuser');
+      expect(response.body.data.user).not.toHaveProperty('passwordHash');
     });
 
-    it('should fail to register with an existing email', async () => {
-      const existingUser = {
-        username: 'anotheruser',
-        email: 'logintest@example.com', // Dùng email đã được tạo trong beforeAll
-        password: 'password123',
-        fullName: 'Another User',
-      };
-
+    it('should return error for duplicate email', async () => {
       const response = await request(app)
         .post('/api/v1/auth/register')
-        .send(existingUser);
+        .send({
+          username: 'anothertestuser',
+          email: 'integrationtest@example.com',
+          password: 'password123',
+          fullName: 'Another Test User',
+        });
 
       expect(response.statusCode).toBe(400);
-      expect(response.body).toHaveProperty('message', 'Username or email already exists');
+      expect(response.body.message).toBe('Username or email already exists');
+    });
+
+    afterAll(async () => {
+      // Xóa user test sau khi chạy xong
+      await pool.query('DELETE FROM users WHERE email = $1', ['integrationtest@example.com']);
     });
   });
 
   describe('POST /api/v1/auth/login', () => {
-    it('should log in successfully and return a token', async () => {
+    it('should log in successfully with email and return a token', async () => {
       const response = await request(app)
         .post('/api/v1/auth/login')
         .send({
-          email: 'logintest@example.com',
+          identifier: 'logintest@example.com',
           password: 'password123',
         });
 
       expect(response.statusCode).toBe(200);
       expect(response.body.data).toHaveProperty('token');
-      userToken = response.body.data.token; // Lưu lại token để dùng cho các test sau
+      userToken = response.body.data.token;
+    });
+
+    it('should log in successfully with username and return a token', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          identifier: 'logintest',
+          password: 'password123',
+        });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body.data).toHaveProperty('token');
+    });
+
+    it('should return error for invalid credentials', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          identifier: 'logintest@example.com',
+          password: 'wrongpassword',
+        });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.body.message).toBe('Invalid credentials');
+    });
+
+    it('should return error for non-existent user', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          identifier: 'nonexistent@example.com',
+          password: 'password123',
+        });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.body.message).toBe('Invalid credentials');
     });
   });
 
@@ -83,14 +116,17 @@ describe('Auth Endpoints - Integration Tests', () => {
     it('should get user profile with a valid token', async () => {
       const response = await request(app)
         .get('/api/v1/auth/profile')
-        .set('Authorization', `Bearer ${userToken}`); // Gửi token trong header
+        .set('Authorization', `Bearer ${userToken}`);
 
       expect(response.statusCode).toBe(200);
       expect(response.body.data).toHaveProperty('email', 'logintest@example.com');
     });
 
-    it('should fail to get profile without a token', async () => {
-      const response = await request(app).get('/api/v1/auth/profile');
+    it('should return error for invalid token', async () => {
+      const response = await request(app)
+        .get('/api/v1/auth/profile')
+        .set('Authorization', 'Bearer invalidtoken');
+
       expect(response.statusCode).toBe(401);
     });
   });
