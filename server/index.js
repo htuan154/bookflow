@@ -3,16 +3,18 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const swaggerUi = require('swagger-ui-express');
-
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
+// Import các module cho Swagger
+const swaggerUi = require('swagger-ui-express');
+const swaggerFile = require('./swagger-output.json'); 
+
 const pool = require('./src/config/db');
+
+// Import các file route
 const authRoutes = require('./src/api/v1/routes/auth.route');
-
-// Import swagger JSON được tự động generate
-const swaggerFile = require('./swagger.json');
-
+const hotelRoutes = require('./src/api/v1/routes/hotel.route'); 
+const adminRouter = require('./src/api/v1/routes/admin.routes');
 // --- Khởi tạo ứng dụng Express ---
 const app = express();
 const port = process.env.PORT || 8080;
@@ -22,48 +24,29 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// --- Swagger Documentation ---
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile, {
-  explorer: true,
-  customCss: `
-    .swagger-ui .topbar { display: none }
-    .swagger-ui .info { margin: 50px 0 }
-    .swagger-ui .info .title { color: #3b82f6 }
-  `,
-  customSiteTitle: 'Bookflow API Docs'
-}));
-
 // --- Health Check Route ---
 app.get('/', (req, res) => {
-  /*  
-    #swagger.tags = ['Health Check']
-    #swagger.description = 'API health check endpoint'
-    #swagger.responses[200] = {
-      description: 'API is running successfully',
-      schema: {
-        status: 'success',
-        message: 'Bookflow API is up and running!',
-        timestamp: '2024-01-01T00:00:00.000Z',
-        docs: '/api-docs'
-      }
-    }
-  */
+  /* #swagger.ignore = true */ // Bỏ qua endpoint này trong tài liệu tự động
   res.status(200).json({
     status: 'success',
     message: 'Bookflow API is up and running!',
     timestamp: new Date().toISOString(),
-    docs: '/api-docs'
   });
 });
 
-// --- API Routes ---
-app.use('/api/v1/auth', authRoutes);
+// --- API Documentation Route ---
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
-// --- Khởi động Server và Kiểm tra kết nối DB ---
+// --- API Routes ---
+// Gắn các route vào đường dẫn tương ứng
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/hotels', hotelRoutes); 
+app.use('/api/v1/admin', adminRouter); 
+// --- Khởi động Server ---
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, async () => {
     console.log(`🚀 Server is listening at http://localhost:${port}`);
-    console.log(`📚 API Documentation available at http://localhost:${port}/api-docs`);
+    console.log(`📚 API documentation available at http://localhost:${port}/api-docs`);
     try {
       const client = await pool.connect();
       console.log('✅ Database connected successfully!');

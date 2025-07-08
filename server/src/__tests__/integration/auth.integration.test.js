@@ -7,7 +7,22 @@ describe('Auth Endpoints - Integration Tests', () => {
   let userToken;
 
   beforeAll(async () => {
-    // Tạo user test trước khi chạy test
+    // Xóa user test nếu có
+    await pool.query('DELETE FROM users WHERE email IN ($1, $2)', [
+      'logintest@example.com',
+      'integrationtest@example.com',
+    ]);
+
+    // Đảm bảo role tồn tại
+    await pool.query(`
+      INSERT INTO roles (role_id, role_name, role_description, is_active, created_at)
+      VALUES 
+        (2, 'admin', 'Admin user', true, NOW()),
+        (3, 'user', 'Normal user', true, NOW())
+      ON CONFLICT (role_id) DO NOTHING
+    `);
+
+    // Tạo user test cho đăng nhập
     await request(app)
       .post('/api/v1/auth/register')
       .send({
@@ -19,8 +34,10 @@ describe('Auth Endpoints - Integration Tests', () => {
   });
 
   afterAll(async () => {
-    // Xóa user test sau khi chạy xong
-    await pool.query('DELETE FROM users WHERE email = $1', ['logintest@example.com']);
+    await pool.query('DELETE FROM users WHERE email IN ($1, $2)', [
+      'logintest@example.com',
+      'integrationtest@example.com',
+    ]);
     await pool.end();
   });
 
@@ -53,11 +70,6 @@ describe('Auth Endpoints - Integration Tests', () => {
 
       expect(response.statusCode).toBe(400);
       expect(response.body.message).toBe('Username or email already exists');
-    });
-
-    afterAll(async () => {
-      // Xóa user test sau khi chạy xong
-      await pool.query('DELETE FROM users WHERE email = $1', ['integrationtest@example.com']);
     });
   });
 

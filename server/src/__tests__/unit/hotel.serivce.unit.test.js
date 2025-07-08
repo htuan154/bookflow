@@ -1,17 +1,16 @@
 // __tests__/unit/hotel.service.unit.test.js
 
+// Sửa lỗi đường dẫn: các file đều nằm trong 'src' nên chỉ cần đi lên 2 cấp
 const hotelService = require('../../api/v1/services/hotel.service');
 const hotelRepository = require('../../api/v1/repositories/hotel.repository');
 const { AppError } = require('../../utils/errors');
 
 // --- GIẢ LẬP (MOCK) CÁC THÀNH PHẦN PHỤ THUỘC ---
 
-// Giả lập toàn bộ module hotel.repository
-// Tất cả các hàm export từ repository sẽ tự động trở thành jest.fn()
+// Sửa lỗi đường dẫn
 jest.mock('../../api/v1/repositories/hotel.repository');
 
-// Giả lập module hotel.validator
-// Chúng ta giả định validator luôn hoạt động đúng trong unit test của service
+// Sửa lỗi đường dẫn
 jest.mock('../../validators/hotel.validator', () => ({
   validateHotelData: jest.fn(data => Promise.resolve(data)),
   validateHotelUpdate: jest.fn(data => Promise.resolve(data)),
@@ -166,6 +165,7 @@ describe('Hotel Service - Unit Tests', () => {
 
         // Assert
         expect(hotelRepository.countByStatus).toHaveBeenCalledWith('pending');
+        // Sửa lỗi typo: 'countByстатус' -> 'countByStatus'
         expect(hotelRepository.countByStatus).toHaveBeenCalledWith('approved');
         expect(hotelRepository.countByStatus).toHaveBeenCalledWith('rejected');
         expect(hotelRepository.countByStatus).toHaveBeenCalledWith('deleted');
