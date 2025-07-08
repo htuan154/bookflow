@@ -1,9 +1,13 @@
 // src/api/v1/controllers/hotel.controller.js
 const hotelService = require('../services/hotel.service');
 const { AppError } = require('../../../utils/errors');
-const { successResponse } = require('../../../utils/response');
+const { successResponse, errorResponse } = require('../../../utils/response');
 
 class HotelController {
+  /**
+   * Tạo mới khách sạn
+   * POST /api/v1/hotels
+   */
   async createHotel(req, res, next) {
     try {
       const result = await hotelService.createHotel(req.body, req.user.id);
@@ -13,6 +17,10 @@ class HotelController {
     }
   }
 
+  /**
+   * Lấy thông tin khách sạn theo ID
+   * GET /api/v1/hotels/:id
+   */
   async getHotelById(req, res, next) {
     try {
       const { id } = req.params;
@@ -23,6 +31,10 @@ class HotelController {
     }
   }
 
+  /**
+   * Lấy danh sách tất cả khách sạn
+   * GET /api/v1/hotels
+   */
   async getAllHotels(req, res, next) {
     try {
       const { page, limit } = req.query;
@@ -33,6 +45,10 @@ class HotelController {
     }
   }
 
+  /**
+   * Cập nhật thông tin khách sạn
+   * PUT /api/v1/hotels/:id
+   */
   async updateHotel(req, res, next) {
     try {
       const { id } = req.params;
@@ -43,6 +59,10 @@ class HotelController {
     }
   }
 
+  /**
+   * Xóa khách sạn
+   * DELETE /api/v1/hotels/:id
+   */
   async deleteHotel(req, res, next) {
     try {
       const { id } = req.params;
@@ -53,12 +73,19 @@ class HotelController {
     }
   }
 
+  /**
+   * Lấy khách sạn theo chủ sở hữu
+   * GET /api/v1/hotels/owner/:ownerId
+   */
   async getHotelsByOwner(req, res, next) {
     try {
       const { ownerId } = req.params;
+      
+      // Chỉ admin hoặc chính chủ sở hữu mới được xem
       if (req.user.role !== 'admin' && req.user.id !== ownerId) {
         throw new AppError('Không có quyền truy cập', 403);
       }
+      
       const result = await hotelService.getHotelsByOwner(ownerId);
       successResponse(res, result.data);
     } catch (error) {
@@ -66,6 +93,10 @@ class HotelController {
     }
   }
 
+  /**
+   * Lấy khách sạn của user hiện tại
+   * GET /api/v1/hotels/my-hotels
+   */
   async getMyHotels(req, res, next) {
     try {
       const result = await hotelService.getHotelsByOwner(req.user.id);
@@ -75,6 +106,10 @@ class HotelController {
     }
   }
 
+  /**
+   * Tìm kiếm khách sạn
+   * GET /api/v1/hotels/search
+   */
   async searchHotels(req, res, next) {
     try {
       const result = await hotelService.searchHotels(req.query);
@@ -84,6 +119,10 @@ class HotelController {
     }
   }
 
+  /**
+   * Lấy khách sạn phổ biến
+   * GET /api/v1/hotels/popular
+   */
   async getPopularHotels(req, res, next) {
     try {
       const { limit } = req.query;
@@ -94,8 +133,12 @@ class HotelController {
     }
   }
 
-  // === ADMIN ===
+  // === ADMIN ENDPOINTS ===
 
+  /**
+   * Lấy danh sách khách sạn theo trạng thái (Admin only)
+   * GET /api/v1/admin/hotels/status/:status
+   */
   async getHotelsByStatus(req, res, next) {
     try {
       const { status } = req.params;
@@ -106,11 +149,19 @@ class HotelController {
     }
   }
 
+  /**
+   * Cập nhật trạng thái khách sạn (Admin only)
+   * PATCH /api/v1/admin/hotels/:id/status
+   */
   async updateHotelStatus(req, res, next) {
     try {
       const { id } = req.params;
       const { status } = req.body;
-      if (!status) throw new AppError('Trạng thái không được để trống', 400);
+      
+      if (!status) {
+        throw new AppError('Trạng thái không được để trống', 400);
+      }
+      
       const result = await hotelService.updateHotelStatus(id, status);
       successResponse(res, result.data, result.message);
     } catch (error) {
@@ -118,6 +169,10 @@ class HotelController {
     }
   }
 
+  /**
+   * Lấy thống kê khách sạn (Admin only)
+   * GET /api/v1/admin/hotels/statistics
+   */
   async getHotelStatistics(req, res, next) {
     try {
       const result = await hotelService.getHotelStatistics();
@@ -127,6 +182,10 @@ class HotelController {
     }
   }
 
+  /**
+   * Lấy danh sách khách sạn chờ duyệt (Admin only)
+   * GET /api/v1/admin/hotels/pending
+   */
   async getPendingHotels(req, res, next) {
     try {
       const result = await hotelService.getHotelsByStatus('pending');
@@ -136,6 +195,10 @@ class HotelController {
     }
   }
 
+  /**
+   * Phê duyệt khách sạn (Admin only)
+   * POST /api/v1/admin/hotels/:id/approve
+   */
   async approveHotel(req, res, next) {
     try {
       const { id } = req.params;
@@ -146,34 +209,51 @@ class HotelController {
     }
   }
 
+  /**
+   * Từ chối khách sạn (Admin only)
+   * POST /api/v1/admin/hotels/:id/reject
+   */
   async rejectHotel(req, res, next) {
     try {
       const { id } = req.params;
       const { reason } = req.body;
+      
       const result = await hotelService.updateHotelStatus(id, 'rejected');
-      // TODO: send rejection notification
+      
+      // TODO: Gửi thông báo lý do từ chối cho chủ sở hữu
+      // await notificationService.sendRejectionNotification(id, reason);
+      
       successResponse(res, result.data, result.message);
     } catch (error) {
       next(error);
     }
   }
 
+  /**
+   * Lấy tất cả khách sạn (Admin only) - không phân biệt trạng thái
+   * GET /api/v1/admin/hotels
+   */
   async getAllHotelsAdmin(req, res, next) {
     try {
       const { page, limit, status } = req.query;
+      
       let result;
       if (status) {
         result = await hotelService.getHotelsByStatus(status);
-        successResponse(res, result.data, 'Lấy danh sách khách sạn thành công');
       } else {
         result = await hotelService.getAllHotels({ page, limit });
-        successResponse(res, result.data, 'Lấy danh sách khách sạn thành công', 200, result.pagination);
       }
+      
+      successResponse(res, result.data, 'Lấy danh sách khách sạn thành công', 200, result.pagination);
     } catch (error) {
       next(error);
     }
   }
 
+  /**
+   * Khôi phục khách sạn đã xóa (Admin only)
+   * POST /api/v1/admin/hotels/:id/restore
+   */
   async restoreHotel(req, res, next) {
     try {
       const { id } = req.params;
@@ -184,31 +264,40 @@ class HotelController {
     }
   }
 
+  /**
+   * Xóa vĩnh viễn khách sạn (Admin only)
+   * DELETE /api/v1/admin/hotels/:id/permanent
+   */
   async permanentDeleteHotel(req, res, next) {
     try {
       const { id } = req.params;
-
+      
+      // Kiểm tra khách sạn có tồn tại không
       const hotel = await hotelService.getHotelById(id);
       if (!hotel) {
         throw new AppError('Không tìm thấy khách sạn', 404);
       }
-
-      // TODO: thực hiện xoá vĩnh viễn trong service
+      
+      // TODO: Implement permanent delete in service
       // await hotelService.permanentDeleteHotel(id);
-
+      
       successResponse(res, null, 'Xóa vĩnh viễn khách sạn thành công');
     } catch (error) {
       next(error);
     }
   }
 
+  /**
+   * Lấy lịch sử thay đổi trạng thái khách sạn (Admin only)
+   * GET /api/v1/admin/hotels/:id/history
+   */
   async getHotelHistory(req, res, next) {
     try {
       const { id } = req.params;
-
-      // TODO: thực hiện lấy lịch sử trạng thái từ service
+      
+      // TODO: Implement history tracking
       // const result = await hotelService.getHotelHistory(id);
-
+      
       successResponse(res, [], 'Lấy lịch sử thành công');
     } catch (error) {
       next(error);

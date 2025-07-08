@@ -15,6 +15,7 @@ const authRoutes = require('./src/api/v1/routes/auth.route');
 const hotelRoutes = require('./src/api/v1/routes/hotel.route'); 
 const adminRouter = require('./src/api/v1/routes/admin.routes');
 const roomTypeRouter = require('./src/api/v1/routes/roomType.routes');
+const roomRouter = require('./src/api/v1/routes/room.routes');
 // --- Khởi tạo ứng dụng Express ---
 const app = express();
 const port = process.env.PORT || 8080;
@@ -43,6 +44,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/hotels', hotelRoutes); 
 app.use('/api/v1/admin', adminRouter); 
 app.use('/api/v1/roomtypes', roomTypeRouter);
+app.use('/api/v1/rooms', roomRouter);
 // --- Khởi động Server ---
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, async () => {
