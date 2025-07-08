@@ -3,7 +3,7 @@
 const express = require('express');
 const authController = require('../controllers/auth.controller');
 const { validateWithJoi, registerSchema, loginSchema } = require('../middlewares/validator.middleware');
-const { protect } = require('../middlewares/auth.middleware');
+const { authenticate } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
 
@@ -48,7 +48,7 @@ router.post('/login', validateWithJoi(loginSchema), authController.handleLogin);
     #swagger.responses[200] = { description: "User profile retrieved successfully." }
     #swagger.responses[401] = { description: "Unauthorized, token is missing or invalid." }
 */
-router.get('/profile', protect, authController.getMyProfile);
+router.get('/profile', authenticate, authController.getMyProfile);
 
 
 /* #swagger.path = '/api/v1/auth/logout'
@@ -57,6 +57,6 @@ router.get('/profile', protect, authController.getMyProfile);
     #swagger.security = [{ "bearerAuth": [] }]
     #swagger.responses[200] = { description: "Logout successful." }
 */
-router.post('/logout', protect, authController.handleLogout);
+router.post('/logout', authenticate, authController.handleLogout);
 
 module.exports = router;

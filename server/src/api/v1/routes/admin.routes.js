@@ -1,13 +1,13 @@
 // src/api/v1/routes/admin.routes.js
 const express = require('express');
 const hotelController = require('../controllers/hotel.controller');
-const { protect } = require('../middlewares/auth.middleware');
+const { authenticate } = require('../middlewares/auth.middleware');
 const { isAdmin } = require('../middlewares/admin.middleware');
 
 const router = express.Router();
 
 // Tất cả các route trong file này đều yêu cầu xác thực và quyền admin
-router.use(protect);
+router.use(authenticate);
 router.use(isAdmin);
 
 // Định nghĩa các route cho việc quản lý khách sạn của admin
