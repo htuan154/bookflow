@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const { AppError } = require('../../../utils/errors');
 const pool = require('../../../config/db');
 
-const protect = async (req, res, next) => {
+const authenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -30,6 +30,26 @@ const protect = async (req, res, next) => {
   }
 };
 
+// Thêm hàm authorize
+const authorize = (roles) => {
+  return (req, res, next) => {
+    try {
+      if (!req.user) {
+        throw new AppError('Bạn cần đăng nhập trước', 401);
+      }
+
+      if (!roles.includes(req.user.role)) {
+        throw new AppError('Bạn không có quyền truy cập', 403);
+      }
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+};
+
 module.exports = {
-  protect, 
+  authenticate,
+  authorize  
 };
