@@ -2,7 +2,7 @@
 
 const express = require('express');
 const authController = require('../controllers/auth.controller');
-const { validate, registerSchema, loginSchema } = require('../middlewares/validator.middleware');
+const { validateWithJoi, registerSchema, loginSchema } = require('../middlewares/validator.middleware');
 const { protect } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
@@ -21,7 +21,7 @@ const router = express.Router();
     #swagger.responses[201] = { description: "User registered successfully." }
     #swagger.responses[400] = { description: "Bad request or user already exists." }
 */
-router.post('/register', validate(registerSchema), authController.handleRegister);
+router.post('/register', validateWithJoi(registerSchema), authController.handleRegister);
 
 
 /* #swagger.path = '/api/v1/auth/login'
@@ -38,7 +38,7 @@ router.post('/register', validate(registerSchema), authController.handleRegister
     #swagger.responses[200] = { description: "Login successful." }
     #swagger.responses[401] = { description: "Invalid credentials." }
 */
-router.post('/login', validate(loginSchema), authController.handleLogin);
+router.post('/login', validateWithJoi(loginSchema), authController.handleLogin);
 
 
 /* #swagger.path = '/api/v1/auth/profile'
