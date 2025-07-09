@@ -231,7 +231,7 @@ class HotelController {
 
   /**
    * Lấy tất cả khách sạn (Admin only) - không phân biệt trạng thái
-   * GET /api/v1/admin/hotels
+   * GET /api/v1/admin/hotels/all
    */
   async getAllHotelsAdmin(req, res, next) {
     try {
@@ -282,23 +282,6 @@ class HotelController {
       // await hotelService.permanentDeleteHotel(id);
       
       successResponse(res, null, 'Xóa vĩnh viễn khách sạn thành công');
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
-   * Lấy lịch sử thay đổi trạng thái khách sạn (Admin only)
-   * GET /api/v1/admin/hotels/:id/history
-   */
-  async getHotelHistory(req, res, next) {
-    try {
-      const { id } = req.params;
-      
-      // TODO: Implement history tracking
-      // const result = await hotelService.getHotelHistory(id);
-      
-      successResponse(res, [], 'Lấy lịch sử thành công');
     } catch (error) {
       next(error);
     }

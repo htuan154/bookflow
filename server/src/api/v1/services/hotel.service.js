@@ -72,7 +72,7 @@ class HotelService {
       throw new AppError('Không tìm thấy khách sạn', 404);
     }
 
-    if (existingHotel.owner_id !== userId) {
+    if (existingHotel.ownerId !== userId) {
       throw new AppError('Bạn không có quyền cập nhật khách sạn này', 403);
     }
 
@@ -94,7 +94,7 @@ class HotelService {
       throw new AppError('Không tìm thấy khách sạn', 404);
     }
 
-    if (existingHotel.owner_id !== userId) {
+    if (existingHotel.ownerId !== userId) {
       throw new AppError('Bạn không có quyền xóa khách sạn này', 403);
     }
 

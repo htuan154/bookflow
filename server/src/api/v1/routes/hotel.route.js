@@ -53,6 +53,7 @@ router.get('/my-hotels', authenticate, hotelController.getMyHotels);
 // ===============================================
 // PUBLIC ROUTES (với params - đặt sau)
 // ===============================================
+router.get('/owner/:ownerId', authenticate, hotelController.getHotelsByOwner);
 router.get('/:id', hotelController.getHotelById);
 
 // ===============================================
