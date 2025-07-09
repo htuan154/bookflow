@@ -18,6 +18,7 @@ router.patch('/hotels/:id/status', hotelController.updateHotelStatus);
 router.get('/hotels/status/:status', hotelController.getHotelsByStatus);
 router.post('/hotels/:id/approve', hotelController.approveHotel);
 router.post('/hotels/:id/reject', hotelController.rejectHotel);
+router.post('/hotels/:id/restore', hotelController.restoreHotel);
 
 
 module.exports = router;

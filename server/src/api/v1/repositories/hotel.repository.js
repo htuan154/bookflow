@@ -81,7 +81,7 @@ const update = async (hotelId, hotelData) => {
   const query = `
     UPDATE hotels
     SET name = $2, description = $3, address = $4, city = $5,
-        star_rating = $6, phone_number = $7, email = $8, updated_at = CURRENT_TIMESTAMP
+        star_rating = $6, phone_number = $7, email = $8
     WHERE hotel_id = $1
     RETURNING *;
   `;
@@ -99,7 +99,7 @@ const update = async (hotelId, hotelData) => {
 const softDelete = async (hotelId) => {
   const query = `
     UPDATE hotels
-    SET status = 'deleted', updated_at = CURRENT_TIMESTAMP
+    SET status = 'rejected'
     WHERE hotel_id = $1
     RETURNING *;
   `;
