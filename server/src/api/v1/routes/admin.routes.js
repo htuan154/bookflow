@@ -15,5 +15,9 @@ router.get('/hotels/statistics', hotelController.getHotelStatistics);
 router.get('/hotels/all', hotelController.getAllHotelsAdmin);
 router.get('/hotels/pending', hotelController.getPendingHotels);
 router.patch('/hotels/:id/status', hotelController.updateHotelStatus);
+router.get('/hotels/status/:status', hotelController.getHotelsByStatus);
+router.post('/hotels/:id/approve', hotelController.approveHotel);
+router.post('/hotels/:id/reject', hotelController.rejectHotel);
+
 
 module.exports = router;

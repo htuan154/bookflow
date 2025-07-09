@@ -139,7 +139,7 @@ const findByStatus = async (status) => {
  * @returns {Promise<Hotel|null>}
  */
 const updateStatus = async (hotelId, newStatus) => {
-  const query = 'UPDATE hotels SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE hotel_id = $2 RETURNING *';
+  const query = 'UPDATE hotels SET status = $1 WHERE hotel_id = $2 RETURNING *';
   const result = await pool.query(query, [newStatus, hotelId]);
   if (!result.rows[0]) return null;
   return new Hotel(result.rows[0]);

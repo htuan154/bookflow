@@ -66,35 +66,35 @@ class RoomTypeMiddlewares {
 
   // Middleware kiểm tra hotel tồn tại
   async checkHotelExists(req, res, next) {
-    try {
-      const hotelId = req.hotelId || parseInt(req.params.hotelId) || parseInt(req.body.hotelId);
-      
-      if (!hotelId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Hotel ID is required'
-        });
-      }
+  try {
+    const hotelId = req.hotelId || req.params.hotelId || req.body.hotelId;
 
-      const hotelExists = await hotelRepository.exists(hotelId);
-      
-      if (!hotelExists) {
-        return res.status(404).json({
-          success: false,
-          error: 'Hotel not found'
-        });
-      }
-
-      req.hotelId = hotelId;
-      next();
-    } catch (error) {
-      return res.status(500).json({
+    if (!hotelId || typeof hotelId !== 'string' || hotelId.trim() === '') {
+      return res.status(400).json({
         success: false,
-        error: 'Internal server error',
-        details: error.message
+        error: 'Hotel ID is required'
       });
     }
+
+    const hotelExists = await hotelRepository.exists(hotelId);
+
+    if (!hotelExists) {
+      return res.status(404).json({
+        success: false,
+        error: 'Hotel not found'
+      });
+    }
+
+    req.hotelId = hotelId;
+    next();
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
   }
+}
 
   // Middleware validate dữ liệu tạo room type
   validateCreateRoomType(req, res, next) {
@@ -102,7 +102,7 @@ class RoomTypeMiddlewares {
     const { hotelId, name, maxOccupancy, basePrice, numberOfRooms } = req.body;
 
     // Kiểm tra các field bắt buộc
-    if (!hotelId || isNaN(hotelId)) {
+    if (!hotelId || typeof hotelId !== 'string' || hotelId.trim().length === 0) {
       errors.push('Valid hotel ID is required');
     }
 

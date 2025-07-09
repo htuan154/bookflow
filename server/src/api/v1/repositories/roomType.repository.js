@@ -1,14 +1,15 @@
-const db = require('../../../config/db');
+const pool = require('../../../config/db');
 const RoomType = require('../../../models/roomType.model');
 
 class RoomTypeRepository {
-  // Tạo room type mới
   async create(roomTypeData) {
     const query = `
-      INSERT INTO room_types (hotel_id, name, description, max_occupancy, base_price, number_of_rooms, bed_type, area_sqm)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO room_types (
+        hotel_id, name, description, max_occupancy, base_price, number_of_rooms, bed_type, area_sqm
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *;
     `;
-    
+
     const values = [
       roomTypeData.hotelId,
       roomTypeData.name,
@@ -21,14 +22,13 @@ class RoomTypeRepository {
     ];
 
     try {
-      const [result] = await db.execute(query, values);
-      return await this.findById(result.insertId);
+      const result = await pool.query(query, values);
+      return result.rows[0];
     } catch (error) {
       throw new Error(`Error creating room type: ${error.message}`);
     }
   }
 
-  // Lấy tất cả room types
   async findAll() {
     const query = `
       SELECT rt.*, h.name as hotel_name 
@@ -38,62 +38,59 @@ class RoomTypeRepository {
     `;
 
     try {
-      const [rows] = await db.execute(query);
-      return rows.map(row => new RoomType(row));
+      const result = await pool.query(query);
+      return result.rows.map(row => new RoomType(row));
     } catch (error) {
       throw new Error(`Error fetching room types: ${error.message}`);
     }
   }
 
-  // Lấy room type theo ID
   async findById(roomTypeId) {
     const query = `
       SELECT rt.*, h.name as hotel_name 
       FROM room_types rt
       LEFT JOIN hotels h ON rt.hotel_id = h.hotel_id
-      WHERE rt.room_type_id = ?
+      WHERE rt.room_type_id = $1
     `;
 
     try {
-      const [rows] = await db.execute(query, [roomTypeId]);
-      if (rows.length === 0) {
-        return null;
-      }
-      return new RoomType(rows[0]);
+      const result = await pool.query(query, [roomTypeId]);
+      if (result.rows.length === 0) return null;
+      return new RoomType(result.rows[0]);
     } catch (error) {
       throw new Error(`Error fetching room type: ${error.message}`);
     }
   }
 
-  // Lấy room types theo hotel ID
   async findByHotelId(hotelId) {
     const query = `
       SELECT rt.*, h.name as hotel_name 
       FROM room_types rt
       LEFT JOIN hotels h ON rt.hotel_id = h.hotel_id
-      WHERE rt.hotel_id = ?
+      WHERE rt.hotel_id = $1
       ORDER BY rt.created_at DESC
     `;
 
     try {
-      const [rows] = await db.execute(query, [hotelId]);
-      return rows.map(row => new RoomType(row));
+      const result = await pool.query(query, [hotelId]);
+      return result.rows.map(row => new RoomType(row));
     } catch (error) {
       throw new Error(`Error fetching room types by hotel: ${error.message}`);
     }
   }
 
-  // Cập nhật room type
   async update(roomTypeId, updateData) {
-    const allowedFields = ['name', 'description', 'max_occupancy', 'base_price', 'number_of_rooms', 'bed_type', 'area_sqm'];
+    const allowedFields = [
+      'name', 'description', 'max_occupancy', 'base_price',
+      'number_of_rooms', 'bed_type', 'area_sqm'
+    ];
     const updateFields = [];
     const values = [];
 
-    // Chỉ update những field được phép và có giá trị
-    Object.keys(updateData).forEach(key => {
+    Object.keys(updateData).forEach((key, index) => {
       const dbField = this.camelToSnake(key);
       if (allowedFields.includes(dbField) && updateData[key] !== undefined) {
-        updateFields.push(`${dbField} = ?`);
+        updateFields.push(`${dbField} = $${values.length + 1}`);
         values.push(updateData[key]);
       }
     });
@@ -103,81 +100,74 @@ class RoomTypeRepository {
     }
 
     values.push(roomTypeId);
-    
     const query = `
       UPDATE room_types 
       SET ${updateFields.join(', ')} 
-      WHERE room_type_id = ?
+      WHERE room_type_id = $${values.length}
+      RETURNING *;
     `;
 
     try {
-      const [result] = await db.execute(query, values);
-      if (result.affectedRows === 0) {
-        return null;
-      }
-      return await this.findById(roomTypeId);
+      const result = await pool.query(query, values);
+      return result.rows[0] || null;
     } catch (error) {
       throw new Error(`Error updating room type: ${error.message}`);
     }
   }
 
-  // Xóa room type
   async delete(roomTypeId) {
-    const query = 'DELETE FROM room_types WHERE room_type_id = ?';
-
+    const query = 'DELETE FROM room_types WHERE room_type_id = $1';
     try {
-      const [result] = await db.execute(query, [roomTypeId]);
-      return result.affectedRows > 0;
+      const result = await pool.query(query, [roomTypeId]);
+      return result.rowCount > 0;
     } catch (error) {
       throw new Error(`Error deleting room type: ${error.message}`);
     }
   }
 
-  // Kiểm tra room type có tồn tại không
   async exists(roomTypeId) {
-    const query = 'SELECT 1 FROM room_types WHERE room_type_id = ?';
-    
+    const query = 'SELECT 1 FROM room_types WHERE room_type_id = $1';
     try {
-      const [rows] = await db.execute(query, [roomTypeId]);
-      return rows.length > 0;
+      const result = await pool.query(query, [roomTypeId]);
+      return result.rowCount > 0;
     } catch (error) {
       throw new Error(`Error checking room type existence: ${error.message}`);
     }
   }
 
-  // Lấy room types với phân trang
   async findWithPagination(page = 1, limit = 10, hotelId = null) {
     const offset = (page - 1) * limit;
-    
     let query = `
       SELECT rt.*, h.name as hotel_name 
       FROM room_types rt
       LEFT JOIN hotels h ON rt.hotel_id = h.hotel_id
     `;
-    
     let countQuery = 'SELECT COUNT(*) as total FROM room_types rt';
-    let values = [];
+    const values = [];
+    let whereClause = '';
 
     if (hotelId) {
-      query += ' WHERE rt.hotel_id = ?';
-      countQuery += ' WHERE rt.hotel_id = ?';
+      whereClause = ' WHERE rt.hotel_id = $1';
+      query += whereClause;
+      countQuery += whereClause;
       values.push(hotelId);
     }
 
-    query += ' ORDER BY rt.created_at DESC LIMIT ? OFFSET ?';
+    query += ` ORDER BY rt.created_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
     values.push(limit, offset);
 
     try {
-      const [rows] = await db.execute(query, values);
-      const [countRows] = await db.execute(countQuery, hotelId ? [hotelId] : []);
-      
+      const result = await pool.query(query, values);
+      const countResult = await pool.query(countQuery, hotelId ? [hotelId] : []);
+      const total = parseInt(countResult.rows[0].total, 10);
+
       return {
-        data: rows.map(row => new RoomType(row)),
+        data: result.rows.map(row => new RoomType(row)),
         pagination: {
           page,
           limit,
-          total: countRows[0].total,
-          totalPages: Math.ceil(countRows[0].total / limit)
+          total,
+          totalPages: Math.ceil(total / limit)
         }
       };
     } catch (error) {
@@ -185,33 +175,30 @@ class RoomTypeRepository {
     }
   }
 
-  // Tìm kiếm room types
   async search(searchTerm, hotelId = null) {
     let query = `
       SELECT rt.*, h.name as hotel_name 
       FROM room_types rt
       LEFT JOIN hotels h ON rt.hotel_id = h.hotel_id
-      WHERE (rt.name LIKE ? OR rt.description LIKE ? OR rt.bed_type LIKE ?)
+      WHERE (rt.name ILIKE $1 OR rt.description ILIKE $2 OR rt.bed_type ILIKE $3)
     `;
-    
-    let values = [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`];
+    const values = [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`];
 
     if (hotelId) {
-      query += ' AND rt.hotel_id = ?';
+      query += ` AND rt.hotel_id = $4`;
       values.push(hotelId);
     }
 
     query += ' ORDER BY rt.created_at DESC';
 
     try {
-      const [rows] = await db.execute(query, values);
-      return rows.map(row => new RoomType(row));
+      const result = await pool.query(query, values);
+      return result.rows.map(row => new RoomType(row));
     } catch (error) {
       throw new Error(`Error searching room types: ${error.message}`);
     }
   }
 
-  // Helper method: chuyển đổi camelCase sang snake_case
   camelToSnake(str) {
     return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
   }
