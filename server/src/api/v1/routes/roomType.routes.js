@@ -58,22 +58,6 @@ router.post('/bulk',
   roomTypeController.bulkCreateRoomTypes
 );
 
-// // Bulk Update
-// router.put('/bulk',
-//   authMiddleware.authenticate,
-//   authMiddleware.authorize(['admin']),
-//   roomTypeMiddlewares.validateBulkUpdate,
-//   roomTypeController.bulkUpdateRoomTypes
-// );
-
-// // Bulk Delete
-// router.delete('/bulk',
-//   authMiddleware.authenticate,
-//   authMiddleware.authorize(['admin']),
-//   roomTypeMiddlewares.validateBulkDelete,
-//   roomTypeController.bulkDeleteRoomTypes
-// );
-
 // Duplicate
 router.post('/:id/duplicate',
   authMiddleware.authenticate,
