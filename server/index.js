@@ -1,4 +1,5 @@
 // server/index.js
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -6,16 +7,18 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Import các module cho Swagger
 const swaggerUi = require('swagger-ui-express');
-const swaggerFile = require('./swagger-output.json'); 
+const swaggerFile = require('./swagger-output.json');
 
 const pool = require('./src/config/db');
 
 // Import các file route
 const authRoutes = require('./src/api/v1/routes/auth.route');
-const hotelRoutes = require('./src/api/v1/routes/hotel.route'); 
+const hotelRoutes = require('./src/api/v1/routes/hotel.route');
 const adminRouter = require('./src/api/v1/routes/admin.routes');
 const roomTypeRouter = require('./src/api/v1/routes/roomType.routes');
 const roomRouter = require('./src/api/v1/routes/room.routes');
+const amenityRouter = require('./src/api/v1/routes/amenity.route');
+const roomTypeImageRouter = require('./src/api/v1/routes/roomType.routes');
 // --- Khởi tạo ứng dụng Express ---
 const app = express();
 const port = process.env.PORT || 8080;
@@ -27,7 +30,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // --- Health Check Route ---
 app.get('/', (req, res) => {
-  
   res.status(200).json({
     status: 'success',
     message: 'Bookflow API is up and running!',
@@ -41,10 +43,12 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 // --- API Routes ---
 // Gắn các route vào đường dẫn tương ứng
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/hotels', hotelRoutes); 
-app.use('/api/v1/admin', adminRouter); 
+app.use('/api/v1/hotels', hotelRoutes);
+app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/roomtypes', roomTypeRouter);
 app.use('/api/v1/rooms', roomRouter);
+app.use('/api/v1/amenities', amenityRouter);
+app.use('/api/v1/room-type-images', roomTypeImageRouter);
 // --- Khởi động Server ---
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, async () => {
