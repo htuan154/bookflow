@@ -5,15 +5,13 @@ class RoomTypeMiddlewares {
   // Middleware kiểm tra room type ID hợp lệ
   validateRoomTypeId(req, res, next) {
     const roomTypeId = req.params.id;
-    
-    if (!roomTypeId || isNaN(roomTypeId)) {
+    if (!roomTypeId || typeof roomTypeId !== 'string' || roomTypeId.trim().length === 0) {
       return res.status(400).json({
         success: false,
         error: 'Invalid room type ID'
       });
     }
-
-    req.roomTypeId = parseInt(roomTypeId);
+    req.roomTypeId = roomTypeId;
     next();
   }
 

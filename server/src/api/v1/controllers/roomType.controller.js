@@ -66,7 +66,8 @@ const getAllRoomTypes = async (req, res) => {
 // Lấy room type theo ID
 const getRoomTypeById = async (req, res) => {
   try {
-    const roomTypeId = parseInt(req.params.id);
+    const roomTypeId = req.params.id; // giữ nguyên dạng string
+
     const result = await roomTypeService.getRoomTypeById(roomTypeId);
 
     if (result.success) {
@@ -92,7 +93,7 @@ const getRoomTypeById = async (req, res) => {
 // Lấy room types theo hotel ID
 const getRoomTypesByHotelId = async (req, res) => {
   try {
-    const hotelId = parseInt(req.params.hotelId);
+    const hotelId = req.params.hotelId; // giữ nguyên dạng string
     const result = await roomTypeService.getRoomTypesByHotelId(hotelId);
 
     if (result.success) {

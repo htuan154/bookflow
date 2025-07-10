@@ -59,8 +59,8 @@ class RoomTypeService {
   // Lấy room type theo ID
   async getRoomTypeById(roomTypeId) {
     try {
-      if (!roomTypeId || isNaN(roomTypeId)) {
-        throw new Error('Invalid room type ID');
+      if (!roomTypeId || typeof roomTypeId !== 'string') {
+        throw new Error(`Invalid room type ID received: "${roomTypeId}", type: ${typeof roomTypeId}`);
       }
 
       const roomType = await roomTypeRepository.findById(roomTypeId);
