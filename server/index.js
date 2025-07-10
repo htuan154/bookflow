@@ -19,6 +19,7 @@ const roomTypeRouter = require('./src/api/v1/routes/roomType.routes');
 const roomRouter = require('./src/api/v1/routes/room.routes');
 const amenityRouter = require('./src/api/v1/routes/amenity.route');
 const roomTypeImageRouter = require('./src/api/v1/routes/roomType.routes');
+const roomAssignmentRoutes = require('./src/api/v1/routes/roomAssignment.route');
 // --- Khởi tạo ứng dụng Express ---
 const app = express();
 const port = process.env.PORT || 8080;
@@ -49,6 +50,7 @@ app.use('/api/v1/roomtypes', roomTypeRouter);
 app.use('/api/v1/rooms', roomRouter);
 app.use('/api/v1/amenities', amenityRouter);
 app.use('/api/v1/room-type-images', roomTypeImageRouter);
+app.use('/api/v1/assignments', roomAssignmentRoutes);
 // --- Khởi động Server ---
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, async () => {
