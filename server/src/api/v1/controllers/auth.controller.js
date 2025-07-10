@@ -30,8 +30,8 @@ const handleLogin = async (req, res) => {
 
 const getMyProfile = async (req, res) => {
   try {
-    // Dùng userId từ token (do middleware 'protect' gắn vào) để lấy đúng profile
-    const user = await authService.getUserProfile(req.user.userId);
+
+    const user = await authService.getUserProfile(req.user.id);
     res.status(200).json({
       status: 'success',
       data: user.toJSON(),

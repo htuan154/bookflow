@@ -5,56 +5,50 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-// Import các module cho Swagger
 const swaggerUi = require('swagger-ui-express');
-const swaggerFile = require('./swagger-output.json');
+const swaggerFile = require('./swagger-output.json'); 
 
 const pool = require('./src/config/db');
 
 // Import các file route
 const authRoutes = require('./src/api/v1/routes/auth.route');
 const hotelRoutes = require('./src/api/v1/routes/hotel.route');
-const adminRouter = require('./src/api/v1/routes/admin.routes');
-const roomTypeRouter = require('./src/api/v1/routes/roomType.routes');
-const roomRouter = require('./src/api/v1/routes/room.routes');
-const amenityRouter = require('./src/api/v1/routes/amenity.route');
-const roomTypeImageRouter = require('./src/api/v1/routes/roomTypeImage.route');
+const amenityRoutes = require('./src/api/v1/routes/amenity.route');
+const roomTypeImageRoutes = require('./src/api/v1/routes/roomTypeImage.route');
 const roomAssignmentRoutes = require('./src/api/v1/routes/roomAssignment.route');
 const contractRoutes = require('./src/api/v1/routes/contract.route');
 const bookingRoutes = require('./src/api/v1/routes/booking.route');
+// ... các route khác
+
 // --- Khởi tạo ứng dụng Express ---
 const app = express();
 const port = process.env.PORT || 8080;
 
 // --- Middlewares ---
-app.use(cors());
+
+// Cấu hình CORS chi tiết hơn
+app.use(cors({
+  origin: 'http://localhost:3000', // Chỉ cho phép frontend của bạn truy cập
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'] // Quan trọng: Cho phép header Authorization
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// --- Health Check Route ---
-app.get('/', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Bookflow API is up and running!',
-    timestamp: new Date().toISOString(),
-  });
-});
 
 // --- API Documentation Route ---
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
 // --- API Routes ---
-// Gắn các route vào đường dẫn tương ứng
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/hotels', hotelRoutes);
-app.use('/api/v1/admin', adminRouter);
-app.use('/api/v1/roomtypes', roomTypeRouter);
-app.use('/api/v1/rooms', roomRouter);
-app.use('/api/v1/amenities', amenityRouter);
-app.use('/api/v1/room-type-images', roomTypeImageRouter);
+app.use('/api/v1/amenities', amenityRoutes);
+app.use('/api/v1', roomTypeImageRoutes);
 app.use('/api/v1/assignments', roomAssignmentRoutes);
 app.use('/api/v1/contracts', contractRoutes);
 app.use('/api/v1/bookings', bookingRoutes);
+// ...
+
 // --- Khởi động Server ---
 if (process.env.NODE_ENV !== 'test') {
   app.listen(port, async () => {
