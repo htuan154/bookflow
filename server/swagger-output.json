@@ -1385,77 +1385,12 @@
             "description": ""
           }
         }
-      }
-    },
-    "/api/v1/room-type-images/": {
+      },
       "post": {
         "description": "",
         "parameters": [
           {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Created"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "description": {
-                    "example": "any"
-                  },
-                  "bedType": {
-                    "example": "any"
-                  },
-                  "areaSqm": {
-                    "example": "any"
-                  },
-                  "hotelId": {
-                    "example": "any"
-                  },
-                  "name": {
-                    "example": "any"
-                  },
-                  "maxOccupancy": {
-                    "example": "any"
-                  },
-                  "basePrice": {
-                    "example": "any"
-                  },
-                  "numberOfRooms": {
-                    "example": "any"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/room-type-images/{id}": {
-      "put": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "id",
+            "name": "roomTypeId",
             "in": "path",
             "required": true,
             "schema": {
@@ -1471,17 +1406,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "500": {
-            "description": "Internal Server Error"
+          "default": {
+            "description": ""
           }
         },
         "requestBody": {
@@ -1490,25 +1416,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "name": {
-                    "example": "any"
-                  },
-                  "maxOccupancy": {
-                    "example": "any"
-                  },
-                  "basePrice": {
-                    "example": "any"
-                  },
-                  "numberOfRooms": {
-                    "example": "any"
-                  },
-                  "description": {
-                    "example": "any"
-                  },
-                  "bedType": {
-                    "example": "any"
-                  },
-                  "areaSqm": {
+                  "images": {
                     "example": "any"
                   }
                 }
@@ -1516,12 +1424,14 @@
             }
           }
         }
-      },
+      }
+    },
+    "/api/v1/room-type-images/room-type-images/{imageId}": {
       "delete": {
         "description": "",
         "parameters": [
           {
-            "name": "id",
+            "name": "imageId",
             "in": "path",
             "required": true,
             "schema": {
@@ -1537,66 +1447,18 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "500": {
-            "description": "Internal Server Error"
+          "default": {
+            "description": ""
           }
         }
       }
     },
-    "/api/v1/room-type-images/bulk": {
-      "post": {
+    "/api/v1/room-type-images/room-type-images/{imageId}/set-thumbnail": {
+      "patch": {
         "description": "",
         "parameters": [
           {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": "Created"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "roomTypes": {
-                    "example": "any"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/room-type-images/{id}/duplicate": {
-      "post": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "id",
+            "name": "imageId",
             "in": "path",
             "required": true,
             "schema": {
@@ -1612,138 +1474,8 @@
           }
         ],
         "responses": {
-          "201": {
-            "description": "Created"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "hotelId": {
-                    "example": "any"
-                  },
-                  "name": {
-                    "example": "any"
-                  },
-                  "description": {
-                    "example": "any"
-                  },
-                  "maxOccupancy": {
-                    "example": "any"
-                  },
-                  "basePrice": {
-                    "example": "any"
-                  },
-                  "numberOfRooms": {
-                    "example": "any"
-                  },
-                  "bedType": {
-                    "example": "any"
-                  },
-                  "areaSqm": {
-                    "example": "any"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/room-type-images/{id}/bookings": {
-      "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        }
-      }
-    },
-    "/api/v1/room-type-images/{id}/status": {
-      "put": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "400": {
-            "description": "Bad Request"
-          },
-          "404": {
-            "description": "Not Found"
-          },
-          "500": {
-            "description": "Internal Server Error"
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "status": {
-                    "example": "any"
-                  }
-                }
-              }
-            }
+          "default": {
+            "description": ""
           }
         }
       }

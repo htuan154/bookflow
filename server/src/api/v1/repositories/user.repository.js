@@ -60,7 +60,7 @@ const create = async (userData) => {
   const { username, email, passwordHash, fullName, roleId } = userData;
   const result = await pool.query(
     `INSERT INTO users (username, email, password_hash, full_name, role_id)
-     VALUES ($1, $2, $3, $4, $5)
+    VALUES ($1, $2, $3, $4, $5)
      RETURNING *`, // Lấy tất cả các cột để tạo model
     [username, email, passwordHash, fullName, roleId]
   );
