@@ -87,27 +87,27 @@ router.delete('/:id',
 
 // Bulk Create
 router.post('/bulk',
-  authMiddleware.authenticate,
-  authMiddleware.authorize(['admin']),
+  authMiddleware.authenticate,           // Kiểm tra user đã đăng nhập
+  authMiddleware.authorize(['admin', 'hotel_owner']),   // Kiểm tra user có role 'admin'
   roomTypeMiddlewares.validateBulkCreate,
   roomTypeController.bulkCreateRoomTypes
 );
 
-// Bulk Update
-router.put('/bulk',
-  authMiddleware.authenticate,
-  authMiddleware.authorize(['admin']),
-  roomTypeMiddlewares.validateBulkUpdate,
-  roomTypeController.bulkUpdateRoomTypes
-);
+// // Bulk Update
+// router.put('/bulk',
+//   authMiddleware.authenticate,
+//   authMiddleware.authorize(['admin']),
+//   roomTypeMiddlewares.validateBulkUpdate,
+//   roomTypeController.bulkUpdateRoomTypes
+// );
 
-// Bulk Delete
-router.delete('/bulk',
-  authMiddleware.authenticate,
-  authMiddleware.authorize(['admin']),
-  roomTypeMiddlewares.validateBulkDelete,
-  roomTypeController.bulkDeleteRoomTypes
-);
+// // Bulk Delete
+// router.delete('/bulk',
+//   authMiddleware.authenticate,
+//   authMiddleware.authorize(['admin']),
+//   roomTypeMiddlewares.validateBulkDelete,
+//   roomTypeController.bulkDeleteRoomTypes
+// );
 
 // Duplicate
 router.post('/:id/duplicate',
