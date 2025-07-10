@@ -1,13 +1,14 @@
 // src/api/v1/routes/roomAssignment.route.js
 
 const express = require('express');
-const RoomAssignmentController = require('../controllers/roomAssignment.controller');
+// Import trực tiếp instance của controller đã được export
+const roomAssignmentController = require('../controllers/roomAssignment.controller'); 
 const { authenticate, authorize } = require('../middlewares/auth.middleware');
 const { validate } = require('../middlewares/validation.middleware');
 const { assignRoomSchema } = require('../../../validators/roomAssignment.validator');
 
 const router = express.Router();
-const roomAssignmentController = new RoomAssignmentController();
+// Bỏ dòng khai báo lại bị lỗi ở đây
 
 // --- Áp dụng middleware xác thực cho tất cả các route bên dưới ---
 router.use(authenticate);

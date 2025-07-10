@@ -1,14 +1,17 @@
 // src/api/v1/routes/roomTypeImage.route.js
 
 const express = require('express');
-const RoomTypeImageController = require('../controllers/roomTypeImage.controller');
+const roomTypeImageController = require('../controllers/roomTypeImage.controller');
 // Cập nhật để import authenticate và authorize
-const { authenticate, authorize } = require('../middlewares/auth.middleware'); 
+const { authenticate, authorize } = require('../middlewares/auth.middleware');
 const { validate } = require('../middlewares/validation.middleware');
 const { uploadImagesSchema } = require('../../../validators/roomTypeImage.validator');
+const authMiddleware = require('../middlewares/auth.middleware');
+const roomTypeMiddlewares = require('../middlewares/roomType.middleware');
+const roomTypeController = require('../controllers/roomType.controller');
 
 const router = express.Router();
-const roomTypeImageController = new RoomTypeImageController();
+
 
 // ===============================================
 // PUBLIC ROUTE

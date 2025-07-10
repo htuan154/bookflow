@@ -1,7 +1,7 @@
 // src/api/v1/routes/role.route.js
 
 const express = require('express');
-const RoleController = require('../controllers/role.controller');
+const roleController = require('../controllers/role.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const { isAdmin } = require('../middlewares/admin.middleware');
 const { validate } = require('../middlewares/validation.middleware');

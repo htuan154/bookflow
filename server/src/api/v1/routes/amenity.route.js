@@ -1,16 +1,14 @@
 // src/api/v1/routes/amenity.route.js
 
 const express = require('express');
-const AmenityController = require('../controllers/amenity.controller');
+// Import trực tiếp instance của controller
+const amenityController = require('../controllers/amenity.controller');
 const { authenticate, authorize } = require('../middlewares/auth.middleware');
 const { validate } = require('../middlewares/validation.middleware');
 const { createAmenitySchema, updateAmenitySchema } = require('../../../validators/amenity.validator');
 
 const router = express.Router();
-const amenityController = new AmenityController();
 
-// --- PUBLIC ROUTE ---
-// GET /api/v1/amenities -> Lấy tất cả các tiện nghi
 router.get('/', amenityController.getAllAmenities);
 
 // --- ADMIN-ONLY ROUTES ---
