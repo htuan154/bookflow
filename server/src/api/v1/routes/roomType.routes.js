@@ -1,61 +1,26 @@
+// src/api/v1/routes/roomTypeImage.route.js
+
 const express = require('express');
+const RoomTypeImageController = require('../controllers/roomTypeImage.controller');
+// Cập nhật để import authenticate và authorize
+const { authenticate, authorize } = require('../middlewares/auth.middleware'); 
+const { validate } = require('../middlewares/validation.middleware');
+const { uploadImagesSchema } = require('../../../validators/roomTypeImage.validator');
+
 const router = express.Router();
-const roomTypeController = require('../controllers/roomType.controller');
-const roomTypeMiddlewares = require('../middlewares/roomType.middleware');
-const authMiddleware = require('../middlewares/auth.middleware');
+const roomTypeImageController = new RoomTypeImageController();
 
-// Apply logging middleware
-if (roomTypeMiddlewares.logRequest) {
-  router.use(roomTypeMiddlewares.logRequest);
-}
+// ===============================================
+// PUBLIC ROUTE
+// ===============================================
 
-// ======= Public Routes =======
+// GET /api/v1/room-types/:roomTypeId/images -> Lấy tất cả hình ảnh của một loại phòng
+router.get('/room-types/:roomTypeId/images', roomTypeImageController.getImages);
 
-router.get('/', roomTypeController.getAllRoomTypes);
 
-router.get('/paginated',
-  roomTypeMiddlewares.validatePagination,
-  roomTypeController.getRoomTypesWithPagination
-);
-
-router.get('/search',
-  roomTypeMiddlewares.rateLimitSearch,
-  roomTypeMiddlewares.validateSearch,
-  roomTypeController.searchRoomTypes
-);
-
-router.get('/stats', roomTypeController.getRoomTypeStats);
-
-router.get('/available',
-  roomTypeMiddlewares.validateAvailabilityCheck,
-  roomTypeController.getAvailableRoomTypes
-);
-
-router.get('/hotel/:hotelId',
-  roomTypeMiddlewares.validateHotelId,
-  roomTypeMiddlewares.checkHotelExists,
-  roomTypeController.getRoomTypesByHotelId
-);
-
-router.get('/:id',
-  roomTypeMiddlewares.validateRoomTypeId,
-  roomTypeController.getRoomTypeById
-);
-
-router.get('/:id/rooms',
-  roomTypeMiddlewares.validateRoomTypeId,
-  roomTypeMiddlewares.checkRoomTypeExists,
-  roomTypeMiddlewares.asyncHandler(async (req, res) => {
-    res.status(200).json({
-      success: true,
-      message: 'Room listing endpoint - to be implemented when Room model is ready',
-      roomTypeId: req.roomTypeId,
-      roomType: req.roomType
-    });
-  })
-);
-
-// ======= authenticateed Routes =======
+// ===============================================
+// PROTECTED ROUTES (Yêu cầu đăng nhập và có quyền)
+// ===============================================
 
 // Create
 router.post('/',
