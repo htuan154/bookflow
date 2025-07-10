@@ -22,33 +22,139 @@ router.get('/room-types/:roomTypeId/images', roomTypeImageController.getImages);
 // PROTECTED ROUTES (Yêu cầu đăng nhập và có quyền)
 // ===============================================
 
-// POST /api/v1/room-types/:roomTypeId/images -> Tải lên hình ảnh mới
-// Yêu cầu: Đã đăng nhập VÀ là 'hotel_owner' hoặc 'admin'
-router.post(
-    '/room-types/:roomTypeId/images', 
-    authenticate, 
-    authorize(['hotel_owner']),
-    validate(uploadImagesSchema), 
-    roomTypeImageController.uploadImages
+// Create
+router.post('/',
+  authMiddleware.authenticate,
+  authMiddleware.authorize(['admin', 'hotel_owner']),
+  roomTypeMiddlewares.validateCreateRoomType,
+  roomTypeMiddlewares.checkHotelExists,
+  roomTypeController.createRoomType
 );
 
-// DELETE /api/v1/room-type-images/:imageId -> Xóa một hình ảnh
-// Yêu cầu: Đã đăng nhập VÀ là 'hotel_owner' hoặc 'admin'
-router.delete(
-    '/room-type-images/:imageId', 
-    authenticate, 
-    authorize(['hotel_owner']), 
-    roomTypeImageController.deleteImage
+// Update
+router.put('/:id',
+  authMiddleware.authenticate,
+  authMiddleware.authorize(['admin', 'hotel_owner']),
+  roomTypeMiddlewares.validateRoomTypeId,
+  roomTypeMiddlewares.checkRoomTypeExists,
+  roomTypeMiddlewares.validateUpdateRoomType,
+  roomTypeController.updateRoomType
 );
 
-// PATCH /api/v1/room-type-images/:imageId/set-thumbnail -> Đặt làm ảnh đại diện
-// Yêu cầu: Đã đăng nhập VÀ là 'hotel_owner' hoặc 'admin'
-router.patch(
-    '/room-type-images/:imageId/set-thumbnail', 
-    authenticate, 
-    authorize(['hotel_owner']), 
-    roomTypeImageController.setThumbnail
+// Delete
+router.delete('/:id',
+  authMiddleware.authenticate,
+  authMiddleware.authorize(['admin', 'hotel_owner']),
+  roomTypeMiddlewares.validateRoomTypeId,
+  roomTypeMiddlewares.checkRoomTypeExists,
+  roomTypeController.deleteRoomType
 );
 
+// Bulk Create
+router.post('/bulk',
+  authMiddleware.authenticate,           // Kiểm tra user đã đăng nhập
+  authMiddleware.authorize(['admin', 'hotel_owner']),   // Kiểm tra user có role 'admin'
+  roomTypeMiddlewares.validateBulkCreate,
+  roomTypeController.bulkCreateRoomTypes
+);
+
+// Duplicate
+router.post('/:id/duplicate',
+  authMiddleware.authenticate,
+  authMiddleware.authorize(['admin', 'hotel_owner']),
+  roomTypeMiddlewares.validateRoomTypeId,
+  roomTypeMiddlewares.checkRoomTypeExists,
+  roomTypeMiddlewares.asyncHandler(async (req, res) => {
+    const original = req.roomType;
+    const newRoomTypeData = {
+      hotelId: original.hotelId,
+      name: `${original.name} (Copy)`,
+      description: original.description,
+      maxOccupancy: original.maxOccupancy,
+      basePrice: original.basePrice,
+      numberOfRooms: original.numberOfRooms,
+      bedType: original.bedType,
+      areaSqm: original.areaSqm
+    };
+
+    // Create new request object with the new data
+    const newReq = {
+      ...req,
+      body: newRoomTypeData
+    };
+
+    // Call the createRoomType controller
+    await roomTypeController.createRoomType(newReq, res);
+  })
+);
+
+// Room Type Bookings
+router.get('/:id/bookings',
+  authMiddleware.authenticate,
+  authMiddleware.authorize(['admin', 'hotel_owner']),
+  roomTypeMiddlewares.validateRoomTypeId,
+  roomTypeMiddlewares.checkRoomTypeExists,
+  roomTypeMiddlewares.asyncHandler(async (req, res) => {
+    res.status(200).json({
+      success: true,
+      message: 'Booking statistics endpoint - to be implemented when Booking model is ready',
+      roomTypeId: req.roomTypeId,
+      roomType: req.roomType
+    });
+  })
+);
+
+// Status Update
+router.put('/:id/status',
+  authMiddleware.authenticate,
+  authMiddleware.authorize(['admin', 'hotel_owner']),
+  roomTypeMiddlewares.validateRoomTypeId,
+  roomTypeMiddlewares.checkRoomTypeExists,
+  roomTypeMiddlewares.asyncHandler(async (req, res) => {
+    const { status } = req.body;
+
+    if (!['active', 'inactive'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Status must be either "active" or "inactive"'
+      });
+    }
+
+    // TODO: Cập nhật trạng thái trong DB
+    return res.status(200).json({
+      success: true,
+      message: `Room type status updated to ${status}`,
+      roomTypeId: req.roomTypeId,
+      status: status
+    });
+  })
+);
+
+// ======= Error Middleware =======
+
+router.use((error, req, res, next) => {
+  console.error('Room Type Route Error:', error);
+
+  if (error.name === 'ValidationError') {
+    return res.status(400).json({
+      success: false,
+      error: 'Validation error',
+      details: error.message
+    });
+  }
+
+  if (error.name === 'CastError') {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid ID format'
+    });
+  }
+
+  return res.status(500).json({
+    success: false,
+    error: 'Internal server error',
+    details: process.env.NODE_ENV === 'development' ? error.message : undefined
+  });
+});
 
 module.exports = router;

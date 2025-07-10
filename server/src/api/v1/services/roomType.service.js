@@ -1,5 +1,7 @@
 const roomTypeRepository = require('../repositories/roomType.repository');
 const hotelRepository = require('../repositories/hotel.repository');
+const RoomRepository = require('../repositories/room.repository');
+const roomRepository = new RoomRepository();
 
 class RoomTypeService {
   // Tạo room type mới
@@ -86,7 +88,7 @@ class RoomTypeService {
   // Lấy room types theo hotel ID
   async getRoomTypesByHotelId(hotelId) {
     try {
-      if (!hotelId || isNaN(hotelId)) {
+      if (!hotelId || typeof hotelId !== 'string') {
         throw new Error('Invalid hotel ID');
       }
 
@@ -116,8 +118,8 @@ class RoomTypeService {
   // Cập nhật room type
   async updateRoomType(roomTypeId, updateData) {
     try {
-      if (!roomTypeId || isNaN(roomTypeId)) {
-        throw new Error('Invalid room type ID');
+      if (!roomTypeId || typeof roomTypeId !== 'string') {
+        throw new Error(`Invalid room type ID received: "${roomTypeId}", type: ${typeof roomTypeId}`);
       }
 
       // Kiểm tra room type có tồn tại không
@@ -162,8 +164,8 @@ class RoomTypeService {
   // Xóa room type
   async deleteRoomType(roomTypeId) {
     try {
-      if (!roomTypeId || isNaN(roomTypeId)) {
-        throw new Error('Invalid room type ID');
+      if (!roomTypeId || typeof roomTypeId !== 'string') {
+        throw new Error(`Invalid room type ID received: "${roomTypeId}", type: ${typeof roomTypeId}`);
       }
 
       // Kiểm tra room type có tồn tại không
@@ -176,10 +178,10 @@ class RoomTypeService {
       }
 
       // TODO: Kiểm tra xem có room nào đang sử dụng room type này không
-      // const roomsUsingType = await roomRepository.findByRoomTypeId(roomTypeId);
-      // if (roomsUsingType.length > 0) {
-      //   throw new Error('Cannot delete room type. There are rooms using this room type.');
-      // }
+      const roomsUsingType = await roomRepository.findByRoomTypeId(roomTypeId);
+      if (roomsUsingType.length > 0) {
+        throw new Error('Cannot delete room type. There are rooms using this room type.');
+      }
 
       const deleted = await roomTypeRepository.delete(roomTypeId);
       if (deleted) {

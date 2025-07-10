@@ -1,5 +1,7 @@
 const pool = require('../../../config/db');
 const RoomType = require('../../../models/roomType.model');
+const RoomRepository = require('../repositories/room.repository');
+const roomRepository = new RoomRepository();
 
 class RoomTypeRepository {
   async create(roomTypeData) {

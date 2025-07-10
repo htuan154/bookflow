@@ -120,7 +120,7 @@ const getRoomTypesByHotelId = async (req, res) => {
 // Cập nhật room type
 const updateRoomType = async (req, res) => {
   try {
-    const roomTypeId = parseInt(req.params.id);
+    const roomTypeId = req.params.id; // giữ nguyên dạng string
     const updateData = {};
 
     // Chỉ lấy các field có trong request body
@@ -157,7 +157,7 @@ const updateRoomType = async (req, res) => {
 // Xóa room type
 const deleteRoomType = async (req, res) => {
   try {
-    const roomTypeId = parseInt(req.params.id);
+    const roomTypeId = req.params.id; // giữ nguyên dạng string
     const result = await roomTypeService.deleteRoomType(roomTypeId);
 
     if (result.success) {
@@ -319,7 +319,7 @@ const getRoomTypeStats = async (req, res) => {
 // Lấy room types có sẵn (còn phòng trống)
 const getAvailableRoomTypes = async (req, res) => {
   try {
-    const hotelId = req.query.hotelId ? parseInt(req.query.hotelId) : null;
+    const hotelId = req.query.hotelId || null;
     const checkIn = req.query.checkIn;
     const checkOut = req.query.checkOut;
 
@@ -419,122 +419,6 @@ const bulkCreateRoomTypes = async (req, res) => {
   }
 };
 
-// Bulk update room types
-const bulkUpdateRoomTypes = async (req, res) => {
-  try {
-    const updates = req.body.updates;
-
-    if (!Array.isArray(updates) || updates.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Updates array is required'
-      });
-    }
-
-    const results = [];
-    const errors = [];
-
-    for (let i = 0; i < updates.length; i++) {
-      try {
-        const { roomTypeId, updateData } = updates[i];
-        const result = await roomTypeService.updateRoomType(roomTypeId, updateData);
-        
-        if (result.success) {
-          results.push(result.data);
-        } else {
-          errors.push({
-            index: i,
-            roomTypeId,
-            error: result.error,
-            data: updateData
-          });
-        }
-      } catch (error) {
-        errors.push({
-          index: i,
-          roomTypeId: updates[i].roomTypeId,
-          error: error.message,
-          data: updates[i].updateData
-        });
-      }
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: `Successfully updated ${results.length} room types`,
-      data: results,
-      errors: errors.length > 0 ? errors : undefined,
-      summary: {
-        total: updates.length,
-        successful: results.length,
-        failed: errors.length
-      }
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      details: error.message
-    });
-  }
-};
-
-// Bulk delete room types
-const bulkDeleteRoomTypes = async (req, res) => {
-  try {
-    const roomTypeIds = req.body.roomTypeIds;
-
-    if (!Array.isArray(roomTypeIds) || roomTypeIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Room type IDs array is required'
-      });
-    }
-
-    const results = [];
-    const errors = [];
-
-    for (let i = 0; i < roomTypeIds.length; i++) {
-      try {
-        const roomTypeId = roomTypeIds[i];
-        const result = await roomTypeService.deleteRoomType(roomTypeId);
-        
-        if (result.success) {
-          results.push({ roomTypeId, message: result.message });
-        } else {
-          errors.push({
-            roomTypeId,
-            error: result.error
-          });
-        }
-      } catch (error) {
-        errors.push({
-          roomTypeId: roomTypeIds[i],
-          error: error.message
-        });
-      }
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: `Successfully deleted ${results.length} room types`,
-      data: results,
-      errors: errors.length > 0 ? errors : undefined,
-      summary: {
-        total: roomTypeIds.length,
-        successful: results.length,
-        failed: errors.length
-      }
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      details: error.message
-    });
-  }
-};
-
 module.exports = {
   createRoomType,
   getAllRoomTypes,
@@ -546,7 +430,5 @@ module.exports = {
   searchRoomTypes,
   getRoomTypeStats,
   getAvailableRoomTypes,
-  bulkCreateRoomTypes,
-  bulkUpdateRoomTypes,
-  bulkDeleteRoomTypes
+  bulkCreateRoomTypes
 };
