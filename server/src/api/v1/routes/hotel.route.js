@@ -3,7 +3,7 @@ const express = require('express');
 
 const hotelController = require('../controllers/hotel.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
-
+const hotelAmenityRoutes = require('./hotelAmenity.route');
 // Import với error handling
 let isAdmin;
 try {
@@ -76,5 +76,5 @@ adminRouter.get('/statistics', hotelController.getHotelStatistics);
 adminRouter.patch('/:id/status', hotelController.updateHotelStatus);
 
 router.use('/admin', adminRouter);
-
+router.use('/:hotelId/amenities', hotelAmenityRoutes);
 module.exports = router;
