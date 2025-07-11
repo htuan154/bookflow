@@ -3,6 +3,7 @@ const bookingController = require('../controllers/booking.controller');
 const { authenticate, authorize } = require('../middlewares/auth.middleware');
 const { validate } = require('../middlewares/validation.middleware');
 const { createBookingSchema, updateStatusSchema } = require('../../../validators/booking.validator');
+const historyRoutes = require('./bookingStatusHistory.route');
 
 const router = express.Router();
 
@@ -29,5 +30,8 @@ router.patch(
     validate(updateStatusSchema),
     bookingController.updateBookingStatus
 );
+// request đến /:bookingId/history
+router.use('/', historyRoutes);
+
 
 module.exports = router;
