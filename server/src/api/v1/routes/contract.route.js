@@ -32,7 +32,7 @@ router.get(
 );
 
 router.get(
-    '/hotel/:hotelId',
+    '/hotels/:hotelId/contracts',
     authorize(['admin', 'hotel_owner']),
     contractController.getContractsByHotel
 );

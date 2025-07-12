@@ -28,6 +28,23 @@ const findAll = async () => {
     return result.rows.map(row => new Amenity(row));
 };
 
+const findByName = async (name) => {
+    const query = `
+        SELECT * FROM amenities
+        WHERE name = $1
+        LIMIT 1;
+    `;
+    const result = await pool.query(query, [name]);
+
+    // Nếu tìm thấy, trả về một đối tượng Amenity, nếu không thì trả về null
+    if (result.rows.length > 0) {
+        return new Amenity(result.rows[0]);
+    }
+
+    return null;
+};
+
+
 /**
  * Tìm một tiện nghi bằng ID.
  * @param {string} amenityId - UUID của tiện nghi.
@@ -80,4 +97,5 @@ module.exports = {
     findById,
     update,
     deleteById,
+    findByName,
 };

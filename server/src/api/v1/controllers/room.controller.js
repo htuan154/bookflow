@@ -1,4 +1,5 @@
 const RoomService = require('../services/room.service');
+const roomTypeRepository = require('../repositories/roomType.repository');
 
 class RoomController {
   constructor() {

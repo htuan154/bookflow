@@ -3,6 +3,38 @@
 const pool = require('../../../config/db');
 const Contract = require('../../../models/contract.model');
 
+// /**
+//  * Tạo một hợp đồng mới.
+//  * @param {object} contractData - Dữ liệu của hợp đồng.
+//  * @returns {Promise<Contract>} - Trả về instance của Contract vừa được tạo.
+//  */
+// const create = async (contractData) => {
+//     const {
+//         user_id, hotel_id, contract_number, contract_type, title, description,
+//         start_date, end_date, signed_date, contract_value, currency,
+//         payment_terms, status = 'draft', contract_file_url,
+//         terms_and_conditions, notes, created_by
+//     } = contractData;
+
+//     const query = `
+//         INSERT INTO contracts (
+//             user_id, hotel_id, contract_number, contract_type, title, description,
+//             start_date, end_date, signed_date, contract_value, currency,
+//             payment_terms, status, contract_file_url, terms_and_conditions, notes, created_by
+//         )
+//         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+//         RETURNING *;
+//     `;
+//     const values = [
+//         user_id, hotel_id, contract_number, contract_type, title, description,
+//         start_date, end_date, signed_date, contract_value, currency,
+//         payment_terms, status, contract_file_url, terms_and_conditions, notes, created_by
+//     ];
+
+//     const result = await pool.query(query, values);
+//     return new Contract(result.rows[0]);
+// };
+
 /**
  * Tạo một hợp đồng mới.
  * @param {object} contractData - Dữ liệu của hợp đồng.
@@ -16,6 +48,15 @@ const create = async (contractData) => {
         terms_and_conditions, notes, created_by
     } = contractData;
 
+    // ✅ Logging toàn bộ đầu vào để kiểm tra từ Postman
+    console.log('[Create Contract] Input:', contractData);
+    console.log('[Create Contract] created_by:', created_by);
+
+    // ✅ Ràng buộc bắt buộc nếu cần
+    if (!created_by) {
+        console.warn('[Create Contract] ⚠️ created_by is missing or null.');
+    }
+
     const query = `
         INSERT INTO contracts (
             user_id, hotel_id, contract_number, contract_type, title, description,
@@ -25,15 +66,26 @@ const create = async (contractData) => {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         RETURNING *;
     `;
+
     const values = [
         user_id, hotel_id, contract_number, contract_type, title, description,
         start_date, end_date, signed_date, contract_value, currency,
-        payment_terms, status, contract_file_url, terms_and_conditions, notes, created_by
+        payment_terms, status, contract_file_url, terms_and_conditions, notes, created_by || null
     ];
 
-    const result = await pool.query(query, values);
-    return new Contract(result.rows[0]);
+    // ✅ Logging values chuẩn bị insert
+    console.log('[Create Contract] Insert values:', values);
+
+    try {
+        const result = await pool.query(query, values);
+        console.log('[Create Contract] ✅ Inserted contract:', result.rows[0]);
+        return new Contract(result.rows[0]);
+    } catch (err) {
+        console.error('[Create Contract] ❌ DB Insert Error:', err);
+        throw err;
+    }
 };
+
 
 /**
  * Tìm một hợp đồng bằng ID.
