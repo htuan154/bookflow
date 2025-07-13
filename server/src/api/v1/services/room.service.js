@@ -1,4 +1,5 @@
 const RoomRepository = require('../repositories/room.repository');
+const roomTypeRepository = require('../repositories/roomType.repository');
 
 class RoomService {
   constructor() {
@@ -287,10 +288,14 @@ class RoomService {
 
   // Helper methods
   async getHotelIdByRoomType(roomTypeId) {
-    // This would need a room type repository/service
-    // For now, return a placeholder
-    return 1;
-  }
+      // Dùng repository để tìm loại phòng
+      const roomType = await roomTypeRepository.findById(roomTypeId);
+      if (!roomType) {
+          throw new AppError('Room type not found', 404);
+      }
+      // Trả về hotelId từ đối tượng roomType
+      return roomType.hotelId;
+    }
 
   async checkActiveBookings(roomId) {
     // This would check booking repository

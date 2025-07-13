@@ -243,7 +243,7 @@ class RoomRepository {
     const query = `
       SELECT 
         r.room_id, r.room_type_id, r.room_number, r.floor_number, r.status, r.created_at,
-        rt.name as room_type_name, rt.price, rt.capacity, rt.description,
+        rt.name as room_type_name, rt.base_price, rt.area_sqm, rt.description,
         h.name as hotel_name, h.hotel_id
       FROM rooms r
       JOIN room_types rt ON r.room_type_id = rt.room_type_id
@@ -256,19 +256,37 @@ class RoomRepository {
       if (result.rows.length === 0) return null;
 
       const row = result.rows[0];
-      const room = new Room(row);
-      room.roomTypeDetails = {
-        name: row.room_type_name,
-        price: row.price,
-        capacity: row.capacity,
-        description: row.description
-      };
-      room.hotelDetails = {
-        id: row.hotel_id,
-        name: row.hotel_name
-      };
+      // const room = new Room(row);
+      // room.roomTypeDetails = {
+      //   name: row.room_type_name,
+      //   price: row.price,
+      //   capacity: row.capacity,
+      //   description: row.description
+      // };
+      // room.hotelDetails = {
+      //   id: row.hotel_id,
+      //   name: row.hotel_name
+      // };
+      // return room;
 
-      return room;
+      return {
+        // roomId: row.room_id,
+        // roomTypeId: row.room_type_id,
+        roomNumber: row.room_number,
+        floorNumber: row.floor_number,
+        status: row.status,
+        createdAt: row.created_at,
+        roomTypeDetails: {
+          name: row.room_type_name,
+          basePrice: row.base_price,
+          areaSqm: row.area_sqm,
+          description: row.description
+        },
+        hotelDetails: {
+          // id: row.hotel_id,
+          name: row.hotel_name
+        }
+      };
     } catch (error) {
       throw new Error(`Error finding room with details: ${error.message}`);
     }

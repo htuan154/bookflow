@@ -10,7 +10,7 @@ class ContractController {
      */
     async createContract(req, res, next) {
         try {
-            const adminId = req.user.userId; // Lấy từ middleware 'authenticate'
+            const adminId = req.user.id; // ✅ Sửa đúng key
             const newContract = await ContractService.createContract(req.body, adminId);
             successResponse(res, newContract, 'Contract created successfully', 201);
         } catch (error) {
@@ -54,7 +54,7 @@ class ContractController {
         try {
             const { id } = req.params;
             const { status } = req.body;
-            const adminId = req.user.userId;
+            const adminId = req.user.id; // ✅ Sửa đúng key
 
             const updatedContract = await ContractService.updateContractStatus(id, status, adminId);
             successResponse(res, updatedContract, 'Contract status updated successfully');

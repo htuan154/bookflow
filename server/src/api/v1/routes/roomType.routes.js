@@ -20,6 +20,49 @@ const router = express.Router();
 // GET /api/v1/room-types/:roomTypeId/images -> Lấy tất cả hình ảnh của một loại phòng
 router.get('/room-types/:roomTypeId/images', roomTypeImageController.getImages);
 
+router.get('/', roomTypeController.getAllRoomTypes);
+
+router.get('/paginated',
+  roomTypeMiddlewares.validatePagination,
+  roomTypeController.getRoomTypesWithPagination
+);
+
+router.get('/search',
+  roomTypeMiddlewares.rateLimitSearch,
+  roomTypeMiddlewares.validateSearch,
+  roomTypeController.searchRoomTypes
+);
+
+router.get('/stats', roomTypeController.getRoomTypeStats);
+
+router.get('/available',
+  roomTypeMiddlewares.validateAvailabilityCheck,
+  roomTypeController.getAvailableRoomTypes
+);
+
+router.get('/hotel/:hotelId',
+  roomTypeMiddlewares.validateHotelId,
+  roomTypeMiddlewares.checkHotelExists,
+  roomTypeController.getRoomTypesByHotelId
+);
+
+router.get('/:id',
+  roomTypeMiddlewares.validateRoomTypeId,
+  roomTypeController.getRoomTypeById
+);
+
+router.get('/:id/rooms',
+  roomTypeMiddlewares.validateRoomTypeId,
+  roomTypeMiddlewares.checkRoomTypeExists,
+  roomTypeMiddlewares.asyncHandler(async (req, res) => {
+    res.status(200).json({
+      success: true,
+      message: 'Room listing endpoint - to be implemented when Room model is ready',
+      roomTypeId: req.roomTypeId,
+      roomType: req.roomType
+    });
+  })
+);
 
 // ===============================================
 // PROTECTED ROUTES (Yêu cầu đăng nhập và có quyền)
