@@ -18,17 +18,16 @@ class RoomTypeMiddlewares {
   // Middleware kiểm tra hotel ID hợp lệ
   validateHotelId(req, res, next) {
     const hotelId = req.params.hotelId || req.body.hotelId || req.query.hotelId;
-    
-    if (!hotelId || isNaN(hotelId)) {
+    if (!hotelId || typeof hotelId !== 'string' || hotelId.trim().length === 0) {
       return res.status(400).json({
         success: false,
         error: 'Invalid hotel ID'
       });
     }
-
-    req.hotelId = parseInt(hotelId);
+    req.hotelId = hotelId; 
     next();
   }
+
 
   // Middleware kiểm tra room type tồn tại
   async checkRoomTypeExists(req, res, next) {

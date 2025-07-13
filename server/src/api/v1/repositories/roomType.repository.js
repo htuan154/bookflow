@@ -65,21 +65,35 @@ class RoomTypeRepository {
   }
 
   async findByHotelId(hotelId) {
-    const query = `
-      SELECT rt.*, h.name as hotel_name 
-      FROM room_types rt
-      LEFT JOIN hotels h ON rt.hotel_id = h.hotel_id
-      WHERE rt.hotel_id = $1
-      ORDER BY rt.created_at DESC
-    `;
+  const query = `
+    SELECT 
+      rt.room_type_id,
+      rt.hotel_id,
+      rt.name,
+      rt.description,
+      rt.max_occupancy,
+      rt.base_price,
+      rt.number_of_rooms,
+      rt.bed_type,
+      rt.area_sqm,
+      rt.created_at,
+      h.name AS hotel_name
+    FROM room_types rt
+    LEFT JOIN hotels h ON rt.hotel_id = h.hotel_id
+    WHERE rt.hotel_id = $1
+    ORDER BY rt.created_at DESC
+  `;
 
-    try {
-      const result = await pool.query(query, [hotelId]);
-      return result.rows.map(row => new RoomType(row));
-    } catch (error) {
-      throw new Error(`Error fetching room types by hotel: ${error.message}`);
-    }
+  try {
+    const result = await pool.query(query, [hotelId]);
+    console.log("Raw room type row:", result.rows[0]);
+
+    console.log('DEBUG row:', result.rows[0]); // ← kiểm tra field tên
+    return result.rows.map(row => new RoomType(row));
+  } catch (error) {
+    throw new Error(`Error fetching room types by hotel: ${error.message}`);
   }
+}
 
   async update(roomTypeId, updateData) {
     const allowedFields = [
