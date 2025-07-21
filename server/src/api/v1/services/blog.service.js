@@ -46,15 +46,31 @@ class BlogService {
      * @param {string} slug - Slug của bài blog.
      * @returns {Promise<Blog>}
      */
+    // async getBlogBySlug(slug) {
+    //     const blog = await blogRepository.findBySlug(slug);
+    //     if (!blog || blog.status !== 'published') {
+    //         throw new AppError('Blog not found or is not published', 404);
+    //     }
+    //     // Tăng lượt xem (không cần đợi kết quả)
+    //     blogRepository.incrementViewCount(blog.blogId);
+    //     return blog;
+    // }
     async getBlogBySlug(slug) {
         const blog = await blogRepository.findBySlug(slug);
+        console.log('DEBUG - slug param:', slug);
+        // In ra thông tin blog để kiểm tra
+        console.log('DEBUG - blog found by slug:', blog);
+
         if (!blog || blog.status !== 'published') {
             throw new AppError('Blog not found or is not published', 404);
         }
+
         // Tăng lượt xem (không cần đợi kết quả)
         blogRepository.incrementViewCount(blog.blogId);
+
         return blog;
     }
+
 
     /**
      * Cập nhật một bài blog.

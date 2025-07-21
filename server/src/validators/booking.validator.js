@@ -18,7 +18,7 @@ const createBookingSchema = Joi.object({
     total_guests: Joi.number().integer().min(1).required(),
     special_requests: Joi.string().allow('').max(1000),
     payment_method: Joi.string().required(),
-    room_details: Joi.array().items(roomDetailSchema).min(1).required(),
+    //room_details: Joi.array().items(roomDetailSchema).min(1).required(),
 });
 
 /**

@@ -26,9 +26,9 @@ class BlogLikeService {
             const newLike = await blogLikeRepository.create(blogId, userId, client);
 
             // Chỉ tăng like_count nếu một lượt thích mới thực sự được tạo ra
-            if (newLike) {
-                await blogRepository.incrementLikeCount(blogId, client);
-            }
+            // if (newLike) {
+            //     await blogRepository.incrementLikeCount(blogId, client);
+            // }
 
             await client.query('COMMIT');
         } catch (error) {
@@ -45,18 +45,18 @@ class BlogLikeService {
      * @param {string} userId - ID của người dùng.
      * @returns {Promise<void>}
      */
-    async unlikeBlog(blogId, userId) {
+    async unlikeBlog(likeId, userId) {
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
 
             // Thử xóa một lượt thích
-            const wasLiked = await blogLikeRepository.deleteLike(blogId, userId, client);
+            const wasLiked = await blogLikeRepository.deleteLike(likeId, userId, client);
 
             // Chỉ giảm like_count nếu một lượt thích thực sự bị xóa
-            if (wasLiked) {
-                await blogRepository.decrementLikeCount(blogId, client);
-            }
+            // if (wasLiked) {
+            //     await blogRepository.decrementLikeCount(blogId, client);
+            // }
 
             await client.query('COMMIT');
         } catch (error) {

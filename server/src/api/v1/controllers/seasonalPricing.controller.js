@@ -10,7 +10,7 @@ class SeasonalPricingController {
      */
     async createSeasonalPricing(req, res, next) {
         try {
-            const userId = req.user.userId; // Lấy từ middleware 'authenticate'
+            const userId = req.user.id; // Lấy từ middleware 'authenticate'
             const newPricingRule = await SeasonalPricingService.createSeasonalPricing(req.body, userId);
             successResponse(res, newPricingRule, 'Seasonal pricing rule created successfully', 201);
         } catch (error) {
@@ -39,7 +39,7 @@ class SeasonalPricingController {
     async updateSeasonalPricing(req, res, next) {
         try {
             const { pricingId } = req.params;
-            const userId = req.user.userId;
+            const userId = req.user.id;
             const updatedPricingRule = await SeasonalPricingService.updateSeasonalPricing(pricingId, req.body, userId);
             successResponse(res, updatedPricingRule, 'Seasonal pricing rule updated successfully');
         } catch (error) {
@@ -54,7 +54,7 @@ class SeasonalPricingController {
     async deleteSeasonalPricing(req, res, next) {
         try {
             const { pricingId } = req.params;
-            const userId = req.user.userId;
+            const userId = req.user.id;
             await SeasonalPricingService.deleteSeasonalPricing(pricingId, userId);
             successResponse(res, null, 'Seasonal pricing rule deleted successfully');
         } catch (error) {

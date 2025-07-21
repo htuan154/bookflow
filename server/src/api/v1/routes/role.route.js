@@ -2,17 +2,16 @@
 
 const express = require('express');
 const roleController = require('../controllers/role.controller');
-const { protect } = require('../middlewares/auth.middleware');
-const { isAdmin } = require('../middlewares/admin.middleware');
+const { authenticate } = require('../middlewares/auth.middleware'); // Sửa từ protect thành authenticate
+const { requireAdmin } = require('../middlewares/admin.middleware');
 const { validate } = require('../middlewares/validation.middleware');
 const { createRoleSchema, updateRoleSchema } = require('../../../validators/role.validator');
 
 const router = express.Router();
-const roleController = new RoleController();
 
-// Áp dụng middleware 'protect' và 'isAdmin' cho tất cả các route quản lý vai trò.
+// Áp dụng middleware 'authenticate' và 'requireAdmin' cho tất cả các route quản lý vai trò.
 // Điều này đảm bảo chỉ có Admin đã đăng nhập mới có thể truy cập.
-router.use(protect, isAdmin);
+router.use(authenticate, requireAdmin);
 
 // GET /api/v1/roles -> Lấy tất cả các vai trò
 router.get('/', roleController.getAllRoles);

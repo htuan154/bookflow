@@ -13,6 +13,7 @@ class HotelImageController {
             const { hotelId } = req.params;
             const imagesData = req.body.images;
             const userId = req.user.id;
+            console.log('📌 [uploadImages] userId:', userId);
             const newImages = await HotelImageService.addImagesToHotel(hotelId, imagesData, userId);
             successResponse(res, newImages, 'Images uploaded successfully', 201);
         } catch (error) {

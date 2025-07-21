@@ -29,9 +29,9 @@ const create = async (blogId, userId, client) => {
  * @param {object} client - Đối tượng client của pg từ transaction.
  * @returns {Promise<boolean>}
  */
-const deleteLike = async (blogId, userId, client) => {
-    const query = 'DELETE FROM blog_likes WHERE blog_id = $1 AND user_id = $2';
-    const result = await client.query(query, [blogId, userId]);
+const deleteLike = async (likeId, userId, client) => {
+    const query = 'DELETE FROM blog_likes WHERE like_id = $1 AND user_id = $2';
+    const result = await client.query(query, [likeId, userId]);
     return result.rowCount > 0;
 };
 

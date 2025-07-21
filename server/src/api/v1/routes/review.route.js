@@ -10,9 +10,9 @@ const router = express.Router();
 
 
 // --- PUBLIC ROUTE ---
-// GET /api/v1/hotels/:hotelId/reviews -> Lấy tất cả đánh giá của một khách sạn
+// GET /api/v1/reviews/:hotelId/reviews -> Lấy tất cả đánh giá của một khách sạn
 // Route này được đặt ở đây để gom nhóm, nhưng có thể được cấu trúc lại trong hotel.route.js
-router.get('/hotels/:hotelId/reviews', reviewController.getReviewsForHotel);
+router.get('/:hotelId', reviewController.getReviewsForHotel);
 
 
 // --- PROTECTED ROUTES (Yêu cầu đăng nhập) ---

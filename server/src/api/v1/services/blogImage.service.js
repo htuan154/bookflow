@@ -44,7 +44,7 @@ class BlogImageService {
         }
 
         // Chỉ tác giả bài blog hoặc admin mới được xóa ảnh.
-        if (blog.authorId !== currentUser.userId && currentUser.role !== 'admin') {
+        if (blog.authorId !== currentUser.id && currentUser.role !== 'admin') {
             throw new AppError('Forbidden: You do not have permission to delete this image', 403);
         }
 

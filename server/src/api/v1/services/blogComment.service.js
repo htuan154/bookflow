@@ -74,7 +74,7 @@ class BlogCommentService {
         const comment = await blogCommentRepository.findById(commentId);
         if (!comment) throw new AppError('Comment not found', 404);
 
-        if (comment.userId !== currentUser.userId && currentUser.role !== 'admin') {
+        if (comment.userId !== currentUser.id && currentUser.role !== 'admin') {
             throw new AppError('Forbidden: You do not have permission to delete this comment', 403);
         }
 

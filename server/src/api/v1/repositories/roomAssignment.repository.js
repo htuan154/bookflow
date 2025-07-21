@@ -63,9 +63,50 @@ const deleteById = async (assignmentId) => {
     return result.rowCount > 0;
 };
 
+/**
+ * Tìm thông tin khách sạn từ room_id.
+ * @param {string} roomId - ID của phòng.
+ * @returns {Promise} - Thông tin khách sạn hoặc null nếu không tìm thấy.
+ */
+const findHotelByRoomId = async (roomId) => {
+    const query = `
+        SELECT h.*
+        FROM rooms r
+        JOIN room_types rt ON r.room_type_id = rt.room_type_id
+        JOIN hotels h ON rt.hotel_id = h.hotel_id
+        WHERE r.room_id = $1;
+    `;
+    const result = await pool.query(query, [roomId]);
+    
+    if (result.rows.length === 0) {
+        return null;
+    }
+    
+    // Trả về thông tin khách sạn
+    return result.rows[0];
+};
+
+/**
+ * Tìm room assignment theo ID.
+ * @param {string} assignmentId - ID của việc gán phòng.
+ * @returns {Promise<RoomAssignment|null>} - Thông tin room assignment hoặc null nếu không tìm thấy.
+ */
+const findById = async (assignmentId) => {
+    const query = 'SELECT * FROM room_assignments WHERE assignment_id = $1';
+    const result = await pool.query(query, [assignmentId]);
+    
+    if (result.rows.length === 0) {
+        return null;
+    }
+    
+    return new RoomAssignment(result.rows[0]);
+};
+
 module.exports = {
     create,
     findByBookingDetailId,
     findByBookingId,
+    findHotelByRoomId,
     deleteById,
+    findById,
 };

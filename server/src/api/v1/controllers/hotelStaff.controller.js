@@ -11,7 +11,7 @@ class HotelStaffController {
     async addStaff(req, res, next) {
         try {
             const { hotelId } = req.params;
-            const ownerId = req.user.userId; // Lấy từ middleware 'authenticate'
+            const ownerId = req.user.id; // Lấy từ middleware 'authenticate'
             const newStaff = await HotelStaffService.addStaffToHotel(hotelId, req.body, ownerId);
             successResponse(res, newStaff, 'Staff member added successfully', 201);
         } catch (error) {
@@ -40,7 +40,7 @@ class HotelStaffController {
     async updateStaff(req, res, next) {
         try {
             const { staffId } = req.params;
-            const ownerId = req.user.userId;
+            const ownerId = req.user.id;
             const updatedStaff = await HotelStaffService.updateStaffInfo(staffId, req.body, ownerId);
             successResponse(res, updatedStaff, 'Staff information updated successfully');
         } catch (error) {
@@ -55,7 +55,7 @@ class HotelStaffController {
     async removeStaff(req, res, next) {
         try {
             const { staffId } = req.params;
-            const ownerId = req.user.userId;
+            const ownerId = req.user.id;
             await HotelStaffService.removeStaffFromHotel(staffId, ownerId);
             successResponse(res, null, 'Staff member removed successfully');
         } catch (error) {

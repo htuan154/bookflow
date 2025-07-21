@@ -23,14 +23,14 @@ router.post(
 // ROUTE GROUP 2: Actions on a single image
 
 router.delete(
-    '/room-type-images/:imageId',
+    '/room-types/:roomTypeId/images/:imageId',
     authenticate,
     authorize(['hotel_owner', 'admin']),
     roomTypeImageController.deleteImage
 );
 
 router.patch(
-    '/room-type-images/:imageId/set-thumbnail',
+    '/room-types/:roomTypeId/images/:imageId/set-thumbnail',
     authenticate,
     authorize(['hotel_owner', 'admin']),
     roomTypeImageController.setThumbnail

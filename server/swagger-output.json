@@ -1137,6 +1137,99 @@
         }
       }
     },
+    "/api/v1/booking-details/{detailId}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "detailId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/booking-details/booking/{bookingId}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      },
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "room_details": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/seasons/": {
       "get": {
         "description": "",
@@ -1233,23 +1326,6 @@
             "description": ""
           }
         }
-      },
-      "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "authorization",
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": ""
-          }
-        }
       }
     },
     "/api/v1/seasonal-pricings/{pricingId}": {
@@ -1283,6 +1359,33 @@
         "parameters": [
           {
             "name": "pricingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/seasonal-pricings/{roomTypeId}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "roomTypeId",
             "in": "path",
             "required": true,
             "schema": {
@@ -1403,7 +1506,7 @@
         }
       }
     },
-    "/api/v1/reviews/hotels/{hotelId}/reviews": {
+    "/api/v1/reviews/{hotelId}": {
       "get": {
         "description": "",
         "parameters": [
@@ -1573,7 +1676,7 @@
         }
       }
     },
-    "/api/v1/food-recommendations/tourist-locations/{locationId}/food-recommendations": {
+    "/api/v1/food-recommendations/{locationId}/food-recommendations": {
       "get": {
         "description": "",
         "parameters": [
@@ -1903,12 +2006,14 @@
             "description": ""
           }
         }
-      },
+      }
+    },
+    "/api/v1/blogs/blogs/{likeId}/like": {
       "delete": {
         "description": "",
         "parameters": [
           {
-            "name": "blogId",
+            "name": "likeId",
             "in": "path",
             "required": true,
             "schema": {
@@ -1955,6 +2060,119 @@
         "parameters": [
           {
             "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/roles/": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      },
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/roles/{id}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      },
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      },
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
             "in": "path",
             "required": true,
             "schema": {
@@ -2035,10 +2253,18 @@
         }
       }
     },
-    "/api/v1/room-type-images/{imageId}": {
+    "/api/v1/room-types/{roomTypeId}/images/{imageId}": {
       "delete": {
         "description": "",
         "parameters": [
+          {
+            "name": "roomTypeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "imageId",
             "in": "path",
@@ -2062,10 +2288,18 @@
         }
       }
     },
-    "/api/v1/room-type-images/{imageId}/set-thumbnail": {
+    "/api/v1/room-types/{roomTypeId}/images/{imageId}/set-thumbnail": {
       "patch": {
         "description": "",
         "parameters": [
+          {
+            "name": "roomTypeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "imageId",
             "in": "path",
@@ -2198,10 +2432,18 @@
         }
       }
     },
-    "/api/v1/hotel-images/{imageId}": {
+    "/api/v1/hotels/{hotelId}/images/{imageId}": {
       "delete": {
         "description": "",
         "parameters": [
+          {
+            "name": "hotelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "imageId",
             "in": "path",
@@ -2225,10 +2467,18 @@
         }
       }
     },
-    "/api/v1/hotel-images/{imageId}/set-thumbnail": {
+    "/api/v1/hotels/{hotelId}/images/{imageId}/set-thumbnail": {
       "patch": {
         "description": "",
         "parameters": [
+          {
+            "name": "hotelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "imageId",
             "in": "path",
@@ -2521,12 +2771,14 @@
             "description": ""
           }
         }
-      },
+      }
+    },
+    "/api/v1/blogs/{likeId}/like": {
       "delete": {
         "description": "",
         "parameters": [
           {
-            "name": "blogId",
+            "name": "likeId",
             "in": "path",
             "required": true,
             "schema": {

@@ -8,6 +8,32 @@ const Review = require('../../../models/review.model');
  * @param {object} reviewData - Dữ liệu của đánh giá.
  * @returns {Promise<Review>}
  */
+// const create = async (reviewData) => {
+//     const {
+//         user_id, hotel_id, booking_id, rating, comment,
+//         cleanliness_rating, comfort_rating, service_rating,
+//         location_rating, value_rating
+//     } = reviewData;
+
+//     const query = `
+//         INSERT INTO reviews (
+//             user_id, hotel_id, booking_id, rating, comment,
+//             cleanliness_rating, comfort_rating, service_rating,
+//             location_rating, value_rating
+//         )
+//         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+//         RETURNING *;
+//     `;
+//     const values = [
+//         user_id, hotel_id, booking_id, rating, comment,
+//         cleanliness_rating, comfort_rating, service_rating,
+//         location_rating, value_rating
+//     ];
+
+//     const result = await pool.query(query, values);
+//     return new Review(result.rows[0]);
+// };
+
 const create = async (reviewData) => {
     const {
         user_id, hotel_id, booking_id, rating, comment,
@@ -21,16 +47,23 @@ const create = async (reviewData) => {
             cleanliness_rating, comfort_rating, service_rating,
             location_rating, value_rating
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        VALUES ($1::uuid, $2::uuid, $3::uuid, $4::integer, $5::text, $6::integer, $7::integer, $8::integer, $9::integer, $10::integer)
         RETURNING *;
     `;
+    
     const values = [
         user_id, hotel_id, booking_id, rating, comment,
         cleanliness_rating, comfort_rating, service_rating,
         location_rating, value_rating
     ];
 
-    const result = await pool.query(query, values);
+    console.log('Values being inserted:', values);
+    console.log('Types:', values.map(v => typeof v));
+
+    const result = await pool.query(query, values).catch((err) => {
+    console.error("FULL QUERY FAILED", err);
+    throw err;
+});
     return new Review(result.rows[0]);
 };
 

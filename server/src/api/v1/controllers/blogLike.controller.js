@@ -11,7 +11,7 @@ class BlogLikeController {
     async likeBlog(req, res, next) {
         try {
             const { blogId } = req.params;
-            const userId = req.user.userId;
+            const userId = req.user.id;
             await BlogLikeService.likeBlog(blogId, userId);
             successResponse(res, null, 'Blog liked successfully');
         } catch (error) {
@@ -21,13 +21,13 @@ class BlogLikeController {
 
     /**
      * Xử lý yêu cầu bỏ thích một bài blog.
-     * DELETE /api/v1/blogs/:blogId/like
+     * DELETE /api/v1/blogs/:likeId/like
      */
     async unlikeBlog(req, res, next) {
         try {
-            const { blogId } = req.params;
-            const userId = req.user.userId;
-            await BlogLikeService.unlikeBlog(blogId, userId);
+            const { likeId } = req.params;
+            const userId = req.user.id;
+            await BlogLikeService.unlikeBlog(likeId, userId);
             successResponse(res, null, 'Blog unliked successfully');
         } catch (error) {
             next(error);

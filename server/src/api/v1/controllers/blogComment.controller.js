@@ -11,7 +11,7 @@ class BlogCommentController {
     async createComment(req, res, next) {
         try {
             const { blogId } = req.params;
-            const userId = req.user.userId;
+            const userId = req.user.id;
             const commentData = { ...req.body, blog_id: blogId };
 
             const newComment = await BlogCommentService.createComment(commentData, userId);

@@ -10,7 +10,7 @@ class BookingController {
      */
     async createBooking(req, res, next) {
         try {
-            const userId = req.user.userId; // Lấy từ middleware 'authenticate'
+            const userId = req.user.id; // Lấy từ middleware 'authenticate'
             const bookingData = req.body;
 
             const result = await BookingService.createBooking(bookingData, userId);
@@ -38,7 +38,7 @@ class BookingController {
 
     /**
      * Cập nhật trạng thái của một đơn đặt phòng.
-     * PATCH /api/v1/bookings/:bookingId/status
+     * PATCH /api/v1/bookings/:bookingId/status 
      */
     async updateBookingStatus(req, res, next) {
         try {

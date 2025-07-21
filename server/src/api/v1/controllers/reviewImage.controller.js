@@ -12,7 +12,7 @@ class ReviewImageController {
         try {
             const { reviewId } = req.params;
             const { image_urls } = req.body; // Giả sử client gửi một mảng image_urls
-            const userId = req.user.userId; // Lấy từ middleware 'authenticate'
+            const userId = req.user.id; // Lấy từ middleware 'authenticate'
 
             const newImages = await ReviewImageService.addImagesToReview(reviewId, image_urls, userId);
             successResponse(res, newImages, 'Images added to review successfully', 201);

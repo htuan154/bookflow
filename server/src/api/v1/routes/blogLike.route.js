@@ -13,7 +13,7 @@ router.use(authenticate);
 // POST /api/v1/blogs/:blogId/like -> Thích bài blog
 router.post('/blogs/:blogId/like', blogLikeController.likeBlog);
 
-// DELETE /api/v1/blogs/:blogId/like -> Bỏ thích bài blog
-router.delete('/blogs/:blogId/like', blogLikeController.unlikeBlog);
+// DELETE /api/v1/blogs/:likeId/like -> Bỏ thích bài blog
+router.delete('/blogs/:likeId/like', blogLikeController.unlikeBlog);
 
 module.exports = router;

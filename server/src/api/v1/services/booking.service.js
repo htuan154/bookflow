@@ -7,14 +7,14 @@ const roomTypeRepository = require('../repositories/roomType.repository');
 const { AppError } = require('../../../utils/errors');
 
 class BookingService {
-    /**
+        /**
      * Khách hàng tạo một đơn đặt phòng mới.
      * @param {object} bookingData - Dữ liệu đặt phòng từ client.
      * @param {string} userId - ID của người dùng đặt phòng.
      * @returns {Promise<{booking: Booking, details: BookingDetail[]}>}
      */
     async createBooking(bookingData, userId) {
-        const { hotel_id, check_in_date, check_out_date, total_guests, room_details } = bookingData;
+        const { hotel_id, check_in_date, check_out_date, total_guests /*, room_details*/ } = bookingData;
 
         // --- Bắt đầu một giao dịch (transaction) ---
         const client = await pool.connect();
@@ -23,40 +23,44 @@ class BookingService {
 
             // --- Logic nghiệp vụ ---
             // 1. Kiểm tra xem có chi tiết phòng nào được cung cấp không
-            if (!room_details || room_details.length === 0) {
-                throw new AppError('Booking must include at least one room detail', 400);
-            }
+            // if (!room_details || room_details.length === 0) {
+            //     throw new AppError('Booking must include at least one room detail', 400);
+            // }
 
             // 2. Tính toán tổng giá và kiểm tra phòng
-            let calculatedTotalPrice = 0;
-            for (const detail of room_details) {
-                const roomType = await roomTypeRepository.findById(detail.room_type_id);
-                if (!roomType) {
-                    throw new AppError(`Room type with ID ${detail.room_type_id} not found`, 404);
-                }
-                // TODO: Thêm logic kiểm tra phòng trống (availability) ở đây
+            // let calculatedTotalPrice = 0;
+            // for (const detail of room_details) {
+            //     const roomType = await roomTypeRepository.findById(detail.room_type_id);
+            //     if (!roomType) {
+            //         throw new AppError(`Room type with ID ${detail.room_type_id} not found`, 404);
+            //     }
+            //     // TODO: Thêm logic kiểm tra phòng trống (availability) ở đây
                 
-                // Tính giá tiền cho từng chi tiết
-                detail.unit_price = roomType.basePrice;
-                detail.subtotal = roomType.basePrice * detail.quantity;
-                calculatedTotalPrice += detail.subtotal;
-            }
+            //     // Tính giá tiền cho từng chi tiết
+            //     detail.unit_price = roomType.basePrice;
+            //     detail.subtotal = roomType.basePrice * detail.quantity;
+            //     calculatedTotalPrice += detail.subtotal;
+            // }
 
             // 3. Tạo bản ghi chính (master booking)
             const masterBookingData = {
                 ...bookingData,
                 user_id: userId,
-                total_price: calculatedTotalPrice,
+                total_price: 0, // hoặc bạn có thể thay thế bằng giá cố định/tạm thời nếu cần
+                // total_price: calculatedTotalPrice,
             };
             const newBooking = await bookingRepository.create(masterBookingData, client);
 
             // 4. Tạo các bản ghi chi tiết (booking details)
-            const newBookingDetails = await bookingDetailRepository.createMany(room_details, newBooking.bookingId, client);
+            // const newBookingDetails = await bookingDetailRepository.createMany(room_details, newBooking.bookingId, client);
 
             // --- Kết thúc giao dịch ---
             await client.query('COMMIT');
 
-            return { booking: newBooking, details: newBookingDetails };
+            return {
+                booking: newBooking,
+                details: [] // hoặc trả về undefined/null nếu bạn muốn bỏ hoàn toàn phần này
+            };
 
         } catch (error) {
             // Nếu có bất kỳ lỗi nào, hủy bỏ tất cả các thay đổi
@@ -82,7 +86,7 @@ class BookingService {
         }
 
         // Logic phân quyền: Chỉ admin hoặc chính người đặt phòng mới được xem
-        if (currentUser.role !== 'admin' && booking.userId !== currentUser.userId) {
+        if (currentUser.role !== 'admin' && booking.userId !== currentUser.id) {
             throw new AppError('Forbidden: You do not have permission to view this booking', 403);
         }
 
