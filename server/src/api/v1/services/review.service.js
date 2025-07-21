@@ -24,7 +24,7 @@ async function _updateHotelRating(hotelId) {
     }
 
     // Gọi repository để cập nhật lại thông tin trong bảng hotels
-    await hotelRepository.updateRatingStats(hotelId, averageRating, totalReviews);
+    //await hotelRepository.updateRatingStats(hotelId, averageRating, totalReviews);
 }
 
 
@@ -93,7 +93,7 @@ class ReviewService {
         }
 
         // Logic phân quyền: Chỉ người viết đánh giá hoặc admin mới được xóa.
-        if (review.userId !== currentUser.userId && currentUser.role !== 'admin') {
+        if (review.userId !== currentUser.id && currentUser.role !== 'admin') {
             throw new AppError('Forbidden: You do not have permission to delete this review.', 403);
         }
 

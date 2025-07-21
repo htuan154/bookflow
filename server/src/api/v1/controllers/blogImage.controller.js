@@ -12,7 +12,7 @@ class BlogImageController {
         try {
             const { blogId } = req.params;
             const imagesData = req.body.images;
-            const userId = req.user.userId;
+            const userId = req.user.id;
 
             const newImages = await BlogImageService.addImagesToBlog(blogId, imagesData, userId);
             successResponse(res, newImages, 'Images added to blog successfully', 201);

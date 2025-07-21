@@ -12,7 +12,7 @@ class RoomTypeImageController {
         try {
             const { roomTypeId } = req.params;
             const imagesData = req.body.images; // Giả sử client gửi một mảng images
-            const userId = req.user.userId; // Lấy từ middleware 'protect'
+            const userId = req.user.id; // Lấy từ middleware 'protect'
 
             const newImages = await RoomTypeImageService.addImagesToRoomType(roomTypeId, imagesData, userId);
             successResponse(res, newImages, 'Images uploaded successfully', 201);
@@ -42,7 +42,7 @@ class RoomTypeImageController {
     async deleteImage(req, res, next) {
         try {
             const { imageId } = req.params;
-            const userId = req.user.userId;
+            const userId = req.user.id; // Lấy từ middleware 'protect'
 
             await RoomTypeImageService.deleteImage(imageId, userId);
             successResponse(res, null, 'Image deleted successfully');
@@ -58,7 +58,7 @@ class RoomTypeImageController {
     async setThumbnail(req, res, next) {
         try {
             const { imageId } = req.params;
-            const userId = req.user.userId;
+            const userId = req.user.id; // Lấy từ middleware 'protect'
 
             await RoomTypeImageService.setThumbnail(imageId, userId);
             successResponse(res, null, 'Thumbnail set successfully');

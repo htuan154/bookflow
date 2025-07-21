@@ -20,6 +20,7 @@ const roomTypeImageRoutes = require('./src/api/v1/routes/roomTypeImage.route');
 const roomAssignmentRoutes = require('./src/api/v1/routes/roomAssignment.route');
 const contractRoutes = require('./src/api/v1/routes/contract.route');
 const bookingRoutes = require('./src/api/v1/routes/booking.route');
+const bookingDetailRoutes = require('./src/api/v1/routes/bookingDetail.route'); 
 const seasonRoutes = require('./src/api/v1/routes/season.route');
 const seasonalPricingRoutes = require('./src/api/v1/routes/seasonalPricing.route');
 const touristLocationRoutes = require('./src/api/v1/routes/touristLocation.route');
@@ -34,6 +35,7 @@ const blogImageRoutes = require('./src/api/v1/routes/blogImage.route');
 const blogLikeRoutes = require('./src/api/v1/routes/blogLike.route');
 const blogRoutes = require('./src/api/v1/routes/blog.route');
 const chatRoutes = require('./src/api/v1/routes/chat.route');
+const roleRoutes = require('./src/api/v1/routes/role.route'); // Import route quản lý vai trò
 // --- Khởi tạo ứng dụng Express ---
 const app = express();
 const port = process.env.PORT || 8080;
@@ -60,6 +62,7 @@ app.use('/api/v1/rooms', roomRoutes);
 app.use('/api/v1/assignments', roomAssignmentRoutes);
 app.use('/api/v1/contracts', contractRoutes);
 app.use('/api/v1/bookings', bookingRoutes);
+app.use('/api/v1/booking-details', bookingDetailRoutes); 
 app.use('/api/v1/seasons', seasonRoutes);
 app.use('/api/v1/seasonal-pricings', seasonalPricingRoutes);
 app.use('/api/v1/tourist-locations', touristLocationRoutes);
@@ -68,6 +71,7 @@ app.use('/api/v1/promotions', promotionRoutes);
 app.use('/api/v1/food-recommendations', foodRecommendationRoutes);
 app.use('/api/v1/blogs', blogRoutes);
 app.use('/api/v1/chats', chatRoutes);
+app.use('/api/v1/roles', roleRoutes); // Gắn route quản lý vai trò
 // Các route có cấu trúc đặc biệt hơn
 app.use('/api/v1', roomTypeImageRoutes);
 app.use('/api/v1', reviewImageRoutes);

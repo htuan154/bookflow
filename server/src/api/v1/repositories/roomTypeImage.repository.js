@@ -80,9 +80,30 @@ const setAsThumbnail = async (roomTypeId, imageId) => {
     }
 };
 
+/**
+ * Tìm một hình ảnh theo ID.
+ * @param {string} imageId - ID của hình ảnh.
+ * @returns {Promise<RoomTypeImage|null>} - Trả về đối tượng RoomTypeImage nếu tìm thấy, ngược lại trả về null.
+ */
+const findById = async (imageId) => {
+    const query = `
+        SELECT image_id, room_type_id, image_url, caption, is_thumbnail, uploaded_at
+        FROM room_type_images
+        WHERE image_id = $1
+    `;
+    try {
+        const result = await pool.query(query, [imageId]);
+        return result.rows.length > 0 ? new RoomTypeImage(result.rows[0]) : null;
+    } catch (error) {
+        throw new Error(`Error finding image by ID: ${error.message}`);
+    }
+};
+
+
 module.exports = {
     addImages,
     findByRoomTypeId,
     deleteById,
+    findById,
     setAsThumbnail,
 };

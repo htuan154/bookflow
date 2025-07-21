@@ -10,7 +10,7 @@ class ReviewController {
      */
     async createReview(req, res, next) {
         try {
-            const userId = req.user.userId; // Lấy từ middleware 'authenticate'
+            const userId = req.user.id; // Lấy từ middleware 'authenticate'
             const reviewData = req.body;
 
             const newReview = await ReviewService.createReview(reviewData, userId);

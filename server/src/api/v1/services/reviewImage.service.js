@@ -49,7 +49,7 @@ class ReviewImageService {
         }
 
         // Logic phân quyền: Chỉ người viết đánh giá hoặc admin mới được xóa.
-        if (review.userId !== currentUser.userId && currentUser.role !== 'admin') {
+        if (review.userId !== currentUser.id && currentUser.role !== 'admin') {
             throw new AppError('Forbidden: You do not have permission to delete this image', 403);
         }
 

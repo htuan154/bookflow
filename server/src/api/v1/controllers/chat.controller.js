@@ -10,7 +10,7 @@ class ChatController {
      */
     async sendMessage(req, res, next) {
         try {
-            const senderId = req.user.userId;
+            const senderId = req.user.id;
             const newMessage = await ChatService.sendMessage(req.body, senderId);
             successResponse(res, newMessage, 'Message sent successfully', 201);
         } catch (error) {
@@ -25,7 +25,7 @@ class ChatController {
     async getChatHistory(req, res, next) {
         try {
             const { bookingId } = req.params;
-            const userId = req.user.userId;
+            const userId = req.user.id;
             const history = await ChatService.getChatHistory(bookingId, userId);
             successResponse(res, history);
         } catch (error) {

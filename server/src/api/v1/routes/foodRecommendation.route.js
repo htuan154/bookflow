@@ -10,9 +10,10 @@ const router = express.Router();
 
 
 // --- PUBLIC ROUTE ---
-// GET /api/v1/tourist-locations/:locationId/food-recommendations -> Lấy gợi ý món ăn của một địa điểm
-// Route này sẽ được lồng vào touristLocation.route.js
-router.get('/tourist-locations/:locationId/food-recommendations', foodRecommendationController.getRecommendationsByLocation);
+// GET /api/v1/food-recommendations/:locationId/food-recommendations -> Lấy gợi ý món ăn của một địa điểm
+// Đây là route public, không cần xác thực
+router.get('/:locationId/food-recommendations', foodRecommendationController.getRecommendationsByLocation);
+
 
 
 // --- ADMIN-ONLY ROUTES ---

@@ -79,7 +79,7 @@ const update = async (blogId, updateData) => {
     values.push(blogId);
 
     const query = `
-        UPDATE blogs SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+        UPDATE blogs SET ${fields.join(', ')}
         WHERE blog_id = $${values.length}
         RETURNING *;
     `;

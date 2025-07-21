@@ -19,16 +19,16 @@ router.post(
     hotelImageController.uploadImages
 );
 
-// DELETE /api/v1/hotel-images/:imageId -> Xóa một ảnh
+// DELETE /api/v1/hotels/:hotelId/images/:imageId -> Xóa một ảnh
 router.delete(
-    '/hotel-images/:imageId',
+    '/hotels/:hotelId/images/:imageId',
     authorize(['hotel_owner', 'admin']),
     hotelImageController.deleteImage
 );
 
-// PATCH /api/v1/hotel-images/:imageId/set-thumbnail -> Đặt làm ảnh đại diện
+// PATCH /api/v1/hotels/:hotelId/images/:imageId/set-thumbnail -> Đặt làm ảnh đại diện
 router.patch(
-    '/hotel-images/:imageId/set-thumbnail',
+    '/hotels/:hotelId/images/:imageId/set-thumbnail',
     authorize(['hotel_owner', 'admin']),
     hotelImageController.setThumbnail
 );

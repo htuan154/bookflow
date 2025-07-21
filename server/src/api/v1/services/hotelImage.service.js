@@ -19,7 +19,8 @@ class HotelImageService {
             throw new AppError('Hotel not found', 404);
         }
         // Chỉ chủ khách sạn hoặc admin mới có quyền thêm ảnh
-        if (hotel.ownerId !== userId && userId.role !== 'admin') {
+        if (hotel.ownerId !== userId) {
+            console.log('No permission:', hotel.ownerId, '!==', userId);
             throw new AppError('Forbidden: You do not have permission to add images to this hotel', 403);
         }
 

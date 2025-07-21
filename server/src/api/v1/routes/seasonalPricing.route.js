@@ -34,8 +34,10 @@ router.delete(
 
 // --- Route riêng để lấy tất cả quy tắc giá của một loại phòng ---
 // GET /api/v1/room-types/:roomTypeId/seasonal-pricings
-const roomTypeRouter = express.Router({ mergeParams: true });
-roomTypeRouter.get('/', seasonalPricingController.getPricingsForRoomType);
+router.get(
+    '/:roomTypeId',
+    seasonalPricingController.getPricingsForRoomType
+);
 
 // Gắn router này vào một router khác (trong hotel.route.js hoặc roomType.route.js)
 // Ví dụ: roomTypeRouter.use('/:roomTypeId/seasonal-pricings', router);

@@ -10,7 +10,7 @@ class RoomAssignmentController {
      */
     async assignRoom(req, res, next) {
         try {
-            const userId = req.user.userId; // Lấy từ middleware 'authenticate'
+            const userId = req.user.id; // Lấy từ middleware 'authenticate'
             const assignmentData = req.body; // { booking_detail_id, room_id, notes }
 
             const newAssignment = await RoomAssignmentService.assignRoomToBooking(assignmentData, userId);
@@ -22,7 +22,7 @@ class RoomAssignmentController {
 
     /**
      * Lấy danh sách các phòng đã được gán cho một đơn đặt phòng.
-     * GET /api/v1/bookings/:bookingId/assignments
+     * GET /api/v1/assignments/booking/:bookingId
      */
     async getAssignmentsForBooking(req, res, next) {
         try {
@@ -41,7 +41,7 @@ class RoomAssignmentController {
     async unassignRoom(req, res, next) {
         try {
             const { assignmentId } = req.params;
-            const userId = req.user.userId;
+            const userId = req.user.id;
 
             await RoomAssignmentService.unassignRoom(assignmentId, userId);
             successResponse(res, null, 'Room assignment successfully removed');

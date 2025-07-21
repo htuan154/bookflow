@@ -1,7 +1,8 @@
 // src/api/v1/services/roomAssignment.service.js
 
 const roomAssignmentRepository = require('../repositories/roomAssignment.repository');
-const roomRepository = require('../repositories/room.repository'); // Giả định đã có
+const RoomRepository = require('../repositories/room.repository');
+const roomRepository = new RoomRepository();
 const bookingDetailRepository = require('../repositories/bookingDetail.repository'); // Giả định đã có
 const hotelRepository = require('../repositories/hotel.repository'); // Giả định đã có
 const { AppError } = require('../../../utils/errors');
@@ -33,9 +34,12 @@ class RoomAssignmentService {
         }
 
         // 3. Kiểm tra quyền sở hữu (người gán phòng phải có quyền trên khách sạn đó)
-        const hotel = await hotelRepository.findByRoomId(room_id); // Cần thêm hàm này vào hotelRepo
-        if (!hotel || hotel.ownerId !== userId) {
-             throw new AppError('Forbidden: You do not have permission to assign rooms for this hotel', 403);
+        const hotelInfo = await roomAssignmentRepository.findHotelByRoomId(room_id);
+        if (!hotelInfo) {
+            throw new AppError('Hotel information not found for this room', 404);
+        }
+        if (hotelInfo.owner_id !== userId) {
+            throw new AppError('Forbidden: You do not have permission to assign rooms for this hotel', 403);
         }
 
         // --- Thực hiện gán phòng và cập nhật trạng thái ---

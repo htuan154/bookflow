@@ -10,7 +10,7 @@ class BlogController {
      */
     async createBlog(req, res, next) {
         try {
-            const authorId = req.user.userId;
+            const authorId = req.user.id;
             const newBlog = await BlogService.createBlog(req.body, authorId);
             successResponse(res, newBlog, 'Blog created successfully as a draft', 201);
         } catch (error) {
@@ -52,7 +52,7 @@ class BlogController {
     async updateBlog(req, res, next) {
         try {
             const { blogId } = req.params;
-            const userId = req.user.userId;
+            const userId = req.user.id;
             const updatedBlog = await BlogService.updateBlog(blogId, req.body, userId);
             successResponse(res, updatedBlog, 'Blog updated successfully');
         } catch (error) {
