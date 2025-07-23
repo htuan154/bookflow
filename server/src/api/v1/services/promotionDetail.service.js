@@ -1,6 +1,6 @@
 
 // src/api/v1/services/promotionDetail.service.js
-
+const pool = require('../../../config/db');
 const promotionDetailRepository = require('../repositories/promotionDetail.repository');
 const promotionRepository = require('../repositories/promotion.repository'); // Giả định đã có
 const { AppError } = require('../../../utils/errors');
@@ -19,6 +19,9 @@ class PromotionDetailService {
         if (!promotion) {
             throw new AppError('Promotion not found', 404);
         }
+        // console.log('[DEBUG] promotion:', promotion);
+        // console.log('[DEBUG] userId:', userId);
+        // console.log('[DEBUG] promotion.createdBy:', promotion.createdBy);
         // Chỉ người tạo khuyến mãi hoặc admin mới có quyền thêm chi tiết
         if (promotion.createdBy !== userId && userId.role !== 'admin') {
             throw new AppError('Forbidden: You do not have permission to manage details for this promotion', 403);

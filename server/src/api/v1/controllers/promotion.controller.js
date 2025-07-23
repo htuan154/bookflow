@@ -10,7 +10,7 @@ class PromotionController {
      */
     async createPromotion(req, res, next) {
         try {
-            const userId = req.user.userId;
+            const userId = req.user.id;
             const newPromotion = await PromotionService.createPromotion(req.body, userId);
             successResponse(res, newPromotion, 'Promotion created successfully', 201);
         } catch (error) {
