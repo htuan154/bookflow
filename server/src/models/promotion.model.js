@@ -2,7 +2,7 @@ class Promotion {
   constructor({
     promotion_id, hotel_id, code, name, description, discount_value,
     min_booking_price, valid_from, valid_until, usage_limit,
-    used_count, status, created_by, created_at
+    used_count, status, created_by, created_at , promotion_type
   }) {
     this.promotionId = promotion_id;
     this.hotelId = hotel_id;
@@ -18,6 +18,7 @@ class Promotion {
     this.status = status;
     this.createdBy = created_by;
     this.createdAt = created_at;
+    this.promotionType = promotion_type;
   }
 
   toJSON() {
@@ -34,6 +35,7 @@ class Promotion {
       usageLimit: this.usageLimit,
       usedCount: this.usedCount,
       status: this.status,
+      promotionType: this.promotionType,
     };
   }
 }
