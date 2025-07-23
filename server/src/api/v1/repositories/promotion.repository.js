@@ -11,20 +11,21 @@ const Promotion = require('../../../models/promotion.model');
 const create = async (promotionData) => {
     const {
         hotel_id, code, name, description, discount_value, min_booking_price,
-        valid_from, valid_until, usage_limit, status = 'active', created_by
+        valid_from, valid_until, usage_limit, status = 'active', created_by,
+        promotion_type // Bổ sung
     } = promotionData;
 
     const query = `
         INSERT INTO promotions (
             hotel_id, code, name, description, discount_value, min_booking_price,
-            valid_from, valid_until, usage_limit, status, created_by
+            valid_from, valid_until, usage_limit, status, created_by, promotion_type
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *;
     `;
     const values = [
         hotel_id, code, name, description, discount_value, min_booking_price,
-        valid_from, valid_until, usage_limit, status, created_by
+        valid_from, valid_until, usage_limit, status, created_by, promotion_type
     ];
 
     const result = await pool.query(query, values);

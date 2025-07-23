@@ -6,10 +6,10 @@ const { authenticate, authorize } = require('../middlewares/auth.middleware');
 const { validate } = require('../middlewares/validation.middleware');
 const { createPromotionSchema, validateCodeSchema } = require('../../../validators/promotion.validator');
 const usageHistoryRoutes = require('./promotionUsage.route');
-
+const promotionDetailRoutes = require('./promotionDetail.route'); 
 const router = express.Router();
 
-// --- ĐỊNH NGHĨA CÁC ROUTE CỤ THỂ TRƯỚC ---
+
 
 // GET /api/v1/promotions -> Lấy danh sách các khuyến mãi công khai
 router.get('/', promotionController.getAllPromotions);
@@ -32,8 +32,13 @@ router.post(
 );
 
 
-// --- SỬ DỤNG ROUTE LỒNG NHAU (NESTED ROUTE) Ở CUỐI CÙNG ---
-// Nó sẽ xử lý các request không khớp với các route ở trên, ví dụ: /:promotionId/usage-history
-router.use('/', usageHistoryRoutes); 
+
+// Gắn các route quản lý chi tiết khuyến mãi vào đường dẫn /:promotionId/details
+// Ví dụ: GET /api/v1/promotions/123-abc/details
+router.use('/:promotionId/details', promotionDetailRoutes);
+
+// Gắn các route quản lý lịch sử sử dụng
+// Ví dụ: GET /api/v1/promotions/123-abc/usage-history
+router.use('/', usageHistoryRoutes);
 
 module.exports = router;

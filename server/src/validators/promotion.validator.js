@@ -12,6 +12,7 @@ const createPromotionSchema = Joi.object({
     valid_from: Joi.date().iso().required(),
     valid_until: Joi.date().iso().greater(Joi.ref('valid_from')).required(),
     usage_limit: Joi.number().integer().min(1).allow(null),
+    promotion_type: Joi.string().required(),
 });
 
 const validateCodeSchema = Joi.object({
