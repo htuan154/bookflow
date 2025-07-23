@@ -1,37 +1,9 @@
-// src/components/auth/RegisterForm.js
 import React, { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import { register } from '../../api/auth.service';
+import InputField from '../common/InputField'; // ✅ 1. Import component dùng chung
+import { authService } from '../../api/auth.service';
 
-const InputField = ({ label, type, name, value, onChange, placeholder, required = true }) => {
-    const [showPassword, setShowPassword] = useState(false);
-    const isPasswordField = type === 'password';
-    const togglePasswordVisibility = () => setShowPassword(!showPassword);
-  
-    return (
-      <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-          <div className="relative">
-              <input
-                  type={isPasswordField ? (showPassword ? 'text' : 'password') : type}
-                  name={name}
-                  value={value}
-                  onChange={onChange}
-                  placeholder={placeholder}
-                  required={required}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-              />
-              {isPasswordField && (
-                  <button type="button" onClick={togglePasswordVisibility} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
-                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-              )}
-          </div>
-      </div>
-    );
-};
-
-const RegisterForm = () => {
+// Thêm prop để báo cho AuthPage biết cần chuyển tab
+const RegisterForm = ({ onRegisterSuccess }) => {
     const [formData, setFormData] = useState({
         fullName: '',
         username: '',
@@ -40,6 +12,7 @@ const RegisterForm = () => {
         agreeTerms: false
     });
     const [error, setError] = useState('');
+    const [success, setSuccess] = useState(''); // Thêm state cho thông báo thành công
     const [loading, setLoading] = useState(false);
 
     const handleChange = (e) => {
@@ -54,17 +27,24 @@ const RegisterForm = () => {
             return;
         }
         setError('');
+        setSuccess('');
         setLoading(true);
         try {
-            await register({
+            await authService.register({
                 fullName: formData.fullName,
                 username: formData.username,
                 email: formData.email,
                 password: formData.password
             });
-            alert('Registration successful! Please sign in.');
-            // Ideally, you would switch the view back to login here
-            // This can be done by passing a function from AuthPage
+            setSuccess('Registration successful! Please sign in.');
+            
+            // ✅ 2. Gọi hàm callback sau khi đăng ký thành công
+            if (onRegisterSuccess) {
+                setTimeout(() => {
+                    onRegisterSuccess();
+                }, 2000); // Chờ 2 giây rồi chuyển qua tab login
+            }
+
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed. Please try again.');
         } finally {
@@ -79,6 +59,7 @@ const RegisterForm = () => {
                 <p className="text-gray-600 text-sm">Join us today! Create your account to get started.</p>
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
+                {/* ✅ Sử dụng InputField đã import */}
                 <InputField label="Full Name" type="text" name="fullName" value={formData.fullName} onChange={handleChange} placeholder="Enter your full name" />
                 <InputField label="Username" type="text" name="username" value={formData.username} onChange={handleChange} placeholder="Enter your username" />
                 <InputField label="Email" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Enter your email address" />
@@ -92,6 +73,7 @@ const RegisterForm = () => {
                 </div>
 
                 {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+                {success && <p className="text-sm text-green-600 text-center">{success}</p>}
                 
                 <button type="submit" disabled={loading} className="w-full bg-orange-600 text-white py-3 rounded-lg font-medium hover:bg-orange-700 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 transition-colors">
                     {loading ? 'Processing...' : 'Sign Up'}
