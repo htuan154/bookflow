@@ -1,7 +1,7 @@
 // src/context/AuthContext.js
 import React, { createContext, useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { getProfile } from '../api/auth.service';
+import { authService } from '../api/auth.service';
 
 const AuthContext = createContext();
 
@@ -22,7 +22,7 @@ const AuthProvider = ({ children }) => {
                     } else {
                         // Lấy thông tin user từ API /profile
                         try {
-                            const response = await getProfile(token);
+                            const response = await authService.getProfile(token);
                             setUser(response.data.data);
                         } catch (error) {
                             console.error("Error fetching profile:", error);

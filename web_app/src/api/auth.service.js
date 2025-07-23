@@ -1,37 +1,46 @@
 // src/api/auth.service.js
+
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/v1/auth';
+import { API_ENDPOINTS } from '../constants/apiEndpoints';
 
+// Hàm register
 const register = (userData) => {
-    return axios.post(`${API_URL}/register`, userData);
+
+    return axios.post(API_ENDPOINTS.AUTH.REGISTER, userData);
 };
 
-// Cập nhật để hỗ trợ đăng nhập bằng email hoặc username
+// Hàm login
 const login = (identifier, password) => {
-    return axios.post(`${API_URL}/login`, {
-        identifier, // có thể là email hoặc username
+
+    return axios.post(API_ENDPOINTS.AUTH.LOGIN, {
+        identifier,
         password,
     });
 };
 
+// Hàm get profile
 const getProfile = (token) => {
-    return axios.get(`${API_URL}/profile`, {
+
+    return axios.get(API_ENDPOINTS.AUTH.PROFILE, {
         headers: {
             Authorization: `Bearer ${token}`
         }
     });
 };
 
+// Hàm logout
 const logout = (token) => {
-    return axios.post(`${API_URL}/logout`, {}, {
+
+    return axios.post(API_ENDPOINTS.AUTH.LOGOUT, {}, {
         headers: {
             Authorization: `Bearer ${token}`
         }
     });
 };
 
-export {
+
+export const authService = {
     register,
     login,
     getProfile,
