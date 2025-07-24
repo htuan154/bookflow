@@ -47,15 +47,19 @@ const LoginForm = () => {
             console.log('user:', user);
             console.log('USER_ROLES.ADMIN:', USER_ROLES.ADMIN);
             console.log('user.roleId:', user.roleId);
-
             if (user.roleId === USER_ROLES.ADMIN) {
-                console.log('➡ Điều hướng đến /admin');
-                navigate('/admin', { replace: true });
+                navigate('/admin/dashboard', { replace: true });
+            } else if (user.roleId === USER_ROLES.MANAGER) {
+                navigate('/manager/dashboard', { replace: true });
+            } else if (user.roleId === USER_ROLES.USER) {
+                navigate('/user/dashboard', { replace: true });
             } else {
-                console.log('➡ Điều hướng đến /');
-                navigate('/');
+                navigate('/', { replace: true }); // fallback nếu role không rõ
             }
-
+            
+            setTimeout(() => {
+                console.log('Điều hướng sẽ xảy ra nếu HomeRedirect hoạt động đúng');
+            }, 500);
         } catch (err) {
             console.error('Lỗi trong quá trình đăng nhập:', err);
             setError(err.response?.data?.message || 'Login failed. Please check your credentials.');

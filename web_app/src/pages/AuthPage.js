@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
 import LoginForm from '../components/auth/LoginForm';
 import RegisterForm from '../components/auth/RegisterForm';
-// ✅ 1. Import các component UI từ file riêng
 import SocialButton from '../components/ui/SocialButton';
 import { GoogleIcon, FacebookIcon, AppleIcon } from '../components/icons';
 
 const AuthPage = () => {
     const [isLogin, setIsLogin] = useState(true);
 
-    // ✅ 2. Hàm xử lý để tự động chuyển về tab đăng nhập
     const handleRegisterSuccess = () => {
-        // Có thể thêm một thông báo nhỏ ở đây nếu muốn
         console.log('Đăng ký thành công! Tự động chuyển sang trang đăng nhập.');
         setIsLogin(true);
     };
@@ -21,7 +18,7 @@ const AuthPage = () => {
                 <div className="bg-white rounded-2xl shadow-xl p-8">
                     {isLogin 
                         ? <LoginForm /> 
-                        // ✅ 3. Truyền hàm xử lý vào RegisterForm
+
                         : <RegisterForm onRegisterSuccess={handleRegisterSuccess} />
                     }
 
