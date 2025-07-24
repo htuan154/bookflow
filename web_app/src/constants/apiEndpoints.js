@@ -54,5 +54,12 @@ export const API_ENDPOINTS = {
         GET_PENDING_HOTELS: `${API_BASE_URL}/hotels/admin/pending`,
         GET_STATISTICS: `${API_BASE_URL}/hotels/admin/statistics`,
         UPDATE_HOTEL_STATUS: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/status`,
+        GET_HOTEL_STATISTICS: `${API_BASE_URL}/hotels/admin/statistics`,
+        GET_ALL_HOTELS_ADMIN: `${API_BASE_URL}/hotels/admin/all`,
+        GET_HOTELS_BY_STATUS: (status) => `${API_BASE_URL}/admin/hotels/status/${status}`,
+        APPROVE_HOTEL: (hotelId) => `${API_BASE_URL}/admin/hotels/${hotelId}/approve`,
+        REJECT_HOTEL: (hotelId) => `${API_BASE_URL}/admin/hotels/${hotelId}/reject`,
+        RESTORE_HOTEL: (hotelId) => `${API_BASE_URL}/admin/hotels/${hotelId}/restore`,
+    
     }
 };
