@@ -79,6 +79,54 @@ const findById = async (userId) => {
   }
   return new User(result.rows[0]);
 };
+/**
+ * Lấy danh sách người dùng, có thể lọc theo vai trò (roleId).
+ * @param {object} [filters={}] - Đối tượng chứa các bộ lọc.
+ * @param {number} [filters.roleId] - Lọc người dùng theo role_id.
+ * @returns {Promise<User[]>} - Trả về một mảng các instance của User.
+ */
+const findAll = async (filters = {}) => {
+  let query = 'SELECT user_id, username, email, full_name, role_id, created_at FROM users';
+  const queryParams = [];
+  
+  // Kiểm tra nếu có bộ lọc roleId được cung cấp
+  if (filters.roleId) {
+    query += ' WHERE role_id = $1';
+    queryParams.push(filters.roleId);
+  }
+  
+  query += ' ORDER BY created_at DESC';
+
+  const result = await pool.query(query, queryParams);
+  return result.rows.map(row => new User(row));
+};
+/**
+ * Cập nhật thông tin người dùng.
+ * @param {string} userId - ID của người dùng cần cập nhật.
+ * @param {object} userData - Dữ liệu cần cập nhật (ví dụ: { fullName, roleId }).
+ * @returns {Promise<User|null>}
+ */
+const update = async (userId, userData) => {
+    const { fullName, roleId } = userData;
+    const result = await pool.query(
+        `UPDATE users SET full_name = $1, role_id = $2
+         WHERE user_id = $3 RETURNING *`,
+        [fullName, roleId, userId]
+    );
+
+    if (result.rowCount === 0) return null;
+    return new User(result.rows[0]);
+};
+
+/**
+ * Xóa người dùng khỏi cơ sở dữ liệu.
+ * @param {string} userId - ID của người dùng cần xóa.
+ * @returns {Promise<boolean>} - Trả về true nếu xóa thành công.
+ */
+const remove = async (userId) => {
+    const result = await pool.query('DELETE FROM users WHERE user_id = $1', [userId]);
+    return result.rowCount > 0;
+};
 
 module.exports = {
   findByEmailOrUsername,
@@ -86,4 +134,7 @@ module.exports = {
   findByUsername,
   create,
   findById,
+  findAll,
+  update,
+  remove
 };
