@@ -13,6 +13,7 @@ const pool = require('./src/config/db');
 
 // Import tất cả các file route chính
 const authRoutes = require('./src/api/v1/routes/auth.route');
+const userRoutes = require('./src/api/v1/routes/user.route');
 const hotelRoutes = require('./src/api/v1/routes/hotel.route');
 const amenityRoutes = require('./src/api/v1/routes/amenity.route');
 const roomRoutes = require('./src/api/v1/routes/room.routes'); 
@@ -56,6 +57,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 // --- API Routes ---
 // Gắn các route vào đường dẫn tương ứng
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/hotels', hotelRoutes);
 app.use('/api/v1/amenities', amenityRoutes);
 app.use('/api/v1/rooms', roomRoutes);
