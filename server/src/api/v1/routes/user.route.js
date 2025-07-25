@@ -8,7 +8,7 @@ Chỉ admin mới có quyền truy cập.
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/user.controller');
-const { authenticate, authorize } = require('../../../middlewares/auth.middleware');
+const { authenticate, authorize } = require('../middlewares/auth.middleware');
 
 // Áp dụng middleware xác thực và phân quyền cho tất cả các route bên dưới
 router.use(authenticate);
