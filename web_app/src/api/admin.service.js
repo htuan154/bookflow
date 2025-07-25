@@ -1,6 +1,6 @@
 // src/api/admin.service.js
-import axiosClient from './axiosClient';
-import { API_ENDPOINTS } from '../constants/apiEndpoints';
+import axiosClient from '../config/axiosClient';
+import { API_ENDPOINTS } from '../config/apiEndpoints';
 
 const getAllHotels = () => {
   return axiosClient.get(API_ENDPOINTS.ADMIN.GET_ALL_HOTELS_ADMIN);
