@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-import { API_ENDPOINTS } from '../constants/apiEndpoints';
+import { API_ENDPOINTS } from '../config/apiEndpoints';
 
 // Hàm register
 const register = (userData) => {
