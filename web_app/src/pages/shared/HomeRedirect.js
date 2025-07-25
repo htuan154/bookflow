@@ -1,7 +1,7 @@
 // src/pages/HomeRedirect.js
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import useAuth from '../hooks/useAuth';
+import useAuth from '../../hooks/useAuth';
 import { USER_ROLES } from '../constants/roles';
 const HomeRedirect = () => {
     const { isAuthenticated, user } = useAuth();
