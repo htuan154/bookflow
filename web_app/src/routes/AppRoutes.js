@@ -2,9 +2,9 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
-import AuthPage from '../pages/AuthPage';
+import AuthPage from '../pages/shared/AuthPage';
 import AdminRoutes from './AdminRoutes';
-import HomeRedirect from '../pages/HomeRedirect'; // ✅ Dùng file HomeRedirect đã tạo
+import HomeRedirect from '../pages/shared/HomeRedirect'; // ✅ Dùng file HomeRedirect đã tạo
 
 const AppRoutes = () => {
     const { isAuthenticated } = useAuth();
