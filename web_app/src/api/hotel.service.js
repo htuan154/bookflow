@@ -1,42 +1,132 @@
-import React, { useState, useEffect, useContext, createContext } from 'react';
-import axios from 'axios';
-import { BarChart2, Building, Users, LogOut, Menu, X, ChevronDown, Search, MoreHorizontal, CheckCircle, XCircle, Eye, Edit } from 'lucide-react';
-
-const API_BASE_URL = 'http://localhost:8080/api/v1';
-
-// Tạo một instance axios để tự động thêm token
-const apiClient = axios.create({
-    baseURL: API_BASE_URL,
-});
-
-apiClient.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-}, (error) => {
-    return Promise.reject(error);
-});
+// src/api/hotel.service.js
+import { API_ENDPOINTS } from '../config/apiEndpoints';
+import axiosClient from '../config/axiosClient';
 
 export const hotelApiService = {
-    // Lấy tất cả khách sạn cho Admin, có thể lọc theo trạng thái
-    async getHotelsForAdmin(filters = {}) {
-        // Chuyển đổi filters thành query params
-        const params = new URLSearchParams();
-        if (filters.status && filters.status !== 'all') {
-            params.append('status', filters.status);
-        }
-        if (filters.search) {
-            params.append('q', filters.search); // Giả sử backend hỗ trợ tìm kiếm qua query 'q'
-        }
-        // Trong thực tế, bạn sẽ dùng API GET /api/v1/hotels/admin/all hoặc /pending
-        // Ở đây ta giả lập bằng cách gọi chung một API
-        return apiClient.get('/hotels/admin/all', { params });
-    },
+  // Existing methods...
 
-    // Cập nhật trạng thái khách sạn (approve/reject)
-    async updateHotelStatus(hotelId, status) {
-        return apiClient.patch(`/hotels/admin/${hotelId}/status`, { status });
+  /**
+   * Lấy tất cả hotels cho admin (existing method)
+   */
+  async getHotelsForAdmin(filters = {}) {
+    try {
+      const response = await axiosClient.get(API_ENDPOINTS.ADMIN.GET_ALL_HOTELS, {
+        params: filters
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching hotels for admin:', error);
+      throw error;
     }
+  },
+
+  /**
+   * NEW - Lấy danh sách hotels đã duyệt
+   */
+  async getApprovedHotels(filters = {}) {
+    try {
+      const response = await axiosClient.get(API_ENDPOINTS.ADMIN.GET_APPROVED_HOTELS, {
+        params: {
+          ...filters,
+          status: 'approved' // Đảm bảo chỉ lấy hotels đã duyệt
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching approved hotels:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * NEW - Lấy danh sách hotels chờ duyệt/từ chối
+   */
+  async getPendingRejectedHotels(filters = {}) {
+    try {
+      const response = await axiosClient.get(API_ENDPOINTS.ADMIN.GET_PENDING_REJECTED_HOTELS, {
+        params: {
+          ...filters,
+          status: ['pending', 'rejected'] // Lấy cả pending và rejected
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching pending/rejected hotels:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy hotels theo status cụ thể (có thể dùng thay thế)
+   */
+  async getHotelsByStatus(status, filters = {}) {
+    try {
+      const response = await axiosClient.get(API_ENDPOINTS.ADMIN.GET_HOTELS_BY_STATUS(status), {
+        params: filters
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching hotels with status ${status}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Approve hotel
+   */
+  async approveHotel(hotelId, approvalNote = '') {
+    try {
+      const response = await axiosClient.post(API_ENDPOINTS.ADMIN.APPROVE_HOTEL(hotelId), {
+        approvalNote
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error approving hotel:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Reject hotel
+   */
+  async rejectHotel(hotelId, rejectionReason = '') {
+    try {
+      const response = await axiosClient.post(API_ENDPOINTS.ADMIN.REJECT_HOTEL(hotelId), {
+        rejectionReason
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error rejecting hotel:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Restore hotel
+   */
+  async restoreHotel(hotelId) {
+    try {
+      const response = await axiosClient.post(API_ENDPOINTS.ADMIN.RESTORE_HOTEL(hotelId));
+      return response.data;
+    } catch (error) {
+      console.error('Error restoring hotel:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update hotel status
+   */
+  async updateHotelStatus(hotelId, status, note = '') {
+    try {
+      const response = await axiosClient.put(API_ENDPOINTS.ADMIN.UPDATE_HOTEL_STATUS(hotelId), {
+        status,
+        note
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error updating hotel status:', error);
+      throw error;
+    }
+  }
 };

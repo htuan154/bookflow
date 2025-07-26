@@ -48,6 +48,14 @@ export const API_ENDPOINTS = {
         REMOVE_FROM_HOTEL: (hotelId, amenityId) => `${API_BASE_URL}/hotels/${hotelId}/amenities/${amenityId}`,
     },
 
+    // --- User Management Endpoints (Admin only) ---
+    USERS: {
+        GET_ALL: `${API_BASE_URL}/users`,
+        GET_BY_ID: (userId) => `${API_BASE_URL}/users/${userId}`,
+        UPDATE: (userId) => `${API_BASE_URL}/users/${userId}`,
+        DELETE: (userId) => `${API_BASE_URL}/users/${userId}`,
+    },
+
     // --- Admin Endpoints ---
     ADMIN: {
         GET_ALL_HOTELS: `${API_BASE_URL}/hotels/admin/all`,
@@ -60,6 +68,5 @@ export const API_ENDPOINTS = {
         APPROVE_HOTEL: (hotelId) => `${API_BASE_URL}/admin/hotels/${hotelId}/approve`,
         REJECT_HOTEL: (hotelId) => `${API_BASE_URL}/admin/hotels/${hotelId}/reject`,
         RESTORE_HOTEL: (hotelId) => `${API_BASE_URL}/admin/hotels/${hotelId}/restore`,
-    
     }
 };
