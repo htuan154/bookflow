@@ -1,5 +1,6 @@
 // src/components/layout/AdminLayout.jsx
 import React from 'react';
+import { UserCog } from "lucide-react";
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import useAuth from '../../../hooks/useAuth';
 
@@ -18,6 +19,7 @@ const AdminLayout = () => {
     // Danh sách các link điều hướng trong sidebar
     const navLinks = [
         { name: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/admin/dashboard' },
+        { name: 'Quản lý người dùng', icon: <UserCog size={20} />, path: '/admin/users' },
         { name: 'Bài viết du lịch', icon: <FileText size={20} />, path: '/admin/articles' },
         { name: 'Quản lý đối tác', icon: <Briefcase size={20} />, path: '/admin/partners' },
         { name: 'Xét duyệt hợp đồng', icon: <FileSignature size={20} />, path: '/admin/contracts', badge: 2 },
