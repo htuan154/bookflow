@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import LoginForm from '../components/auth/LoginForm';
-import RegisterForm from '../components/auth/RegisterForm';
-import SocialButton from '../components/ui/SocialButton';
-import { GoogleIcon, FacebookIcon, AppleIcon } from '../components/icons';
+import LoginForm from '../../components/auth/LoginForm';
+import RegisterForm from '../../components/auth/RegisterForm';
+import SocialButton from '../../components/ui/SocialButton';
+import { GoogleIcon, FacebookIcon, AppleIcon } from '../../components/icons';
 
 const AuthPage = () => {
     const [isLogin, setIsLogin] = useState(true);

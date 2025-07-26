@@ -1,7 +1,7 @@
 // src/components/layout/AdminLayout.jsx
 import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import useAuth from '../../hooks/useAuth';
+import useAuth from '../../../hooks/useAuth';
 
 import {
     LayoutDashboard, FileText, Briefcase, Users, Ticket, MessageSquare,

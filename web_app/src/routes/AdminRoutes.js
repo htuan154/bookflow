@@ -2,10 +2,10 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
-import AdminLayout from '../components/layout/AdminLayout'; // Import AdminLayout
+import AdminLayout from '../components/layout/admin/AdminLayout'; // Import AdminLayout
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
 import AdminWelcomePage from '../pages/admin/AdminWelcomePage';
-import { USER_ROLES } from '../constants/roles';
+import { USER_ROLES } from '../config/roles';
 
 const AdminRoutes = () => {
     const { isAuthenticated, user } = useAuth();

@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import InputField from '../common/InputField';
 import { authService } from '../../api/auth.service';
 import useAuth from '../../hooks/useAuth';
-import { USER_ROLES } from '../../constants/roles';
+import { USER_ROLES } from '../../config/roles';
 
 const LoginForm = () => {
-    const { login } = useAuth(); // ✅ Đổi từ handleLoginSuccess thành login
+    const { login } = useAuth();
     const navigate = useNavigate();
     const [formData, setFormData] = useState({ identifier: '', password: '' });
     const [error, setError] = useState('');
