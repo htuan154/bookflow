@@ -1,0 +1,108 @@
+// src/pages/admin/ContractManagement/ContractListPage.js
+import React, { useState } from 'react';
+import { ContractProvider } from '../../../context/ContractContext';
+import ContractTable from '../../../components/contract/ContractTable';
+import ContractDetail from '../../../components/contract/ContractDetail';
+
+const ContractListPage = () => {
+  const [selectedContractId, setSelectedContractId] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Handle view contract detail
+  const handleViewDetail = (contractId) => {
+    setSelectedContractId(contractId);
+    setShowDetail(true);
+  };
+
+  // Handle close detail modal
+  const handleCloseDetail = () => {
+    setShowDetail(false);
+    setSelectedContractId(null);
+  };
+
+  // Handle approval success
+  const handleApprovalSuccess = (message) => {
+    setSuccessMessage(message);
+    setShowDetail(false);
+    setSelectedContractId(null);
+    
+    // Clear success message after 5 seconds
+    setTimeout(() => {
+      setSuccessMessage('');
+    }, 5000);
+  };
+
+  return (
+    <ContractProvider>
+      <div className="min-h-screen bg-gray-100">
+        <div className="py-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Page Header */}
+            <div className="mb-6">
+              <div className="md:flex md:items-center md:justify-between">
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                    Quản lý hợp đồng
+                  </h1>
+                  <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:mt-0 sm:space-x-6">
+                    <div className="mt-2 flex items-center text-sm text-gray-500">
+                      <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Xem và xét duyệt các hợp đồng trong hệ thống
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Success Message */}
+            {successMessage && (
+              <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-green-800">
+                      {successMessage}
+                    </p>
+                  </div>
+                  <div className="ml-auto pl-3">
+                    <div className="-mx-1.5 -my-1.5">
+                      <button
+                        onClick={() => setSuccessMessage('')}
+                        className="inline-flex bg-green-50 rounded-md p-1.5 text-green-500 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-50 focus:ring-green-600"
+                      >
+                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Contract Table */}
+            <ContractTable onViewDetail={handleViewDetail} />
+
+            {/* Contract Detail Modal */}
+            {showDetail && selectedContractId && (
+              <ContractDetail
+                contractId={selectedContractId}
+                onClose={handleCloseDetail}
+                onApprovalSuccess={handleApprovalSuccess}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    </ContractProvider>
+  );
+};
+
+export default ContractListPage;

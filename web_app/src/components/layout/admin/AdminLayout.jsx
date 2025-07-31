@@ -22,7 +22,7 @@ const AdminLayout = () => {
         { name: 'Quản lý người dùng', icon: <UserCog size={20} />, path: '/admin/users' },
         { name: 'Bài viết du lịch', icon: <FileText size={20} />, path: '/admin/articles' },
         { name: 'Quản lý đối tác', icon: <Briefcase size={20} />, path: '/admin/partners' },
-        { name: 'Xét duyệt hợp đồng', icon: <FileSignature size={20} />, path: '/admin/contracts', badge: 2 },
+        { name: 'Quản lý hợp đồng', icon: <FileSignature size={20} />, path: '/admin/contracts', badge: 2 },
         { name: 'Quản lý khách hàng', icon: <Users size={20} />, path: '/admin/customers' },
         { name: 'Thanh toán', icon: <Ticket size={20} />, path: '/admin/payments' },
         { name: 'Chương trình KM', icon: <BadgePercent size={20} />, path: '/admin/promotions' },
