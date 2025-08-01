@@ -1,6 +1,5 @@
 // src/api/v1/routes/hotel.route.js
 const express = require('express');
-
 const hotelController = require('../controllers/hotel.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
 const hotelAmenityRoutes = require('./hotelAmenity.route');
@@ -21,7 +20,6 @@ try {
     }
   };
 }
-
 // Import validator với error handling
 let validate, validateHotelData, validateHotelUpdate;
 try {
@@ -35,46 +33,39 @@ try {
   validateHotelData = {};
   validateHotelUpdate = {};
 }
-
 const router = express.Router();
-
 // ===============================================
 // PUBLIC ROUTES
 // ===============================================
 router.get('/', hotelController.getAllHotels);
 router.get('/search', hotelController.searchHotels);
 router.get('/popular', hotelController.getPopularHotels);
-
 // ===============================================
 // AUTHENTICATED ROUTES (Đặt trước /:id)
 // ===============================================
 router.get('/my-hotels', authenticate, hotelController.getMyHotels);
-
 // ===============================================
 // PUBLIC ROUTES (với params - đặt sau)
 // ===============================================
 router.get('/owner/:ownerId', authenticate, hotelController.getHotelsByOwner);
 router.get('/:id', hotelController.getHotelById);
-
 // ===============================================
 // HOTEL OWNER ROUTES (Yêu cầu đăng nhập)
 // ===============================================
 router.post('/', authenticate, validate(validateHotelData), hotelController.createHotel);
 router.put('/:id', authenticate, validate(validateHotelUpdate), hotelController.updateHotel);
 router.delete('/:id', authenticate, hotelController.deleteHotel);
-
 // ===============================================
 // ADMIN ROUTES
 // ===============================================
 const adminRouter = express.Router();
 adminRouter.use(authenticate); // Admin routes need authentication
 adminRouter.use(isAdmin);
-
 adminRouter.get('/all', hotelController.getAllHotelsAdmin);
 adminRouter.get('/pending', hotelController.getPendingHotels);
 adminRouter.get('/statistics', hotelController.getHotelStatistics);
 adminRouter.patch('/:id/status', hotelController.updateHotelStatus);
-
+adminRouter.get('/status/:status', hotelController.getHotelsByStatus);
 router.use('/admin', adminRouter);
 router.use('/:hotelId/amenities', hotelAmenityRoutes);
 module.exports = router;

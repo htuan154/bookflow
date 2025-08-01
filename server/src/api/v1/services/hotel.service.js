@@ -110,7 +110,7 @@ class HotelService {
    * Lấy khách sạn theo trạng thái
    */
   async getHotelsByStatus(status) {
-    const validStatuses = ['pending', 'approved', 'rejected', 'deleted'];
+    const validStatuses = ['pending', 'approved', 'rejected', 'active', 'inactive'];
     if (!validStatuses.includes(status)) {
       throw new AppError('Trạng thái không hợp lệ', 400);
     }

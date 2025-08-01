@@ -167,6 +167,41 @@ const deleteById = async (contractId) => {
     return result.rowCount > 0;
 };
 
+async function findByStatus(status) {
+    const query = `
+        SELECT * 
+        FROM contracts
+        WHERE status = $1
+        ORDER BY start_date DESC;
+    `;
+    const values = [status];
+
+    try {
+        const result = await pool.query(query, values);
+        return result.rows;
+    } catch (error) {
+        console.error('Error fetching contracts by status:', error);
+        throw error;
+    }
+}
+
+/**
+ * Lấy tất cả hợp đồng.
+ * @returns {Promise<Contract[]>}
+ */
+const findAll = async () => {
+    const query = `SELECT * FROM contracts ORDER BY created_at DESC;`;
+
+    try {
+        const result = await pool.query(query);
+        return result.rows.map(row => new Contract(row));
+    } catch (error) {
+        console.error('[findAll] ❌ Error fetching all contracts:', error);
+        throw error;
+    }
+};
+
+
 module.exports = {
     create,
     findById,
@@ -174,4 +209,6 @@ module.exports = {
     findByUserId,
     update,
     deleteById,
+    findByStatus,
+    findAll,
 };
