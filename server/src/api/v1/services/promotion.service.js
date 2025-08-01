@@ -63,6 +63,15 @@ class PromotionService {
             message: 'Promotion applied successfully'
         };
     }
+
+    /**
+     * Lấy chi tiết một chương trình khuyến mãi theo ID.
+     * @param {string} promotionId
+     * @returns {Promise<Promotion|null>}
+     */
+    async findById(promotionId) {
+        return await promotionRepository.findById(promotionId);
+    }
 }
 
 module.exports = new PromotionService();

@@ -108,6 +108,29 @@ class ContractService {
 
         return await contractRepository.update(contractId, updateData);
     }
+
+    /**
+     * Lấy danh sách hợp đồng theo trạng thái (Admin).
+     * @param {string} status - Trạng thái hợp đồng cần lọc.
+     * @returns {Promise<Contract[]>}
+     */
+    async getContractsByStatus(status) {
+        const validStatuses = ['draft', 'pending', 'active', 'expired', 'terminated', 'cancelled'];
+        if (!validStatuses.includes(status)) {
+            throw new AppError('Invalid status for contract list', 400);
+        }
+
+        return await contractRepository.findByStatus(status);
+    }
+
+    /**
+     * Lấy tất cả hợp đồng (Admin).
+     * @returns {Promise<Contract[]>}
+     */
+    async getAllContracts() {
+        return await contractRepository.findAll();
+    }
+
 }
 
 module.exports = new ContractService();

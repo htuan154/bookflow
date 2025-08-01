@@ -1,3 +1,4 @@
+
 // src/api/v1/controllers/promotion.controller.js
 
 const PromotionService = require('../services/promotion.service');
@@ -40,6 +41,22 @@ class PromotionController {
             const { code, bookingTotal } = req.body;
             const result = await PromotionService.validateAndApplyPromotion(code, bookingTotal);
             successResponse(res, result);
+        } catch (error) {
+            next(error);
+        }
+    }
+        /**
+     * Lấy chi tiết một chương trình khuyến mãi.
+     * GET /api/v1/promotions/:promotionId
+     */
+    async getPromotionById(req, res, next) {
+        try {
+            const { promotionId } = req.params;
+            const promotion = await PromotionService.findById(promotionId);
+            if (!promotion) {
+                return res.status(404).json({ message: 'Promotion not found' });
+            }
+            successResponse(res, promotion);
         } catch (error) {
             next(error);
         }

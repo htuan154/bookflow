@@ -1,5 +1,5 @@
 // src/context/HotelContext.js
-import React, { createContext, useContext, useReducer, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useRef } from 'react';
 import { hotelApiService as hotelService } from '../api/hotel.service';
 
 // Initial state
@@ -27,8 +27,12 @@ const HOTEL_ACTIONS = {
   FETCH_HOTEL_SUCCESS: 'FETCH_HOTEL_SUCCESS',
   UPDATE_HOTEL_SUCCESS: 'UPDATE_HOTEL_SUCCESS',
   DELETE_HOTEL_SUCCESS: 'DELETE_HOTEL_SUCCESS',
+  APPROVE_HOTEL_SUCCESS: 'APPROVE_HOTEL_SUCCESS',
+  REJECT_HOTEL_SUCCESS: 'REJECT_HOTEL_SUCCESS',
+  RESTORE_HOTEL_SUCCESS: 'RESTORE_HOTEL_SUCCESS',
   SET_PAGE: 'SET_PAGE',
-  CLEAR_ERROR: 'CLEAR_ERROR'
+  CLEAR_ERROR: 'CLEAR_ERROR',
+  RESET_STATE: 'RESET_STATE'
 };
 
 // Reducer
@@ -105,7 +109,70 @@ const hotelReducer = (state, action) => {
         pendingRejectedHotels: state.pendingRejectedHotels.map(hotel => 
           hotel.hotel_id === updatedHotel.hotel_id ? { ...hotel, ...updatedHotel } : hotel
         ),
-        currentHotel: updatedHotel
+        currentHotel: state.currentHotel?.hotel_id === updatedHotel.hotel_id ? updatedHotel : state.currentHotel
+      };
+
+    case HOTEL_ACTIONS.APPROVE_HOTEL_SUCCESS:
+      const approvedHotelId = action.payload;
+      const approvedHotel = state.pendingRejectedHotels.find(hotel => hotel.hotel_id === approvedHotelId);
+      return {
+        ...state,
+        loading: false,
+        error: null,
+        // Remove from pending/rejected list
+        pendingRejectedHotels: state.pendingRejectedHotels.filter(hotel => hotel.hotel_id !== approvedHotelId),
+        pendingRejectedCount: Math.max(0, state.pendingRejectedCount - 1),
+        // Add to approved list if hotel exists
+        approvedHotels: approvedHotel ? 
+          [...state.approvedHotels, { ...approvedHotel, status: 'approved' }] : 
+          state.approvedHotels,
+        approvedCount: approvedHotel ? state.approvedCount + 1 : state.approvedCount,
+        // Update in all hotels list
+        hotels: state.hotels.map(hotel => 
+          hotel.hotel_id === approvedHotelId 
+            ? { ...hotel, status: 'approved' }
+            : hotel
+        )
+      };
+
+    case HOTEL_ACTIONS.REJECT_HOTEL_SUCCESS:
+      const rejectedHotelId = action.payload;
+      return {
+        ...state,
+        loading: false,
+        error: null,
+        // Update status in pending/rejected list
+        pendingRejectedHotels: state.pendingRejectedHotels.map(hotel => 
+          hotel.hotel_id === rejectedHotelId 
+            ? { ...hotel, status: 'rejected' }
+            : hotel
+        ),
+        // Update in all hotels list
+        hotels: state.hotels.map(hotel => 
+          hotel.hotel_id === rejectedHotelId 
+            ? { ...hotel, status: 'rejected' }
+            : hotel
+        )
+      };
+
+    case HOTEL_ACTIONS.RESTORE_HOTEL_SUCCESS:
+      const restoredHotelId = action.payload;
+      return {
+        ...state,
+        loading: false,
+        error: null,
+        // Update status in pending/rejected list
+        pendingRejectedHotels: state.pendingRejectedHotels.map(hotel => 
+          hotel.hotel_id === restoredHotelId 
+            ? { ...hotel, status: 'pending' }
+            : hotel
+        ),
+        // Update in all hotels list
+        hotels: state.hotels.map(hotel => 
+          hotel.hotel_id === restoredHotelId 
+            ? { ...hotel, status: 'pending' }
+            : hotel
+        )
       };
       
     case HOTEL_ACTIONS.DELETE_HOTEL_SUCCESS:
@@ -116,7 +183,14 @@ const hotelReducer = (state, action) => {
         error: null,
         hotels: state.hotels.filter(hotel => hotel.hotel_id !== hotelId),
         approvedHotels: state.approvedHotels.filter(hotel => hotel.hotel_id !== hotelId),
-        pendingRejectedHotels: state.pendingRejectedHotels.filter(hotel => hotel.hotel_id !== hotelId)
+        pendingRejectedHotels: state.pendingRejectedHotels.filter(hotel => hotel.hotel_id !== hotelId),
+        totalCount: Math.max(0, state.totalCount - 1),
+        approvedCount: state.approvedHotels.some(hotel => hotel.hotel_id === hotelId) 
+          ? Math.max(0, state.approvedCount - 1) 
+          : state.approvedCount,
+        pendingRejectedCount: state.pendingRejectedHotels.some(hotel => hotel.hotel_id === hotelId)
+          ? Math.max(0, state.pendingRejectedCount - 1)
+          : state.pendingRejectedCount
       };
       
     case HOTEL_ACTIONS.SET_PAGE:
@@ -124,6 +198,9 @@ const hotelReducer = (state, action) => {
       
     case HOTEL_ACTIONS.CLEAR_ERROR:
       return { ...state, error: null };
+
+    case HOTEL_ACTIONS.RESET_STATE:
+      return { ...initialState };
       
     default:
       return state;
@@ -137,16 +214,15 @@ const HotelContext = createContext();
 export const HotelProvider = ({ children }) => {
   const [state, dispatch] = useReducer(hotelReducer, initialState);
 
-  // Separate loading refs for each API call to avoid blocking
-  const loadingRefs = React.useRef({
+  // Loading refs to prevent duplicate API calls
+  const loadingRefs = useRef({
     allHotels: false,
     approvedHotels: false,
     pendingRejectedHotels: false
   });
 
-  // Fetch all hotels - Fixed with separate loading ref
+  // Fetch all hotels
   const fetchAllHotels = useCallback(async (filters = {}) => {
-    // Prevent multiple simultaneous calls for this specific API
     if (loadingRefs.current.allHotels) {
       console.log('Already loading all hotels, skipping fetch request');
       return;
@@ -160,7 +236,6 @@ export const HotelProvider = ({ children }) => {
       const response = await hotelService.getHotelsForAdmin(filters);
       console.log('✅ All Hotels API Response:', response);
       
-      // Validate response
       if (!response) {
         throw new Error('No response from server');
       }
@@ -180,7 +255,7 @@ export const HotelProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch approved hotels - Fixed with separate loading ref
+  // Fetch approved hotels
   const fetchApprovedHotels = useCallback(async (filters = {}) => {
     if (loadingRefs.current.approvedHotels) {
       console.log('Already loading approved hotels, skipping fetch');
@@ -214,7 +289,7 @@ export const HotelProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch pending/rejected hotels - Fixed with separate loading ref
+  // Fetch pending/rejected hotels
   const fetchPendingRejectedHotels = useCallback(async (filters = {}) => {
     if (loadingRefs.current.pendingRejectedHotels) {
       console.log('Already loading pending/rejected hotels, skipping fetch');
@@ -288,6 +363,84 @@ export const HotelProvider = ({ children }) => {
     }
   }, []);
 
+  // Approve hotel
+  const approveHotel = useCallback(async (hotelId) => {
+    try {
+      dispatch({ type: HOTEL_ACTIONS.SET_LOADING, payload: true });
+      console.log('🔄 Approving hotel:', hotelId);
+      
+      const response = await hotelService.approveHotel(hotelId);
+      console.log('✅ Hotel approved successfully:', response);
+      
+      dispatch({
+        type: HOTEL_ACTIONS.APPROVE_HOTEL_SUCCESS,
+        payload: hotelId
+      });
+      
+      return { success: true, message: 'Duyệt khách sạn thành công' };
+    } catch (error) {
+      console.error('❌ Error approving hotel:', error);
+      const errorMessage = error?.response?.data?.message || error.message || 'Không thể duyệt khách sạn';
+      dispatch({
+        type: HOTEL_ACTIONS.SET_ERROR,
+        payload: errorMessage
+      });
+      return { success: false, message: errorMessage };
+    }
+  }, []);
+
+  // Reject hotel
+  const rejectHotel = useCallback(async (hotelId, reason = '') => {
+    try {
+      dispatch({ type: HOTEL_ACTIONS.SET_LOADING, payload: true });
+      console.log('🔄 Rejecting hotel:', hotelId, 'with reason:', reason);
+      
+      const response = await hotelService.rejectHotel(hotelId, reason);
+      console.log('✅ Hotel rejected successfully:', response);
+      
+      dispatch({
+        type: HOTEL_ACTIONS.REJECT_HOTEL_SUCCESS,
+        payload: hotelId
+      });
+      
+      return { success: true, message: 'Từ chối khách sạn thành công' };
+    } catch (error) {
+      console.error('❌ Error rejecting hotel:', error);
+      const errorMessage = error?.response?.data?.message || error.message || 'Không thể từ chối khách sạn';
+      dispatch({
+        type: HOTEL_ACTIONS.SET_ERROR,
+        payload: errorMessage
+      });
+      return { success: false, message: errorMessage };
+    }
+  }, []);
+
+  // Restore hotel
+  const restoreHotel = useCallback(async (hotelId) => {
+    try {
+      dispatch({ type: HOTEL_ACTIONS.SET_LOADING, payload: true });
+      console.log('🔄 Restoring hotel:', hotelId);
+      
+      const response = await hotelService.restoreHotel(hotelId);
+      console.log('✅ Hotel restored successfully:', response);
+      
+      dispatch({
+        type: HOTEL_ACTIONS.RESTORE_HOTEL_SUCCESS,
+        payload: hotelId
+      });
+      
+      return { success: true, message: 'Khôi phục khách sạn thành công' };
+    } catch (error) {
+      console.error('❌ Error restoring hotel:', error);
+      const errorMessage = error?.response?.data?.message || error.message || 'Không thể khôi phục khách sạn';
+      dispatch({
+        type: HOTEL_ACTIONS.SET_ERROR,
+        payload: errorMessage
+      });
+      return { success: false, message: errorMessage };
+    }
+  }, []);
+
   // Delete hotel
   const deleteHotel = useCallback(async (hotelId) => {
     try {
@@ -297,13 +450,15 @@ export const HotelProvider = ({ children }) => {
         type: HOTEL_ACTIONS.DELETE_HOTEL_SUCCESS,
         payload: hotelId
       });
+      return { success: true, message: 'Xóa khách sạn thành công' };
     } catch (error) {
       console.error('Error deleting hotel:', error);
+      const errorMessage = error?.response?.data?.message || error.message || 'Không thể xóa hotel';
       dispatch({
         type: HOTEL_ACTIONS.SET_ERROR,
-        payload: error?.response?.data?.message || error.message || 'Không thể xóa hotel'
+        payload: errorMessage
       });
-      throw error;
+      return { success: false, message: errorMessage };
     }
   }, []);
 
@@ -315,6 +470,35 @@ export const HotelProvider = ({ children }) => {
   // Clear error
   const clearError = useCallback(() => {
     dispatch({ type: HOTEL_ACTIONS.CLEAR_ERROR });
+  }, []);
+
+  // Reset state
+  const resetHotelState = useCallback(() => {
+    dispatch({ type: HOTEL_ACTIONS.RESET_STATE });
+    // Reset loading refs
+    loadingRefs.current = {
+      allHotels: false,
+      approvedHotels: false,
+      pendingRejectedHotels: false
+    };
+  }, []);
+
+  // Get hotel statistics
+  const getHotelStatistics = useCallback(async () => {
+    try {
+      dispatch({ type: HOTEL_ACTIONS.SET_LOADING, payload: true });
+      const response = await hotelService.getHotelStatistics();
+      return response.data || response;
+    } catch (error) {
+      console.error('Error fetching hotel statistics:', error);
+      dispatch({
+        type: HOTEL_ACTIONS.SET_ERROR,
+        payload: error?.response?.data?.message || error.message || 'Không thể tải thống kê'
+      });
+      return null;
+    } finally {
+      dispatch({ type: HOTEL_ACTIONS.SET_LOADING, payload: false });
+    }
   }, []);
 
   const value = {
@@ -337,9 +521,14 @@ export const HotelProvider = ({ children }) => {
     fetchPendingRejectedHotels,    
     fetchHotelById,
     updateHotel,
+    approveHotel,
+    rejectHotel,
+    restoreHotel,
     deleteHotel,
+    getHotelStatistics,
     setPage,
-    clearError
+    clearError,
+    resetHotelState
   };
 
   return (
