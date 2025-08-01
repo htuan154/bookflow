@@ -6,7 +6,8 @@ import useAuth from '../../../hooks/useAuth';
 
 import {
     LayoutDashboard, FileText, Briefcase, Users, Ticket, MessageSquare,
-    MapPin, BarChart2, Bell, PlusCircle, FileSignature, BadgePercent
+    MapPin, BarChart2, Bell, PlusCircle, FileSignature, BadgePercent,
+    TrendingUp
 } from 'lucide-react';
 
 const AdminLayout = () => {
@@ -22,14 +23,85 @@ const AdminLayout = () => {
         { name: 'Quản lý người dùng', icon: <UserCog size={20} />, path: '/admin/users' },
         { name: 'Bài viết du lịch', icon: <FileText size={20} />, path: '/admin/articles' },
         { name: 'Quản lý đối tác', icon: <Briefcase size={20} />, path: '/admin/partners' },
-        { name: 'Xét duyệt hợp đồng', icon: <FileSignature size={20} />, path: '/admin/contracts', badge: 2 },
+        { name: 'Quản lý hợp đồng', icon: <FileSignature size={20} />, path: '/admin/contracts', badge: 2 },
         { name: 'Quản lý khách hàng', icon: <Users size={20} />, path: '/admin/customers' },
         { name: 'Thanh toán', icon: <Ticket size={20} />, path: '/admin/payments' },
-        { name: 'Chương trình KM', icon: <BadgePercent size={20} />, path: '/admin/promotions' },
+        { 
+            name: 'Chương trình KM', 
+            icon: <BadgePercent size={20} />, 
+            path: '/admin/promotions',
+            subItems: [
+                { name: 'Danh sách KM', path: '/admin/promotions' },
+                { name: 'Tạo KM mới', path: '/admin/promotions/create' },
+                { name: 'Phân tích KM', path: '/admin/promotions/analytics' }
+            ]
+        },
         { name: 'Quản lý bình luận', icon: <MessageSquare size={20} />, path: '/admin/comments' },
         { name: 'Gợi ý địa danh', icon: <MapPin size={20} />, path: '/admin/suggestions' },
         { name: 'Báo cáo thống kê', icon: <BarChart2 size={20} />, path: '/admin/reports' },
     ];
+
+    // Hàm render menu item với sub-items
+    const renderMenuItem = (link) => {
+        const hasSubItems = link.subItems && link.subItems.length > 0;
+        const isMainActive = isActive(link.path);
+
+        if (hasSubItems) {
+            return (
+                <div key={link.name} className="space-y-1">
+                    <Link 
+                        to={link.path} 
+                        className={`flex items-center text-sm font-medium px-4 py-2.5 rounded-lg transition-colors ${
+                            isMainActive ? 'bg-orange-100 text-orange-600' : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                    >
+                        {link.icon}
+                        <span className="ml-3">{link.name}</span>
+                        {link.badge && (
+                            <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                                {link.badge}
+                            </span>
+                        )}
+                    </Link>
+                    {isMainActive && (
+                        <div className="ml-6 space-y-1">
+                            {link.subItems.map(subItem => (
+                                <Link
+                                    key={subItem.name}
+                                    to={subItem.path}
+                                    className={`block text-sm px-4 py-2 rounded-lg transition-colors ${
+                                        location.pathname === subItem.path
+                                            ? 'bg-orange-50 text-orange-600 border-l-2 border-orange-600'
+                                            : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    {subItem.name}
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        return (
+            <Link 
+                key={link.name} 
+                to={link.path} 
+                className={`flex items-center text-sm font-medium px-4 py-2.5 rounded-lg transition-colors ${
+                    isMainActive ? 'bg-orange-100 text-orange-600' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+            >
+                {link.icon}
+                <span className="ml-3">{link.name}</span>
+                {link.badge && (
+                    <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                        {link.badge}
+                    </span>
+                )}
+            </Link>
+        );
+    };
 
     return (
         <div className="flex bg-gray-50 min-h-screen font-sans">
@@ -41,29 +113,18 @@ const AdminLayout = () => {
                     <button className="flex-1 text-sm font-semibold text-gray-600 py-2">Chủ khách sạn</button>
                 </div>
                 
-                <nav className="flex-1 space-y-1">
+                <nav className="flex-1 space-y-1 overflow-y-auto">
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mb-2">Quản lý chính</p>
-                    {navLinks.slice(0, 4).map(link => (
-                        <Link key={link.name} to={link.path} className={`flex items-center text-sm font-medium px-4 py-2.5 rounded-lg transition-colors ${isActive(link.path) ? 'bg-orange-100 text-orange-600' : 'text-gray-700 hover:bg-gray-100'}`}>
-                            {link.icon}
-                            <span className="ml-3">{link.name}</span>
-                            {link.badge && <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{link.badge}</span>}
-                        </Link>
-                    ))}
+                    {navLinks.slice(0, 4).map(renderMenuItem)}
+                    
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Khách hàng</p>
-                    {navLinks.slice(4, 7).map(link => (
-                        <Link key={link.name} to={link.path} className={`flex items-center text-sm font-medium px-4 py-2.5 rounded-lg transition-colors ${isActive(link.path) ? 'bg-orange-100 text-orange-600' : 'text-gray-700 hover:bg-gray-100'}`}>
-                            {link.icon}
-                            <span className="ml-3">{link.name}</span>
-                        </Link>
-                    ))}
+                    {navLinks.slice(4, 7).map(renderMenuItem)}
+                    
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Nội dung</p>
-                    {navLinks.slice(7, 10).map(link => (
-                        <Link key={link.name} to={link.path} className={`flex items-center text-sm font-medium px-4 py-2.5 rounded-lg transition-colors ${isActive(link.path) ? 'bg-orange-100 text-orange-600' : 'text-gray-700 hover:bg-gray-100'}`}>
-                            {link.icon}
-                            <span className="ml-3">{link.name}</span>
-                        </Link>
-                    ))}
+                    {navLinks.slice(7, 10).map(renderMenuItem)}
+                    
+                    <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Báo cáo</p>
+                    {navLinks.slice(10).map(renderMenuItem)}
                 </nav>
             </aside>
             
@@ -86,7 +147,6 @@ const AdminLayout = () => {
                     </div>
                 </header>
                 <main className="flex-1 bg-gray-50 p-6">
-
                     <Outlet />
                 </main>
             </div>

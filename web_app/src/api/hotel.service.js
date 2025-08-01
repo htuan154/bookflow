@@ -28,7 +28,7 @@ export const hotelApiService = {
       const response = await axiosClient.get(API_ENDPOINTS.ADMIN.GET_APPROVED_HOTELS, {
         params: {
           ...filters,
-          status: 'approved' // Đảm bảo chỉ lấy hotels đã duyệt
+           // Đảm bảo chỉ lấy hotels đã duyệt
         }
       });
       return response.data;
