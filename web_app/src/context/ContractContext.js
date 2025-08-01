@@ -277,7 +277,12 @@ export const ContractProvider = ({ children }) => {
     console.log('🏗️ ContractProvider rendering with state:', {
         contractsCount: state.contracts?.length || 0,
         loading: state.loading,
-        error: state.error
+        error: state.error,
+        contracts: state.contracts.map(c => ({
+            id: c.contractId,
+            status: c.status,
+            createdAt: c.createdAt,
+        })),
     });
 
     return (
@@ -288,10 +293,12 @@ export const ContractProvider = ({ children }) => {
 };
 
 // Hook to use contract context
-export const useContract = () => {
-    const context = useContext(ContractContext);
-    if (!context) {
-        throw new Error('useContract must be used within a ContractProvider');
-    }
-    return context;
-};
+// export const useContract = () => {
+//     const context = useContext(ContractContext);
+//     if (!context) {
+//         throw new Error('useContract must be used within a ContractProvider');
+//     }
+//     return context;
+// };
+
+export { ContractContext };

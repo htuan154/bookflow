@@ -10,6 +10,7 @@ const ContractTable = ({
     onViewDetail,
     showActions = true 
 }) => {
+    console.log('Contracts from server:', contracts);
     const [selectedContracts, setSelectedContracts] = useState([]);
     const [currentTab, setCurrentTab] = useState('ALL');
     const [searchTerm, setSearchTerm] = useState('');
@@ -18,10 +19,12 @@ const ContractTable = ({
     // Status tabs
     const statusTabs = [
         { key: 'ALL', label: 'Tất cả', count: contracts.length },
-        { key: 'PENDING', label: 'Chờ duyệt', count: contracts.filter(c => c.status === 'PENDING').length },
-        { key: 'APPROVED', label: 'Đã duyệt', count: contracts.filter(c => c.status === 'APPROVED').length },
-        { key: 'REJECTED', label: 'Từ chối', count: contracts.filter(c => c.status === 'REJECTED').length },
-        { key: 'EXPIRED', label: 'Hết hạn', count: contracts.filter(c => c.status === 'EXPIRED').length },
+        { key: 'draft', label: 'Nháp', count: contracts.filter(c => c.status === 'draft').length },
+        { key: 'pending', label: 'Chờ duyệt', count: contracts.filter(c => c.status === 'pending').length },
+        { key: 'active', label: 'Đang hiệu lực', count: contracts.filter(c => c.status === 'active').length },
+        { key: 'expired', label: 'Hết hạn', count: contracts.filter(c => c.status === 'expired').length },
+        { key: 'terminated', label: 'Đã chấm dứt', count: contracts.filter(c => c.status === 'terminated').length },
+        { key: 'cancelled', label: 'Đã hủy', count: contracts.filter(c => c.status === 'cancelled').length },
     ];
 
     // Filter contracts based on current tab and search
@@ -93,14 +96,18 @@ const ContractTable = ({
     const StatusBadge = ({ status }) => {
         const getStatusStyle = (status) => {
             switch (status) {
-                case 'PENDING':
-                    return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-                case 'APPROVED':
-                    return 'bg-green-100 text-green-800 border-green-200';
-                case 'REJECTED':
-                    return 'bg-red-100 text-red-800 border-red-200';
-                case 'EXPIRED':
+                case 'draft':
                     return 'bg-gray-100 text-gray-800 border-gray-200';
+                case 'pending':
+                    return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                case 'active':
+                    return 'bg-green-100 text-green-800 border-green-200';
+                case 'expired':
+                    return 'bg-gray-200 text-gray-800 border-gray-300';
+                case 'terminated':
+                    return 'bg-red-100 text-red-800 border-red-200';
+                case 'cancelled':
+                    return 'bg-red-200 text-red-900 border-red-300';
                 default:
                     return 'bg-gray-100 text-gray-800 border-gray-200';
             }
@@ -108,14 +115,18 @@ const ContractTable = ({
 
         const getStatusText = (status) => {
             switch (status) {
-                case 'PENDING':
+                case 'draft':
+                    return 'Nháp';
+                case 'pending':
                     return 'Chờ duyệt';
-                case 'APPROVED':
-                    return 'Đã duyệt';
-                case 'REJECTED':
-                    return 'Từ chối';
-                case 'EXPIRED':
+                case 'active':
+                    return 'Đang hiệu lực';
+                case 'expired':
                     return 'Hết hạn';
+                case 'terminated':
+                    return 'Đã chấm dứt';
+                case 'cancelled':
+                    return 'Đã hủy';
                 default:
                     return 'Không xác định';
             }
@@ -340,7 +351,7 @@ const ContractTable = ({
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm text-gray-900">
-                                            {contract.hotelName || 'N/A'}
+                                            {contract.hotelId || 'N/A'}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">

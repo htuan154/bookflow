@@ -26,6 +26,7 @@ import PromotionManagementPage from '../pages/admin/PromotionManagementPage/Prom
 // Context Providers
 import { UserProvider } from '../context/UserContext';
 import { HotelProvider } from '../context/HotelContext';
+import { ContractProvider } from '../context/ContractContext';
 
 const AdminRoutes = () => {
     const { isAuthenticated, user } = useAuth();
@@ -124,8 +125,13 @@ const AdminRoutes = () => {
                     path="contracts"
                     element={
                         <HotelProvider>
-                            <ContractListPage />
+                            <ContractProvider> 
+                                <ContractListPage />
+                            </ContractProvider>
                         </HotelProvider>
+                        // <HotelProvider>
+                        //     <ContractListPage />
+                        // </HotelProvider>
                     }
                 />
 

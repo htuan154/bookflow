@@ -24,6 +24,13 @@ router.patch(
     contractController.updateContractStatus
 );
 
+// ✅ Thêm API lấy hợp đồng theo trạng thái (Admin)
+router.get(
+    '/status/:status',
+    authorize(['admin']),
+    contractController.getContractsByStatus
+);
+
 // --- ADMIN & HOTEL OWNER ROUTES ---
 router.get(
     '/:id',
@@ -36,5 +43,13 @@ router.get(
     authorize(['admin', 'hotel_owner']),
     contractController.getContractsByHotel
 );
+
+// ✅ Thêm API lấy tất cả hợp đồng (Admin only)
+router.get(
+    '/',
+    authorize(['admin']),
+    contractController.getAllContracts
+);
+
 
 module.exports = router;

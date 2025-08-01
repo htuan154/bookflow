@@ -49,20 +49,50 @@ export const contractServices = {
     },
 
     // Lấy hợp đồng theo trạng thái
+    // getContractsByStatus: async (status) => {
+    //     try {
+    //         const response = await fetch(API_ENDPOINTS.CONTRACTS.GET_BY_STATUS(status), {
+    //             method: 'GET',
+    //             headers: getAuthHeaders(),
+    //         });
+
+    //         if (!response.ok) {
+    //             throw new Error(`HTTP error! status: ${response.status}`);
+    //         }
+
+    //         return await response.json();
+    //     } catch (error) {
+    //         console.error('Error fetching contracts by status:', error);
+    //         throw error;
+    //     }
+    // },
+
     getContractsByStatus: async (status) => {
+        const url = API_ENDPOINTS.CONTRACTS.GET_BY_STATUS(status);
+        const headers = getAuthHeaders();
+
+        console.log('📤 [DEBUG] Fetching contracts by status...');
+        console.log('➡️ URL:', url);
+        console.log('🧾 Headers:', headers);
+
         try {
-            const response = await fetch(API_ENDPOINTS.CONTRACTS.GET_BY_STATUS(status), {
+            const response = await fetch(url, {
                 method: 'GET',
-                headers: getAuthHeaders(),
+                headers: headers,
             });
+
+            console.log('📥 [DEBUG] Raw response:', response);
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            return await response.json();
+            const data = await response.json();
+            console.log('✅ [DEBUG] Response JSON:', data);
+
+            return data;
         } catch (error) {
-            console.error('Error fetching contracts by status:', error);
+            console.error('❌ Error fetching contracts by status:', error);
             throw error;
         }
     },

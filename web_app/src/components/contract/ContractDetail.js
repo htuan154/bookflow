@@ -1,6 +1,6 @@
 // src/components/Contract/ContractDetail.js
-import React, { useState, useEffect } from 'react';
-import {useContract} from '../../context/ContractContext'
+import React, { useState, useEffect, useContext  } from 'react';
+import {ContractContext} from '../../context/ContractContext'
 import { contractServices } from '../../api/contract.service';
 import { useContractApproval } from './ContractApproval';
 const ContractDetail = ({ contractId, onClose, onApprovalSuccess }) => {
@@ -10,7 +10,7 @@ const ContractDetail = ({ contractId, onClose, onApprovalSuccess }) => {
     error,
     fetchContractDetail,
     clearError
-  } = useContract();
+  } = useContext(ContractContext);
 
   const [activeTab, setActiveTab] = useState('details');
   const [fileLoading, setFileLoading] = useState(false);
