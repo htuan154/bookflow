@@ -1,6 +1,6 @@
 // src/routes/AdminRoutes.js
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 
 import useAuth from '../hooks/useAuth';
 import { USER_ROLES } from '../config/roles';
@@ -13,30 +13,34 @@ import AdminWelcomePage from '../pages/admin/AdminWelcomePage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
 import UserListPage from '../pages/admin/UserManagementPage/UserListPage';
 
-// Hotel Management Pages
-
 import HotelManagementPage from '../pages/admin/HotelManagement/HotelManagentPage';
 import ApprovedHotelsPage from '../pages/admin/HotelManagement/ApprovedHotelsPage';
 import PendingApprovalPage from '../pages/admin/HotelManagement/PendingApprovalPage';
-// import AllHotelsPage from '../pages/admin/HotelManagement/AllHotelsPage'; // Tạo thêm nếu cần
 
 import ContractListPage from '../pages/admin/ContractManagement/ContractListPage';
-import PromotionManagementPage from '../pages/admin/PromotionManagementPage/PromotionManagementPage';
 
 // Context Providers
 import { UserProvider } from '../context/UserContext';
 import { HotelProvider } from '../context/HotelContext';
 import { ContractProvider } from '../context/ContractContext';
+import { PromotionsProvider } from '../context/PromotionsContext';
+
+// Promotion pages
+import {
+    PromotionManagement,
+    PromotionCreate,
+    PromotionEdit,
+    PromotionView,
+    PromotionAnalytics
+} from '../pages/admin/PromotionManagement';
 
 const AdminRoutes = () => {
     const { isAuthenticated, user } = useAuth();
 
-    // Nếu chưa đăng nhập, chuyển hướng đến trang đăng nhập
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
     }
 
-    // Nếu không phải admin, chuyển hướng đến trang không có quyền
     if (user?.roleId !== USER_ROLES.ADMIN) {
         return <Navigate to="/unauthorized" replace />;
     }
@@ -47,6 +51,7 @@ const AdminRoutes = () => {
                 <Route index element={<AdminWelcomePage />} />
                 <Route path="dashboard" element={<AdminDashboardPage />} />
 
+                {/* User Management */}
                 <Route
                     path="users"
                     element={
@@ -56,8 +61,7 @@ const AdminRoutes = () => {
                     }
                 />
 
-                {/* Hotel Management Routes */}
-                {/* Main hotel management page - trang tổng hợp */}
+                {/* Hotel Management */}
                 <Route
                     path="hotels"
                     element={
@@ -66,8 +70,6 @@ const AdminRoutes = () => {
                         </HotelProvider>
                     }
                 />
-
-                {/* Approved hotels page */}
                 <Route
                     path="hotels/admin/approved"
                     element={
@@ -76,8 +78,6 @@ const AdminRoutes = () => {
                         </HotelProvider>
                     }
                 />
-
-                {/* Pending & rejected hotels page */}
                 <Route
                     path="hotels/admin/pending"
                     element={
@@ -87,17 +87,17 @@ const AdminRoutes = () => {
                     }
                 />
 
-                {/* All hotels page - có thể tạo thêm */}
-                {/* <Route
-                    path="hotels/admin/all"
-                    element={
-                        <HotelProvider>
-                            <AllHotelsPage />
-                        </HotelProvider>
-                    }
-                /> */}
+                {/* Legacy route redirects */}
+                <Route
+                    path="hotels/approved"
+                    element={<Navigate to="/hotels/admin/approved" replace />}
+                />
+                <Route
+                    path="hotels/pending"
+                    element={<Navigate to="/hotels/admin/pending" replace />}
+                />
 
-                {/* Legacy routes for backward compatibility */}
+                {/* Partner Route (Pending) */}
                 <Route
                     path="partners"
                     element={
@@ -107,38 +107,33 @@ const AdminRoutes = () => {
                     }
                 />
 
-                <Route
-                    path="hotels/approved"
-                    element={
-                        <Navigate to="/hotels/admin/approved" replace />
-                    }
-                />
-
-                <Route
-                    path="hotels/pending"
-                    element={
-                        <Navigate to="/hotels/admin/admin/pending" replace />
-                    }
-                />
-
+                {/* Contract Management */}
                 <Route
                     path="contracts"
                     element={
                         <HotelProvider>
-                            <ContractProvider> 
+                            <ContractProvider>
                                 <ContractListPage />
                             </ContractProvider>
                         </HotelProvider>
-                        // <HotelProvider>
-                        //     <ContractListPage />
-                        // </HotelProvider>
                     }
                 />
 
+                {/* Promotion Management */}
                 <Route
                     path="promotions"
-                    element={<PromotionManagementPage />}
-                />
+                    element={
+                        <PromotionsProvider>
+                            <Outlet />
+                        </PromotionsProvider>
+                    }
+                >
+                    <Route index element={<PromotionManagement />} />
+                    <Route path="create" element={<PromotionCreate />} />
+                    <Route path="edit/:id" element={<PromotionEdit />} />
+                    <Route path="view/:id" element={<PromotionView />} />
+                    <Route path="analytics" element={<PromotionAnalytics />} />
+                </Route>
             </Route>
         </Routes>
     );

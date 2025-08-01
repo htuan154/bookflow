@@ -6,7 +6,7 @@ const { authenticate, authorize } = require('../middlewares/auth.middleware');
 const { validate } = require('../middlewares/validation.middleware');
 const { createPromotionSchema, validateCodeSchema } = require('../../../validators/promotion.validator');
 const usageHistoryRoutes = require('./promotionUsage.route');
-const promotionDetailRoutes = require('./promotionDetail.route'); 
+const promotionDetailRoutes = require('./promotionDetail.route');
 const router = express.Router();
 
 
@@ -30,6 +30,9 @@ router.post(
     validate(createPromotionSchema),
     promotionController.createPromotion
 );
+
+// GET /api/v1/promotions/:promotionId -> Lấy thông tin chi tiết 1 khuyến mãi
+router.get('/:promotionId', promotionController.getPromotionById);
 
 
 

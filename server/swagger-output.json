@@ -1816,6 +1816,26 @@
         }
       }
     },
+    "/api/v1/promotions/{promotionId}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "promotionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/v1/promotions/{promotionId}/details/": {
       "get": {
         "description": "",

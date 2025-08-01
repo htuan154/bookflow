@@ -108,5 +108,27 @@ export const API_ENDPOINTS = {
         GET_HOTEL_OWNERS: `${API_BASE_URL}/hotels/admin/hotel-owners`,
         SUSPEND_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/hotels/admin/hotel-owners/${ownerId}/suspend`,
         ACTIVATE_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/hotels/admin/hotel-owners/${ownerId}/activate`,
+
+    },
+    // --- Promotion Endpoints (Admin & Hotel Owner) ---
+    PROMOTIONS: {
+        // Public
+        GET_ALL: `${API_BASE_URL}/promotions`,
+        VALIDATE_CODE: `${API_BASE_URL}/promotions/validate`,
+
+        // Authenticated (Admin & Hotel Owner)
+        CREATE: `${API_BASE_URL}/promotions`,
+        
+        // Nested Routes
+        // /promotions/:promotionId/details
+        GET_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,
+        ADD_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,
+        GET_BY_ID: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
+
+        // /promotions/:promotionId/usage-history
+        GET_USAGE_HISTORY: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/usage-history`,
+
     }
+
+    
 };
