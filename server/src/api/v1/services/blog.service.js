@@ -94,6 +94,69 @@ class BlogService {
 
         return await blogRepository.update(blogId, updateData);
     }
+
+    /**
+     * Lấy danh sách blogs theo trạng thái (Admin only).
+     * @param {string} status - Trạng thái của blog.
+     * @param {object} options - Tùy chọn phân trang và sắp xếp.
+     * @returns {Promise<object>}
+     */
+    async getBlogsByStatus(status, options = {}) {
+        try {
+            const {
+                page = 1,
+                limit = 10,
+                sortBy = 'created_at',
+                sortOrder = 'DESC'
+            } = options;
+
+            const offset = (page - 1) * limit;
+            
+            const result = await blogRepository.findByStatus(status, limit, offset, sortBy, sortOrder);
+            
+            const totalPages = Math.ceil(result.total / limit);
+            
+            return {
+                success: true,
+                data: {
+                    blogs: result.blogs,
+                    pagination: {
+                        currentPage: page,
+                        totalPages,
+                        totalItems: result.total,
+                        itemsPerPage: limit,
+                        hasNextPage: page < totalPages,
+                        hasPrevPage: page > 1
+                    }
+                }
+            };
+        } catch (error) {
+            throw new Error(`Error getting blogs by status: ${error.message}`);
+        }
+    }
+
+    /**
+     * Lấy thống kê blogs theo trạng thái (Admin only).
+     * @returns {Promise<object>}
+     */
+    async getBlogStatistics() {
+        try {
+            const stats = await blogRepository.getBlogStatsByStatus();
+            
+            // Tính tổng
+            const total = Object.values(stats).reduce((sum, count) => sum + count, 0);
+            
+            return {
+                success: true,
+                data: {
+                    ...stats,
+                    total
+                }
+            };
+        } catch (error) {
+            throw new Error(`Error getting blog statistics: ${error.message}`);
+        }
+    }
 }
 
 module.exports = new BlogService();

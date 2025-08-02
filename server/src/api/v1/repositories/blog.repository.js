@@ -116,11 +116,106 @@ const updateCommentCount = async (blogId, amount) => {
     await pool.query(query, [amount, blogId]);
 };
 
+/**
+ * Lấy các bài blog theo trạng thái với phân trang và sắp xếp.
+ * @param {string} status - Trạng thái của blog ('draft', 'pending', 'published', 'archived', 'rejected').
+ * @param {number} limit - Số lượng bài blog trên mỗi trang.
+ * @param {number} offset - Vị trí bắt đầu.
+ * @param {string} sortBy - Trường để sắp xếp (mặc định: 'created_at').
+ * @param {string} sortOrder - Thứ tự sắp xếp ('ASC' hoặc 'DESC', mặc định: 'DESC').
+ * @returns {Promise<{blogs: Blog[], total: number}>}
+ */
+const findByStatus = async (status, limit = 10, offset = 0, sortBy = 'created_at', sortOrder = 'DESC') => {
+    // Validate status
+    const validStatuses = ['draft', 'pending', 'published', 'archived', 'rejected'];
+    if (!validStatuses.includes(status)) {
+        throw new Error(`Invalid status: ${status}. Valid statuses are: ${validStatuses.join(', ')}`);
+    }
+
+    // Validate sortBy để tránh SQL injection
+    const validSortFields = ['created_at', 'updated_at', 'title', 'view_count', 'like_count'];
+    if (!validSortFields.includes(sortBy)) {
+        sortBy = 'created_at';
+    }
+
+    // Validate sortOrder
+    sortOrder = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    // Query để lấy blogs
+    const blogQuery = `
+        SELECT b.*, u.full_name as author_name, h.name as hotel_name
+        FROM blogs b
+        LEFT JOIN users u ON b.author_id = u.user_id
+        LEFT JOIN hotels h ON b.hotel_id = h.hotel_id
+        WHERE b.status = $1
+        ORDER BY b.${sortBy} ${sortOrder}
+        LIMIT $2 OFFSET $3
+    `;
+
+    // Query để đếm tổng số blogs
+    const countQuery = `
+        SELECT COUNT(*) as total 
+        FROM blogs 
+        WHERE status = $1
+    `;
+
+    try {
+        const [blogResult, countResult] = await Promise.all([
+            pool.query(blogQuery, [status, limit, offset]),
+            pool.query(countQuery, [status])
+        ]);
+
+        const blogs = blogResult.rows.map(row => new Blog(row));
+        const total = parseInt(countResult.rows[0].total);
+
+        return { blogs, total };
+    } catch (error) {
+        throw new Error(`Error fetching blogs by status: ${error.message}`);
+    }
+};
+
+/**
+ * Lấy thống kê số lượng blogs theo từng trạng thái.
+ * @returns {Promise<object>} Object chứa số lượng blogs theo từng status.
+ */
+const getBlogStatsByStatus = async () => {
+    const query = `
+        SELECT 
+            status,
+            COUNT(*) as count
+        FROM blogs 
+        GROUP BY status
+        ORDER BY status
+    `;
+    
+    try {
+        const result = await pool.query(query);
+        const stats = {};
+        
+        // Initialize all statuses with 0
+        const validStatuses = ['draft', 'pending', 'published', 'archived', 'rejected'];
+        validStatuses.forEach(status => {
+            stats[status] = 0;
+        });
+        
+        // Fill in actual counts
+        result.rows.forEach(row => {
+            stats[row.status] = parseInt(row.count);
+        });
+        
+        return stats;
+    } catch (error) {
+        throw new Error(`Error fetching blog statistics: ${error.message}`);
+    }
+};
+
 module.exports = {
     create,
     findBySlug,
     findById,
     findAllPublished,
+    findByStatus, // Thêm function mới
+    getBlogStatsByStatus, // Thêm function mới
     update,
     incrementViewCount,
     updateLikeCount,
