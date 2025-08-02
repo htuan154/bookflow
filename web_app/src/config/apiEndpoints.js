@@ -80,7 +80,7 @@ export const API_ENDPOINTS = {
         GET_PENDING_HOTELS: `${API_BASE_URL}/hotels/admin/pending`,
         GET_ALL_HOTELS_ADMIN: `${API_BASE_URL}/hotels/admin/all`,
         GET_HOTELS_BY_STATUS: (status) => `${API_BASE_URL}/hotels/admin/status/${status}`,
-        
+        GET_PENDING_REJECTED_HOTELS: `${API_BASE_URL}/hotels/admin/pending-rejected`,
         // Hotel Status Management
         UPDATE_HOTEL_STATUS: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/status`,
         APPROVE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/approve`,

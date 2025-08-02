@@ -97,7 +97,7 @@ const HotelDataTable = ({ hotels, showActions = false, status }) => {
         for (let i = 1; i <= 5; i++) {
             stars.push(
                 <FaStar
-                    key={i}
+                    key={`star-${i}-${rating}`} // Sửa lại key cho duy nhất
                     className={`w-4 h-4 ${i <= numRating ? 'text-yellow-400' : 'text-gray-300'}`}
                 />
             );
@@ -142,7 +142,7 @@ const HotelDataTable = ({ hotels, showActions = false, status }) => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                     {hotels.map((hotel) => (
-                        <tr key={hotel.hotel_id} className="hover:bg-gray-50">
+                        <tr key={hotel.hotelId} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0 h-12 w-12">
