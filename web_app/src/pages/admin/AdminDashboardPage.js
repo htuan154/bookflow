@@ -1,5 +1,5 @@
 // src/pages/admin/AdminDashboardPage.js - Fixed Version
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import useAuth from '../../hooks/useAuth';
 import { useHotel } from '../../hooks/useHotel';
 import { useContract } from '../../hooks/useContract';
@@ -14,18 +14,18 @@ import { PromotionsProvider } from '../../context/PromotionsContext';
 
 import { 
     Building, 
-    Users, 
+ 
     FileText, 
     ScrollText,
-    Clock, 
+
     CheckCircle, 
-    XCircle,
+
     TrendingUp,
     Activity,
     AlertTriangle,
-    Calendar,
+
     DollarSign,
-    Eye,
+
     Plus,
     BarChart3
 } from 'lucide-react';

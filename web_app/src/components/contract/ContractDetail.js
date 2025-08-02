@@ -1,8 +1,8 @@
 // src/components/Contract/ContractDetail.js
-import React, { useState, useEffect, useContext  } from 'react';
+import { useState, useEffect, useContext  } from 'react';
 import {ContractContext} from '../../context/ContractContext'
 import { contractServices } from '../../api/contract.service';
-import { useContractApproval } from './ContractApproval';
+
 const ContractDetail = ({ contractId, onClose, onApprovalSuccess }) => {
   const {
     selectedContract,

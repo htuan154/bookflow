@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState} from 'react';
 import {
   PromotionList,
   PromotionFilters,
   PromotionModal,
   PromotionForm,
-  PromotionDetails,
-  PromotionStats
+  PromotionDetails
 } from '../../../components/promotions';
 import { usePromotions } from '../../../hooks/usePromotions';
 
@@ -15,7 +14,6 @@ const PromotionManagement = () => {
     loading,
     error,
     fetchPromotions,
-    hasPromotions,
     pagination,
     updatePagination
   } = usePromotions({ autoFetch: true });

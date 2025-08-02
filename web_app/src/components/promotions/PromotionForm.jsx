@@ -1,5 +1,4 @@
 // src/components/promotions/PromotionForm.jsx
-import React, { useState, useEffect } from 'react';
 import { usePromotionForm } from '../../hooks/usePromotions';
 
 const PromotionForm = ({ initialData, onSubmit, onCancel }) => {
@@ -9,7 +8,7 @@ const PromotionForm = ({ initialData, onSubmit, onCancel }) => {
     isSubmitting,
     updateFormData,
     submitForm,
-    resetForm,
+
     isValid
   } = usePromotionForm(initialData);
 
