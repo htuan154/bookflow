@@ -1,0 +1,61 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, mobile, web]
+  pull_request:
+    branches: [main, develop, mobile, web]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install backend dependencies
+        working-directory: ./server
+        run: npm install
+
+      - name: Run backend tests
+        working-directory: ./server
+        env:
+          NODE_ENV: development
+          PORT: 8080
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: npm test
+
+      - name: Install frontend dependencies
+        working-directory: ./web_app
+        run: npm install
+
+      - name: Build frontend
+        working-directory: ./web_app
+        run: npm run build
+
+      - name: Build Docker images
+        run: docker-compose build
+
+      - name: Deploy to production server
+        if: github.ref == 'refs/heads/main'
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /path/to/your/project
+            git pull origin main
+            docker-compose down
+            docker-compose up -d --build
