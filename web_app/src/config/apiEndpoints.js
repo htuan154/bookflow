@@ -128,7 +128,95 @@ export const API_ENDPOINTS = {
         // /promotions/:promotionId/usage-history
         GET_USAGE_HISTORY: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/usage-history`,
 
+    },
+
+    // --- Blog/Travel Article Endpoints ---
+    BLOGS: {
+        // Public endpoints
+        GET_ALL: `${API_BASE_URL}/blogs`,
+        GET_PUBLISHED: `${API_BASE_URL}/blogs/published`,
+        GET_BY_ID: (blogId) => `${API_BASE_URL}/blogs/${blogId}`,
+        GET_BY_SLUG: (slug) => `${API_BASE_URL}/blogs/slug/${slug}`,
+        GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/blogs/hotel/${hotelId}`,
+        SEARCH: `${API_BASE_URL}/blogs/search`,
+        GET_BY_TAG: (tag) => `${API_BASE_URL}/blogs/tag/${tag}`,
+        GET_POPULAR: `${API_BASE_URL}/blogs/popular`,
+        GET_RECENT: `${API_BASE_URL}/blogs/recent`,
+
+        // Admin endpoints
+        CREATE: `${API_BASE_URL}/blogs`,
+        UPDATE: (blogId) => `${API_BASE_URL}/blogs/${blogId}`,
+        DELETE: (blogId) => `${API_BASE_URL}/blogs/${blogId}`,
+        UPDATE_STATUS: (blogId) => `${API_BASE_URL}/blogs/${blogId}/status`,
+        APPROVE: (blogId) => `${API_BASE_URL}/blogs/${blogId}/approve`,
+        REJECT: (blogId) => `${API_BASE_URL}/blogs/${blogId}/reject`,
+        PUBLISH: (blogId) => `${API_BASE_URL}/blogs/${blogId}/publish`,
+        UNPUBLISH: (blogId) => `${API_BASE_URL}/blogs/${blogId}/unpublish`,
+
+        // Blog image endpoints
+        UPLOAD_IMAGE: (blogId) => `${API_BASE_URL}/blogs/${blogId}/images`,
+        DELETE_IMAGE: (blogId, imageId) => `${API_BASE_URL}/blogs/${blogId}/images/${imageId}`,
+        SET_FEATURED_IMAGE: (blogId, imageId) => `${API_BASE_URL}/blogs/${blogId}/images/${imageId}/set-featured`,
+
+        // Blog statistics
+        GET_STATS: `${API_BASE_URL}/blogs/stats`,
+        GET_BLOG_STATS: (blogId) => `${API_BASE_URL}/blogs/${blogId}/stats`,
+        INCREMENT_VIEW: (blogId) => `${API_BASE_URL}/blogs/${blogId}/view`,
+        LIKE: (blogId) => `${API_BASE_URL}/blogs/${blogId}/like`,
+        UNLIKE: (blogId) => `${API_BASE_URL}/blogs/${blogId}/unlike`,
+    },
+
+    // --- Admin Endpoints ---
+    ADMIN: {
+        // Hotel Management
+        GET_ALL_HOTELS: `${API_BASE_URL}/hotels/admin/all`,
+        GET_PENDING_HOTELS: `${API_BASE_URL}/hotels/admin/pending`,
+        GET_ALL_HOTELS_ADMIN: `${API_BASE_URL}/hotels/admin/all`,
+        GET_HOTELS_BY_STATUS: (status) => `${API_BASE_URL}/hotels/admin/status/${status}`,
+        
+        // Hotel Status Management
+        UPDATE_HOTEL_STATUS: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/status`,
+        APPROVE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/approve`,
+        REJECT_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/reject`,
+        RESTORE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/restore`,
+
+        // Hotel Filter Endpoints for Admin
+        GET_APPROVED_HOTELS: `${API_BASE_URL}/hotels/admin/status/approved`,
+        GET_PENDING_HOTELS_ADMIN: `${API_BASE_URL}/hotels/admin/pending`,
+        GET_REJECTED_HOTELS: `${API_BASE_URL}/hotels/admin/rejected`,
+
+        // Statistics
+        GET_STATISTICS: `${API_BASE_URL}/hotels/admin/statistics`,
+        GET_HOTEL_STATISTICS: `${API_BASE_URL}/hotels/admin/statistics`,
+        GET_DASHBOARD_STATS: `${API_BASE_URL}/admin/dashboard/stats`,
+        
+        // Hotel Details for Admin
+        GET_HOTEL_DETAILS_ADMIN: (hotelId) => `${API_BASE_URL}/admin/hotels/${hotelId}/details`,
+        
+        // Bulk Operations
+        BULK_APPROVE_HOTELS: `${API_BASE_URL}/hotels/admin/bulk/approve`,
+        BULK_REJECT_HOTELS: `${API_BASE_URL}/hotels/admin/bulk/reject`,
+
+        // Hotel Owner Management
+        GET_HOTEL_OWNERS: `${API_BASE_URL}/hotels/admin/hotel-owners`,
+        SUSPEND_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/hotels/admin/hotel-owners/${ownerId}/suspend`,
+        ACTIVATE_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/hotels/admin/hotel-owners/${ownerId}/activate`,
+
+        // Blog Management for Admin
+        GET_ALL_BLOGS: `${API_BASE_URL}/blogs/admin`,
+        GET_BLOGS_BY_STATUS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
+        GET_BLOGS_BY_STATUS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
+        GET_BLOGS_BY_STATUS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
+        GET_REJECTED_BLOGS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
+        
+        // Blog Bulk Operations
+        BULK_APPROVE_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/approve`,
+        BULK_REJECT_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/reject`,
+        BULK_DELETE_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/delete`,
+        
+        // Blog Statistics for Admin
+        GET_BLOG_STATISTICS: `${API_BASE_URL}/blogs/admin/statistics`,
+        GET_BLOG_DETAILS_ADMIN: (blogId) => `${API_BASE_URL}/admin/blogs/${blogId}/details`,
     }
 
-    
 };
