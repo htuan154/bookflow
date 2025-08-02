@@ -34,13 +34,9 @@ jobs:
           echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
 
-      
-
       - name: Install frontend dependencies
         working-directory: ./web_app
         run: npm install --legacy-peer-deps
 
-
       - name: Build Docker images
-        run: docker-compose build
-
+        run: docker compose build
