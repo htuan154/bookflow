@@ -59,6 +59,43 @@ class BlogController {
             next(error);
         }
     }
+
+    /**
+     * Lấy danh sách blogs theo trạng thái (Admin only).
+     * GET /api/v1/admin/blogs/status/:status
+     */
+    async getBlogsByStatus(req, res, next) {
+        try {
+            const { status } = req.params;
+            const { page, limit, sortBy, sortOrder } = req.query;
+            
+            const options = {
+                page: parseInt(page) || 1,
+                limit: parseInt(limit) || 10,
+                sortBy: sortBy || 'created_at',
+                sortOrder: sortOrder || 'DESC'
+            };
+            
+            const result = await BlogService.getBlogsByStatus(status, options);
+            
+            res.status(200).json(result);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * Lấy thống kê blogs (Admin only).
+     * GET /api/v1/admin/blogs/statistics
+     */
+    async getBlogStatistics(req, res, next) {
+        try {
+            const result = await BlogService.getBlogStatistics();
+            res.status(200).json(result);
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new BlogController();
