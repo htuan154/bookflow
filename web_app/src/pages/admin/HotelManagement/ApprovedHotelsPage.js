@@ -2,7 +2,7 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 //import  ApprovedHotelsList from '../../../components/hotel/ApprovedHotelsList';
-import ApprovedHotelsList from '../../../components/hotel/ApprovedHotelList';
+import ApprovedHotelsList from '../../../components/hotel/ApprovedHotelList.js';
 const ApprovedHotelsPage = () => {
     return (
         <>

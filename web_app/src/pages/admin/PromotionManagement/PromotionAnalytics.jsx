@@ -17,8 +17,7 @@ const PromotionAnalytics = () => {
     if (promotions) {
       calculateAnalytics();
     }
-  }, [promotions, calculateAnalytics]);
-
+  }, [promotions]);
 
   const calculateAnalytics = () => {
     const total = promotions.length;

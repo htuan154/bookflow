@@ -1,5 +1,5 @@
 // src/pages/admin/BlogManagement/CreateBlogPage.js
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useBlogContext } from '../../../context/BlogContext';
@@ -13,7 +13,6 @@ const CreateBlogPage = () => {
     const handleSubmit = async (blogData) => {
         try {
             setIsSubmitting(true);
-            const createdBlog = await createBlog(blogData);
             
             // Navigate to blog list or view the created blog
             navigate('/admin/blogs', { 

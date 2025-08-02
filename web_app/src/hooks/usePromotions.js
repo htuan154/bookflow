@@ -1,5 +1,5 @@
 // src/hooks/usePromotions.js
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePromotionsContext } from '../context/PromotionsContext';
 import promotionService from '../api/promotions.service';
 
