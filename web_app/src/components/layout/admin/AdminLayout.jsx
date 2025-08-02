@@ -23,7 +23,7 @@ const AdminLayout = () => {
         { name: 'Quản lý người dùng', icon: <UserCog size={20} />, path: '/admin/users' },
         { name: 'Bài viết du lịch', icon: <FileText size={20} />, path: '/admin/articles' },
         { name: 'Quản lý đối tác', icon: <Briefcase size={20} />, path: '/admin/partners' },
-        { name: 'Quản lý hợp đồng', icon: <FileSignature size={20} />, path: '/admin/contracts', badge: 2 },
+        { name: 'Quản lý hợp đồng', icon: <FileSignature size={20} />, path: '/admin/contracts'},
         { name: 'Quản lý khách hàng', icon: <Users size={20} />, path: '/admin/customers' },
         { name: 'Thanh toán', icon: <Ticket size={20} />, path: '/admin/payments' },
         { 
@@ -107,10 +107,10 @@ const AdminLayout = () => {
         <div className="flex bg-gray-50 min-h-screen font-sans">
             {/* Sidebar */}
             <aside className="w-72 bg-white border-r border-gray-200 p-4 flex flex-col">
-                <div className="text-2xl font-bold text-orange-500 mb-4 px-2">Tourism Manager</div>
+                <div className="text-2xl font-bold text-orange-500 mb-4 px-2">Bookflow Manager</div>
                 <div className="flex border border-gray-200 rounded-lg p-1 mb-6">
                     <button className="flex-1 text-sm font-semibold bg-orange-500 text-white rounded-md py-2">Quản trị viên</button>
-                    <button className="flex-1 text-sm font-semibold text-gray-600 py-2">Chủ khách sạn</button>
+
                 </div>
                 
                 <nav className="flex-1 space-y-1 overflow-y-auto">
@@ -142,15 +142,9 @@ const AdminLayout = () => {
                     <div className="flex items-center gap-4">
                         <button className="relative text-gray-600 hover:text-gray-800">
                             <Bell size={22} />
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">3</span>
+
                         </button>
-                        <button className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-orange-600">
-                            <PlusCircle size={18} />
-                            Thêm mới
-                        </button>
-                        <button onClick={handleLogout} className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden">
-                            <img src={`https://i.pravatar.cc/40?u=${user?.email}`} alt="User Avatar" />
-                        </button>
+                        
                     </div>
                 </header>
                 <main className="flex-1 bg-gray-50 p-6">

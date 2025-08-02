@@ -93,135 +93,137 @@ export const useContract = () => {
         };
     }, [contracts, filters, pagination]);
 
-    // Enhanced actions with additional functionality
-    const actions = useMemo(() => ({
-        // Original actions
-        fetchContracts,
-        fetchContractById,
-        approveContract,
-        rejectContract,
-        updateContractStatus,
-        setFilters,
-        clearError,
+    // Đưa các hàm useCallback ra ngoài useMemo
+    const setStatusFilter = useCallback((status) => {
+        setFilters({ status });
+    }, [setFilters]);
 
-        // Enhanced filter actions
-        setStatusFilter: useCallback((status) => {
-            setFilters({ status });
-        }, [setFilters]),
+    const setSearchFilter = useCallback((search) => {
+        setFilters({ search });
+    }, [setFilters]);
 
-        setSearchFilter: useCallback((search) => {
-            setFilters({ search });
-        }, [setFilters]),
+    const setDateRangeFilter = useCallback((dateRange) => {
+        setFilters({ dateRange });
+    }, [setFilters]);
 
-        setDateRangeFilter: useCallback((dateRange) => {
-            setFilters({ dateRange });
-        }, [setFilters]),
+    const clearFilters = useCallback(() => {
+        setFilters({
+            status: 'ALL',
+            search: '',
+            dateRange: null,
+        });
+    }, [setFilters]);
 
-        clearFilters: useCallback(() => {
-            setFilters({
-                status: 'ALL',
-                search: '',
-                dateRange: null,
-            });
-        }, [setFilters]),
-
-        // Batch operations
-        approveMultipleContracts: useCallback(async (contractIds, approvalData) => {
-            const results = [];
-            for (const contractId of contractIds) {
-                try {
-                    const result = await approveContract(contractId, approvalData);
-                    results.push({ contractId, success: true, result });
-                } catch (error) {
-                    results.push({ contractId, success: false, error: error.message });
-                }
+    const approveMultipleContracts = useCallback(async (contractIds, approvalData) => {
+        const results = [];
+        for (const contractId of contractIds) {
+            try {
+                const result = await approveContract(contractId, approvalData);
+                results.push({ contractId, success: true, result });
+            } catch (error) {
+                results.push({ contractId, success: false, error: error.message });
             }
-            return results;
-        }, [approveContract]),
+        }
+        return results;
+    }, [approveContract]);
 
-        rejectMultipleContracts: useCallback(async (contractIds, rejectionData) => {
-            const results = [];
-            for (const contractId of contractIds) {
-                try {
-                    const result = await rejectContract(contractId, rejectionData);
-                    results.push({ contractId, success: true, result });
-                } catch (error) {
-                    results.push({ contractId, success: false, error: error.message });
-                }
+    const rejectMultipleContracts = useCallback(async (contractIds, rejectionData) => {
+        const results = [];
+        for (const contractId of contractIds) {
+            try {
+                const result = await rejectContract(contractId, rejectionData);
+                results.push({ contractId, success: true, result });
+            } catch (error) {
+                results.push({ contractId, success: false, error: error.message });
             }
-            return results;
-        }, [rejectContract]),
+        }
+        return results;
+    }, [rejectContract]);
 
-        // Utility functions
-        getContractById: useCallback((contractId) => {
-            return contracts.find(contract => contract.contractId === contractId);
-        }, [contracts]),
+    const getContractById = useCallback((contractId) => {
+        return contracts.find(contract => contract.contractId === contractId);
+    }, [contracts]);
 
-        getContractsByStatus: useCallback((status) => {
-            return contracts.filter(contract => contract.status === status);
-        }, [contracts]),
+    const getContractsByStatus = useCallback((status) => {
+        return contracts.filter(contract => contract.status === status);
+    }, [contracts]);
 
-        isContractExpired: useCallback((contract) => {
-            if (!contract.expiryDate) return false;
-            return new Date(contract.expiryDate) < new Date();
-        }, []),
+    const isContractExpired = useCallback((contract) => {
+        if (!contract.expiryDate) return false;
+        return new Date(contract.expiryDate) < new Date();
+    }, []);
 
-        getContractAge: useCallback((contract) => {
-            if (!contract.createdAt) return 0;
-            const created = new Date(contract.createdAt);
-            const now = new Date();
-            return Math.floor((now - created) / (1000 * 60 * 60 * 24)); // days
-        }, []),
+    const getContractAge = useCallback((contract) => {
+        if (!contract.createdAt) return 0;
+        const created = new Date(contract.createdAt);
+        const now = new Date();
+        return Math.floor((now - created) / (1000 * 60 * 60 * 24)); // days
+    }, []);
 
-        // Refresh data
-        refreshContracts: useCallback(async () => {
-            await fetchContracts(filters);
-        }, [fetchContracts, filters]),
+    const refreshContracts = useCallback(async () => {
+        await fetchContracts(filters);
+    }, [fetchContracts, filters]);
 
-        refreshCurrentContract: useCallback(async () => {
-            if (currentContract?.contractId) {
-                await fetchContractById(currentContract.contractId);
-            }
-        }, [fetchContractById, currentContract]),
-    }), [
-        fetchContracts,
-        fetchContractById,
-        approveContract,
-        rejectContract,
-        updateContractStatus,
-        setFilters,
-        clearError,
-        contracts,
-        currentContract,
-        filters
-    ]);
+    const refreshCurrentContract = useCallback(async () => {
+        if (currentContract?.contractId) {
+            await fetchContractById(currentContract.contractId);
+        }
+    }, [fetchContractById, currentContract]);
 
     // Validation helpers
-    const validation = useMemo(() => ({
-        canApprove: useCallback((contract) => {
-            return contract && 
-                   ['PENDING', 'DRAFT'].includes(contract.status) && 
-                   !loading;
-        }, [loading]),
+    const canApprove = useCallback((contract) => {
+        return contract && 
+               ['PENDING', 'DRAFT'].includes(contract.status) && 
+               !loading;
+    }, [loading]);
 
-        canReject: useCallback((contract) => {
-            return contract && 
-                   ['PENDING', 'DRAFT'].includes(contract.status) && 
-                   !loading;
-        }, [loading]),
+    const canReject = useCallback((contract) => {
+        return contract && 
+               ['PENDING', 'DRAFT'].includes(contract.status) && 
+               !loading;
+    }, [loading]);
 
-        canEdit: useCallback((contract) => {
-            return contract && 
-                   ['DRAFT', 'PENDING'].includes(contract.status) && 
-                   !loading;
-        }, [loading]),
+    const canEdit = useCallback((contract) => {
+        return contract && 
+               ['DRAFT', 'PENDING'].includes(contract.status) && 
+               !loading;
+    }, [loading]);
 
-        canDelete: useCallback((contract) => {
-            return contract && 
-                   contract.status === 'DRAFT' && 
-                   !loading;
-        }, [loading]),
-    }), [loading]);
+    const canDelete = useCallback((contract) => {
+        return contract && 
+               contract.status === 'DRAFT' && 
+               !loading;
+    }, [loading]);
+
+    // Gom lại các hàm vào object nếu cần
+    const actions = {
+        fetchContracts,
+        fetchContractById,
+        approveContract,
+        rejectContract,
+        updateContractStatus,
+        setFilters,
+        clearError,
+        setStatusFilter,
+        setSearchFilter,
+        setDateRangeFilter,
+        clearFilters,
+        approveMultipleContracts,
+        rejectMultipleContracts,
+        getContractById,
+        getContractsByStatus,
+        isContractExpired,
+        getContractAge,
+        refreshContracts,
+        refreshCurrentContract,
+    };
+
+    const validation = {
+        canApprove,
+        canReject,
+        canEdit,
+        canDelete,
+    };
 
     return {
         // Original state
