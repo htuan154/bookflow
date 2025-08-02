@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { usePromotions } from '../../../hooks/usePromotions';
 
 const PromotionAnalytics = () => {
-  const { promotions, loading, fetchPromotions } = usePromotions({ autoFetch: true });
+  const { promotions, loading} = usePromotions({ autoFetch: true });
   const [analyticsData, setAnalyticsData] = useState({
     totalPromotions: 0,
     activePromotions: 0,
@@ -17,7 +17,8 @@ const PromotionAnalytics = () => {
     if (promotions) {
       calculateAnalytics();
     }
-  }, [promotions]);
+  }, [promotions, calculateAnalytics]);
+
 
   const calculateAnalytics = () => {
     const total = promotions.length;
