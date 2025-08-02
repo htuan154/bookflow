@@ -126,6 +126,13 @@ const AdminLayout = () => {
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Báo cáo</p>
                     {navLinks.slice(10).map(renderMenuItem)}
                 </nav>
+                {/* Nút đăng xuất cuối sidebar */}
+                <button
+                    onClick={handleLogout}
+                    className="mt-6 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition duration-300"
+                >
+                    Đăng xuất
+                </button>
             </aside>
             
             {/* Phần nội dung chính */}
@@ -153,5 +160,7 @@ const AdminLayout = () => {
         </div>
     );
 };
+
+
 
 export default AdminLayout;
