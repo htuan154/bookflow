@@ -46,7 +46,7 @@ export const hotelApiService = {
       const response = await axiosClient.get(API_ENDPOINTS.ADMIN.GET_PENDING_REJECTED_HOTELS, {
         params: {
           ...filters,
-          status: ['pending', 'rejected'] // Lấy cả pending và rejected
+          status: ['pending', 'rejected']
         }
       });
       return response.data;
@@ -55,6 +55,7 @@ export const hotelApiService = {
       throw error;
     }
   },
+  
 
   /**
    * Lấy hotels theo status cụ thể (có thể dùng thay thế)
