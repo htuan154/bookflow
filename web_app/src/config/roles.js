@@ -1,4 +1,4 @@
-// src/constants/roles.js
+// src/config/roles.js
 export const USER_ROLES = {
     ADMIN: 1,
     HOTEL_OWNER: 2,

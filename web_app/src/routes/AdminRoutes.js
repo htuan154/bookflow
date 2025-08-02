@@ -17,6 +17,15 @@ import HotelManagementPage from '../pages/admin/HotelManagement/HotelManagentPag
 import ApprovedHotelsPage from '../pages/admin/HotelManagement/ApprovedHotelsPage';
 import PendingApprovalPage from '../pages/admin/HotelManagement/PendingApprovalPage';
 
+// Blog Management Pages
+import BlogManagementPage from '../pages/admin/BlogManagement/BlogManagementPage';
+import BlogListPage from '../pages/admin/BlogManagement/BlogListPage';
+import CreateBlogPage from '../pages/admin/BlogManagement/CreateBlogPage';
+import EditBlogPage from '../pages/admin/BlogManagement/EditBlogPage';
+// import PublishedBlogsPage from '../pages/admin/BlogManagement/PublishedBlogsPage';
+// import PendingBlogsPage from '../pages/admin/BlogManagement/PendingBlogsPage';
+// import DraftBlogsPage from '../pages/admin/BlogManagement/DraftBlogsPage';
+
 import ContractListPage from '../pages/admin/ContractManagement/ContractListPage';
 
 // Context Providers
@@ -24,6 +33,7 @@ import { UserProvider } from '../context/UserContext';
 import { HotelProvider } from '../context/HotelContext';
 import { ContractProvider } from '../context/ContractContext';
 import { PromotionsProvider } from '../context/PromotionsContext';
+import { BlogProvider } from '../context/BlogContext'; // Thêm dòng này
 
 // Promotion pages
 import {
@@ -118,6 +128,21 @@ const AdminRoutes = () => {
                         </HotelProvider>
                     }
                 />
+
+                {/* Blog Management - Articles */}
+                <Route
+                    path="articles"
+                    element={
+                        <BlogProvider>
+                            <Outlet />
+                        </BlogProvider>
+                    }
+                >
+                    <Route index element={<BlogManagementPage />} />
+                    <Route path="list" element={<BlogListPage />} />
+                    <Route path="create" element={<CreateBlogPage />} />
+                    <Route path="edit/:blogId" element={<EditBlogPage />} />
+                </Route>
 
                 {/* Promotion Management */}
                 <Route
