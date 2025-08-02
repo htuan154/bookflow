@@ -1,6 +1,6 @@
 // src/pages/admin/BlogManagement/BlogListPage.js
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import  { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { useBlogContext } from '../../../context/BlogContext';
 import useAuth from '../../../hooks/useAuth';
@@ -9,7 +9,7 @@ import BlogList from '../../../components/blog/BlogList';
 
 const BlogListPage = () => {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    
     const { user } = useAuth();
     const { fetchBlogs, updateBlogStatus, deleteBlog } = useBlogContext();
 

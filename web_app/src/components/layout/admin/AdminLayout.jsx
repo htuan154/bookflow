@@ -1,13 +1,12 @@
 // src/components/layout/AdminLayout.jsx
-import React from 'react';
 import { UserCog } from "lucide-react";
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import useAuth from '../../../hooks/useAuth';
 
 import {
     LayoutDashboard, FileText, Briefcase, Users, Ticket, MessageSquare,
-    MapPin, BarChart2, Bell, PlusCircle, FileSignature, BadgePercent,
-    TrendingUp
+    MapPin, BarChart2, Bell, FileSignature, BadgePercent,
+
 } from 'lucide-react';
 
 const AdminLayout = () => {

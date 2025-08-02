@@ -574,7 +574,7 @@ export const deepClone = (obj) => {
 
 // ==================== EXPORTS ====================
 
-export default {
+const formatters = {
   // Date formatters
   formatDate,
   formatDateTime,
@@ -615,3 +615,5 @@ export default {
   generateSlug,
   deepClone
 };
+
+export default formatters;

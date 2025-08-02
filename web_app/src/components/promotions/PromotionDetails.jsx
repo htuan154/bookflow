@@ -1,12 +1,11 @@
 // src/components/promotions/PromotionDetails.jsx
-import React, { useEffect } from 'react';
+import  { useEffect } from 'react';
 import { usePromotions } from '../../hooks/usePromotions';
 import { formatDate, formatCurrency } from '../../utils/formatters';
 
 const PromotionDetails = ({ promotionId }) => {
   const { 
-    currentPromotion, 
-    promotionDetails, 
+    currentPromotion,  
     usageHistory, 
     loading, 
     getPromotionDetails, 
