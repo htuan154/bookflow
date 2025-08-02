@@ -1,6 +1,6 @@
 // src/components/Contract/ContractTable.js
-import React, { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import  { useState, useMemo } from 'react';
+
 
 const ContractTable = ({ 
     contracts = [], 

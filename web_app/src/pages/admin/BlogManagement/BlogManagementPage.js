@@ -1,5 +1,5 @@
 // src/pages/admin/BlogManagement/BlogManagementPage.js
-import React, { useState, useEffect } from 'react';
+import  { useState, useEffect } from 'react';
 import BlogList from '../../../components/blog/BlogList';
 import { 
     FileText, 
@@ -13,9 +13,9 @@ import { useBlogContext } from '../../../context/BlogContext';
 import useAuth from '../../../hooks/useAuth';
 
 const BlogManagementPage = () => {
-    const { user, isAuthenticated } = useAuth();
+    const {  isAuthenticated } = useAuth();
     const {
-        loading,
+
         error,
         statistics,
         fetchStatistics,
