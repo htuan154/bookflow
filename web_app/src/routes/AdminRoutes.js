@@ -28,13 +28,16 @@ import EditBlogPage from '../pages/admin/BlogManagement/EditBlogPage';
 
 import ContractListPage from '../pages/admin/ContractManagement/ContractListPage';
 
+// Customer Management Pages - BỔ SUNG
+import CustomerManagement from '../pages/admin/CustomerManagement/CustomerManagement';
+
 // Context Providers
 import { UserProvider } from '../context/UserContext';
 import { HotelProvider } from '../context/HotelContext';
 import { ContractProvider } from '../context/ContractContext';
 import { PromotionsProvider } from '../context/PromotionsContext';
 import { BlogProvider } from '../context/BlogContext'; // Thêm dòng này
-
+import { CustomerProvider }  from '../context/CustomerContext';
 // Promotion pages
 import {
     PromotionManagement,
@@ -68,6 +71,16 @@ const AdminRoutes = () => {
                         <UserProvider>
                             <UserListPage />
                         </UserProvider>
+                    }
+                />
+
+                {/* Customer Management - BỔ SUNG */}
+                <Route
+                    path="customers"
+                    element={
+                        <CustomerProvider>
+                            <CustomerManagement />
+                        </CustomerProvider>
                     }
                 />
 
