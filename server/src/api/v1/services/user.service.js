@@ -36,9 +36,56 @@ const deleteUser = async (userId) => {
     return true;
 };
 
+// === BỔ SUNG CÁC METHODS CHO QUẢN LÝ KHÁCH HÀNG ===
+
+/**
+ * Lấy danh sách chủ khách sạn (hotel owners)
+ * @param {Object} filters - Bộ lọc (page, limit, search, status)
+ * @returns {Array} Danh sách hotel owners
+ */
+const getHotelOwners = async (filters = {}) => {
+    // Thêm filter role_id cho hotel owner (giả sử role_id = 2)
+    const hotelOwnerFilters = {
+        ...filters,
+        role_id: 2 // Hotel Owner role
+    };
+    
+    const hotelOwners = await userRepository.findAll(hotelOwnerFilters);
+    return hotelOwners.map(user => user.toJSON());
+};
+
+/**
+ * Lấy người dùng theo role_id
+ * @param {number} roleId - ID của role
+ * @param {Object} filters - Bộ lọc khác
+ * @returns {Array} Danh sách users theo role
+ */
+const getUsersByRole = async (roleId, filters = {}) => {
+    const roleFilters = {
+        ...filters,
+        role_id: roleId
+    };
+    
+    const users = await userRepository.findAll(roleFilters);
+    return users.map(user => user.toJSON());
+};
+
+/**
+ * Lấy thống kê khách hàng theo role
+ * @returns {Object} Thống kê customers
+ */
+const getCustomerStatistics = async () => {
+    const stats = await userRepository.getStatisticsByRole();
+    return stats;
+};
+
 module.exports = {
     getAllUsers,
     getUserById,
     updateUser,
     deleteUser,
+    // Bổ sung methods mới
+    getHotelOwners,
+    getUsersByRole,
+    getCustomerStatistics,
 };

@@ -54,16 +54,5 @@ jobs:
       - name: Build Docker images
         run: docker compose build
 
-      - name: Deploy to production server
-        if: github.ref == 'refs/heads/main'
-        uses: appleboy/ssh-action@v0.1.10
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          script: |
-            cd /path/to/your/project
-            git pull origin main
-            docker compose down
-            docker compose up -d --build
+
+       
