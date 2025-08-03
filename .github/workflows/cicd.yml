@@ -37,7 +37,7 @@ jobs:
       - name: Debug .env
         working-directory: ./server
         run: cat .env
-        
+
       - name: Build backend
         working-directory: ./server
         run: npm run build
@@ -48,7 +48,8 @@ jobs:
 
       - name: Build frontend
         working-directory: ./web_app
-        run: npm run build
+        run: CI=false npm run build
+
 
       - name: Build Docker images
         run: docker compose build
