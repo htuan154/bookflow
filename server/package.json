@@ -7,7 +7,8 @@
     "start": "npm run swagger-autogen && node index.js",
     "swagger-autogen": "node swagger-autogen.js",
     "docs": "open http://localhost:8080/api-docs",
-    "test": "jest"
+    "test": "jest",
+    "build": " node swagger-autogen.js"
   },
   "keywords": [],
   "author": "",

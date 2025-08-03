@@ -10,6 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,10 +34,36 @@ jobs:
           echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env
           echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+      - name: Debug .env
+        working-directory: ./server
+        run: cat .env
+
+      - name: Build backend
+        working-directory: ./server
+        run: npm run build
 
       - name: Install frontend dependencies
         working-directory: ./web_app
         run: npm install --legacy-peer-deps
 
+      - name: Build frontend
+        working-directory: ./web_app
+        run: CI=false npm run build
+
+
       - name: Build Docker images
         run: docker compose build
+
+      - name: Deploy to production server
+        if: github.ref == 'refs/heads/main'
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /path/to/your/project
+            git pull origin main
+            docker compose down
+            docker compose up -d --build
