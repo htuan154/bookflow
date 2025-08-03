@@ -11,6 +11,16 @@ export const API_ENDPOINTS = {
         LOGOUT: `${API_BASE_URL}/auth/logout`,
     },
 
+    // --- User Management Endpoints (Admin only) ---
+    USERS: {
+        GET_ALL: `${API_BASE_URL}/users`,
+        GET_BY_ID: (userId) => `${API_BASE_URL}/users/${userId}`,
+        CREATE: `${API_BASE_URL}/users`, // ← THÊM MỚI
+        UPDATE: (userId) => `${API_BASE_URL}/users/${userId}`,
+        DELETE: (userId) => `${API_BASE_URL}/users/${userId}`,
+        UPDATE_STATUS: (userId) => `${API_BASE_URL}/users/${userId}/status`, // ← THÊM MỚI
+    },
+
     // --- Hotel Endpoints ---
     HOTELS: {
         // Public
@@ -58,14 +68,6 @@ export const API_ENDPOINTS = {
         UPDATE_STATUS: (contractId) => `${API_BASE_URL}/contracts/${contractId}/status`,
     },
 
-    // --- User Management Endpoints (Admin only) ---
-    USERS: {
-        GET_ALL: `${API_BASE_URL}/users`,
-        GET_BY_ID: (userId) => `${API_BASE_URL}/users/${userId}`,
-        UPDATE: (userId) => `${API_BASE_URL}/users/${userId}`,
-        DELETE: (userId) => `${API_BASE_URL}/users/${userId}`,
-    },
-
     // --- Promotion Endpoints (Admin only) ---
     PROMOTIONS: {
         GET_ALL: `${API_BASE_URL}/promotions`,
@@ -106,10 +108,32 @@ export const API_ENDPOINTS = {
 
         // Hotel Owner Management
         GET_HOTEL_OWNERS: `${API_BASE_URL}/hotels/admin/hotel-owners`,
+        CREATE_HOTEL_OWNER: `${API_BASE_URL}/hotels/admin/hotel-owners`, // ← THÊM MỚI
         SUSPEND_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/hotels/admin/hotel-owners/${ownerId}/suspend`,
         ACTIVATE_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/hotels/admin/hotel-owners/${ownerId}/activate`,
 
+        // User Management (Admin)
+        GET_ALL_USERS: `${API_BASE_URL}/admin/users`,
+        GET_USERS_BY_ROLE: (role) => `${API_BASE_URL}/admin/users/role/${role}`,
+        GET_HOTEL_OWNERS_ADMIN: `${API_BASE_URL}/admin/users/hotel-owners`, // ← THÊM MỚI
+        CREATE_USER: `${API_BASE_URL}/admin/users`, // ← THÊM MỚI
+        UPDATE_USER_STATUS: (userId) => `${API_BASE_URL}/admin/users/${userId}/status`, // ← THÊM MỚI
+
+        // Blog Management for Admin
+        GET_ALL_BLOGS: `${API_BASE_URL}/blogs/admin`,
+        GET_BLOGS_BY_STATUS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
+        GET_REJECTED_BLOGS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
+        
+        // Blog Bulk Operations
+        BULK_APPROVE_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/approve`,
+        BULK_REJECT_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/reject`,
+        BULK_DELETE_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/delete`,
+        
+        // Blog Statistics for Admin
+        GET_BLOG_STATISTICS: `${API_BASE_URL}/blogs/admin/statistics`,
+        GET_BLOG_DETAILS_ADMIN: (blogId) => `${API_BASE_URL}/admin/blogs/${blogId}/details`,
     },
+
     // --- Promotion Endpoints (Admin & Hotel Owner) ---
     PROMOTIONS: {
         // Public
@@ -127,7 +151,6 @@ export const API_ENDPOINTS = {
 
         // /promotions/:promotionId/usage-history
         GET_USAGE_HISTORY: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/usage-history`,
-
     },
 
     // --- Blog/Travel Article Endpoints ---
@@ -165,58 +188,4 @@ export const API_ENDPOINTS = {
         LIKE: (blogId) => `${API_BASE_URL}/blogs/${blogId}/like`,
         UNLIKE: (blogId) => `${API_BASE_URL}/blogs/${blogId}/unlike`,
     },
-
-    // --- Admin Endpoints ---
-    ADMIN: {
-        // Hotel Management
-        GET_ALL_HOTELS: `${API_BASE_URL}/hotels/admin/all`,
-        GET_PENDING_HOTELS: `${API_BASE_URL}/hotels/admin/pending`,
-        GET_ALL_HOTELS_ADMIN: `${API_BASE_URL}/hotels/admin/all`,
-        GET_HOTELS_BY_STATUS: (status) => `${API_BASE_URL}/hotels/admin/status/${status}`,
-        
-        // Hotel Status Management
-        UPDATE_HOTEL_STATUS: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/status`,
-        APPROVE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/approve`,
-        REJECT_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/reject`,
-        RESTORE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/restore`,
-
-        // Hotel Filter Endpoints for Admin
-        GET_APPROVED_HOTELS: `${API_BASE_URL}/hotels/admin/status/approved`,
-        GET_PENDING_HOTELS_ADMIN: `${API_BASE_URL}/hotels/admin/pending`,
-        GET_REJECTED_HOTELS: `${API_BASE_URL}/hotels/admin/rejected`,
-
-        // Statistics
-        GET_STATISTICS: `${API_BASE_URL}/hotels/admin/statistics`,
-        GET_HOTEL_STATISTICS: `${API_BASE_URL}/hotels/admin/statistics`,
-        GET_DASHBOARD_STATS: `${API_BASE_URL}/admin/dashboard/stats`,
-        
-        // Hotel Details for Admin
-        GET_HOTEL_DETAILS_ADMIN: (hotelId) => `${API_BASE_URL}/admin/hotels/${hotelId}/details`,
-        
-        // Bulk Operations
-        BULK_APPROVE_HOTELS: `${API_BASE_URL}/hotels/admin/bulk/approve`,
-        BULK_REJECT_HOTELS: `${API_BASE_URL}/hotels/admin/bulk/reject`,
-
-        // Hotel Owner Management
-        GET_HOTEL_OWNERS: `${API_BASE_URL}/hotels/admin/hotel-owners`,
-        SUSPEND_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/hotels/admin/hotel-owners/${ownerId}/suspend`,
-        ACTIVATE_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/hotels/admin/hotel-owners/${ownerId}/activate`,
-
-        // Blog Management for Admin
-        GET_ALL_BLOGS: `${API_BASE_URL}/blogs/admin`,
-        GET_BLOGS_BY_STATUS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
-        GET_BLOGS_BY_STATUS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
-        GET_BLOGS_BY_STATUS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
-        GET_REJECTED_BLOGS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
-        
-        // Blog Bulk Operations
-        BULK_APPROVE_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/approve`,
-        BULK_REJECT_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/reject`,
-        BULK_DELETE_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/delete`,
-        
-        // Blog Statistics for Admin
-        GET_BLOG_STATISTICS: `${API_BASE_URL}/blogs/admin/statistics`,
-        GET_BLOG_DETAILS_ADMIN: (blogId) => `${API_BASE_URL}/admin/blogs/${blogId}/details`,
-    }
-
 };
