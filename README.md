@@ -259,6 +259,6 @@ type(scope): description
 
 **⭐ Nếu dự án hữu ích, hãy cho chúng tôi một Star trên GitHub! ⭐**
 
-Made with ❤️ by [Your Name](https://github.com/yourusername)
+Made with ❤️ by [Hoàng Tuấn](https://github.com/htuan154)
 
 </div>
