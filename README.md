@@ -248,13 +248,10 @@ type(scope): description
 
 ## 📞 Liên hệ & Hỗ trợ
 
-- **Email:** your.email@example.com
-- **GitHub Issues:** [Create Issue](https://github.com/yourusername/bookflow/issues)
-- **Discord:** [Join Server](https://discord.gg/bookflow)
+- **Email:** htuan15424@gmail.com
 
-## 📄 License
 
-Dự án này được phân phối dưới **MIT License**. Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
+
 
 ---
 
