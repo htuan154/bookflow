@@ -67,9 +67,4 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
       ),
     );
   }
-}
-
-
-
-
-
+} 
