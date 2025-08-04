@@ -65,14 +65,20 @@ class AuthService {
   }) async {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}/auth/login');
+      print('Login URL: $url');
 
-      final body = {'email': email, 'password': password};
+      // Server yêu cầu field 'identifier' thay vì 'email'
+      final body = {'identifier': email, 'password': password};
+      print('Login body: $body');
 
       final response = await http.post(
         url,
         headers: _headers,
         body: jsonEncode(body),
       );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       final responseData = jsonDecode(response.body);
 
@@ -89,9 +95,11 @@ class AuthService {
         return {
           'success': false,
           'message': responseData['message'] ?? 'Login failed',
+          'statusCode': response.statusCode,
         };
       }
     } catch (e) {
+      print('Login exception: $e');
       return {'success': false, 'message': 'Network error: $e'};
     }
   }

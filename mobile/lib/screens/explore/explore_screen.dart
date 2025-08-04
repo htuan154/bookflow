@@ -9,7 +9,7 @@ import 'components/map_markers.dart';
 import 'components/map_search_bar.dart';
 import 'components/hotel_details_bottom_sheet.dart';
 import 'components/loading_indicator.dart';
-import 'components/selected_location_info.dart';
+// import 'components/selected_location_info.dart';
 import 'components/hotel_count_badge.dart';
 import 'components/location_dialog.dart';
 
@@ -631,27 +631,27 @@ class _ExploreScreenState extends State<ExploreScreen> {
             ),
 
           // Hiển thị thông tin vị trí đã chọn ở bottom
-          if (_selectedLocation != null &&
-              _selectedAddress != null &&
-              !_isLoadingAddress)
-            Positioned(
-              bottom: 20,
-              left: 16,
-              right: 16,
-              child: SelectedLocationInfo(
-                selectedLocation: _selectedLocation!,
-                selectedAddress: _selectedAddress!,
-                onClose: () {
-                  setState(() {
-                    _selectedLocation = null;
-                    _selectedAddress = null;
-                  });
-                  _updateMarkers();
-                },
-                onSearchNearby: () =>
-                    _searchHotelsNearLocation(_selectedLocation!),
-              ),
-            ),
+          // if (_selectedLocation != null &&
+          //     _selectedAddress != null &&
+          //     !_isLoadingAddress)
+          //   Positioned(
+          //     bottom: 20,
+          //     left: 16,
+          //     right: 16,
+          //     child: SelectedLocationInfo(
+          //       selectedLocation: _selectedLocation!,
+          //       selectedAddress: _selectedAddress!,
+          //       onClose: () {
+          //         setState(() {
+          //           _selectedLocation = null;
+          //           _selectedAddress = null;
+          //         });
+          //         _updateMarkers();
+          //       },
+          //       onSearchNearby: () =>
+          //           _searchHotelsNearLocation(_selectedLocation!),
+          //     ),
+          //   ),
         ],
       ),
 
