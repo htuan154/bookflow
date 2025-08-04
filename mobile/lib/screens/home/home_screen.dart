@@ -1,5 +1,7 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
+import '../home/components/hotel_card.dart';
+import '../home/components/nearby_hotel_card.dart';
 
 class HomeScreen extends StatelessWidget {
   @override
@@ -8,16 +10,36 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: Row(
           children: [
-            Icon(Icons.location_on, color: Colors.red),
+            Icon(Icons.location_on, color: Colors.orange),
             SizedBox(width: 4),
-            Text('New York, USA'),
+            Text('New York, USA', style: TextStyle(fontSize: 16)),
             Icon(Icons.keyboard_arrow_down),
           ],
         ),
         actions: [
-          IconButton(
-            icon: Icon(Icons.notifications, color: Colors.orange),
-            onPressed: () {},
+          Stack(
+            children: [
+              IconButton(
+                icon: Icon(Icons.notifications_outlined, color: Colors.orange),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Notifications clicked!')),
+                  );
+                },
+              ),
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
         backgroundColor: Colors.white,
@@ -30,22 +52,29 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Search Bar
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.search, color: Colors.grey),
-                  SizedBox(width: 8),
-                  Text('Search', style: TextStyle(color: Colors.grey)),
-                ],
+            GestureDetector(
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Search clicked!')),
+                );
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.search, color: Colors.grey),
+                    SizedBox(width: 12),
+                    Text('Search', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+                  ],
+                ),
               ),
             ),
             
-            SizedBox(height: 20),
+            SizedBox(height: 24),
             
             // Recommended Hotel Section
             Row(
@@ -53,11 +82,18 @@ class HomeScreen extends StatelessWidget {
               children: [
                 Text(
                   'Recommended Hotel',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-                Text(
-                  'See all',
-                  style: TextStyle(color: Colors.orange),
+                GestureDetector(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('See all recommended hotels clicked!')),
+                    );
+                  },
+                  child: Text(
+                    'See all',
+                    style: TextStyle(color: Colors.orange, fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
                 ),
               ],
             ),
@@ -69,26 +105,28 @@ class HomeScreen extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildHotelCard(
-                    'Hotel Galaxy',
-                    '\$120',
-                    '10% OFF',
-                    4.8,
-                    'assets/hotel1.jpg',
+                  HotelCard(
+                    name: 'Hotel Galaxy',
+                    price: '\$120',
+                    discount: '10% Off',
+                    rating: 4.8,
+                    location: 'New York, USA',
+                    imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400',
                   ),
                   SizedBox(width: 16),
-                  _buildHotelCard(
-                    'Marlot INN',
-                    '\$100',
-                    '10% OFF',
-                    4.5,
-                    'assets/hotel2.jpg',
+                  HotelCard(
+                    name: 'Mariot INN',
+                    price: '\$100',
+                    discount: '10% Off',
+                    rating: 4.8,
+                    location: 'New York, USA',
+                    imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400',
                   ),
                 ],
               ),
             ),
             
-            SizedBox(height: 24),
+            SizedBox(height: 32),
             
             // Nearby Hotel Section
             Row(
@@ -96,174 +134,159 @@ class HomeScreen extends StatelessWidget {
               children: [
                 Text(
                   'Nearby Hotel',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-                Text(
-                  'See all',
-                  style: TextStyle(color: Colors.orange),
+                GestureDetector(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('See all nearby hotels clicked!')),
+                    );
+                  },
+                  child: Text(
+                    'See all',
+                    style: TextStyle(color: Colors.orange, fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
                 ),
               ],
             ),
             
             SizedBox(height: 16),
             
-            // Nearby Hotel Card
-            _buildNearbyHotelCard(
-              'Golden valley',
-              '\$150',
-              '10% OFF',
-              4.8,
-              'New York, USA',
-              'assets/hotel3.jpg',
+            // Nearby Hotel Cards
+            NearbyHotelCard(
+              name: 'Golden valley',
+              price: '\$150',
+              discount: '10% Off',
+              rating: 4.8,
+              location: 'New York, USA',
+              imageUrl: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400',
+            ),
+            
+            NearbyHotelCard(
+              name: 'Resort Paradise',
+              price: '\$180',
+              discount: '15% Off',
+              rating: 4.8,
+              location: 'New York, USA',
+              imageUrl: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400',
             ),
           ],
         ),
       ),
+
     );
   }
   
-  Widget _buildHotelCard(String name, String price, String discount, double rating, String imagePath) {
-    return Container(
-      width: 160,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            children: [
-              Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                ),
-                child: Center(child: Icon(Icons.hotel, size: 40, color: Colors.grey)),
-              ),
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    discount,
-                    style: TextStyle(color: Colors.white, fontSize: 10),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Icon(Icons.favorite_border, color: Colors.white),
-              ),
-            ],
-          ),
-          Padding(
-            padding: EdgeInsets.all(8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildHotelCard(BuildContext context, String name, String price, String discount, double rating, String location, String imageUrl) {
+    return GestureDetector(
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$name hotel clicked!')),
+        );
+      },
+      child: Container(
+        width: 180,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.15),
+              spreadRadius: 1,
+              blurRadius: 10,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
               children: [
-                Text(name, style: TextStyle(fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.star, color: Colors.orange, size: 14),
-                    Text(' $rating', style: TextStyle(fontSize: 12)),
-                  ],
+                Container(
+                  height: 140,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    image: DecorationImage(
+                      image: NetworkImage(imageUrl),
+                      fit: BoxFit.cover,
+                      onError: (exception, stackTrace) {},
+                    ),
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Colors.black.withOpacity(0.1)],
+                      ),
+                    ),
+                  ),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  '$price/Day',
-                  style: TextStyle(
-                    color: Colors.orange,
-                    fontWeight: FontWeight.bold,
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      discount,
+                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: GestureDetector(
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('$name added to favorites!')),
+                      );
+                    },
+                    child: Container(
+                      padding: EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.favorite_outline, color: Colors.grey[600], size: 18),
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildNearbyHotelCard(String name, String price, String discount, double rating, String location, String imagePath) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Stack(
-            children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.horizontal(left: Radius.circular(12)),
-                ),
-                child: Center(child: Icon(Icons.hotel, size: 30, color: Colors.grey)),
-              ),
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    discount,
-                    style: TextStyle(color: Colors.white, fontSize: 10),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Expanded(
-            child: Padding(
+            Padding(
               padding: EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(name, style: TextStyle(fontWeight: FontWeight.bold)),
-                      Icon(Icons.favorite_border, color: Colors.grey),
-                    ],
+                  Text(
+                    name, 
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.location_on, color: Colors.grey, size: 14),
-                      Text(location, style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      Icon(Icons.location_on, color: Colors.grey[500], size: 14),
+                      SizedBox(width: 2),
+                      Expanded(
+                        child: Text(
+                          location, 
+                          style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
-                  SizedBox(height: 4),
+                  SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -272,12 +295,17 @@ class HomeScreen extends StatelessWidget {
                         style: TextStyle(
                           color: Colors.orange,
                           fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
                       Row(
                         children: [
-                          Icon(Icons.star, color: Colors.orange, size: 14),
-                          Text(' $rating', style: TextStyle(fontSize: 12)),
+                          Icon(Icons.star, color: Colors.orange, size: 16),
+                          SizedBox(width: 2),
+                          Text(
+                            '$rating', 
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                          ),
                         ],
                       ),
                     ],
@@ -285,8 +313,130 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildNearbyHotelCard(BuildContext context, String name, String price, String discount, double rating, String location, String imageUrl) {
+    return GestureDetector(
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$name hotel clicked!')),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.15),
+              spreadRadius: 1,
+              blurRadius: 10,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Stack(
+              children: [
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.horizontal(left: Radius.circular(16)),
+                    image: DecorationImage(
+                      image: NetworkImage(imageUrl),
+                      fit: BoxFit.cover,
+                      onError: (exception, stackTrace) {},
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      discount,
+                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name, 
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('$name added to favorites!')),
+                            );
+                          },
+                          child: Icon(Icons.favorite_outline, color: Colors.grey[400]),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(Icons.location_on, color: Colors.grey[500], size: 14),
+                        SizedBox(width: 4),
+                        Text(location, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                      ],
+                    ),
+                    SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '$price/Day',
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Icon(Icons.star, color: Colors.orange, size: 16),
+                            SizedBox(width: 2),
+                            Text(
+                              '$rating', 
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
