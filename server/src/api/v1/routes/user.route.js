@@ -14,7 +14,8 @@ const { authenticate, authorize } = require('../middlewares/auth.middleware');
 router.use(authenticate);
 router.use(authorize(['admin']));
 router.route('/')
-    .get(userController.getAllUsers);
+    .get(userController.getAllUsers)
+    .post(userController.createUser);
 
 router.route('/:id')
     .get(userController.getUser)
