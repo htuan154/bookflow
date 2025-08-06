@@ -57,13 +57,23 @@ const findByUsername = async (username) => {
  * @returns {Promise<User>} - Trả về instance của User vừa được tạo.
  */
 const create = async (userData) => {
-  const { username, email, passwordHash, fullName, roleId } = userData;
+  const {
+    username,
+    email,
+    passwordHash,
+    fullName,
+    roleId,
+    phoneNumber,
+    address
+  } = userData;
+
   const result = await pool.query(
-    `INSERT INTO users (username, email, password_hash, full_name, role_id)
-    VALUES ($1, $2, $3, $4, $5)
-     RETURNING *`, // Lấy tất cả các cột để tạo model
-    [username, email, passwordHash, fullName, roleId]
+    `INSERT INTO users (username, email, password_hash, full_name, role_id, phone_number, address)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING *`,
+    [username, email, passwordHash, fullName, roleId, phoneNumber, address]
   );
+
   return new User(result.rows[0]);
 };
 
@@ -79,6 +89,7 @@ const findById = async (userId) => {
   }
   return new User(result.rows[0]);
 };
+
 /**
  * Lấy danh sách người dùng, có thể lọc theo vai trò (roleId).
  * @param {object} [filters={}] - Đối tượng chứa các bộ lọc.
@@ -86,7 +97,7 @@ const findById = async (userId) => {
  * @returns {Promise<User[]>} - Trả về một mảng các instance của User.
  */
 const findAll = async (filters = {}) => {
-  let query = 'SELECT user_id, username, email, full_name, role_id, created_at FROM users';
+  let query = 'SELECT user_id, username, email, full_name, role_id, created_at, phone_number, address FROM users';
   const queryParams = [];
   
   // Kiểm tra nếu có bộ lọc roleId được cung cấp
@@ -103,15 +114,21 @@ const findAll = async (filters = {}) => {
 /**
  * Cập nhật thông tin người dùng.
  * @param {string} userId - ID của người dùng cần cập nhật.
- * @param {object} userData - Dữ liệu cần cập nhật (ví dụ: { fullName, roleId }).
+ * @param {object} userData - Dữ liệu cần cập nhật (fullName, email, phoneNumber, address).
  * @returns {Promise<User|null>}
  */
 const update = async (userId, userData) => {
-    const { fullName, roleId } = userData;
+    const { fullName, email, phoneNumber, address } = userData;
+
     const result = await pool.query(
-        `UPDATE users SET full_name = $1, role_id = $2
-         WHERE user_id = $3 RETURNING *`,
-        [fullName, roleId, userId]
+        `UPDATE users 
+         SET full_name = $1, 
+             email = $2, 
+             phone_number = $3, 
+             address = $4
+         WHERE user_id = $5
+         RETURNING *`,
+        [fullName, email, phoneNumber, address, userId]
     );
 
     if (result.rowCount === 0) return null;

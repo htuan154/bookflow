@@ -7,6 +7,30 @@ Mục đích: Tầng service cho các thao tác quản lý người dùng (CRUD)
 const userRepository = require('../repositories/user.repository');
 const { AppError } = require('../../../utils/errors');
 
+const bcrypt = require('bcrypt');
+const createUser = async (userData) => {
+    const { username, email, password, fullName, roleId = 3, phoneNumber, address } = userData;
+    // Kiểm tra trùng email hoặc username
+    const existingUser = await userRepository.findByEmailOrUsername(email, username);
+    if (existingUser) {
+        throw new AppError('Username hoặc email đã tồn tại', 409);
+    }
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+    // Tạo user mới
+    const newUser = await userRepository.create({
+        username,
+        email,
+        passwordHash,
+        fullName,
+        roleId,
+        phoneNumber,
+        address
+    });
+    return newUser.toJSON();
+};
+
 const getAllUsers = async (filters) => {
     const users = await userRepository.findAll(filters);
     return users.map(user => user.toJSON()); // Không trả về password hash
@@ -82,6 +106,7 @@ const getCustomerStatistics = async () => {
 module.exports = {
     getAllUsers,
     getUserById,
+    createUser,
     updateUser,
     deleteUser,
     // Bổ sung methods mới
