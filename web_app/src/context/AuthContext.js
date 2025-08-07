@@ -40,10 +40,14 @@ const AuthProvider = ({ children }) => {
         initializeAuth();
     }, [token]);
 
-    const login = (userData, userToken) => {
-        localStorage.setItem('token', userToken);
-        setToken(userToken);
-        setUser(userData);
+    const login = async (user, token) => {
+       
+        setToken(token);
+        setUser(user);
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        
     };
 
     const logout = () => {
