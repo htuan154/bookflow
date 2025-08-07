@@ -92,8 +92,7 @@ const PromotionManagement = () => {
 
   const getModalTitle = () => {
     switch (modalState.type) {
-      case 'create': return 'Tạo khuyến mãi mới';
-      case 'edit': return 'Chỉnh sửa khuyến mãi';
+
       case 'view': return 'Chi tiết khuyến mãi';
       default: return '';
     }
@@ -107,12 +106,7 @@ const PromotionManagement = () => {
           <h1 className="text-2xl font-bold text-gray-900">Quản lý khuyến mãi</h1>
           <p className="text-gray-600">Quản lý các chương trình khuyến mãi và mã giảm giá cho khách sạn</p>
         </div>
-        <button
-          onClick={handleCreate}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Tạo khuyến mãi
-        </button>
+      
       </div>
 
       {/* Error Display */}

@@ -11,13 +11,14 @@ const customerService = {
      */
     getHotelOwners: async (params = {}) => {
         try {
-            // Thêm filter role để lấy hotel owners
+            // ✅ FIXED: Sử dụng endpoint đúng cho hotel owners
             const queryParams = {
                 ...params,
-                role: 'hotel_owner' // Hoặc role_id tùy theo backend
+                roleId: 2, // Thêm roleId để filter
+                role: 'hotel_owner'
             };
             
-            const response = await axiosClient.get(API_ENDPOINTS.USERS.GET_ALL, { 
+            const response = await axiosClient.get(API_ENDPOINTS.USERS.GET_HOTEL_OWNERS, { 
                 params: queryParams 
             });
             return response.data;
@@ -37,7 +38,8 @@ const customerService = {
         try {
             const queryParams = {
                 ...params,
-                role: role
+                role: role,
+                roleId: role === 'hotel_owner' ? 2 : params.roleId
             };
             
             const response = await axiosClient.get(API_ENDPOINTS.USERS.GET_ALL, { 
@@ -81,13 +83,29 @@ const customerService = {
     },
 
     /**
-     * Tạo hotel owner mới
+     * ✅ FIXED: Tạo hotel owner mới - sử dụng đúng endpoint
      * @param {Object} hotelOwnerData - Dữ liệu hotel owner mới
      * @returns {Promise} Created hotel owner data
      */
     createHotelOwner: async (hotelOwnerData) => {
         try {
-            const response = await axiosClient.post(API_ENDPOINTS.ADMIN.CREATE_HOTEL_OWNER, hotelOwnerData);
+            console.log('createHotelOwner received data:', hotelOwnerData);
+            
+            // Chuẩn bị dữ liệu theo format backend mong đợi
+            const requestData = {
+                username: hotelOwnerData.username,
+                email: hotelOwnerData.email,
+                password: hotelOwnerData.password,
+                fullName: hotelOwnerData.fullName,
+                roleId: 2, // Hotel owner role
+                phoneNumber: hotelOwnerData.phoneNumber,
+                address: hotelOwnerData.address
+            };
+            
+            console.log('Sending to API:', requestData);
+            
+            const response = await axiosClient.post(API_ENDPOINTS.USERS.CREATE, requestData);
+            console.log('API response:', response.data);
             return response.data;
         } catch (error) {
             console.error('Error creating hotel owner:', error);
@@ -184,15 +202,15 @@ const customerService = {
     },
 
     /**
-     * Lấy danh sách khách hàng có khách sạn
+     * ✅ FIXED: Lấy danh sách khách hàng có khách sạn
      * @param {Object} params - Query parameters
      * @returns {Promise} Response data with hotel information
      */
     getCustomersWithHotels: async (params = {}) => {
         try {
-            // Sử dụng endpoint admin để lấy hotel owners
+            // ✅ FIXED: Sử dụng endpoint đúng
             const response = await axiosClient.get(
-                API_ENDPOINTS.ADMIN.GET_HOTEL_OWNERS, 
+                API_ENDPOINTS.USERS.GET_HOTEL_OWNERS, 
                 { params }
             );
             return response.data;
@@ -203,14 +221,16 @@ const customerService = {
     },
 
     /**
-     * Suspend/Block một hotel owner
+     * ✅ FIXED: Suspend/Block một hotel owner
      * @param {string} ownerId - ID của hotel owner
      * @returns {Promise} Response data
      */
     suspendHotelOwner: async (ownerId) => {
         try {
+            // ✅ FIXED: Sử dụng updateCustomer thay vì endpoint không tồn tại
             const response = await axiosClient.patch(
-                API_ENDPOINTS.ADMIN.SUSPEND_HOTEL_OWNER(ownerId)
+                API_ENDPOINTS.USERS.UPDATE(ownerId),
+                { status: 'inactive' }
             );
             return response.data;
         } catch (error) {
@@ -220,14 +240,16 @@ const customerService = {
     },
 
     /**
-     * Activate một hotel owner
+     * ✅ FIXED: Activate một hotel owner
      * @param {string} ownerId - ID của hotel owner
      * @returns {Promise} Response data
      */
     activateHotelOwner: async (ownerId) => {
         try {
+            // ✅ FIXED: Sử dụng updateCustomer thay vì endpoint không tồn tại
             const response = await axiosClient.patch(
-                API_ENDPOINTS.ADMIN.ACTIVATE_HOTEL_OWNER(ownerId)
+                API_ENDPOINTS.USERS.UPDATE(ownerId),
+                { status: 'active' }
             );
             return response.data;
         } catch (error) {
@@ -247,6 +269,7 @@ const customerService = {
             const params = {
                 search: searchTerm,
                 role: 'hotel_owner',
+                roleId: 2,
                 ...filters
             };
             
@@ -282,6 +305,7 @@ const customerService = {
             const params = {
                 ...filters,
                 role: 'hotel_owner',
+                roleId: 2,
                 export: true
             };
             

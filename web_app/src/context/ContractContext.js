@@ -274,16 +274,7 @@ export const ContractProvider = ({ children }) => {
         clearError,
     };
 
-    console.log('🏗️ ContractProvider rendering with state:', {
-        contractsCount: state.contracts?.length || 0,
-        loading: state.loading,
-        error: state.error,
-        contracts: state.contracts.map(c => ({
-            id: c.contractId,
-            status: c.status,
-            createdAt: c.createdAt,
-        })),
-    });
+    
 
     return (
         <ContractContext.Provider value={value}>

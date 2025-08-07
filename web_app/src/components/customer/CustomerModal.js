@@ -9,7 +9,7 @@ const CustomerModal = ({ customer, mode, onClose, onSave }) => {
         password: '', // Thêm password cho chế độ create
         phone: '',
         address: '',
-        status: 'active'
+        cre: 'active'
     });
 
     const [isEditing, setIsEditing] = useState(mode === 'edit' || mode === 'create');
@@ -35,13 +35,21 @@ const CustomerModal = ({ customer, mode, onClose, onSave }) => {
                 email: customer.email || '',
                 username: customer.username || '',
                 password: '', // Không hiển thị password cũ
-                phone: customer.phone || '',
+                phone: customer.phoneNumber || '',
                 address: customer.address || '',
                 status: customer.status || 'active'
             });
             setIsEditing(mode === 'edit');
         }
+        console.log('Customer data:', customer);
+        console.log('Mode:', mode);
+        console.log('Phone from customer:', customer?.phone);
+        console.log('Address from customer:', customer?.address);
     }, [customer, mode]);
+
+    useEffect(() => {
+    console.log('FormData updated:', formData);
+}, [formData]);
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({
@@ -100,11 +108,31 @@ const CustomerModal = ({ customer, mode, onClose, onSave }) => {
             return;
         }
         
-        // Loại bỏ password nếu không phải create hoặc password rỗng
+        // Chuẩn bị dữ liệu để gửi
         const saveData = { ...formData };
-        if (mode !== 'create' || !saveData.password) {
+        
+        // Chỉ xóa password khi edit (không phải create)
+        if (mode !== 'create') {
             delete saveData.password;
         }
+        
+        // Chuyển đổi trường phone thành phoneNumber để khớp với backend
+        if (saveData.phone) {
+            saveData.phoneNumber = saveData.phone;
+            delete saveData.phone;
+        }
+        
+        // Đảm bảo các trường bắt buộc có giá trị
+        if (!saveData.phoneNumber && formData.phone) {
+            saveData.phoneNumber = formData.phone;
+        }
+        if (!saveData.address && formData.address) {
+            saveData.address = formData.address;
+        }
+        
+        // Debug: log dữ liệu gửi về server
+        console.log('CustomerModal - Data gửi về server:', saveData);
+        console.log('CustomerModal - FormData hiện tại:', formData);
         
         onSave(saveData);
     };
@@ -406,7 +434,9 @@ const CustomerModal = ({ customer, mode, onClose, onSave }) => {
                                     <div className="bg-white rounded-lg p-4 border border-purple-200">
                                         <div className="flex items-center justify-between">
                                             <span className="text-sm text-gray-600">Vai trò</span>
-                                            <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+        
+                                            <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
+                                            value={formData.roleId == 2}>
                                                 🏨 Chủ khách sạn
                                             </span>
                                         </div>
@@ -433,7 +463,7 @@ const CustomerModal = ({ customer, mode, onClose, onSave }) => {
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                             >
                                                 <option value="active">✅ Hoạt động</option>
-                                                <option value="inactive">🔒 Tạm khóa</option>
+                                                <option value="inactive">🔒 Không hoạt động</option>
                                             </select>
                                         </div>
                                     )}

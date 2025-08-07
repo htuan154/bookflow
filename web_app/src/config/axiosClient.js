@@ -15,6 +15,15 @@ axiosClient.interceptors.request.use(
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+        
+        // Debug: Log request data
+        console.log('Axios Request:', {
+            method: config.method,
+            url: config.url,
+            data: config.data,
+            headers: config.headers
+        });
+        
         return config;
     },
     (error) => {
