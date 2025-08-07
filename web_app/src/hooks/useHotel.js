@@ -27,7 +27,6 @@ export const useHotel = () => {
     currentPage,
     pageSize,
     
-    // Actions (theo HotelContext đã cập nhật)
     fetchAllHotels,
     fetchApprovedHotels,            // NEW
     fetchPendingRejectedHotels,     // NEW

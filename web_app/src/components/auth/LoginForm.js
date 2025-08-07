@@ -1,16 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import InputField from '../common/InputField';
-import { authService } from '../../api/auth.service';
-import useAuth from '../../hooks/useAuth';
 import { USER_ROLES } from '../../config/roles';
+import useAuth from '../../hooks/useAuth';
+import { authService } from '../../api/auth.service';
+import InputField from '../common/InputField';
 
 const LoginForm = () => {
-    const { login } = useAuth();
-    const navigate = useNavigate();
     const [formData, setFormData] = useState({ identifier: '', password: '' });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
+    const { isAuthenticated, user, login } = useAuth();
+
+    // Navigate khi user và isAuthenticated được update
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            
+            if (user.roleId === USER_ROLES.ADMIN) {
+                navigate('/admin/dashboard', { replace: true });
+            } else if (user.roleId === USER_ROLES.HOTEL_OWNER) {
+                navigate('/hotel-owner', { replace: true });
+            } else if (user.roleId === USER_ROLES.USER) {
+                navigate('/user/dashboard', { replace: true });
+            } else {
+                navigate('/', { replace: true });
+            }
+        }
+    }, [isAuthenticated, user, navigate]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -20,49 +36,24 @@ const LoginForm = () => {
         e.preventDefault();
         setError('');
         setLoading(true);
-        console.log('Bắt đầu submit form');
 
         try {
             const response = await authService.login(formData.identifier, formData.password);
-            console.log('Response:', response);
 
-            const user = response?.data?.data?.user;
+            const userData = response?.data?.data?.user;
             const token = response?.data?.data?.token;
 
-            if (!user || !token) {
-                console.error('Dữ liệu user hoặc token bị thiếu:', { user, token });
-                setError('Dữ liệu đăng nhập không hợp lệ (thiếu user hoặc token)');
+            if (!userData || !token) {
+                setError('Dữ liệu đăng nhập không hợp lệ');
                 return;
             }
 
-            if (!login) {
-                console.error('Hàm login không tồn tại trong useAuth()');
-                setError('Lỗi nội bộ: login không khả dụng');
-                return;
-            }
+            login(userData, token);
+         
 
-            console.log('Gọi login...');
-            login(user, token); // ✅ Gọi đúng hàm
-
-            console.log('user:', user);
-            console.log('USER_ROLES.ADMIN:', USER_ROLES.ADMIN);
-            console.log('user.roleId:', user.roleId);
-            if (user.roleId === USER_ROLES.ADMIN) {
-                navigate('/admin/dashboard', { replace: true });
-            } else if (user.roleId === USER_ROLES.MANAGER) {
-                navigate('/manager/dashboard', { replace: true });
-            } else if (user.roleId === USER_ROLES.USER) {
-                navigate('/user/dashboard', { replace: true });
-            } else {
-                navigate('/', { replace: true }); // fallback nếu role không rõ
-            }
-            
-            setTimeout(() => {
-                console.log('Điều hướng sẽ xảy ra nếu HomeRedirect hoạt động đúng');
-            }, 500);
         } catch (err) {
-            console.error('Lỗi trong quá trình đăng nhập:', err);
-            setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+
+            setError(err.response?.data?.message || 'Đăng nhập thất bại');
         } finally {
             setLoading(false);
         }

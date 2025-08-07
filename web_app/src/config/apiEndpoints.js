@@ -68,11 +68,55 @@ export const API_ENDPOINTS = {
         UPDATE_STATUS: (contractId) => `${API_BASE_URL}/contracts/${contractId}/status`,
     },
 
-    // --- Promotion Endpoints (Admin only) ---
+    // --- Promotion Endpoints (Admin & Hotel Owner) ---
     PROMOTIONS: {
+        // Basic CRUD operations
         GET_ALL: `${API_BASE_URL}/promotions`,
+        GET_BY_ID: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
         CREATE: `${API_BASE_URL}/promotions`,
         UPDATE: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
+        DELETE: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
+
+        // Validation & Application
+        VALIDATE_CODE: `${API_BASE_URL}/promotions/validate`,
+        CHECK_CODE: `${API_BASE_URL}/promotions/check-code`,
+        APPLY: `${API_BASE_URL}/promotions/apply`,
+
+        // Filtered lists
+        GET_ACTIVE: `${API_BASE_URL}/promotions/active`,
+        GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/promotions/hotel/${hotelId}`,
+        GET_BY_STATUS: (status) => `${API_BASE_URL}/promotions/status/${status}`,
+
+        // Details & Statistics
+        GET_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,
+        ADD_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,
+        GET_STATS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/stats`,
+        GET_USAGE_HISTORY: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/usage-history`,
+
+        // Bulk operations
+        BULK_UPDATE: `${API_BASE_URL}/promotions/bulk-update`,
+        BULK_DELETE: `${API_BASE_URL}/promotions/bulk-delete`,
+        BULK_ACTIVATE: `${API_BASE_URL}/promotions/bulk-activate`,
+        BULK_DEACTIVATE: `${API_BASE_URL}/promotions/bulk-deactivate`,
+
+        // Import/Export
+        EXPORT: `${API_BASE_URL}/promotions/export`,
+        IMPORT: `${API_BASE_URL}/promotions/import`,
+        DOWNLOAD_TEMPLATE: `${API_BASE_URL}/promotions/template`,
+
+        // Search & Filtering
+        SEARCH: `${API_BASE_URL}/promotions/search`,
+        GET_EXPIRING: `${API_BASE_URL}/promotions/expiring`,
+        GET_POPULAR: `${API_BASE_URL}/promotions/popular`,
+
+        // Admin specific
+        ADMIN: {
+            GET_ALL: `${API_BASE_URL}/admin/promotions`,
+            GET_STATISTICS: `${API_BASE_URL}/admin/promotions/statistics`,
+            GET_USAGE_REPORT: `${API_BASE_URL}/admin/promotions/usage-report`,
+            APPROVE: (promotionId) => `${API_BASE_URL}/admin/promotions/${promotionId}/approve`,
+            REJECT: (promotionId) => `${API_BASE_URL}/admin/promotions/${promotionId}/reject`,
+        }
     },
 
     // --- Admin Endpoints ---
@@ -134,25 +178,6 @@ export const API_ENDPOINTS = {
         GET_BLOG_DETAILS_ADMIN: (blogId) => `${API_BASE_URL}/admin/blogs/${blogId}/details`,
     },
 
-    // --- Promotion Endpoints (Admin & Hotel Owner) ---
-    PROMOTIONS: {
-        // Public
-        GET_ALL: `${API_BASE_URL}/promotions`,
-        VALIDATE_CODE: `${API_BASE_URL}/promotions/validate`,
-
-        // Authenticated (Admin & Hotel Owner)
-        CREATE: `${API_BASE_URL}/promotions`,
-        
-        // Nested Routes
-        // /promotions/:promotionId/details
-        GET_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,
-        ADD_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,
-        GET_BY_ID: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
-
-        // /promotions/:promotionId/usage-history
-        GET_USAGE_HISTORY: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/usage-history`,
-    },
-
     // --- Blog/Travel Article Endpoints ---
     BLOGS: {
         // Public endpoints
@@ -187,5 +212,43 @@ export const API_ENDPOINTS = {
         INCREMENT_VIEW: (blogId) => `${API_BASE_URL}/blogs/${blogId}/view`,
         LIKE: (blogId) => `${API_BASE_URL}/blogs/${blogId}/like`,
         UNLIKE: (blogId) => `${API_BASE_URL}/blogs/${blogId}/unlike`,
+    },
+
+    // --- Hotel Owner Endpoints ---
+    HOTEL_OWNER: {
+        // Thêm các endpoints cho hotel owner
+        GET_MY_HOTELS: `${API_BASE_URL}/hotels/my-hotels`,
+        GET_HOTEL_DETAIL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
+        CREATE_HOTEL: `${API_BASE_URL}/hotels`,
+        UPDATE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
+        DELETE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
+        
+        // Image management
+        UPLOAD_IMAGES: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/images`,
+        DELETE_IMAGE: (hotelId, imageId) => `${API_BASE_URL}/hotels/${hotelId}/images/${imageId}`,
+        SET_THUMBNAIL: (hotelId, imageId) => `${API_BASE_URL}/hotels/${hotelId}/images/${imageId}/set-thumbnail`,
+        
+        // Status & amenities
+        UPDATE_STATUS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/status`,
+        UPDATE_AMENITIES: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/amenities`,
+        SUBMIT_FOR_APPROVAL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/submit`,
+        GET_STATISTICS: (hotelId = '') => `${API_BASE_URL}/hotels${hotelId ? `/${hotelId}` : ''}/statistics`,
+    },
+
+    // --- Staff Management Endpoints (Hotel Owner) ---
+    STAFF: {
+        GET_HOTEL_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff`,
+        CREATE: `${API_BASE_URL}/staff`,
+        UPDATE: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
+        DELETE: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
+        UPDATE_STATUS: (staffId) => `${API_BASE_URL}/staff/${staffId}/status`,
+        GET_BY_ID: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
+    },
+
+    // Common endpoints
+    COMMON: {
+        GET_AMENITIES: `${API_BASE_URL}/amenities`,
+        SEARCH_HOTELS: `${API_BASE_URL}/hotels/search`,
+        GET_CITIES: `${API_BASE_URL}/hotels/cities`,
     },
 };

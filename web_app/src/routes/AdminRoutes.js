@@ -1,7 +1,7 @@
 // src/routes/AdminRoutes.js
 import React from 'react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
-
+import NotFoundPage from '../pages/shared/NotFoundPage';
 import useAuth from '../hooks/useAuth';
 import { USER_ROLES } from '../config/roles';
 
@@ -28,7 +28,7 @@ import EditBlogPage from '../pages/admin/BlogManagement/EditBlogPage';
 
 import ContractListPage from '../pages/admin/ContractManagement/ContractListPage';
 
-// Customer Management Pages - BỔ SUNG
+
 import CustomerManagement from '../pages/admin/CustomerManagement/CustomerManagement';
 
 // Context Providers
@@ -36,7 +36,7 @@ import { UserProvider } from '../context/UserContext';
 import { HotelProvider } from '../context/HotelContext';
 import { ContractProvider } from '../context/ContractContext';
 import { PromotionsProvider } from '../context/PromotionsContext';
-import { BlogProvider } from '../context/BlogContext'; // Thêm dòng này
+import { BlogProvider } from '../context/BlogContext';
 import { CustomerProvider }  from '../context/CustomerContext';
 // Promotion pages
 import {
@@ -172,6 +172,7 @@ const AdminRoutes = () => {
                     <Route path="view/:id" element={<PromotionView />} />
                     <Route path="analytics" element={<PromotionAnalytics />} />
                 </Route>
+                <Route path="*" element={<NotFoundPage />} />
             </Route>
         </Routes>
     );

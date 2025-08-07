@@ -8,9 +8,21 @@ const useAuth = () => {
     if (!context) {
         throw new Error('useAuth must be used within an AuthProvider');
     }
+
+    const { isAuthenticated, user, login, logout, loading } = context;
+
+    const handleLogout = () => {
+        logout(); 
+        window.location.href = '/';
+    };
+
     return {
-        ...context,
-        isLoading: context.loading,
+        isAuthenticated,
+        user,
+        login,
+        logout,
+        handleLogout,
+        isLoading: loading,
     };
 };
 

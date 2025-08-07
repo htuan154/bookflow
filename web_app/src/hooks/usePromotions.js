@@ -1,5 +1,5 @@
 // src/hooks/usePromotions.js
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { usePromotionsContext } from '../context/PromotionsContext';
 import promotionService from '../api/promotions.service';
 
@@ -18,26 +18,36 @@ export const usePromotions = (options = {}) => {
     const [localLoading, setLocalLoading] = useState(false);
     const [localError, setLocalError] = useState(null);
 
-    // Initialize filters
-    useEffect(() => {
+    // ✅ FIX: Stable reference for filters initialization
+    const initFilters = useCallback(() => {
+        const filtersToApply = {};
+        
         if (Object.keys(initialFilters).length > 0) {
-            context.updateFilters(initialFilters);
+            Object.assign(filtersToApply, initialFilters);
         }
         if (hotelId) {
-            context.updateFilters({ hotelId });
+            filtersToApply.hotelId = hotelId;
         }
         if (status !== 'all') {
-            context.updateFilters({ status });
+            filtersToApply.status = status;
         }
-    }, [hotelId, status, initialFilters, context]);
+        
+        if (Object.keys(filtersToApply).length > 0) {
+            context.updateFilters(filtersToApply);
+        }
+    }, [hotelId, status, JSON.stringify(initialFilters), context.updateFilters]);
 
-    // Auto fetch on mount or filter changes
+    // ✅ Initialize filters once
     useEffect(() => {
-        if (autoFetch) {
+        initFilters();
+    }, [initFilters]);
+
+    // ✅ Auto fetch with stable dependency
+    useEffect(() => {
+        if (autoFetch && context.fetchPromotions) {
             context.fetchPromotions();
         }
-    },[autoFetch, context.fetchPromotions, context.filters]); 
-    //[autoFetch, context.filters, context]);
+    }, [autoFetch, context.fetchPromotions]);
 
     // Clear errors
     const clearErrors = useCallback(() => {
@@ -74,6 +84,329 @@ export const usePromotions = (options = {}) => {
         // Enhanced actions
         clearErrors,
         handleLocalOperation
+    };
+};
+
+// ✅ NEW: Hook for promotion bulk operations
+export const usePromotionBulkOperations = () => {
+    const { bulkUpdatePromotions, bulkDeletePromotions, selectedPromotions } = usePromotionsContext();
+    const [localState, setLocalState] = useState({
+        selectedIds: [],
+        isSelectAll: false,
+        bulkLoading: false,
+        bulkError: null
+    });
+
+    // Select/deselect promotions
+    const toggleSelection = useCallback((promotionId) => {
+        setLocalState(prev => ({
+            ...prev,
+            selectedIds: prev.selectedIds.includes(promotionId)
+                ? prev.selectedIds.filter(id => id !== promotionId)
+                : [...prev.selectedIds, promotionId]
+        }));
+    }, []);
+
+    // Select all promotions
+    const selectAll = useCallback((promotionIds) => {
+        setLocalState(prev => ({
+            ...prev,
+            selectedIds: prev.isSelectAll ? [] : promotionIds,
+            isSelectAll: !prev.isSelectAll
+        }));
+    }, []);
+
+    // Clear selection
+    const clearSelection = useCallback(() => {
+        setLocalState(prev => ({
+            ...prev,
+            selectedIds: [],
+            isSelectAll: false
+        }));
+    }, []);
+
+    // Bulk update
+    const performBulkUpdate = useCallback(async (updateData) => {
+        if (localState.selectedIds.length === 0) {
+            throw new Error('Không có khuyến mãi nào được chọn');
+        }
+
+        try {
+            setLocalState(prev => ({ ...prev, bulkLoading: true, bulkError: null }));
+            const result = await bulkUpdatePromotions(localState.selectedIds, updateData);
+            clearSelection();
+            return result;
+        } catch (error) {
+            setLocalState(prev => ({ ...prev, bulkError: error.message }));
+            throw error;
+        } finally {
+            setLocalState(prev => ({ ...prev, bulkLoading: false }));
+        }
+    }, [localState.selectedIds, bulkUpdatePromotions, clearSelection]);
+
+    // Bulk delete
+    const performBulkDelete = useCallback(async () => {
+        if (localState.selectedIds.length === 0) {
+            throw new Error('Không có khuyến mãi nào được chọn');
+        }
+
+        try {
+            setLocalState(prev => ({ ...prev, bulkLoading: true, bulkError: null }));
+            const result = await bulkDeletePromotions(localState.selectedIds);
+            clearSelection();
+            return result;
+        } catch (error) {
+            setLocalState(prev => ({ ...prev, bulkError: error.message }));
+            throw error;
+        } finally {
+            setLocalState(prev => ({ ...prev, bulkLoading: false }));
+        }
+    }, [localState.selectedIds, bulkDeletePromotions, clearSelection]);
+
+    return {
+        selectedIds: localState.selectedIds,
+        isSelectAll: localState.isSelectAll,
+        bulkLoading: localState.bulkLoading,
+        bulkError: localState.bulkError,
+        selectedCount: localState.selectedIds.length,
+        hasSelection: localState.selectedIds.length > 0,
+        toggleSelection,
+        selectAll,
+        clearSelection,
+        performBulkUpdate,
+        performBulkDelete
+    };
+};
+
+// ✅ NEW: Hook for promotion import/export
+export const usePromotionImportExport = () => {
+    const { exportPromotions, importPromotions } = usePromotionsContext();
+    const [exportState, setExportState] = useState({
+        isExporting: false,
+        exportError: null,
+        exportProgress: 0
+    });
+    const [importState, setImportState] = useState({
+        isImporting: false,
+        importError: null,
+        importProgress: 0,
+        importResult: null
+    });
+
+    // Export promotions with progress tracking
+    const performExport = useCallback(async (filters = {}, format = 'csv') => {
+        try {
+            setExportState(prev => ({ ...prev, isExporting: true, exportError: null, exportProgress: 0 }));
+            
+            // Simulate progress
+            const progressInterval = setInterval(() => {
+                setExportState(prev => ({
+                    ...prev,
+                    exportProgress: Math.min(prev.exportProgress + 10, 90)
+                }));
+            }, 100);
+
+            const result = await exportPromotions(filters);
+            
+            clearInterval(progressInterval);
+            setExportState(prev => ({ ...prev, exportProgress: 100 }));
+            
+            // Reset after delay
+            setTimeout(() => {
+                setExportState(prev => ({ ...prev, isExporting: false, exportProgress: 0 }));
+            }, 1000);
+
+            return result;
+        } catch (error) {
+            setExportState(prev => ({ 
+                ...prev, 
+                isExporting: false, 
+                exportError: error.message,
+                exportProgress: 0
+            }));
+            throw error;
+        }
+    }, [exportPromotions]);
+
+    // Import promotions with progress tracking
+    const performImport = useCallback(async (file) => {
+        try {
+            setImportState(prev => ({ 
+                ...prev, 
+                isImporting: true, 
+                importError: null, 
+                importProgress: 0,
+                importResult: null
+            }));
+
+            // Simulate progress
+            const progressInterval = setInterval(() => {
+                setImportState(prev => ({
+                    ...prev,
+                    importProgress: Math.min(prev.importProgress + 5, 90)
+                }));
+            }, 200);
+
+            const result = await importPromotions(file);
+            
+            clearInterval(progressInterval);
+            setImportState(prev => ({ 
+                ...prev, 
+                importProgress: 100,
+                importResult: result
+            }));
+
+            // Reset after delay
+            setTimeout(() => {
+                setImportState(prev => ({ 
+                    ...prev, 
+                    isImporting: false, 
+                    importProgress: 0
+                }));
+            }, 2000);
+
+            return result;
+        } catch (error) {
+            setImportState(prev => ({ 
+                ...prev, 
+                isImporting: false, 
+                importError: error.message,
+                importProgress: 0
+            }));
+            throw error;
+        }
+    }, [importPromotions]);
+
+    // Reset states
+    const resetExportState = useCallback(() => {
+        setExportState({
+            isExporting: false,
+            exportError: null,
+            exportProgress: 0
+        });
+    }, []);
+
+    const resetImportState = useCallback(() => {
+        setImportState({
+            isImporting: false,
+            importError: null,
+            importProgress: 0,
+            importResult: null
+        });
+    }, []);
+
+    return {
+        // Export
+        isExporting: exportState.isExporting,
+        exportError: exportState.exportError,
+        exportProgress: exportState.exportProgress,
+        performExport,
+        resetExportState,
+        
+        // Import
+        isImporting: importState.isImporting,
+        importError: importState.importError,
+        importProgress: importState.importProgress,
+        importResult: importState.importResult,
+        performImport,
+        resetImportState
+    };
+};
+
+// ✅ NEW: Hook for promotion analytics and statistics
+export const usePromotionAnalytics = (promotionId = null) => {
+    const { getPromotionStats, promotions } = usePromotionsContext();
+    const [analyticsState, setAnalyticsState] = useState({
+        stats: null,
+        loading: false,
+        error: null,
+        overallStats: null
+    });
+
+    // Fetch individual promotion stats
+    const fetchPromotionStats = useCallback(async (id = promotionId) => {
+        if (!id) return;
+
+        try {
+            setAnalyticsState(prev => ({ ...prev, loading: true, error: null }));
+            const stats = await getPromotionStats(id);
+            setAnalyticsState(prev => ({ ...prev, stats, loading: false }));
+            return stats;
+        } catch (error) {
+            setAnalyticsState(prev => ({ 
+                ...prev, 
+                loading: false, 
+                error: error.message 
+            }));
+            throw error;
+        }
+    }, [promotionId, getPromotionStats]);
+
+    // Calculate overall statistics
+    const calculateOverallStats = useCallback(() => {
+        if (!promotions || promotions.length === 0) {
+            return {
+                total: 0,
+                active: 0,
+                inactive: 0,
+                expired: 0,
+                upcoming: 0,
+                totalUsage: 0,
+                averageDiscount: 0,
+                mostUsedPromotion: null,
+                recentPromotions: []
+            };
+        }
+
+        const now = new Date();
+        const stats = {
+            total: promotions.length,
+            active: promotions.filter(p => p.status === 'active').length,
+            inactive: promotions.filter(p => p.status === 'inactive').length,
+            expired: promotions.filter(p => p.status === 'expired').length,
+            upcoming: promotions.filter(p => new Date(p.validFrom) > now).length,
+            totalUsage: promotions.reduce((sum, p) => sum + (p.usedCount || 0), 0),
+            averageDiscount: promotions.reduce((sum, p) => sum + (parseFloat(p.discountValue) || 0), 0) / promotions.length,
+            mostUsedPromotion: promotions.reduce((max, p) => 
+                (p.usedCount || 0) > (max?.usedCount || 0) ? p : max, null
+            ),
+            recentPromotions: promotions
+                .filter(p => new Date(p.createdAt || p.validFrom) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
+                .length
+        };
+
+        setAnalyticsState(prev => ({ ...prev, overallStats: stats }));
+        return stats;
+    }, [promotions]);
+
+    // Auto-calculate overall stats when promotions change
+    useEffect(() => {
+        calculateOverallStats();
+    }, [calculateOverallStats]);
+
+    // Auto-fetch individual stats when promotionId changes
+    useEffect(() => {
+        if (promotionId) {
+            fetchPromotionStats(promotionId);
+        }
+    }, [promotionId, fetchPromotionStats]);
+
+    return {
+        // Individual promotion stats
+        stats: analyticsState.stats,
+        loading: analyticsState.loading,
+        error: analyticsState.error,
+        
+        // Overall statistics
+        overallStats: analyticsState.overallStats,
+        
+        // Actions
+        fetchPromotionStats,
+        calculateOverallStats,
+        refreshStats: () => {
+            if (promotionId) fetchPromotionStats();
+            calculateOverallStats();
+        }
     };
 };
 
@@ -253,6 +586,79 @@ export const usePromotionFilters = () => {
     };
 };
 
+// ✅ NEW: Hook for promotion code availability
+export const usePromotionCodeCheck = () => {
+    const { checkCodeAvailability } = usePromotionsContext();
+    const [checkState, setCheckState] = useState({
+        isChecking: false,
+        checkResult: null,
+        checkError: null,
+        lastCheckedCode: null
+    });
+
+    // Debounced code availability check
+    const checkCodeAvailabilityDebounced = useCallback(
+        debounce(async (code, excludeId = null) => {
+            if (!code || code.length < 2) {
+                setCheckState(prev => ({ 
+                    ...prev, 
+                    checkResult: null, 
+                    checkError: null,
+                    lastCheckedCode: null
+                }));
+                return;
+            }
+
+            try {
+                setCheckState(prev => ({ 
+                    ...prev, 
+                    isChecking: true, 
+                    checkError: null,
+                    lastCheckedCode: code
+                }));
+                
+                const result = await checkCodeAvailability(code, excludeId);
+                
+                setCheckState(prev => ({ 
+                    ...prev, 
+                    isChecking: false, 
+                    checkResult: result
+                }));
+                
+                return result;
+            } catch (error) {
+                setCheckState(prev => ({ 
+                    ...prev, 
+                    isChecking: false, 
+                    checkError: error.message
+                }));
+                throw error;
+            }
+        }, 500),
+        [checkCodeAvailability]
+    );
+
+    // Reset check state
+    const resetCheckState = useCallback(() => {
+        setCheckState({
+            isChecking: false,
+            checkResult: null,
+            checkError: null,
+            lastCheckedCode: null
+        });
+    }, []);
+
+    return {
+        isChecking: checkState.isChecking,
+        checkResult: checkState.checkResult,
+        checkError: checkState.checkError,
+        lastCheckedCode: checkState.lastCheckedCode,
+        isCodeAvailable: checkState.checkResult?.available === true,
+        checkCode: checkCodeAvailabilityDebounced,
+        resetCheckState
+    };
+};
+
 // Hook for promotion form management
 export const usePromotionForm = (initialData = null) => {
     const { createPromotion, updatePromotion } = usePromotionsContext();
@@ -350,5 +756,17 @@ export const usePromotionForm = (initialData = null) => {
         hasChanges: JSON.stringify(formData) !== JSON.stringify(initialData)
     };
 };
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
 export default usePromotions;
