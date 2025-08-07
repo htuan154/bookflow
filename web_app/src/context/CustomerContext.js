@@ -1,4 +1,4 @@
-// src/context/CustomerContext.js - Fixed for status update issue
+// src/context/CustomerContext.js - Updated to load real data
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
 // Import customerService - đảm bảo đường dẫn đúng
 import customerService from '../api/customer.service';
@@ -194,7 +194,7 @@ export const CustomerProvider = ({ children }) => {
         dispatch({ type: CUSTOMER_ACTIONS.SET_FILTERS, payload: updatedFilters });
     }, []);
 
-    // API Actions với error handling cải thiện
+    // API Actions - Updated to use real API calls
     const fetchCustomers = useCallback(async (params = {}) => {
         try {
             setLoading(true);
@@ -212,64 +212,88 @@ export const CustomerProvider = ({ children }) => {
 
             console.log('Fetching customers with params:', queryParams);
 
-            // Kiểm tra customerService có tồn tại không
-            if (!customerService || typeof customerService.getHotelOwners !== 'function') {
-                console.warn('customerService.getHotelOwners not available, trying fallback methods');
-                
-                // Thử các fallback methods
-                if (typeof customerService.getCustomers === 'function') {
-                    const response = await customerService.getCustomers(queryParams);
-                    console.log('Using getCustomers fallback, response:', response);
-                } else if (typeof customerService.getAllCustomers === 'function') {
-                    const response = await customerService.getAllCustomers(queryParams);
-                    console.log('Using getAllCustomers fallback, response:', response);
+            // Gọi API thật để lấy hotel owners
+            let response;
+            
+            try {
+                // Ưu tiên sử dụng getHotelOwners nếu có
+                if (customerService.getHotelOwners) {
+                    response = await customerService.getHotelOwners(queryParams);
+                } else if (customerService.getCustomersByRole) {
+                    // Fallback 1: sử dụng getCustomersByRole
+                    response = await customerService.getCustomersByRole('hotel_owner', queryParams);
+                } else if (customerService.getCustomersWithHotels) {
+                    // Fallback 2: sử dụng getCustomersWithHotels
+                    response = await customerService.getCustomersWithHotels(queryParams);
                 } else {
-                    throw new Error('No available customer service methods');
+                    throw new Error('No suitable API method available');
                 }
-            } else {
-                const response = await customerService.getHotelOwners(queryParams);
-                console.log('getHotelOwners response:', response);
+            } catch (apiError) {
+                console.warn('Primary API call failed, trying alternative methods:', apiError);
+                
+                // Thử các phương thức khác nếu method chính thất bại
+                try {
+                    if (customerService.searchCustomers) {
+                        response = await customerService.searchCustomers(queryParams.search || '', queryParams);
+                    } else {
+                        throw new Error('All API methods failed');
+                    }
+                } catch (fallbackError) {
+                    console.error('All fallback methods failed:', fallbackError);
+                    throw new Error('Không thể kết nối đến server. Vui lòng thử lại sau.');
+                }
             }
 
-            // Mock data tạm thời nếu API không hoạt động
-            const mockResponse = {
-                data: [
-                    {
-                        userId: "16oad88d-ccef-4715-9447-b4fd7c403384",
-                        fullName: "Hotel Owner",
-                        username: "hotel_owner",
-                        email: "hotel@bookflow.com",
-                        phone: "0123456789",
-                        status: "active", // Đảm bảo status là active
-                        role: "hotel_owner",
-                        roleId: 2,
-                        createdAt: "2025-08-07T09:36:00Z"
-                    }
-                ],
-                total: 1,
-                page: 1,
-                limit: 10,
-                totalPages: 1
-            };
+            console.log('API response:', response);
 
-            const customers = Array.isArray(mockResponse?.data) ? mockResponse.data : 
-                             Array.isArray(mockResponse) ? mockResponse : [];
-            
-            console.log('Setting customers:', customers);
-            dispatch({ type: CUSTOMER_ACTIONS.SET_CUSTOMERS, payload: customers });
-            dispatch({ 
-                type: CUSTOMER_ACTIONS.SET_PAGINATION, 
-                payload: {
-                    page: mockResponse?.page || params.page || 1,
-                    limit: mockResponse?.limit || params.limit || 10,
-                    total: mockResponse?.total || customers.length,
-                    totalPages: mockResponse?.totalPages || Math.ceil((mockResponse?.total || customers.length) / (params.limit || 10))
+            // Xử lý response data
+            let customers = [];
+            let paginationData = {};
+
+            if (response) {
+                // Xử lý các format response khác nhau
+                if (Array.isArray(response.data)) {
+                    customers = response.data;
+                    paginationData = {
+                        page: response.page || response.currentPage || queryParams.page || 1,
+                        limit: response.limit || response.pageSize || queryParams.limit || 10,
+                        total: response.total || response.totalItems || customers.length,
+                        totalPages: response.totalPages || Math.ceil((response.total || customers.length) / (queryParams.limit || 10))
+                    };
+                } else if (Array.isArray(response)) {
+                    customers = response;
+                    paginationData = {
+                        page: queryParams.page || 1,
+                        limit: queryParams.limit || 10,
+                        total: customers.length,
+                        totalPages: Math.ceil(customers.length / (queryParams.limit || 10))
+                    };
+                } else if (response.items && Array.isArray(response.items)) {
+                    customers = response.items;
+                    paginationData = {
+                        page: response.page || queryParams.page || 1,
+                        limit: response.limit || queryParams.limit || 10,
+                        total: response.total || customers.length,
+                        totalPages: response.totalPages || Math.ceil((response.total || customers.length) / (queryParams.limit || 10))
+                    };
                 }
-            });
+
+                // Đảm bảo customers là array và có role hotel_owner
+                customers = customers.filter(customer => 
+                    customer && (customer.role === 'hotel_owner' || customer.roleId === 2)
+                );
+            }
+
+            console.log('Processed customers:', customers);
+            console.log('Pagination data:', paginationData);
+
+            dispatch({ type: CUSTOMER_ACTIONS.SET_CUSTOMERS, payload: customers });
+            dispatch({ type: CUSTOMER_ACTIONS.SET_PAGINATION, payload: paginationData });
 
         } catch (error) {
             console.error('Error fetching customers:', error);
-            setError(error.message || 'Không thể tải danh sách khách hàng');
+            const errorMessage = error?.response?.data?.message || error.message || 'Không thể tải danh sách khách hàng';
+            setError(errorMessage);
             // Set empty array nếu có lỗi
             dispatch({ type: CUSTOMER_ACTIONS.SET_CUSTOMERS, payload: [] });
         } finally {
@@ -286,17 +310,19 @@ export const CustomerProvider = ({ children }) => {
                 throw new Error('Customer ID is required');
             }
 
-            if (!customerService || typeof customerService.getCustomerById !== 'function') {
-                throw new Error('customerService.getCustomerById is not available');
-            }
+            console.log('Fetching customer by id:', customerId);
 
+            // Gọi API thật
             const customer = await customerService.getCustomerById(customerId);
+            
+            console.log('Fetched customer:', customer);
             dispatch({ type: CUSTOMER_ACTIONS.SET_CURRENT_CUSTOMER, payload: customer });
 
             return customer;
         } catch (error) {
             console.error('Error fetching customer:', error);
-            setError(error.message || 'Không thể tải thông tin khách hàng');
+            const errorMessage = error?.response?.data?.message || error.message || 'Không thể tải thông tin khách hàng';
+            setError(errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -312,29 +338,48 @@ export const CustomerProvider = ({ children }) => {
                 throw new Error('Customer data is required');
             }
 
-            // Đảm bảo role luôn là hotel_owner khi tạo mới
+            // Chuẩn bị dữ liệu theo format backend mong đợi (chỉ những field cần thiết)
             const dataWithRole = {
-                ...customerData,
-                role: 'hotel_owner',
-                roleId: 2,
-                status: customerData.status || 'active'
+                username: customerData.username,
+                email: customerData.email,
+                password: customerData.password,
+                fullName: customerData.fullName,
+                roleId: 2, // Hotel owner role
+                phoneNumber: customerData.phoneNumber,
+                address: customerData.address
             };
 
-            console.log('Creating customer with data:', dataWithRole);
+            console.log('CustomerContext - Input customerData:', customerData);
+            console.log('CustomerContext - Prepared dataWithRole:', dataWithRole);
+            console.log('CustomerContext - phoneNumber check:', {
+                input: customerData.phoneNumber,
+                prepared: dataWithRole.phoneNumber,
+                exists: !!dataWithRole.phoneNumber
+            });
 
-            // Mock tạo customer mới
-            const newCustomer = {
-                userId: `new-${Date.now()}`,
-                ...dataWithRole,
-                createdAt: new Date().toISOString()
-            };
+            // Gọi API thật
+            let newCustomer;
+            try {
+                if (customerService.createHotelOwner) {
+                    // Ưu tiên sử dụng createHotelOwner nếu có
+                    newCustomer = await customerService.createHotelOwner(dataWithRole);
+                } else {
+                    // Fallback sử dụng createCustomer
+                    newCustomer = await customerService.createCustomer(dataWithRole);
+                }
+            } catch (apiError) {
+                console.error('Create customer API error:', apiError);
+                throw new Error(apiError?.response?.data?.message || 'Không thể tạo khách hàng mới');
+            }
 
+            console.log('Created customer:', newCustomer);
             dispatch({ type: CUSTOMER_ACTIONS.ADD_CUSTOMER, payload: newCustomer });
             
             return newCustomer;
         } catch (error) {
             console.error('Error creating customer:', error);
-            setError(error.message || 'Không thể tạo khách hàng mới');
+            const errorMessage = error?.response?.data?.message || error.message || 'Không thể tạo khách hàng mới';
+            setError(errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -356,24 +401,27 @@ export const CustomerProvider = ({ children }) => {
             const dataWithRole = {
                 ...customerData,
                 role: 'hotel_owner',
-                roleId: 2,
-                userId: customerId // Đảm bảo có userId
+                roleId: 2
             };
 
-            // Mock update customer
-            const updatedCustomer = {
+            // Gọi API thật
+            const updatedCustomer = await customerService.updateCustomer(customerId, dataWithRole);
+
+            console.log('Updated customer:', updatedCustomer);
+            
+            // Dispatch với dữ liệu đã update từ API
+            const customerToUpdate = {
                 userId: customerId,
-                ...dataWithRole,
-                updatedAt: new Date().toISOString()
+                ...updatedCustomer
             };
 
-            console.log('Dispatching UPDATE_CUSTOMER with:', updatedCustomer);
-            dispatch({ type: CUSTOMER_ACTIONS.UPDATE_CUSTOMER, payload: updatedCustomer });
+            dispatch({ type: CUSTOMER_ACTIONS.UPDATE_CUSTOMER, payload: customerToUpdate });
             
             return updatedCustomer;
         } catch (error) {
             console.error('Error updating customer:', error);
-            setError(error.message || 'Không thể cập nhật thông tin khách hàng');
+            const errorMessage = error?.response?.data?.message || error.message || 'Không thể cập nhật thông tin khách hàng';
+            setError(errorMessage);
             throw error;
         } finally {
             setLoading(false);
@@ -391,20 +439,24 @@ export const CustomerProvider = ({ children }) => {
 
             console.log('Deleting customer:', customerId);
 
-            // Mock delete - chỉ dispatch action
+            // Gọi API thật
+            await customerService.deleteCustomer(customerId);
+            
+            console.log('Customer deleted successfully');
             dispatch({ type: CUSTOMER_ACTIONS.DELETE_CUSTOMER, payload: customerId });
             
             return true;
         } catch (error) {
             console.error('Error deleting customer:', error);
-            setError(error.message || 'Không thể xóa khách hàng');
+            const errorMessage = error?.response?.data?.message || error.message || 'Không thể xóa khách hàng';
+            setError(errorMessage);
             throw error;
         } finally {
             setLoading(false);
         }
     }, [clearError, setError, setLoading]);
 
-    // FIXED updateCustomerStatus function
+    // Updated updateCustomerStatus function to use real API
     const updateCustomerStatus = useCallback(async (customerId, status) => {
         try {
             setLoading(true);
@@ -416,8 +468,23 @@ export const CustomerProvider = ({ children }) => {
 
             console.log('Updating customer status:', { customerId, status });
 
-            // Simulate API call delay
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Gọi API thật
+            let updatedCustomer;
+            try {
+                if (customerService.updateCustomerStatusV2) {
+                    // Ưu tiên sử dụng API chuyên dụng cho status
+                    updatedCustomer = await customerService.updateCustomerStatusV2(customerId, status);
+                } else {
+                    // Fallback sử dụng updateCustomerStatus thông thường
+                    updatedCustomer = await customerService.updateCustomerStatus(customerId, status);
+                }
+            } catch (apiError) {
+                console.warn('Dedicated status update failed, trying general update:', apiError);
+                // Fallback cuối cùng: sử dụng updateCustomer với chỉ status
+                updatedCustomer = await customerService.updateCustomer(customerId, { status });
+            }
+
+            console.log('Status updated:', updatedCustomer);
 
             // Dispatch specific status update action
             dispatch({ 
@@ -425,33 +492,126 @@ export const CustomerProvider = ({ children }) => {
                 payload: { customerId, status }
             });
 
-            // Also find and update the full customer object
-            const currentCustomer = state.customers.find(c => c.userId === customerId);
-            if (currentCustomer) {
-                const updatedCustomer = {
-                    ...currentCustomer,
-                    status,
-                    updatedAt: new Date().toISOString()
+            // Also update the full customer object if we have complete data
+            if (updatedCustomer && typeof updatedCustomer === 'object') {
+                const customerToUpdate = {
+                    userId: customerId,
+                    ...updatedCustomer,
+                    status // Đảm bảo status được set đúng
                 };
                 
-                console.log('Also updating full customer object:', updatedCustomer);
-                dispatch({ type: CUSTOMER_ACTIONS.UPDATE_CUSTOMER, payload: updatedCustomer });
+                console.log('Also updating full customer object:', customerToUpdate);
+                dispatch({ type: CUSTOMER_ACTIONS.UPDATE_CUSTOMER, payload: customerToUpdate });
             }
             
             return { userId: customerId, status };
         } catch (error) {
             console.error('Error updating customer status:', error);
-            setError(error.message || 'Không thể cập nhật trạng thái khách hàng');
+            const errorMessage = error?.response?.data?.message || error.message || 'Không thể cập nhật trạng thái khách hàng';
+            setError(errorMessage);
             throw error;
         } finally {
             setLoading(false);
         }
-    }, [state.customers, clearError, setError, setLoading]);
+    }, [clearError, setError, setLoading]);
 
     const toggleCustomerStatus = useCallback(async (customerId, currentStatus) => {
         const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
         return await updateCustomerStatus(customerId, newStatus);
     }, [updateCustomerStatus]);
+
+    // Thêm function để suspend/activate hotel owner
+    const suspendHotelOwner = useCallback(async (ownerId) => {
+        try {
+            setLoading(true);
+            clearError();
+
+            console.log('Suspending hotel owner:', ownerId);
+            
+            const result = await customerService.suspendHotelOwner(ownerId);
+            
+            // Update status trong state
+            dispatch({ 
+                type: CUSTOMER_ACTIONS.UPDATE_CUSTOMER_STATUS, 
+                payload: { customerId: ownerId, status: 'inactive' }
+            });
+
+            return result;
+        } catch (error) {
+            console.error('Error suspending hotel owner:', error);
+            const errorMessage = error?.response?.data?.message || error.message || 'Không thể tạm ngưng hotel owner';
+            setError(errorMessage);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, [clearError, setError, setLoading]);
+
+    const activateHotelOwner = useCallback(async (ownerId) => {
+        try {
+            setLoading(true);
+            clearError();
+
+            console.log('Activating hotel owner:', ownerId);
+            
+            const result = await customerService.activateHotelOwner(ownerId);
+            
+            // Update status trong state
+            dispatch({ 
+                type: CUSTOMER_ACTIONS.UPDATE_CUSTOMER_STATUS, 
+                payload: { customerId: ownerId, status: 'active' }
+            });
+
+            return result;
+        } catch (error) {
+            console.error('Error activating hotel owner:', error);
+            const errorMessage = error?.response?.data?.message || error.message || 'Không thể kích hoạt hotel owner';
+            setError(errorMessage);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, [clearError, setError, setLoading]);
+
+    // Thêm function search customers
+    const searchCustomers = useCallback(async (searchTerm, additionalFilters = {}) => {
+        try {
+            setLoading(true);
+            clearError();
+
+            const filters = {
+                ...state.filters,
+                ...additionalFilters,
+                role: 'hotel_owner',
+                roleId: 2
+            };
+
+            console.log('Searching customers with term:', searchTerm, 'filters:', filters);
+            
+            const results = await customerService.searchCustomers(searchTerm, filters);
+            
+            console.log('Search results:', results);
+            
+            // Process results similar to fetchCustomers
+            let customers = [];
+            if (Array.isArray(results.data)) {
+                customers = results.data;
+            } else if (Array.isArray(results)) {
+                customers = results;
+            }
+
+            dispatch({ type: CUSTOMER_ACTIONS.SET_CUSTOMERS, payload: customers });
+            
+            return customers;
+        } catch (error) {
+            console.error('Error searching customers:', error);
+            const errorMessage = error?.response?.data?.message || error.message || 'Không thể tìm kiếm khách hàng';
+            setError(errorMessage);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, [state.filters, clearError, setError, setLoading]);
 
     const resetState = useCallback(() => {
         dispatch({ type: CUSTOMER_ACTIONS.RESET_STATE });
@@ -479,6 +639,9 @@ export const CustomerProvider = ({ children }) => {
         deleteCustomer,
         updateCustomerStatus,
         toggleCustomerStatus,
+        suspendHotelOwner,
+        activateHotelOwner,
+        searchCustomers,
         resetState
     };
 

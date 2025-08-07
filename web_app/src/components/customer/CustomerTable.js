@@ -258,14 +258,14 @@ const CustomerTable = ({
                                                 {customer.email}
                                             </a>
                                         </div>
-                                        {customer.phone && (
+                                        {customer.phoneNumber && (
                                             <div className="flex items-center text-sm text-gray-900">
                                                 <span className="mr-2">📞</span>
                                                 <a 
-                                                    href={`tel:${customer.phone}`} 
+                                                    href={`tel:${customer.phoneNumber}`} 
                                                     className="text-blue-600 hover:text-blue-800 hover:underline"
                                                 >
-                                                    {customer.phone}
+                                                    {customer.phoneNumber}
                                                 </a>
                                             </div>
                                         )}
@@ -274,14 +274,14 @@ const CustomerTable = ({
                                 
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                        customer.status === 'active' 
+                                        customer.isActive === true 
                                             ? 'bg-green-100 text-green-800' 
                                             : 'bg-red-100 text-red-800'
                                     }`}>
                                         <span className={`w-1.5 h-1.5 mr-1.5 rounded-full ${
-                                            customer.status === 'active' ? 'bg-green-400' : 'bg-red-400'
+                                            customer.isActive === true ? 'bg-green-400' : 'bg-red-400'
                                         }`}></span>
-                                        {customer.status === 'active' ? 'Hoạt động' : 'Tạm khóa'}
+                                        {customer.isActive === true ? 'Hoạt động' : 'Tạm khóa'}
                                     </span>
                                 </td>
                                 

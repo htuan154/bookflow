@@ -15,10 +15,14 @@ export const API_ENDPOINTS = {
     USERS: {
         GET_ALL: `${API_BASE_URL}/users`,
         GET_BY_ID: (userId) => `${API_BASE_URL}/users/${userId}`,
-        CREATE: `${API_BASE_URL}/users`, // ← THÊM MỚI
+        CREATE: `${API_BASE_URL}/users`,
         UPDATE: (userId) => `${API_BASE_URL}/users/${userId}`,
         DELETE: (userId) => `${API_BASE_URL}/users/${userId}`,
-        UPDATE_STATUS: (userId) => `${API_BASE_URL}/users/${userId}/status`, // ← THÊM MỚI
+        UPDATE_STATUS: (userId) => `${API_BASE_URL}/users/${userId}/status`,
+        // Hotel Owners Management
+        GET_HOTEL_OWNERS: `${API_BASE_URL}/users/hotel-owners`,
+        GET_BY_ROLE: (roleId) => `${API_BASE_URL}/users/role/${roleId}`,
+        UPDATE_USER_ROLE: (userId) => `${API_BASE_URL}/users/${userId}/role`,
     },
 
     // --- Hotel Endpoints ---
@@ -70,53 +74,19 @@ export const API_ENDPOINTS = {
 
     // --- Promotion Endpoints (Admin & Hotel Owner) ---
     PROMOTIONS: {
-        // Basic CRUD operations
+        // Public
         GET_ALL: `${API_BASE_URL}/promotions`,
-        GET_BY_ID: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
-        CREATE: `${API_BASE_URL}/promotions`,
-        UPDATE: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
-        DELETE: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
-
-        // Validation & Application
         VALIDATE_CODE: `${API_BASE_URL}/promotions/validate`,
-        CHECK_CODE: `${API_BASE_URL}/promotions/check-code`,
-        APPLY: `${API_BASE_URL}/promotions/apply`,
 
-        // Filtered lists
-        GET_ACTIVE: `${API_BASE_URL}/promotions/active`,
-        GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/promotions/hotel/${hotelId}`,
-        GET_BY_STATUS: (status) => `${API_BASE_URL}/promotions/status/${status}`,
+        // Authenticated (Admin & Hotel Owner)
+        CREATE: `${API_BASE_URL}/promotions`,
 
-        // Details & Statistics
         GET_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,
         ADD_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,
-        GET_STATS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/stats`,
+        GET_BY_ID: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
+
+        // /promotions/:promotionId/usage-history
         GET_USAGE_HISTORY: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/usage-history`,
-
-        // Bulk operations
-        BULK_UPDATE: `${API_BASE_URL}/promotions/bulk-update`,
-        BULK_DELETE: `${API_BASE_URL}/promotions/bulk-delete`,
-        BULK_ACTIVATE: `${API_BASE_URL}/promotions/bulk-activate`,
-        BULK_DEACTIVATE: `${API_BASE_URL}/promotions/bulk-deactivate`,
-
-        // Import/Export
-        EXPORT: `${API_BASE_URL}/promotions/export`,
-        IMPORT: `${API_BASE_URL}/promotions/import`,
-        DOWNLOAD_TEMPLATE: `${API_BASE_URL}/promotions/template`,
-
-        // Search & Filtering
-        SEARCH: `${API_BASE_URL}/promotions/search`,
-        GET_EXPIRING: `${API_BASE_URL}/promotions/expiring`,
-        GET_POPULAR: `${API_BASE_URL}/promotions/popular`,
-
-        // Admin specific
-        ADMIN: {
-            GET_ALL: `${API_BASE_URL}/admin/promotions`,
-            GET_STATISTICS: `${API_BASE_URL}/admin/promotions/statistics`,
-            GET_USAGE_REPORT: `${API_BASE_URL}/admin/promotions/usage-report`,
-            APPROVE: (promotionId) => `${API_BASE_URL}/admin/promotions/${promotionId}/approve`,
-            REJECT: (promotionId) => `${API_BASE_URL}/admin/promotions/${promotionId}/reject`,
-        }
     },
 
     // --- Admin Endpoints ---
@@ -127,6 +97,7 @@ export const API_ENDPOINTS = {
         GET_ALL_HOTELS_ADMIN: `${API_BASE_URL}/hotels/admin/all`,
         GET_HOTELS_BY_STATUS: (status) => `${API_BASE_URL}/hotels/admin/status/${status}`,
         GET_PENDING_REJECTED_HOTELS: `${API_BASE_URL}/hotels/admin/pending-rejected`,
+        
         // Hotel Status Management
         UPDATE_HOTEL_STATUS: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/status`,
         APPROVE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/approve`,
@@ -150,18 +121,17 @@ export const API_ENDPOINTS = {
         BULK_APPROVE_HOTELS: `${API_BASE_URL}/hotels/admin/bulk/approve`,
         BULK_REJECT_HOTELS: `${API_BASE_URL}/hotels/admin/bulk/reject`,
 
-        // Hotel Owner Management
-        GET_HOTEL_OWNERS: `${API_BASE_URL}/hotels/admin/hotel-owners`,
-        CREATE_HOTEL_OWNER: `${API_BASE_URL}/hotels/admin/hotel-owners`, // ← THÊM MỚI
-        SUSPEND_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/hotels/admin/hotel-owners/${ownerId}/suspend`,
-        ACTIVATE_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/hotels/admin/hotel-owners/${ownerId}/activate`,
-
-        // User Management (Admin)
-        GET_ALL_USERS: `${API_BASE_URL}/admin/users`,
-        GET_USERS_BY_ROLE: (role) => `${API_BASE_URL}/admin/users/role/${role}`,
-        GET_HOTEL_OWNERS_ADMIN: `${API_BASE_URL}/admin/users/hotel-owners`, // ← THÊM MỚI
-        CREATE_USER: `${API_BASE_URL}/admin/users`, // ← THÊM MỚI
-        UPDATE_USER_STATUS: (userId) => `${API_BASE_URL}/admin/users/${userId}/status`, // ← THÊM MỚI
+        // User Management (Admin) - 
+        GET_ALL_USERS: `${API_BASE_URL}/users`, 
+        GET_USERS_BY_ROLE: (roleId) => `${API_BASE_URL}/users/role/${roleId}`,
+        GET_HOTEL_OWNERS: `${API_BASE_URL}/users/hotel-owners`, 
+        
+        // Hotel Owner Management 
+        CREATE_HOTEL_OWNER: `${API_BASE_URL}/users`, 
+        UPDATE_USER_STATUS: (userId) => `${API_BASE_URL}/users/${userId}/status`,
+        UPDATE_USER_ROLE: (userId) => `${API_BASE_URL}/users/${userId}/role`,
+        SUSPEND_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/users/${ownerId}`, // Có thể patch status
+        ACTIVATE_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/users/${ownerId}`, // Có thể patch status
 
         // Blog Management for Admin
         GET_ALL_BLOGS: `${API_BASE_URL}/blogs/admin`,
