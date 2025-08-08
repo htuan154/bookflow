@@ -662,7 +662,14 @@ export const usePromotionCodeCheck = () => {
 // Hook for promotion form management
 export const usePromotionForm = (initialData = null) => {
     const { createPromotion, updatePromotion } = usePromotionsContext();
-    const [formData, setFormData] = useState(initialData || {
+    const [formData, setFormData] = useState(() => {
+      if (initialData) {
+        return {
+          ...initialData,
+          max_discount_amount: initialData.maxDiscountAmount ?? ''
+        };
+      }
+      return {
         hotelId: null,
         code: '',
         name: '',
@@ -674,6 +681,7 @@ export const usePromotionForm = (initialData = null) => {
         usageLimit: 0,
         status: 'active',
         promotionType: 'percentage'
+      };
     });
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -682,12 +690,14 @@ export const usePromotionForm = (initialData = null) => {
     const updateFormData = useCallback((updates) => {
         setFormData(prev => ({ ...prev, ...updates }));
         // Clear related errors
-        const clearedErrors = { ...errors };
-        Object.keys(updates).forEach(key => {
-            delete clearedErrors[key];
+        setErrors(prevErrors => {
+            const clearedErrors = { ...prevErrors };
+            Object.keys(updates).forEach(key => {
+                delete clearedErrors[key];
+            });
+            return clearedErrors;
         });
-        setErrors(clearedErrors);
-    }, [errors]);
+    }, []); // Remove errors dependency to prevent infinite loop
 
     // Validate form
     const validateForm = useCallback(() => {

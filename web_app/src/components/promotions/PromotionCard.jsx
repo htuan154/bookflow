@@ -40,9 +40,10 @@ const PromotionCard = ({ promotion, onDelete, onView, onEdit }) => {
   };
 
   // ✅ DEFAULT: Always display as percentage
-  const formatDiscount = () => {
-    const discountValue = promotion.discountValue || promotion.discount_value || 0;
-    return `${discountValue}%`;
+  const formatDiscount = (promotionObj) => {
+    if (!promotionObj) return '';
+    const value = promotionObj.discountValue || promotionObj.discount_value;
+    return value != null ? `${value}%` : '';
   };
 
   const formatMinBookingPrice = () => {
@@ -91,7 +92,7 @@ const PromotionCard = ({ promotion, onDelete, onView, onEdit }) => {
         {/* ✅ Discount Value - Prominent Display */}
         <div className="text-center py-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg mb-4">
           <p className="text-sm text-gray-600 mb-1">Giá trị giảm giá</p>
-          <p className="text-3xl font-bold text-blue-600">{formatDiscount()}</p>
+          <p className="text-3xl font-bold text-blue-600">{formatDiscount(promotion)}</p>
         </div>
         
         {/* Description */}
