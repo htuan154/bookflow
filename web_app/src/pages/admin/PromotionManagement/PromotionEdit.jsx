@@ -9,14 +9,33 @@ const PromotionEdit = () => {
   const navigate = useNavigate();
   const { getPromotionDetails, currentPromotion, loading } = usePromotions();
 
+  console.log('🎯 PromotionEdit component render - ID:', id);
+  console.log('📄 Current promotion:', currentPromotion);
+  console.log('🌐 Current URL:', window.location.pathname);
+
   useEffect(() => {
     if (id) {
+      console.log('🔍 Đang tải thông tin khuyến mãi cho ID:', id);
       getPromotionDetails(id);
     }
   }, [id, getPromotionDetails]);
 
-  const handleSubmit = () => {
-    navigate('/admin/promotions');
+  const { updatePromotion } = usePromotions();
+
+  const handleSubmit = async (formData) => {
+    console.log('🎯 PromotionEdit.handleSubmit - STARTED', formData);
+    try {
+      console.log('Dữ liệu gửi lên cập nhật:', formData);
+      const result = await updatePromotion(id, formData);
+      console.log('Kết quả trả về từ backend:', result);
+      alert('✅ Cập nhật khuyến mãi thành công!');
+      navigate('/admin/promotions');
+      return { success: true, data: result };
+    } catch (error) {
+      console.error('❌ Lỗi khi cập nhật khuyến mãi:', error);
+      alert('❌ Lỗi khi cập nhật khuyến mãi: ' + (error?.message || 'Không xác định'));
+      return { success: false, error: error.message || 'Không xác định' };
+    }
   };
 
   const handleCancel = () => {

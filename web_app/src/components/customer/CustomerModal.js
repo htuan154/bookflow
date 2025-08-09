@@ -410,7 +410,7 @@ const CustomerModal = ({ customer, mode, onClose, onSave }) => {
                                             <div className="px-4 py-3 bg-white border border-gray-200 rounded-lg flex items-center">
                                                 <span className="text-green-600 mr-2">📱</span>
                                                 <span className="text-gray-900">
-                                                    {displayCustomer.phone || 'Chưa có số điện thoại'}
+                                                    {displayCustomer.phoneNumber || 'Chưa có số điện thoại'}
                                                 </span>
                                             </div>
                                         )}

@@ -63,14 +63,9 @@ const PromotionDetails = ({ promotionId }) => {
 
   // ✅ Updated discount formatting with VND
   const formatDiscount = () => {
-    const discountValue = parseFloat(getPromotionField('discountValue', 0));
-    const promotionType = getPromotionField('promotionType', 'general');
-    
-    if (promotionType === 'percentage' || promotionType === 'room_specific') {
-      return `${discountValue}%`;
-    } else {
-      return formatVND(discountValue);
-    }
+  const discountValue = parseFloat(getPromotionField('discountValue', 0));
+  // Luôn hiển thị phần trăm
+  return `${discountValue}%`;
   };
 
   const getStatusInfo = () => {
@@ -125,6 +120,15 @@ const PromotionDetails = ({ promotionId }) => {
               {formatDiscount()}
             </p>
           </div>
+
+            <div>
+                <p className="text-sm text-gray-500 mb-1">Số tiền giảm tối đa</p>
+                <p className="font-medium text-gray-900">
+                  {getPromotionField('maxDiscountAmount') !== 'N/A' && Number(getPromotionField('maxDiscountAmount', 0)) > 0
+                    ? formatVND(parseFloat(getPromotionField('maxDiscountAmount', 0)))
+                    : 'Không giới hạn'}
+                </p>
+            </div>
           <div>
             <p className="text-sm text-gray-500 mb-1">Giá trị đơn hàng tối thiểu</p>
             <p className="font-medium text-gray-900">

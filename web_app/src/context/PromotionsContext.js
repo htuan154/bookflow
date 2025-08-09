@@ -518,11 +518,15 @@ export const PromotionsProvider = ({ children }) => {
 
             updatePromotion: async (promotionId, promotionData) => {
                 try {
+                    console.log('🔄 PromotionsContext.updatePromotion called với:', { promotionId, promotionData });
                     actions.setLoading(true);
                     actions.clearError();
                     
                     const transformedData = promotionService.transformPromotionData(promotionData);
+                    console.log('🔄 Data sau khi transform:', transformedData);
+                    
                     const response = await promotionService.updatePromotion(promotionId, transformedData);
+                    console.log('✅ Response từ promotionService.updatePromotion:', response);
                     
                     // Update the promotion in the state
                     dispatch({ 
@@ -530,9 +534,12 @@ export const PromotionsProvider = ({ children }) => {
                         payload: { ...response.data, promotionId } 
                     });
                     
-                    return response.data;
+                    actions.setLoading(false);
+                    return response;
                 } catch (error) {
+                    console.error('❌ Lỗi trong PromotionsContext.updatePromotion:', error);
                     actions.setError(error.message);
+                    actions.setLoading(false);
                     throw error;
                 }
             },

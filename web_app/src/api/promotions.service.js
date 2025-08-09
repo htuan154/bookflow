@@ -56,9 +56,12 @@ class PromotionService {
                 throw new Error('ID khuyến mãi là bắt buộc');
             }
 
+            console.log('🔄 promotionService.updatePromotion called với:', { promotionId, promotionData });
             const transformedData = this.transformPromotionData(promotionData);
+            console.log('🔄 Transformed data:', transformedData);
 
             const response = await axiosClient.put(API_ENDPOINTS.PROMOTIONS.UPDATE(promotionId), transformedData);
+            console.log('✅ API Response:', response);
 
             const result = {
                 success: true,
@@ -67,9 +70,11 @@ class PromotionService {
                 status: response.status
             };
             
+            console.log('✅ Final result from promotionService:', result);
             return result;
             
         } catch (error) {
+            console.error('❌ Error in promotionService.updatePromotion:', error);
             const errorResult = this.handleError(error, 'Không thể cập nhật khuyến mãi');
             throw errorResult;
         }
@@ -387,6 +392,13 @@ class PromotionService {
                 status: promotionData.status || 'active',
                 promotion_type: promotionData.promotion_type || 'general'
             };
+
+                // Map trường max_discount_amount nếu có (hỗ trợ cả snake_case và camelCase)
+                if (promotionData.max_discount_amount !== undefined) {
+                    transformed.max_discount_amount = parseFloat(promotionData.max_discount_amount) || null;
+                } else if (promotionData.maxDiscountAmount !== undefined) {
+                    transformed.max_discount_amount = parseFloat(promotionData.maxDiscountAmount) || null;
+                }
 
             // ✅ Additional validation
             if (transformed.promotion_type === 'percentage' && transformed.discount_value > 100) {

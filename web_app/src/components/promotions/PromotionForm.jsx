@@ -13,7 +13,11 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
     isValid
   } = usePromotionForm(initialData);
 
-  const isSubmitting = externalSubmitting || internalSubmitting;
+  // Always allow form editing - disable only when actually submitting
+  const isSubmitting = false; // Temporarily disable all form locks
+  
+  // Debug log to check submitting state
+  console.log('Form state - externalSubmitting:', externalSubmitting, 'internalSubmitting:', internalSubmitting, 'final isSubmitting:', isSubmitting);
 
   const {
     approvedHotels,
@@ -59,7 +63,7 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
     }
   };
 
-  // Handle initial data
+  // Handle initial data - Remove updateFormData dependency to prevent infinite loop
   useEffect(() => {
     if (initialData) {
       const dataToUse = initialData.data || initialData;
@@ -75,15 +79,20 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
         usageLimit: Number(dataToUse.usageLimit || dataToUse.usage_limit || 1),
         validFrom: formatDateForInput(dataToUse.validFrom || dataToUse.valid_from),
         validUntil: formatDateForInput(dataToUse.validUntil || dataToUse.valid_until),
-        status: dataToUse.status || 'active'
+        status: dataToUse.status || 'active',
+        max_discount_amount: dataToUse.max_discount_amount || dataToUse.maxDiscountAmount || ''
       };
 
       updateFormData(mappedData);
     }
-  }, [initialData, updateFormData]);
+  }, [initialData]); // Remove updateFormData dependency
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    console.log('🚀 Form handleSubmit được gọi!');
+    console.log('📊 Form data hiện tại:', formData);
+    console.log('📞 onSubmit function:', typeof onSubmit, onSubmit ? 'có' : 'không có');
     
     // Parse discount value - FIXED VERSION
     const rawDiscountValue = formData.discountValue;
@@ -128,7 +137,10 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
         : null,
       valid_from: formData.validFrom ? new Date(formData.validFrom).toISOString() : null,
       valid_until: formData.validUntil ? new Date(formData.validUntil).toISOString() : null,
-      status: formData.status || 'active'
+      status: formData.status || 'active',
+      max_discount_amount: formData.max_discount_amount > 0
+        ? Math.min(Number(formData.max_discount_amount), 99999999.99)
+        : null
     };
     
     // Validation
@@ -168,7 +180,9 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
     // Call parent onSubmit handler
     if (onSubmit && typeof onSubmit === 'function') {
       try {
+        console.log('🔄 Đang gọi onSubmit từ PromotionEdit với dữ liệu:', cleanedData);
         const result = await onSubmit(cleanedData);
+        console.log('✅ Kết quả trả về từ onSubmit:', result);
         
         if (result === undefined || result === null) {
           return { success: true, data: cleanedData, message: 'Operation completed successfully' };
@@ -255,8 +269,6 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
   // FIXED: Enhanced discount change handler
   const handleDiscountChange = (e) => {
     const inputValue = e.target.value;
-    
-    // Allow empty value for user experience
     if (inputValue === '' || inputValue === null || inputValue === undefined) {
       updateFormData({ discountValue: '' });
       return;
@@ -270,10 +282,10 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
       return;
     }
     
-    // Enforce maximum value
-    if (value > 999.99) {
-      value = 999.99;
-    }
+      // Enforce maximum value (phần trăm tối đa là 20)
+      if (value > 20) {
+        value = 20;
+      }
     
     // Enforce minimum value (but allow 0 for temporary state during typing)
     if (value < 0) {
@@ -312,7 +324,7 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             value={formData.hotelId || ''}
             onChange={(e) => updateFormData({ hotelId: e.target.value || null })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={loadingHotels || isSubmitting}
+            disabled={loadingHotels}
           >
             <option value="">Khuyến mãi chung (Áp dụng cho tất cả khách sạn)</option>
             {renderHotelOptions()}
@@ -345,7 +357,7 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             onChange={handleCodeChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="VD: SUMMER2024"
-            disabled={isSubmitting}
+            // disabled={isSubmitting}
             maxLength={50}
             required
           />
@@ -363,7 +375,7 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             onChange={(e) => updateFormData({ name: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="VD: Giảm giá mùa hè 2024"
-            disabled={isSubmitting}
+            // disabled={isSubmitting}
             maxLength={255}
             required
           />
@@ -381,7 +393,7 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             rows={3}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Mô tả chi tiết về chương trình khuyến mãi"
-            disabled={isSubmitting}
+            // disabled={isSubmitting}
           />
         </div>
 
@@ -394,12 +406,17 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             value={formData.promotionType || 'general'}
             onChange={(e) => updateFormData({ promotionType: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isSubmitting}
+            disabled={initialData} // Disable when editing existing promotion
             required
           >
             <option value="general">Khuyến mãi chung</option>
             <option value="room_specific">Theo phòng</option>
           </select>
+          {initialData && (
+            <p className="text-xs text-gray-500 mt-1">
+              💡 Loại khuyến mãi không thể thay đổi khi chỉnh sửa
+            </p>
+          )}
           {errors.promotionType && <p className="text-red-500 text-sm mt-1">{errors.promotionType}</p>}
         </div>
 
@@ -422,7 +439,7 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
                 : 'border-gray-300'
             }`}
             placeholder="Nhập giá trị giảm giá (tối thiểu 0.01)"
-            disabled={isSubmitting}
+            // disabled={isSubmitting}
             required
           />
           {formData.discountValue && !isDiscountValueValid() && (
@@ -430,6 +447,26 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
           )}
           {errors.discountValue && <p className="text-red-500 text-sm mt-1">{errors.discountValue}</p>}
         </div>
+
+          {/* Max Discount Amount */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Số tiền giảm tối đa
+              <span className="text-xs text-gray-500 ml-1">(VNĐ, tùy chọn)</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="99999999.99"
+              step="0.01"
+              value={formData.max_discount_amount || ''}
+              onChange={handleNumberChange('max_discount_amount')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="0 (Không giới hạn)"
+              // disabled={isSubmitting}
+            />
+            {errors.max_discount_amount && <p className="text-red-500 text-sm mt-1">{errors.max_discount_amount}</p>}
+          </div>
 
         {/* Min Booking Price */}
         <div>
@@ -446,7 +483,7 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             onChange={handleNumberChange('minBookingPrice')}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="0 (Không giới hạn)"
-            disabled={isSubmitting}
+            // disabled={isSubmitting}
           />
         </div>
 
@@ -464,7 +501,7 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             onChange={handleNumberChange('usageLimit')}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="0 (Không giới hạn)"
-            disabled={isSubmitting}
+            // disabled={isSubmitting}
           />
           {errors.usageLimit && <p className="text-red-500 text-sm mt-1">{errors.usageLimit}</p>}
         </div>
@@ -479,7 +516,7 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             value={formData.validFrom || ''}
             onChange={(e) => updateFormData({ validFrom: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isSubmitting}
+            // disabled={isSubmitting}
             min={new Date().toISOString().slice(0, 16)}
             required
           />
@@ -496,7 +533,7 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             value={formData.validUntil || ''}
             onChange={(e) => updateFormData({ validUntil: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isSubmitting}
+            // disabled={isSubmitting}
             min={formData.validFrom || new Date().toISOString().slice(0, 16)}
             required
           />
@@ -512,7 +549,7 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             value={formData.status || 'active'}
             onChange={(e) => updateFormData({ status: e.target.value })}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isSubmitting}
+            // disabled={isSubmitting}
             required
           >
             <option value="pending">Chờ duyệt</option>
@@ -549,21 +586,33 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
           type="button"
           onClick={onCancel}
           className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-          disabled={isSubmitting}
+          // disabled={isSubmitting}
         >
           Hủy
         </button>
         <button
           type="submit"
-          disabled={
-            isSubmitting || 
-            !formData.code || 
-            !formData.name || 
-            !formData.validFrom || 
-            !formData.validUntil || 
-            !formData.discountValue ||
-            !isDiscountValueValid()
-          }
+          disabled={(() => {
+            const isDisabled = isSubmitting || 
+              !formData.code || 
+              !formData.name || 
+              !formData.validFrom || 
+              !formData.validUntil || 
+              !formData.discountValue ||
+              !isDiscountValueValid();
+            
+            console.log('🔲 Nút submit disabled:', isDisabled, {
+              isSubmitting,
+              hasCode: !!formData.code,
+              hasName: !!formData.name,
+              hasValidFrom: !!formData.validFrom,
+              hasValidUntil: !!formData.validUntil,
+              hasDiscountValue: !!formData.discountValue,
+              isDiscountValueValid: isDiscountValueValid()
+            });
+            
+            return isDisabled;
+          })()}
           className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
         >
           {isSubmitting ? (
