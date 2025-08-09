@@ -9,7 +9,6 @@
     "docs": "open http://localhost:8080/api-docs",
     "test": "jest",
     "build": " node swagger-autogen.js"
-
   },
   "keywords": [],
   "author": "",
