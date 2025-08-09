@@ -261,6 +261,19 @@ class PromotionService {
         }
     }
 
+    /**
+     * Lọc khuyến mãi theo các điều kiện truyền vào.
+     * @param {object} params - { code, status, startDate, endDate, hotelId }
+     */
+    async filterPromotions(params = {}) {
+        try {
+            const response = await axiosClient.get(API_ENDPOINTS.PROMOTIONS.FILTER, { params });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error, 'Không thể lọc khuyến mãi');
+        }
+    }
+
     // --- Utility Methods ---
 
     // ✅ ENHANCED: Better error handling with more detailed information

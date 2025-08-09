@@ -70,6 +70,13 @@ export const usePromotions = (options = {}) => {
         }
     }, []);
 
+    // Thêm hàm filterPromotions nếu context chưa có
+    const filterPromotions = useCallback((filters) => {
+        if (context.fetchPromotions) {
+            context.fetchPromotions(filters);
+        }
+    }, [context]);
+
     return {
         // Context state and actions
         ...context,
@@ -83,7 +90,8 @@ export const usePromotions = (options = {}) => {
         
         // Enhanced actions
         clearErrors,
-        handleLocalOperation
+        handleLocalOperation,
+        filterPromotions, // <-- Thêm hàm này để gọi từ component
     };
 };
 
@@ -536,17 +544,30 @@ export const usePromotionFilters = () => {
 
         const applyFn = () => {
             updateFilters(mergedFilters);
-            fetchPromotions();
+            fetchPromotions(mergedFilters);
         };
 
         if (immediate) {
             applyFn();
         } else {
-            // Debounce for search
             const timeoutId = setTimeout(applyFn, 300);
             return () => clearTimeout(timeoutId);
         }
     }, [localFilters, updateFilters, fetchPromotions]);
+
+    // ✅ THÊM HÀM FORMAT NGÀY
+    const formatDateForAPI = (dateString) => {
+        if (!dateString) return '';
+        
+        // Nếu là format DD/MM/YYYY, chuyển thành YYYY-MM-DD
+        if (dateString.includes('/')) {
+            const [day, month, year] = dateString.split('/');
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+        
+        // Nếu đã là YYYY-MM-DD hoặc Date object
+        return dateString;
+    };
 
     // Quick filter functions
     const filterByStatus = useCallback((status) => {
@@ -558,19 +579,47 @@ export const usePromotionFilters = () => {
     }, [applyFilters]);
 
     const searchPromotions = useCallback((search) => {
-        applyFilters({ search });
+        applyFilters({ code: search });
     }, [applyFilters]);
 
-    const filterByDateRange = useCallback((dateRange) => {
-        applyFilters({ dateRange }, true);
+    // ✅ CHỈ GIỮ LẠI CÁC HÀM FILTER NGÀY NÀY, XÓA BỎ CÁC HÀM TRÙNG LẶP
+    const filterByStartDate = useCallback((startDate) => {
+        const formattedDate = formatDateForAPI(startDate);
+        applyFilters({ startDate: formattedDate }, true);
+    }, [applyFilters]);
+
+    const filterByEndDate = useCallback((endDate) => {
+        const formattedDate = formatDateForAPI(endDate);
+        applyFilters({ endDate: formattedDate }, true);
+    }, [applyFilters]);
+
+    const filterByDateRange = useCallback((startDate, endDate) => {
+        const dateFilters = {};
+        if (startDate) dateFilters.startDate = formatDateForAPI(startDate);
+        if (endDate) dateFilters.endDate = formatDateForAPI(endDate);
+        
+        applyFilters(dateFilters, true);
     }, [applyFilters]);
 
     // Reset all filters
     const clearAllFilters = useCallback(() => {
-        resetFilters();
-        setLocalFilters({});
-        fetchPromotions();
-    }, [resetFilters, fetchPromotions]);
+        // Reset cả local và context filters
+        const emptyFilters = {
+            status: 'all',
+            hotelId: null,
+            code: '',
+            search: '',
+            startDate: '',
+            endDate: '',
+            dateRange: { from: null, to: null }
+        };
+        
+        setLocalFilters(emptyFilters);
+        updateFilters(emptyFilters);
+        
+        // ✅ QUAN TRỌNG: Gọi fetchPromotions với filter rỗng để lấy tất cả dữ liệu
+        fetchPromotions({});
+    }, [updateFilters, fetchPromotions]);
 
     return {
         filters: localFilters,
@@ -579,6 +628,8 @@ export const usePromotionFilters = () => {
         filterByHotel,
         searchPromotions,
         filterByDateRange,
+        filterByStartDate,
+        filterByEndDate,
         clearAllFilters,
         hasActiveFilters: Object.values(localFilters).some(value => 
             value !== null && value !== '' && value !== 'all'

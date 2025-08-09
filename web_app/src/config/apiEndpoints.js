@@ -213,6 +213,7 @@ export const API_ENDPOINTS = {
 
     // /promotions/:promotionId/usage-history
     GET_USAGE_HISTORY: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/usage-history`,
+    FILTER: `${API_BASE_URL}/promotions/filter`,
     },
 
     // --- Admin Endpoints ---
