@@ -389,31 +389,54 @@ export const PromotionsProvider = ({ children }) => {
         return {
             fetchPromotions: async (params = {}) => {
                 const requestId = Date.now().toString();
-                
-                // Prevent duplicate requests
+
                 if (pendingRequestsRef.current.has('fetchPromotions')) {
                     return;
                 }
-                
+
                 try {
                     pendingRequestsRef.current.add('fetchPromotions');
                     actions.setLoading(true);
                     actions.clearError();
-                    
-                    // Get current state values
-                    const currentFilters = state.filters;
-                    const currentPagination = state.pagination;
-                    
-                    const mergedParams = {
-                        ...currentFilters,
-                        page: currentPagination.currentPage,
-                        limit: currentPagination.limit,
-                        ...params
-                    };
-                    
-                    const response = await promotionService.getAllPromotions(mergedParams);
-                    
-                    // Check if request is still valid
+
+                    // ✅ SỬA: Nếu params rỗng, bỏ qua state.filters
+                    let mergedParams;
+                    if (Object.keys(params).length === 0) {
+                        // Khi xóa bộ lọc, không dùng state.filters
+                        mergedParams = {};
+                    } else {
+                        // Gộp params filter từ UI vào state.filters
+                        mergedParams = {
+                            ...state.filters,
+                            ...params
+                        };
+                    }
+
+                    // Xác định có filter hay không
+                    const hasFilter =
+                        (mergedParams.code && mergedParams.code !== '') ||
+                        (mergedParams.startDate && mergedParams.startDate !== '') ||
+                        (mergedParams.endDate && mergedParams.endDate !== '') ||
+                        (mergedParams.hotelId && mergedParams.hotelId !== null) ||
+                        (mergedParams.status && mergedParams.status !== '' && mergedParams.status !== 'all');
+
+                    console.log('🔍 Filter params:', mergedParams);
+                    console.log('🔍 Has filter:', hasFilter);
+
+                    let response;
+                    if (hasFilter) {
+                        const apiParams = { ...mergedParams };
+                        if (apiParams.status === 'all') {
+                            delete apiParams.status;
+                        }
+                        
+                        console.log('📡 Calling filterPromotions with:', apiParams);
+                        response = await promotionService.filterPromotions(apiParams);
+                    } else {
+                        console.log('📡 Calling getAllPromotions - NO FILTERS');
+                        response = await promotionService.getAllPromotions();
+                    }
+
                     if (pendingRequestsRef.current.has('fetchPromotions')) {
                         actions.setPromotions(response.data || [], response.pagination);
                     }
@@ -861,7 +884,7 @@ export const PromotionsProvider = ({ children }) => {
                 return promotions;
             }
         };
-    }, [actions]);
+    }, [actions, state.filters]);
         //[actions, state.filters, state.pagination]);
     // Memoized context value
     const contextValue = useMemo(() => ({

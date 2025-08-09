@@ -4,33 +4,27 @@ const pool = require('../../../config/db');
 const Promotion = require('../../../models/promotion.model');
 
 /**
- * Tạo một chương trình khuyến mãi mới.
+ * Tạo một chương trình khuyến mãi mới (dynamic build giống update).
  * @param {object} promotionData - Dữ liệu của khuyến mãi.
  * @returns {Promise<Promotion>}
  */
 const create = async (promotionData) => {
-    const {
-        hotel_id, code, name, description, discount_value, min_booking_price,
-        valid_from, valid_until, usage_limit, status = 'active', created_by,
-        promotion_type // Bổ sung
-    } = promotionData;
+    const fields = Object.keys(promotionData);
+    const values = Object.values(promotionData);
+
+    const columns = fields.join(', ');
+    const placeholders = fields.map((_, idx) => `$${idx + 1}`).join(', ');
 
     const query = `
-        INSERT INTO promotions (
-            hotel_id, code, name, description, discount_value, min_booking_price,
-            valid_from, valid_until, usage_limit, status, created_by, promotion_type
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        INSERT INTO promotions (${columns})
+        VALUES (${placeholders})
         RETURNING *;
     `;
-    const values = [
-        hotel_id, code, name, description, discount_value, min_booking_price,
-        valid_from, valid_until, usage_limit, status, created_by, promotion_type
-    ];
 
     const result = await pool.query(query, values);
     return new Promotion(result.rows[0]);
 };
+
 
 /**
  * Tìm một khuyến mãi bằng ID.
@@ -65,6 +59,46 @@ const findAll = async (filters = {}) => {
         values.push(filters.hotelId);
     }
     query += ' ORDER BY created_at DESC';
+    const result = await pool.query(query, values);
+    return result.rows.map(row => new Promotion(row));
+};
+
+/**
+ * Tìm tất cả các khuyến mãi với bộ lọc động theo status, code, ngày bắt đầu/kết thúc.
+ * @param {object} filters - { status, code, startDate, endDate, hotelId }
+ * @returns {Promise<Promotion[]>}
+ */
+const findAllAndFilter = async (filters = {}) => {
+    let query = 'SELECT * FROM promotions';
+    const conditions = [];
+    const values = [];
+
+    if (filters.status) {
+        conditions.push(`status = $${values.length + 1}`);
+        values.push(filters.status);
+    }
+    if (filters.code) {
+        conditions.push(`code ILIKE $${values.length + 1}`);
+        values.push(`%${filters.code}%`);
+    }
+    if (filters.startDate) {
+        conditions.push(`valid_from >= $${values.length + 1}`);
+        values.push(filters.startDate);
+    }
+    if (filters.endDate) {
+        conditions.push(`valid_until <= $${values.length + 1}`);
+        values.push(filters.endDate);
+    }
+    if (filters.hotelId) {
+        conditions.push(`hotel_id = $${values.length + 1}`);
+        values.push(filters.hotelId);
+    }
+
+    if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+    }
+    query += ' ORDER BY created_at DESC';
+
     const result = await pool.query(query, values);
     return result.rows.map(row => new Promotion(row));
 };
@@ -105,6 +139,7 @@ module.exports = {
     findById,
     findByCode,
     findAll,
+    findAllAndFilter, // thêm hàm mới này
     update,
     deleteById,
 };

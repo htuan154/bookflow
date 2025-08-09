@@ -11,13 +11,58 @@ class PromotionService {
      * @returns {Promise<Promotion>}
      */
     async createPromotion(promotionData, userId) {
-        // Logic nghiệp vụ: Mã code phải là duy nhất
+        // 1. Ràng buộc bắt buộc
+        // if (!promotionData.hotel_id) {
+        //     throw new AppError('hotel_id is required', 400);
+        // }
+        if (!promotionData.code || promotionData.code.trim() === '') {
+            throw new AppError('Promotion code is required', 400);
+        }
+        if (!promotionData.name || promotionData.name.trim() === '') {
+            throw new AppError('Promotion name is required', 400);
+        }
+        if (promotionData.discount_value == null || promotionData.discount_value <= 0) {
+            throw new AppError('discount_value must be greater than 0', 400);
+        }
+
+        // 2. Ràng buộc số học
+        if (promotionData.min_booking_price != null && promotionData.min_booking_price < 0) {
+            throw new AppError('min_booking_price must be >= 0', 400);
+        }
+        if (promotionData.max_discount_amount != null && promotionData.max_discount_amount < 0) {
+            throw new AppError('max_discount_amount must be >= 0', 400);
+        }
+        if (promotionData.usage_limit != null && promotionData.usage_limit <= 0) {
+            throw new AppError('usage_limit must be greater than 0', 400);
+        }
+
+        // 3. Ngày giờ
+        if (!promotionData.valid_from || !promotionData.valid_until) {
+            throw new AppError('valid_from and valid_until are required', 400);
+        }
+        if (new Date(promotionData.valid_from) >= new Date(promotionData.valid_until)) {
+            throw new AppError('valid_from must be before valid_until', 400);
+        }
+
+        // 4. Enum check
+        const allowedTypes = ['general', 'room_specific'];
+        if (promotionData.promotion_type && !allowedTypes.includes(promotionData.promotion_type)) {
+            throw new AppError(`promotion_type must be one of: ${allowedTypes.join(', ')}`, 400);
+        }
+        const allowedStatus = ['pending', 'approved', 'rejected', 'active', 'inactive'];
+        if (promotionData.status && !allowedStatus.includes(promotionData.status)) {
+            throw new AppError(`status must be one of: ${allowedStatus.join(', ')}`, 400);
+        }
+
+        // 5. Check code unique
         const existingPromotion = await promotionRepository.findByCode(promotionData.code);
         if (existingPromotion) {
             throw new AppError('Promotion code already exists', 409);
         }
 
+        // 6. Set người tạo
         promotionData.created_by = userId;
+
         return await promotionRepository.create(promotionData);
     }
 
@@ -71,6 +116,57 @@ class PromotionService {
      */
     async findById(promotionId) {
         return await promotionRepository.findById(promotionId);
+    }
+
+    /**
+     * Tìm chương trình khuyến mãi theo code.
+     * @param {string} code
+     * @returns {Promise<Promotion|null>}
+     */
+    async findByCode(code) {
+        const promotion = await promotionRepository.findByCode(code);
+        if (!promotion) {
+            throw new AppError('Promotion not found', 404);
+        }
+        return promotion;
+    }
+
+    /**
+     * Cập nhật thông tin chương trình khuyến mãi.
+     * @param {string} promotionId
+     * @param {object} updateData
+     * @returns {Promise<Promotion>}
+     */
+    async updatePromotion(promotionId, updateData) {
+        const existing = await promotionRepository.findById(promotionId);
+        if (!existing) {
+            throw new AppError('Promotion not found', 404);
+        }
+
+        const updated = await promotionRepository.update(promotionId, updateData);
+        return updated;
+    }
+
+    /**
+     * Xóa một chương trình khuyến mãi.
+     * @param {string} promotionId
+     * @returns {Promise<boolean>}
+     */
+    async deletePromotion(promotionId) {
+        const existing = await promotionRepository.findById(promotionId);
+        if (!existing) {
+            throw new AppError('Promotion not found', 404);
+        }
+        return await promotionRepository.deleteById(promotionId);
+    }
+
+    /**
+     * Lấy danh sách khuyến mãi với bộ lọc động.
+     * @param {object} filters
+     * @returns {Promise<Promotion[]>}
+     */
+    async getAllAndFilterPromotions(filters) {
+        return await promotionRepository.findAllAndFilter(filters);
     }
 }
 
