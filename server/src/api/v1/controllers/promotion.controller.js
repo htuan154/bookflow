@@ -1,4 +1,3 @@
-
 // src/api/v1/controllers/promotion.controller.js
 
 const PromotionService = require('../services/promotion.service');
@@ -45,7 +44,8 @@ class PromotionController {
             next(error);
         }
     }
-        /**
+
+    /**
      * Lấy chi tiết một chương trình khuyến mãi.
      * GET /api/v1/promotions/:promotionId
      */
@@ -57,6 +57,68 @@ class PromotionController {
                 return res.status(404).json({ message: 'Promotion not found' });
             }
             successResponse(res, promotion);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * Lấy khuyến mãi theo mã code.
+     * GET /api/v1/promotions/code/:code
+     */
+    async getPromotionByCode(req, res, next) {
+        try {
+            const { code } = req.params;
+            const promotion = await PromotionService.findByCode(code);
+            successResponse(res, promotion);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * Cập nhật chương trình khuyến mãi.
+     * PUT /api/v1/promotions/:promotionId
+     */
+    async updatePromotion(req, res, next) {
+        try {
+            const { promotionId } = req.params;
+            const updatedPromotion = await PromotionService.updatePromotion(promotionId, req.body);
+            successResponse(res, updatedPromotion, 'Promotion updated successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * Xóa chương trình khuyến mãi.
+     * DELETE /api/v1/promotions/:promotionId
+     */
+    async deletePromotion(req, res, next) {
+        try {
+            const { promotionId } = req.params;
+            await PromotionService.deletePromotion(promotionId);
+            successResponse(res, null, 'Promotion deleted successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * Lấy danh sách khuyến mãi với bộ lọc động.
+     * GET /api/v1/promotions/filter
+     */
+    async getAllAndFilterPromotions(req, res, next) {
+        try {
+            const filters = {
+                status: req.query.status,
+                code: req.query.code,
+                startDate: req.query.startDate,
+                endDate: req.query.endDate,
+                hotelId: req.query.hotelId,
+            };
+            const promotions = await PromotionService.getAllAndFilterPromotions(filters);
+            successResponse(res, promotions);
         } catch (error) {
             next(error);
         }
