@@ -22,6 +22,20 @@ class BlogImageController {
     }
 
     /**
+     * Lấy tất cả hình ảnh của một bài blog.
+     * GET /api/v1/blogs/:blogId/images
+     */
+    async getImages(req, res, next) {
+        try {
+            const { blogId } = req.params;
+            const images = await BlogImageService.getImagesByBlogId(blogId);
+            successResponse(res, images, 'Images fetched successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
      * Xóa một hình ảnh của bài blog.
      * DELETE /api/v1/blog-images/:imageId
      */

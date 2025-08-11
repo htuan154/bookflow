@@ -23,8 +23,120 @@ class BlogService {
   };
 
   // ============================================
-  // PUBLIC METHODS
+  // BLOG IMAGE METHODS
   // ============================================
+  /// Upload ảnh cho blog
+  /// POST /api/v1/blogs/:blogId/images
+  Future<Map<String, dynamic>> uploadBlogImages(
+    String blogId,
+    List<String> imagePaths,
+    String token,
+  ) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/blogs/$blogId/images');
+      var request = http.MultipartRequest('POST', url);
+      request.headers.addAll(_headersWithToken(token));
+      for (var path in imagePaths) {
+        request.files.add(await http.MultipartFile.fromPath('images', path));
+      }
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Upload ảnh thành công',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Lỗi khi upload ảnh',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Lấy tất cả ảnh của blog
+  /// GET /api/v1/blogs/:blogId/images
+  Future<Map<String, dynamic>> getImages(String blogId, String token) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/blogs/$blogId/images');
+      final response = await http.get(url, headers: _headersWithToken(token));
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Lấy danh sách ảnh thành công',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Lỗi khi lấy danh sách ảnh',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Xóa một ảnh cụ thể
+  /// DELETE /api/v1/blog-images/:imageId
+  Future<Map<String, dynamic>> deleteImage(String imageId, String token) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/blog-images/$imageId');
+      final response = await http.delete(
+        url,
+        headers: _headersWithToken(token),
+      );
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Xóa ảnh thành công',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Lỗi khi xóa ảnh',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Xóa bình luận
+  /// DELETE /api/v1/comments/:commentId
+  Future<Map<String, dynamic>> deleteComment(
+    String commentId,
+    String token,
+  ) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/comments/$commentId');
+      final response = await http.delete(
+        url,
+        headers: _headersWithToken(token),
+      );
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Xóa bình luận thành công',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Lỗi khi xóa bình luận',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
 
   /// Lấy danh sách blog đã được xuất bản (có phân trang)
   /// GET /api/v1/blogs
@@ -37,7 +149,9 @@ class BlogService {
         '${ApiConfig.baseUrl}/blogs?page=$page&limit=$limit',
       );
 
+      print('DEBUG BlogService: Calling API: $url');
       final response = await http.get(url, headers: _headers);
+      print('DEBUG BlogService: Status code: ${response.statusCode}');
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
@@ -642,10 +756,10 @@ class BlogService {
   }
 
   /// Bỏ thích blog
-  /// DELETE /api/v1/blogs/:blogId/like
-  Future<Map<String, dynamic>> unlikeBlog(String blogId, String token) async {
+  /// DELETE /api/v1/blogs/:likeId/like (likeId là ID của record like, không phải blogId)
+  Future<Map<String, dynamic>> unlikeBlog(String likeId, String token) async {
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/blogs/$blogId/like');
+      final url = Uri.parse('${ApiConfig.baseUrl}/blogs/$likeId/like');
 
       final response = await http.delete(
         url,
@@ -708,6 +822,7 @@ class BlogService {
   /// GET /api/v1/blogs/:blogId/comments
   Future<Map<String, dynamic>> getBlogComments(
     String blogId, {
+    String? token,
     int page = 1,
     int limit = 20,
   }) async {
@@ -716,7 +831,8 @@ class BlogService {
         '${ApiConfig.baseUrl}/blogs/$blogId/comments?page=$page&limit=$limit',
       );
 
-      final response = await http.get(url, headers: _headers);
+      final headers = token != null ? _headersWithToken(token) : _headers;
+      final response = await http.get(url, headers: headers);
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
