@@ -19,6 +19,7 @@ class Promotion {
     this.createdBy = created_by;
     this.createdAt = created_at;
     this.promotionType = promotion_type;
+    this.maxDiscountAmount = arguments[0].max_discount_amount;
   }
 
   toJSON() {
@@ -36,6 +37,7 @@ class Promotion {
       usedCount: this.usedCount,
       status: this.status,
       promotionType: this.promotionType,
+      maxDiscountAmount: this.maxDiscountAmount,
     };
   }
 }

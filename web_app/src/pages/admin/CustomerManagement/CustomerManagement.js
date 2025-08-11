@@ -1,4 +1,4 @@
-// src/pages/admin/CustomerManagement.js - Updated with improved error handling
+// src/pages/admin/CustomerManagement.js - Updated with fixed API endpoints
 import React, { useState, useEffect } from 'react';
 import { useCustomer } from '../../../context/CustomerContext';
 
@@ -28,7 +28,7 @@ const CustomerManagement = () => {
     const [modalMode, setModalMode] = useState('view');
     const [localLoading, setLocalLoading] = useState(false);
 
-    // Load customers on mount
+    // Load customers on mount - Fetch hotel owners only
     useEffect(() => {
         const hotelOwnerFilters = {
             ...filters,
@@ -36,14 +36,16 @@ const CustomerManagement = () => {
             role: 'hotel_owner'
         };
         
+        // Set filters to hotel owner filters if not already set
         if (filters.roleId !== 2 || filters.role !== 'hotel_owner') {
             setFilters(hotelOwnerFilters);
         }
         
+        // Fetch hotel owners specifically
         fetchCustomers(hotelOwnerFilters);
     }, [fetchCustomers, filters.search, filters.status, filters.dateFrom, filters.dateTo, filters.sortBy, filters.sortOrder, pagination.page]);
 
-    // Handle filter changes
+    // Handle filter changes - Always maintain hotel owner filter
     const handleFilterChange = (newFilters) => {
         const hotelOwnerFilters = {
             ...newFilters,
@@ -58,11 +60,12 @@ const CustomerManagement = () => {
         fetchCustomers({ 
             page, 
             limit: limit || pagination.limit,
-            roleId: 2
+            roleId: 2,
+            role: 'hotel_owner'
         });
     };
 
-    // Handle create customer
+    // Handle create customer - Create hotel owner specifically
     const handleCreateCustomer = () => {
         try {
             if (!createCustomer) {
@@ -101,7 +104,7 @@ const CustomerManagement = () => {
                 setLocalLoading(true);
                 await deleteCustomer(customerId);
                 alert('✅ Xóa chủ khách sạn thành công!');
-                handleRefresh();
+                await handleRefresh();
             } catch (error) {
                 console.error('Delete customer error:', error);
                 const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi xóa chủ khách sạn!';
@@ -112,7 +115,7 @@ const CustomerManagement = () => {
         }
     };
 
-    // Handle status toggle - Fixed version with optimistic update
+    // Handle status toggle - Fixed version with improved error handling
     const handleToggleStatus = async (customerId, currentStatus) => {
         const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
         const action = newStatus === 'active' ? 'mở khóa' : 'khóa';
@@ -122,18 +125,11 @@ const CustomerManagement = () => {
                 setLocalLoading(true);
                 console.log('Toggling status:', { customerId, currentStatus, newStatus });
                 
-                // Optimistic update - cập nhật UI ngay lập tức
-                const updatedCustomers = customers.map(customer => 
-                    customer.userId === customerId 
-                        ? { ...customer, status: newStatus }
-                        : customer
-                );
-                
-                // Gọi API để cập nhật trạng thái
+                // Call API to update status
                 if (updateCustomerStatus && typeof updateCustomerStatus === 'function') {
                     await updateCustomerStatus(customerId, newStatus);
                 } else if (updateCustomer && typeof updateCustomer === 'function') {
-                    // Fallback sử dụng updateCustomer nếu updateCustomerStatus không có
+                    // Fallback using updateCustomer if updateCustomerStatus is not available
                     const customerToUpdate = customers.find(c => c.userId === customerId);
                     await updateCustomer(customerId, { 
                         ...customerToUpdate, 
@@ -145,7 +141,7 @@ const CustomerManagement = () => {
                 
                 alert(`✅ ${action.charAt(0).toUpperCase() + action.slice(1)} tài khoản thành công!`);
                 
-                // Force refresh để đảm bảo sync với server
+                // Force refresh to ensure sync with server
                 await handleRefresh();
                 
             } catch (error) {
@@ -184,7 +180,7 @@ const CustomerManagement = () => {
                 
                 alert(`❌ ${errorMessage}`);
                 
-                // Force refresh để revert và sync với server
+                // Force refresh to revert and sync with server
                 await handleRefresh();
             } finally {
                 setLocalLoading(false);
@@ -199,27 +195,44 @@ const CustomerManagement = () => {
         setModalMode('view');
     };
 
-    // Handle save customer
+    // Handle save customer - Fixed to properly create hotel owner
     const handleSaveCustomer = async (customerData) => {
         try {
             setLocalLoading(true);
+            
+            console.log('CustomerManagement - Received customerData:', customerData);
             
             if (modalMode === 'create') {
                 if (!createCustomer) {
                     throw new Error('createCustomer function is not available');
                 }
                 
+                // ✅ FIXED: Chuẩn bị dữ liệu đúng format backend mong đợi
                 const newCustomerData = {
-                    ...customerData,
-                    roleId: 2,
-                    role: 'hotel_owner',
-                    status: 'active'
+                    fullName: customerData.fullName,
+                    email: customerData.email,
+                    username: customerData.username,
+                    password: customerData.password,
+                    phoneNumber: customerData.phoneNumber, // ✅ Đúng field name
+                    address: customerData.address,
+                    roleId: 2 // Hotel owner role
                 };
+                
+                console.log('CustomerManagement - Sending to createCustomer:', newCustomerData);
                 
                 await createCustomer(newCustomerData);
                 alert('✅ Tạo tài khoản chủ khách sạn thành công!');
             } else {
-                await updateCustomer(selectedCustomer.userId, customerData);
+                // Update existing customer
+                const updatedData = {
+                    fullName: customerData.fullName,
+                    email: customerData.email,
+                    phoneNumber: customerData.phoneNumber,
+                    address: customerData.address,
+                    roleId: 2 // Ensure role remains hotel owner
+                };
+                
+                await updateCustomer(selectedCustomer.userId, updatedData);
                 alert('✅ Cập nhật thông tin chủ khách sạn thành công!');
             }
             
@@ -232,8 +245,34 @@ const CustomerManagement = () => {
             let errorMessage = `Có lỗi xảy ra khi ${action} thông tin!`;
             
             if (error.response) {
-                const serverMessage = error.response.data?.message;
-                errorMessage = `Lỗi ${error.response.status}: ${serverMessage || errorMessage}`;
+                const { status, data } = error.response;
+                const serverMessage = data?.message || data?.error || data?.details;
+                
+                switch (status) {
+                    case 400:
+                        errorMessage = `Dữ liệu không hợp lệ: ${serverMessage || 'Vui lòng kiểm tra lại thông tin'}`;
+                        break;
+                    case 401:
+                        errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!';
+                        break;
+                    case 403:
+                        errorMessage = 'Bạn không có quyền thực hiện thao tác này!';
+                        break;
+                    case 404:
+                        errorMessage = `Endpoint API không tồn tại. Vui lòng liên hệ admin!`;
+                        break;
+                    case 409:
+                        errorMessage = `Thông tin đã tồn tại: ${serverMessage || 'Email hoặc username đã được sử dụng'}`;
+                        break;
+                    case 422:
+                        errorMessage = `Dữ liệu không hợp lệ: ${serverMessage || 'Vui lòng kiểm tra format dữ liệu'}`;
+                        break;
+                    case 500:
+                        errorMessage = `Lỗi server: ${serverMessage || 'Internal Server Error'}`;
+                        break;
+                    default:
+                        errorMessage = `Lỗi ${status}: ${serverMessage || 'Unknown error'}`;
+                }
             } else if (error.request) {
                 errorMessage = `Không thể kết nối đến server khi ${action} thông tin!`;
             } else {
@@ -246,7 +285,7 @@ const CustomerManagement = () => {
         }
     };
 
-    // Handle refresh data
+    // Handle refresh data - Fetch hotel owners specifically
     const handleRefresh = async () => {
         try {
             const hotelOwnerFilters = {
@@ -255,9 +294,11 @@ const CustomerManagement = () => {
                 role: 'hotel_owner'
             };
             
+            console.log('Refreshing data with filters:', hotelOwnerFilters);
             await fetchCustomers(hotelOwnerFilters);
         } catch (error) {
             console.error('Error refreshing data:', error);
+            alert('❌ Có lỗi xảy ra khi tải lại dữ liệu!');
         }
     };
 
@@ -266,12 +307,12 @@ const CustomerManagement = () => {
         return customer.roleId === 2 || 
                customer.role === 'hotel_owner' ||
                (customer.role_id === 2) ||
-               (customer.username === 'hotel_owner');
+               (customer.roleName && customer.roleName.toLowerCase().includes('hotel'));
     });
 
     // Calculate statistics
     const activeCount = displayCustomers.filter(c => c.status === 'active').length;
-    const inactiveCount = displayCustomers.filter(c => c.status === 'inactive').length;
+    const inactiveCount = displayCustomers.filter(c => c.status === 'inactive' || c.status === 'suspended').length;
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -409,7 +450,7 @@ const CustomerManagement = () => {
                             </div>
                             <div className="ml-4">
                                 <p className="text-sm font-medium text-gray-600">Trang</p>
-                                <p className="text-2xl font-bold text-gray-900">{pagination.page}/{pagination.totalPages}</p>
+                                <p className="text-2xl font-bold text-gray-900">{pagination.page}/{pagination.totalPages || 1}</p>
                             </div>
                         </div>
                     </div>
@@ -429,7 +470,7 @@ const CustomerManagement = () => {
                     </div>
                     <div className="p-6">
                         <CustomerFilters 
-                            filters={{...filters, roleId: 2}}
+                            filters={{...filters, roleId: 2, role: 'hotel_owner'}}
                             onFilterChange={handleFilterChange}
                         />
                     </div>

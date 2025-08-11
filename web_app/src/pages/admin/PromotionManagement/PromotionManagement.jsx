@@ -1,4 +1,5 @@
 import React, { useState} from 'react';
+import promotionService from '../../../api/promotions.service';
 import {
   PromotionList,
   PromotionFilters,
@@ -15,7 +16,9 @@ const PromotionManagement = () => {
     error,
     fetchPromotions,
     pagination,
-    updatePagination
+    updatePagination,
+    createPromotion,
+    updatePromotion
   } = usePromotions({ autoFetch: true });
 
   const [modalState, setModalState] = useState({
@@ -47,7 +50,8 @@ const PromotionManagement = () => {
   const handleDelete = async (promotion) => {
     if (window.confirm(`Bạn có chắc chắn muốn xóa khuyến mãi "${promotion.name}"?`)) {
       try {
-        // Implement delete logic here
+        // Gọi API xoá khuyến mãi
+        await promotionService.deletePromotion(promotion.promotionId);
         await fetchPromotions(); // Refresh after delete
       } catch (error) {
         console.error('Delete error:', error);
@@ -55,9 +59,30 @@ const PromotionManagement = () => {
     }
   };
 
-  const handleFormSubmit = async () => {
-    closeModal();
-    await fetchPromotions(); // Refresh list
+  const handleFormSubmit = async (formData) => {
+    try {
+      console.log('📝 PromotionManagement.handleFormSubmit called với:', { type: modalState.type, formData });
+      
+      if (modalState.type === 'create') {
+        console.log('➕ Tạo khuyến mãi mới');
+        const result = await createPromotion(formData);
+        console.log('✅ Kết quả tạo mới:', result);
+        alert('✅ Tạo khuyến mãi thành công!');
+      } else if (modalState.type === 'edit' && modalState.data?.promotionId) {
+        console.log('✏️ Cập nhật khuyến mãi với ID:', modalState.data.promotionId);
+        const result = await updatePromotion(modalState.data.promotionId, formData);
+        console.log('✅ Kết quả cập nhật:', result);
+        alert('✅ Cập nhật khuyến mãi thành công!');
+      }
+      
+      closeModal();
+      await fetchPromotions(); // Refresh list
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Lỗi trong handleFormSubmit:', error);
+      alert('❌ Lỗi: ' + (error?.message || 'Không xác định'));
+      return { success: false, error: error.message };
+    }
   };
 
   const handlePageChange = (page) => {
@@ -79,6 +104,7 @@ const PromotionManagement = () => {
             initialData={modalState.data}
             onSubmit={handleFormSubmit}
             onCancel={closeModal}
+            isSubmitting={false}
           />
         );
       case 'view':
@@ -92,8 +118,7 @@ const PromotionManagement = () => {
 
   const getModalTitle = () => {
     switch (modalState.type) {
-      case 'create': return 'Tạo khuyến mãi mới';
-      case 'edit': return 'Chỉnh sửa khuyến mãi';
+
       case 'view': return 'Chi tiết khuyến mãi';
       default: return '';
     }
@@ -107,12 +132,7 @@ const PromotionManagement = () => {
           <h1 className="text-2xl font-bold text-gray-900">Quản lý khuyến mãi</h1>
           <p className="text-gray-600">Quản lý các chương trình khuyến mãi và mã giảm giá cho khách sạn</p>
         </div>
-        <button
-          onClick={handleCreate}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Tạo khuyến mãi
-        </button>
+      
       </div>
 
       {/* Error Display */}

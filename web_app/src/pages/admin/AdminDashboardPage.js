@@ -4,7 +4,7 @@ import useAuth from '../../hooks/useAuth';
 import { useHotel } from '../../hooks/useHotel';
 import { useContract } from '../../hooks/useContract';
 import useBlog from '../../hooks/useBlog';
-import { usePromotions } from '../../hooks/usePromotions';
+import usePromotions  from '../../hooks/usePromotions';
 
 // Import providers
 import { HotelProvider } from '../../context/HotelContext';

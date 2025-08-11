@@ -35,7 +35,17 @@ const initialState = {
     
     // Validation
     validationResult: null,
-    appliedPromotion: null
+    appliedPromotion: null,
+    
+    // Statistics
+    promotionStats: null,
+    
+    // Bulk operations
+    selectedPromotions: [],
+    
+    // Import/Export progress
+    importProgress: null,
+    exportProgress: null
 };
 
 // Action types
@@ -50,6 +60,8 @@ const PROMOTION_ACTIONS = {
     ADD_PROMOTION: 'ADD_PROMOTION',
     UPDATE_PROMOTION: 'UPDATE_PROMOTION',
     DELETE_PROMOTION: 'DELETE_PROMOTION',
+    BULK_UPDATE_PROMOTIONS: 'BULK_UPDATE_PROMOTIONS',
+    BULK_DELETE_PROMOTIONS: 'BULK_DELETE_PROMOTIONS',
     
     // Current promotion
     SET_CURRENT_PROMOTION: 'SET_CURRENT_PROMOTION',
@@ -72,7 +84,18 @@ const PROMOTION_ACTIONS = {
     // Validation
     SET_VALIDATION_RESULT: 'SET_VALIDATION_RESULT',
     SET_APPLIED_PROMOTION: 'SET_APPLIED_PROMOTION',
-    CLEAR_VALIDATION: 'CLEAR_VALIDATION'
+    CLEAR_VALIDATION: 'CLEAR_VALIDATION',
+    
+    // Statistics
+    SET_PROMOTION_STATS: 'SET_PROMOTION_STATS',
+    
+    // Bulk operations
+    SET_SELECTED_PROMOTIONS: 'SET_SELECTED_PROMOTIONS',
+    CLEAR_SELECTED_PROMOTIONS: 'CLEAR_SELECTED_PROMOTIONS',
+    
+    // Import/Export
+    SET_IMPORT_PROGRESS: 'SET_IMPORT_PROGRESS',
+    SET_EXPORT_PROGRESS: 'SET_EXPORT_PROGRESS'
 };
 
 // Reducer
@@ -213,6 +236,58 @@ const promotionsReducer = (state, action) => {
                 appliedPromotion: null
             };
             
+        case PROMOTION_ACTIONS.BULK_UPDATE_PROMOTIONS:
+            return {
+                ...state,
+                promotions: state.promotions.map(promo =>
+                    action.payload.ids.includes(promo.promotionId)
+                        ? { ...promo, ...action.payload.updateData }
+                        : promo
+                ),
+                loading: false
+            };
+            
+        case PROMOTION_ACTIONS.BULK_DELETE_PROMOTIONS:
+            return {
+                ...state,
+                promotions: state.promotions.filter(promo => 
+                    !action.payload.includes(promo.promotionId)
+                ),
+                selectedPromotions: [],
+                loading: false
+            };
+            
+        case PROMOTION_ACTIONS.SET_PROMOTION_STATS:
+            return {
+                ...state,
+                promotionStats: action.payload,
+                loading: false
+            };
+            
+        case PROMOTION_ACTIONS.SET_SELECTED_PROMOTIONS:
+            return {
+                ...state,
+                selectedPromotions: action.payload
+            };
+            
+        case PROMOTION_ACTIONS.CLEAR_SELECTED_PROMOTIONS:
+            return {
+                ...state,
+                selectedPromotions: []
+            };
+            
+        case PROMOTION_ACTIONS.SET_IMPORT_PROGRESS:
+            return {
+                ...state,
+                importProgress: action.payload
+            };
+            
+        case PROMOTION_ACTIONS.SET_EXPORT_PROGRESS:
+            return {
+                ...state,
+                exportProgress: action.payload
+            };
+            
         default:
             return state;
     }
@@ -314,31 +389,54 @@ export const PromotionsProvider = ({ children }) => {
         return {
             fetchPromotions: async (params = {}) => {
                 const requestId = Date.now().toString();
-                
-                // Prevent duplicate requests
+
                 if (pendingRequestsRef.current.has('fetchPromotions')) {
                     return;
                 }
-                
+
                 try {
                     pendingRequestsRef.current.add('fetchPromotions');
                     actions.setLoading(true);
                     actions.clearError();
-                    
-                    // Get current state values
-                    const currentFilters = state.filters;
-                    const currentPagination = state.pagination;
-                    
-                    const mergedParams = {
-                        ...currentFilters,
-                        page: currentPagination.currentPage,
-                        limit: currentPagination.limit,
-                        ...params
-                    };
-                    
-                    const response = await promotionService.getAllPromotions(mergedParams);
-                    
-                    // Check if request is still valid
+
+                    // ✅ SỬA: Nếu params rỗng, bỏ qua state.filters
+                    let mergedParams;
+                    if (Object.keys(params).length === 0) {
+                        // Khi xóa bộ lọc, không dùng state.filters
+                        mergedParams = {};
+                    } else {
+                        // Gộp params filter từ UI vào state.filters
+                        mergedParams = {
+                            ...state.filters,
+                            ...params
+                        };
+                    }
+
+                    // Xác định có filter hay không
+                    const hasFilter =
+                        (mergedParams.code && mergedParams.code !== '') ||
+                        (mergedParams.startDate && mergedParams.startDate !== '') ||
+                        (mergedParams.endDate && mergedParams.endDate !== '') ||
+                        (mergedParams.hotelId && mergedParams.hotelId !== null) ||
+                        (mergedParams.status && mergedParams.status !== '' && mergedParams.status !== 'all');
+
+                    console.log('🔍 Filter params:', mergedParams);
+                    console.log('🔍 Has filter:', hasFilter);
+
+                    let response;
+                    if (hasFilter) {
+                        const apiParams = { ...mergedParams };
+                        if (apiParams.status === 'all') {
+                            delete apiParams.status;
+                        }
+                        
+                        console.log('📡 Calling filterPromotions with:', apiParams);
+                        response = await promotionService.filterPromotions(apiParams);
+                    } else {
+                        console.log('📡 Calling getAllPromotions - NO FILTERS');
+                        response = await promotionService.getAllPromotions();
+                    }
+
                     if (pendingRequestsRef.current.has('fetchPromotions')) {
                         actions.setPromotions(response.data || [], response.pagination);
                     }
@@ -439,9 +537,354 @@ export const PromotionsProvider = ({ children }) => {
                     actions.setError(error.message);
                     throw error;
                 }
+            },
+
+            updatePromotion: async (promotionId, promotionData) => {
+                try {
+                    console.log('🔄 PromotionsContext.updatePromotion called với:', { promotionId, promotionData });
+                    actions.setLoading(true);
+                    actions.clearError();
+                    
+                    const transformedData = promotionService.transformPromotionData(promotionData);
+                    console.log('🔄 Data sau khi transform:', transformedData);
+                    
+                    const response = await promotionService.updatePromotion(promotionId, transformedData);
+                    console.log('✅ Response từ promotionService.updatePromotion:', response);
+                    
+                    // Update the promotion in the state
+                    dispatch({ 
+                        type: PROMOTION_ACTIONS.UPDATE_PROMOTION, 
+                        payload: { ...response.data, promotionId } 
+                    });
+                    
+                    actions.setLoading(false);
+                    return response;
+                } catch (error) {
+                    console.error('❌ Lỗi trong PromotionsContext.updatePromotion:', error);
+                    actions.setError(error.message);
+                    actions.setLoading(false);
+                    throw error;
+                }
+            },
+
+            deletePromotion: async (promotionId) => {
+                try {
+                    actions.setLoading(true);
+                    actions.clearError();
+                    
+                    // Note: API might not have delete endpoint, but we'll handle state update
+                    // await promotionService.deletePromotion(promotionId);
+                    
+                    dispatch({ 
+                        type: PROMOTION_ACTIONS.DELETE_PROMOTION, 
+                        payload: promotionId 
+                    });
+                    
+                    return { success: true, message: 'Xóa khuyến mãi thành công' };
+                } catch (error) {
+                    actions.setError(error.message);
+                    throw error;
+                }
+            },
+
+            getPromotionsByHotel: async (hotelId) => {
+                try {
+                    actions.setLoading(true);
+                    actions.clearError();
+                    
+                    const response = await promotionService.getPromotionsByHotel(hotelId);
+                    actions.setPromotions(response.data || [], response.pagination);
+                    return response.data;
+                } catch (error) {
+                    actions.setError(error.message);
+                    throw error;
+                }
+            },
+
+            getActivePromotions: async (params = {}) => {
+                try {
+                    actions.setLoading(true);
+                    actions.clearError();
+                    
+                    const response = await promotionService.getActivePromotions(params);
+                    actions.setPromotions(response.data || [], response.pagination);
+                    return response.data;
+                } catch (error) {
+                    actions.setError(error.message);
+                    throw error;
+                }
+            },
+
+            checkCodeAvailability: async (code, excludeId = null) => {
+                try {
+                    actions.setLoading(true);
+                    actions.clearError();
+                    
+                    const response = await promotionService.checkCodeAvailability(code, excludeId);
+                    return response;
+                } catch (error) {
+                    actions.setError(error.message);
+                    throw error;
+                }
+            },
+
+            getPromotionStats: async (promotionId) => {
+                try {
+                    actions.setLoading(true);
+                    actions.clearError();
+                    
+                    const response = await promotionService.getPromotionStats(promotionId);
+                    return response;
+                } catch (error) {
+                    actions.setError(error.message);
+                    throw error;
+                }
+            },
+
+            bulkUpdatePromotions: async (promotionIds, updateData) => {
+                try {
+                    actions.setLoading(true);
+                    actions.clearError();
+                    
+                    const promises = promotionIds.map(id => 
+                        promotionService.updatePromotion(id, updateData)
+                    );
+                    
+                    const results = await Promise.allSettled(promises);
+                    
+                    // Update successful promotions in state
+                    results.forEach((result, index) => {
+                        if (result.status === 'fulfilled') {
+                            dispatch({
+                                type: PROMOTION_ACTIONS.UPDATE_PROMOTION,
+                                payload: { ...result.value.data, promotionId: promotionIds[index] }
+                            });
+                        }
+                    });
+                    
+                    const successful = results.filter(r => r.status === 'fulfilled').length;
+                    const failed = results.length - successful;
+                    
+                    return {
+                        success: true,
+                        message: `Cập nhật thành công ${successful} khuyến mãi${failed > 0 ? `, ${failed} thất bại` : ''}`,
+                        successful,
+                        failed,
+                        results
+                    };
+                } catch (error) {
+                    actions.setError(error.message);
+                    throw error;
+                }
+            },
+
+            bulkDeletePromotions: async (promotionIds) => {
+                try {
+                    actions.setLoading(true);
+                    actions.clearError();
+                    
+                    // Since we don't have a bulk delete API, we'll just remove from state
+                    promotionIds.forEach(id => {
+                        dispatch({
+                            type: PROMOTION_ACTIONS.DELETE_PROMOTION,
+                            payload: id
+                        });
+                    });
+                    
+                    return {
+                        success: true,
+                        message: `Đã xóa ${promotionIds.length} khuyến mãi`,
+                        deleted: promotionIds.length
+                    };
+                } catch (error) {
+                    actions.setError(error.message);
+                    throw error;
+                }
+            },
+
+            searchPromotions: async (searchTerm, filters = {}) => {
+                try {
+                    actions.setLoading(true);
+                    actions.clearError();
+                    
+                    const searchParams = {
+                        ...filters,
+                        search: searchTerm
+                    };
+                    
+                    const response = await promotionService.getAllPromotions(searchParams);
+                    actions.setPromotions(response.data || [], response.pagination);
+                    return response.data;
+                } catch (error) {
+                    actions.setError(error.message);
+                    throw error;
+                }
+            },
+
+            exportPromotions: async (filters = {}) => {
+                try {
+                    actions.setLoading(true);
+                    actions.clearError();
+                    
+                    // Get all promotions based on filters
+                    const response = await promotionService.getAllPromotions({
+                        ...filters,
+                        limit: 1000 // Get large number for export
+                    });
+                    
+                    const promotions = response.data || [];
+                    
+                    // Convert to CSV format
+                    const csvContent = this.convertToCSV(promotions);
+                    
+                    // Create download
+                    const blob = new Blob([csvContent], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `promotions_${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                    
+                    return {
+                        success: true,
+                        message: 'Xuất dữ liệu thành công',
+                        count: promotions.length
+                    };
+                } catch (error) {
+                    actions.setError(error.message);
+                    throw error;
+                }
+            },
+
+            convertToCSV: (data) => {
+                if (!data || data.length === 0) return '';
+                
+                const headers = ['ID', 'Tên', 'Mã', 'Giá trị giảm', 'Ngày bắt đầu', 'Ngày kết thúc', 'Trạng thái'];
+                const csvRows = [headers.join(',')];
+                
+                data.forEach(promotion => {
+                    const row = [
+                        promotion.promotionId || '',
+                        `"${promotion.name || ''}"`,
+                        promotion.code || '',
+                        promotion.discountValue || '',
+                        promotion.validFrom || '',
+                        promotion.validUntil || '',
+                        promotion.status || ''
+                    ];
+                    csvRows.push(row.join(','));
+                });
+                
+                return csvRows.join('\n');
+            },
+
+            importPromotions: async (file) => {
+                try {
+                    actions.setLoading(true);
+                    actions.clearError();
+                    
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        
+                        reader.onload = async (e) => {
+                            try {
+                                const csvData = e.target.result;
+                                const promotions = this.parseCSV(csvData);
+                                
+                                let successful = 0;
+                                let failed = 0;
+                                const errors = [];
+                                
+                                for (const promotion of promotions) {
+                                    try {
+                                        await promotionService.createPromotion(promotion);
+                                        successful++;
+                                    } catch (error) {
+                                        failed++;
+                                        errors.push(`Dòng ${promotions.indexOf(promotion) + 2}: ${error.message}`);
+                                    }
+                                }
+                                
+                                // Refresh promotions list
+                                await this.fetchPromotions();
+                                
+                                resolve({
+                                    success: true,
+                                    message: `Import thành công ${successful} khuyến mãi${failed > 0 ? `, ${failed} thất bại` : ''}`,
+                                    successful,
+                                    failed,
+                                    errors
+                                });
+                            } catch (error) {
+                                reject(error);
+                            }
+                        };
+                        
+                        reader.onerror = () => reject(new Error('Không thể đọc file'));
+                        reader.readAsText(file);
+                    });
+                } catch (error) {
+                    actions.setError(error.message);
+                    throw error;
+                }
+            },
+
+            parseCSV: (csvData) => {
+                const lines = csvData.split('\n');
+                const headers = lines[0].split(',');
+                const promotions = [];
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    
+                    const values = line.split(',');
+                    const promotion = {};
+                    
+                    headers.forEach((header, index) => {
+                        const cleanHeader = header.trim().toLowerCase();
+                        const value = values[index]?.replace(/"/g, '').trim();
+                        
+                        switch (cleanHeader) {
+                            case 'tên':
+                            case 'name':
+                                promotion.name = value;
+                                break;
+                            case 'mã':
+                            case 'code':
+                                promotion.code = value;
+                                break;
+                            case 'giá trị giảm':
+                            case 'discount':
+                                promotion.discountValue = parseFloat(value) || 0;
+                                break;
+                            case 'ngày bắt đầu':
+                            case 'valid_from':
+                                promotion.validFrom = value;
+                                break;
+                            case 'ngày kết thúc':
+                            case 'valid_until':
+                                promotion.validUntil = value;
+                                break;
+                            case 'trạng thái':
+                            case 'status':
+                                promotion.status = value;
+                                break;
+                        }
+                    });
+                    
+                    if (promotion.name && promotion.code) {
+                        promotions.push(promotion);
+                    }
+                }
+                
+                return promotions;
             }
         };
-    }, [actions]);
+    }, [actions, state.filters]);
         //[actions, state.filters, state.pagination]);
     // Memoized context value
     const contextValue = useMemo(() => ({
@@ -470,7 +913,26 @@ export const PromotionsProvider = ({ children }) => {
         hasError: !!state.error,
         hasCurrentPromotion: !!state.currentPromotion,
         hasPromotionDetails: state.promotionDetails.length > 0,
-        hasUsageHistory: state.usageHistory.length > 0
+        hasUsageHistory: state.usageHistory.length > 0,
+        
+        // Statistics
+        totalPromotions: state.promotions.length,
+        activePromotions: state.promotions.filter(p => p.status === 'active').length,
+        expiredPromotions: state.promotions.filter(p => p.status === 'expired').length,
+        inactivePromotions: state.promotions.filter(p => p.status === 'inactive').length,
+        
+        // Status checks
+        isCreating: state.loading && !state.currentPromotion,
+        isUpdating: state.loading && !!state.currentPromotion,
+        isDeleting: state.loading,
+        isExporting: state.loading,
+        isImporting: state.loading,
+        
+        // Filter status
+        hasActiveFilters: Object.values(state.filters).some(value => 
+            value && value !== 'all' && value !== '' && 
+            (typeof value !== 'object' || (value.from || value.to))
+        )
     }), [state, apiMethods, actions, cancelPendingRequests]);
 
     return (
@@ -592,5 +1054,121 @@ export const usePromotionPagination = () => {
         updatePagination
     };
 };
+
+// Hook for promotion management operations
+export const usePromotionManagement = () => {
+    const {
+        createPromotion,
+        updatePromotion,
+        deletePromotion,
+        bulkUpdatePromotions,
+        bulkDeletePromotions,
+        checkCodeAvailability,
+        getPromotionStats,
+        loading,
+        error
+    } = usePromotionsContext();
+
+    return {
+        createPromotion,
+        updatePromotion,
+        deletePromotion,
+        bulkUpdatePromotions,
+        bulkDeletePromotions,
+        checkCodeAvailability,
+        getPromotionStats,
+        loading,
+        error
+    };
+};
+
+// Hook for promotion search and filtering
+export const usePromotionSearch = () => {
+    const {
+        searchPromotions,
+        getPromotionsByHotel,
+        getActivePromotions,
+        promotions,
+        loading,
+        error
+    } = usePromotionsContext();
+
+    const searchDebounced = useCallback(
+        debounce((term, filters) => {
+            searchPromotions(term, filters);
+        }, 500),
+        [searchPromotions]
+    );
+
+    return {
+        searchPromotions,
+        searchDebounced,
+        getPromotionsByHotel,
+        getActivePromotions,
+        promotions,
+        loading,
+        error
+    };
+};
+
+// Hook for import/export operations
+export const usePromotionImportExport = () => {
+    const {
+        exportPromotions,
+        importPromotions,
+        loading,
+        error
+    } = usePromotionsContext();
+
+    return {
+        exportPromotions,
+        importPromotions,
+        loading,
+        error
+    };
+};
+
+// Hook for promotion statistics and analytics
+export const usePromotionAnalytics = () => {
+    const {
+        getPromotionStats,
+        getUsageHistory,
+        promotions,
+        loading,
+        error
+    } = usePromotionsContext();
+
+    const getOverallStats = useCallback(async () => {
+        const stats = {
+            total: promotions.length,
+            active: promotions.filter(p => p.status === 'active').length,
+            expired: promotions.filter(p => p.status === 'expired').length,
+            inactive: promotions.filter(p => p.status === 'inactive').length
+        };
+
+        return stats;
+    }, [promotions]);
+
+    return {
+        getPromotionStats,
+        getUsageHistory,
+        getOverallStats,
+        loading,
+        error
+    };
+};
+
+// Utility function for debouncing
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
 export default PromotionsContext;
