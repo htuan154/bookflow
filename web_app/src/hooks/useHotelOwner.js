@@ -20,8 +20,8 @@ export const useHotelOwner = () => {
             console.log('Owner hotel data:', response);
             
             if (response?.data && response.data.length > 0) {
-                setHotelData(response.data[0]); // Lấy khách sạn đầu tiên
-                return response.data[0];
+                setHotelData(response.data);
+                return response.data;
             } else {
                 setHotelData(null);
                 return null;
