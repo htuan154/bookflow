@@ -19,6 +19,12 @@ router.post(
     blogImageController.uploadImages
 );
 
+// GET /api/v1/blogs/:blogId/images -> Lấy tất cả ảnh của blog
+router.get(
+    '/blogs/:blogId/images',
+    blogImageController.getImages
+);
+
 // DELETE /api/v1/blog-images/:imageId -> Xóa một ảnh cụ thể
 router.delete(
     '/blog-images/:imageId',

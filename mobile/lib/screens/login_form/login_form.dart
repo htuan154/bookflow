@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:client_khachhang/screens/sign_up_form/sign_up_form.dart';
 import 'package:client_khachhang/services/auth_service.dart';
+import 'package:client_khachhang/services/token_service.dart';
 import 'package:client_khachhang/models/navbar.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -325,6 +326,13 @@ class _LoginScreenState extends State<LoginScreen> {
       print('Login response: $response');
 
       if (response['success'] == true) {
+        // Lưu token vào storage
+        final token = response['token'];
+        if (token != null) {
+          await TokenService.saveToken(token);
+          print('Token saved successfully');
+        }
+
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Login successful!')));

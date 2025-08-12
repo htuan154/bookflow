@@ -157,6 +157,20 @@ class BlogService {
             throw new Error(`Error getting blog statistics: ${error.message}`);
         }
     }
+
+    /**
+     * Lấy tất cả hình ảnh của một bài blog.
+     * @param {string} blogId - ID của bài blog.
+     * @returns {Promise<BlogImage[]>}
+     */
+    async getImagesByBlogId(blogId) {
+        const blog = await blogRepository.findById(blogId);
+        if (!blog) {
+            throw new AppError('Blog not found', 404);
+        }
+
+        return await blogImageRepository.findByBlogId(blogId);
+    }
 }
 
 module.exports = new BlogService();
