@@ -5,14 +5,14 @@ import {
     Edit, Save, X, Camera, Trash2, Plus, Clock,
     Wifi, Car, Utensils, Dumbbell, Waves, Shield
 } from 'lucide-react';
-import { useHotelOwner } from '../../hooks/useHotelOwner';
+import { useHotelOwner } from '../../../hooks/useHotelOwner';
 
 const HotelInfo = () => {
     const { 
         hotelData, 
         loading, 
         error, 
-        fetchOwnerHotel, // Hoặc dùng fetchOwnerHotels nếu muốn lấy tất cả
+        fetchOwnerHotel,
         updateOwnerHotel, 
         uploadHotelImages, 
         deleteHotelImage,
@@ -47,7 +47,7 @@ const HotelInfo = () => {
 
     const fetchHotelsInfo = async () => {
         try {
-            await fetchOwnerHotel(); // Hoặc fetchOwnerHotels() nếu muốn lấy tất cả
+            await fetchOwnerHotel();
         } catch (error) {
             console.error('Error fetching hotels data:', error);
         }
