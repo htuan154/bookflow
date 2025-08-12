@@ -54,8 +54,26 @@ const deleteById = async (imageId) => {
     return result.rowCount > 0;
 };
 
+/**
+ * Lấy tất cả hình ảnh thuộc về một bài blog.
+ * @param {string} blogId - UUID của bài blog.
+ * @returns {Promise<BlogImage[]>}
+ */
+const findByBlogId = async (blogId) => {
+    const query = `
+        SELECT * 
+        FROM blog_images 
+        WHERE blog_id = $1
+        ORDER BY order_index ASC, uploaded_at ASC;
+    `;
+    const result = await pool.query(query, [blogId]);
+    return result.rows.map(row => new BlogImage(row));
+};
+
+
 module.exports = {
     addImages,
     findById,
     deleteById,
+    findByBlogId,
 };

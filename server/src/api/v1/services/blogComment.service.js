@@ -46,22 +46,9 @@ class BlogCommentService {
      * @returns {Promise<any[]>}
      */
     async getCommentsByBlog(blogId) {
+        // Trả về toàn bộ danh sách comment (flat)
         const comments = await blogCommentRepository.findByBlogId(blogId);
-        // Cấu trúc lại thành dạng cây (cha-con)
-        const commentMap = {};
-        const rootComments = [];
-        comments.forEach(comment => {
-            comment.replies = [];
-            commentMap[comment.commentId] = comment;
-            if (comment.parentCommentId) {
-                if(commentMap[comment.parentCommentId]) {
-                   commentMap[comment.parentCommentId].replies.push(comment);
-                }
-            } else {
-                rootComments.push(comment);
-            }
-        });
-        return rootComments;
+        return comments;
     }
 
     /**

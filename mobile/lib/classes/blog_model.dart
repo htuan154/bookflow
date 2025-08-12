@@ -53,30 +53,41 @@ class Blog {
   });
 
   factory Blog.fromJson(Map<String, dynamic> json) {
-    return Blog(
-      blogId: json['blog_id'] as String,
-      authorId: json['author_id'] as String,
-      hotelId: json['hotel_id'] as String?,
-      title: json['title'] as String,
-      slug: json['slug'] as String,
-      content: json['content'] as String,
-      excerpt: json['excerpt'] as String?,
-      featuredImageUrl: json['featured_image_url'] as String?,
-      metaDescription: json['meta_description'] as String?,
-      tags: json['tags'] as String?,
-      status: BlogStatus.fromString(json['status'] as String? ?? 'draft'),
-      viewCount: json['view_count'] as int? ?? 0,
-      likeCount: json['like_count'] as int? ?? 0,
-      commentCount: json['comment_count'] as int? ?? 0,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      approvedBy: json['approved_by'] as String?,
-      approvedAt: json['approved_at'] != null 
-          ? DateTime.parse(json['approved_at'] as String) 
-          : null,
-      author: json['author'] != null ? User.fromJson(json['author']) : null,
-      hotel: json['hotel'] != null ? Hotel.fromJson(json['hotel']) : null,
-      approver: json['approver'] != null ? User.fromJson(json['approver']) : null,
-    );
+    print('DEBUG Blog.fromJson input: $json');
+    try {
+      final blog = Blog(
+        blogId: json['blogId'] as String,
+        authorId: json['authorId'] as String,
+        hotelId: json['hotelId'] as String?,
+        title: json['title'] as String,
+        slug: json['slug'] as String,
+        content: json['content'] as String,
+        excerpt: json['excerpt'] as String?,
+        featuredImageUrl: json['featuredImageUrl'] as String?,
+        metaDescription: json['metaDescription'] as String?,
+        tags: json['tags'] as String?,
+        status: BlogStatus.fromString(json['status'] as String? ?? 'draft'),
+        viewCount: json['viewCount'] as int? ?? 0,
+        likeCount: json['likeCount'] as int? ?? 0,
+        commentCount: json['commentCount'] as int? ?? 0,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        approvedBy: json['approvedBy'] as String?,
+        approvedAt: json['approvedAt'] != null
+            ? DateTime.parse(json['approvedAt'] as String)
+            : null,
+        author: json['author'] != null ? User.fromJson(json['author']) : null,
+        hotel: json['hotel'] != null ? Hotel.fromJson(json['hotel']) : null,
+        approver: json['approver'] != null
+            ? User.fromJson(json['approver'])
+            : null,
+      );
+      print('DEBUG Blog.fromJson success: ${blog.blogId}');
+      return blog;
+    } catch (e) {
+      print('DEBUG Blog.fromJson error: $e');
+      print('DEBUG Blog.fromJson json keys: ${json.keys.toList()}');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -185,7 +196,8 @@ class Blog {
   }
 
   /// Kiểm tra blog có hình ảnh đại diện không
-  bool get hasFeaturedImage => featuredImageUrl != null && featuredImageUrl!.isNotEmpty;
+  bool get hasFeaturedImage =>
+      featuredImageUrl != null && featuredImageUrl!.isNotEmpty;
 
   /// Kiểm tra blog có excerpt không
   bool get hasExcerpt => excerpt != null && excerpt!.isNotEmpty;
@@ -196,7 +208,11 @@ class Blog {
   /// Lấy danh sách tags
   List<String> get tagList {
     if (!hasTags) return [];
-    return tags!.split(',').map((tag) => tag.trim()).where((tag) => tag.isNotEmpty).toList();
+    return tags!
+        .split(',')
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList();
   }
 
   /// Kiểm tra blog có được duyệt không
@@ -219,13 +235,6 @@ class Blog {
 
   /// Lấy tên khách sạn
   String get hotelName => hotel?.name ?? 'Không xác định';
-
-  /// Thời gian đọc ước tính (giả sử 200 từ/phút)
-  int get estimatedReadingTime {
-    final wordCount = content.split(' ').length;
-    final minutes = (wordCount / 200).ceil();
-    return minutes > 0 ? minutes : 1;
-  }
 
   /// Lấy excerpt hoặc nội dung ngắn gọn
   String get displayExcerpt {
