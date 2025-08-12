@@ -53,6 +53,16 @@ class BlogImageService {
             throw new AppError('Failed to delete image', 500);
         }
     }
+    
+    /**
+     * Lấy tất cả hình ảnh của một bài blog.
+     * @param {string} blogId - ID của bài blog.
+     * @returns {Promise<BlogImage[]>}
+     */
+    async getImagesByBlogId(blogId) {
+        return await blogImageRepository.findByBlogId(blogId);
+    }
+
 }
 
 module.exports = new BlogImageService();

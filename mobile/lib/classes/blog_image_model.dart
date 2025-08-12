@@ -28,15 +28,26 @@ class BlogImage {
 
   /// Factory constructor từ JSON
   factory BlogImage.fromJson(Map<String, dynamic> json) {
-    return BlogImage(
-      imageId: json['image_id'] as String,
-      blogId: json['blog_id'] as String,
-      imageUrl: json['image_url'] as String,
-      caption: json['caption'] as String?,
-      orderIndex: json['order_index'] as int? ?? 0,
-      uploadedAt: DateTime.parse(json['uploaded_at'] as String),
-      blog: json['blog'] != null ? Blog.fromJson(json['blog']) : null,
-    );
+    print('DEBUG BlogImage.fromJson input: $json');
+    try {
+      final blogImage = BlogImage(
+        imageId: json['imageId'] as String,
+        blogId: json['blogId'] as String,
+        imageUrl: json['imageUrl'] as String,
+        caption: json['caption'] as String?,
+        orderIndex: json['orderIndex'] as int? ?? 0,
+        uploadedAt: json['uploadedAt'] != null
+            ? DateTime.parse(json['uploadedAt'] as String)
+            : DateTime.now(), // Fallback if uploadedAt is missing
+        blog: json['blog'] != null ? Blog.fromJson(json['blog']) : null,
+      );
+      print('DEBUG BlogImage.fromJson success: ${blogImage.imageId}');
+      return blogImage;
+    } catch (e) {
+      print('DEBUG BlogImage.fromJson error: $e');
+      print('DEBUG BlogImage.fromJson json keys: ${json.keys.toList()}');
+      rethrow;
+    }
   }
 
   /// Chuyển đối tượng thành JSON

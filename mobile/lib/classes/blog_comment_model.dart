@@ -38,26 +38,37 @@ class BlogComment {
 
   // Factory constructor từ JSON
   factory BlogComment.fromJson(Map<String, dynamic> json) {
-    return BlogComment(
-      commentId: json['comment_id'] as String,
-      blogId: json['blog_id'] as String,
-      userId: json['user_id'] as String,
-      parentCommentId: json['parent_comment_id'] as String?,
-      content: json['content'] as String,
-      status: json['status'] as String? ?? 'pending',
-      likeCount: json['like_count'] as int? ?? 0,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
-      user: json['user'] != null ? User.fromJson(json['user']) : null,
-      parentComment: json['parent_comment'] != null 
-          ? BlogComment.fromJson(json['parent_comment']) 
-          : null,
-      replies: json['replies'] != null
-          ? (json['replies'] as List<dynamic>)
-              .map((reply) => BlogComment.fromJson(reply))
-              .toList()
-          : null,
-    );
+    print('DEBUG BlogComment.fromJson input: $json');
+    try {
+      final comment = BlogComment(
+        commentId: json['commentId'] as String,
+        blogId: json['blogId'] as String,
+        userId: json['userId'] as String,
+        parentCommentId: json['parentCommentId'] as String?,
+        content: json['content'] as String,
+        status: json['status'] as String? ?? 'pending',
+        likeCount: json['likeCount'] as int? ?? 0,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        updatedAt: json['updatedAt'] != null
+            ? DateTime.parse(json['updatedAt'] as String)
+            : DateTime.parse(json['createdAt'] as String),
+        user: json['user'] != null ? User.fromJson(json['user']) : null,
+        parentComment: json['parentComment'] != null
+            ? BlogComment.fromJson(json['parentComment'])
+            : null,
+        replies: json['replies'] != null
+            ? (json['replies'] as List<dynamic>)
+                  .map((reply) => BlogComment.fromJson(reply))
+                  .toList()
+            : null,
+      );
+      print('DEBUG BlogComment.fromJson success: ${comment.commentId}');
+      return comment;
+    } catch (e) {
+      print('DEBUG BlogComment.fromJson error: $e');
+      print('DEBUG BlogComment.fromJson json keys: ${json.keys.toList()}');
+      rethrow;
+    }
   }
 
   // Chuyển đối tượng thành JSON
@@ -74,7 +85,8 @@ class BlogComment {
       'updated_at': updatedAt.toIso8601String(),
       if (user != null) 'user': user!.toJson(),
       if (parentComment != null) 'parent_comment': parentComment!.toJson(),
-      if (replies != null) 'replies': replies!.map((reply) => reply.toJson()).toList(),
+      if (replies != null)
+        'replies': replies!.map((reply) => reply.toJson()).toList(),
     };
   }
 
@@ -161,7 +173,8 @@ class BlogComment {
   }
 
   // Kiểm tra comment có được chỉnh sửa không
-  bool get isEdited => updatedAt.isAfter(createdAt.add(const Duration(minutes: 1)));
+  bool get isEdited =>
+      updatedAt.isAfter(createdAt.add(const Duration(minutes: 1)));
 
   // Số lượng replies
   int get replyCount => replies?.length ?? 0;
