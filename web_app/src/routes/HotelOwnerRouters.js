@@ -5,9 +5,9 @@ import useAuth from '../hooks/useAuth';
 import HotelOwnerLayout from '../components/layout/hotel_owner/HotelOwnerLayout';
 import HotelOwnerWelcomePage from '../pages/hotel_owner/HotelOwnerWelcomePage';
 import NotFoundPage from '../pages/shared/NotFoundPage';
-import HotelInfo from '../pages/hotel_owner/HotelInfo';
-import HotelImages from '../pages/hotel_owner/HotelImages';
-import HotelAmenities from '../pages/hotel_owner/HotelAmenities';
+import HotelInfo from '../pages/hotel_owner/hotel_management/HotelInfo';
+import HotelImages from '../pages/hotel_owner/hotel_management/HotelImages';
+import HotelAmenities from '../pages/hotel_owner/hotel_management/HotelAmenities';
 import StaffList from '../pages/hotel_owner/staff/StaffList';
 import AddStaff from '../pages/hotel_owner/staff/AddStaff';
 

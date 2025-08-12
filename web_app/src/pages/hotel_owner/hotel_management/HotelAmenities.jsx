@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
     Building2, Wifi, Car, Utensils, Dumbbell, Waves, 
     Shield, Coffee, Tv, Wind, Phone, Bath, 
-    Save, X, CheckCircle, AlertCircle, Plus
+    Save, X, CheckCircle, AlertCircle, Plus, ChevronDown
 } from 'lucide-react';
-import { useHotelOwner } from '../../hooks/useHotelOwner';
-import useAuth from '../../hooks/useAuth';
+import { useHotelOwner } from '../../../hooks/useHotelOwner';
+import useAuth from '../../../hooks/useAuth';
 
 // Danh sách icon cho các tiện nghi
 const amenityIcons = {
@@ -40,30 +40,57 @@ const HotelAmenities = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [saveLoading, setSaveLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedHotel, setSelectedHotel] = useState(null); // Add hotel selection
 
     // Load dữ liệu khi component mount
     useEffect(() => {
-        loadData();
-    }, []);
+        fetchOwnerHotel();
+        loadAvailableAmenities();
+    }, [fetchOwnerHotel]);
 
-    // Update selectedAmenities khi hotelData thay đổi
+    // Set default hotel when hotelData is available
     useEffect(() => {
-        if (hotelData && hotelData.amenities) {
-            setSelectedAmenities(hotelData.amenities.map(amenity => 
-                typeof amenity === 'object' ? amenity.id : amenity
-            ));
+        console.log('useEffect - Hotel data changed:', hotelData);
+        
+        if (hotelData && Array.isArray(hotelData) && hotelData.length > 0) {
+            // If no hotel is selected, select the first one by default
+            if (!selectedHotel) {
+                const firstHotel = hotelData[0];
+                setSelectedHotel(firstHotel);
+                console.log('Selected default hotel for HotelAmenities:', firstHotel);
+            }
+        } else if (hotelData && !Array.isArray(hotelData)) {
+            // Handle single hotel object
+            setSelectedHotel(hotelData);
         }
     }, [hotelData]);
 
-    const loadData = async () => {
-        try {
-            await Promise.all([
-                fetchOwnerHotel(),
-                loadAvailableAmenities()
-            ]);
-        } catch (error) {
-            console.error('Error loading data:', error);
+    // Update selectedAmenities khi selectedHotel thay đổi
+    useEffect(() => {
+        if (selectedHotel && selectedHotel.amenities) {
+            setSelectedAmenities(selectedHotel.amenities.map(amenity => 
+                typeof amenity === 'object' ? amenity.id : amenity
+            ));
+        } else {
+            setSelectedAmenities([]);
         }
+    }, [selectedHotel]);
+
+    // Get hotel ID from selected hotel
+    const getHotelId = () => {
+        const possibleIds = [
+            selectedHotel?.hotel_id,
+            selectedHotel?.id,
+            selectedHotel?.hotelId
+        ];
+        
+        for (const id of possibleIds) {
+            if (id) {
+                return id;
+            }
+        }
+        
+        return null;
     };
 
     const loadAvailableAmenities = async () => {
@@ -89,14 +116,16 @@ const HotelAmenities = () => {
 
     // Save amenities
     const handleSave = async () => {
-        if (!hotelData?.hotel_id) {
+        const hotelId = getHotelId();
+        
+        if (!hotelId) {
             alert('Không tìm thấy thông tin khách sạn');
             return;
         }
 
         try {
             setSaveLoading(true);
-            await updateHotelAmenities(hotelData.hotel_id, selectedAmenities);
+            await updateHotelAmenities(hotelId, selectedAmenities);
             
             // Refresh hotel data
             await fetchOwnerHotel();
@@ -114,8 +143,8 @@ const HotelAmenities = () => {
     // Cancel editing
     const handleCancel = () => {
         // Reset về trạng thái ban đầu
-        if (hotelData && hotelData.amenities) {
-            setSelectedAmenities(hotelData.amenities.map(amenity => 
+        if (selectedHotel && selectedHotel.amenities) {
+            setSelectedAmenities(selectedHotel.amenities.map(amenity => 
                 typeof amenity === 'object' ? amenity.id : amenity
             ));
         }
@@ -130,9 +159,9 @@ const HotelAmenities = () => {
 
     // Get selected amenities details
     const getSelectedAmenitiesDetails = () => {
-        if (!hotelData?.amenities) return [];
+        if (!selectedHotel?.amenities) return [];
         
-        return hotelData.amenities.map(amenity => {
+        return selectedHotel.amenities.map(amenity => {
             if (typeof amenity === 'object') {
                 return amenity;
             }
@@ -152,7 +181,10 @@ const HotelAmenities = () => {
         );
     }
 
-    if (!hotelData) {
+    // Handle both array and single object response
+    const hotels = Array.isArray(hotelData) ? hotelData : (hotelData ? [hotelData] : []);
+
+    if (!hotelData || hotels.length === 0) {
         return (
             <div className="bg-white rounded-lg shadow p-6">
                 <div className="text-center py-12">
@@ -181,22 +213,77 @@ const HotelAmenities = () => {
                         <h1 className="text-2xl font-bold text-gray-900">Tiện nghi khách sạn</h1>
                     </div>
                     
-                    {/* Action buttons */}
-                    <div className="flex items-center space-x-4">
-                        {/* Status badge */}
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                            hotelData.status === 'approved' 
-                                ? 'bg-green-100 text-green-800' 
-                                : hotelData.status === 'pending'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
-                        }`}>
-                            {hotelData.status === 'approved' && '✅ Đã duyệt'}
-                            {hotelData.status === 'pending' && '⏳ Chờ duyệt'}
-                            {hotelData.status === 'rejected' && '❌ Từ chối'}
-                        </span>
+                    {/* Hotel status */}
+                    {selectedHotel && (
+                        <div className="flex items-center space-x-4">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                selectedHotel.status === 'approved' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : selectedHotel.status === 'pending'
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : 'bg-red-100 text-red-800'
+                            }`}>
+                                {selectedHotel.status === 'approved' && '✅ Đã duyệt'}
+                                {selectedHotel.status === 'pending' && '⏳ Chờ duyệt'}
+                                {selectedHotel.status === 'rejected' && '❌ Từ chối'}
+                            </span>
+                        </div>
+                    )}
+                </div>
 
-                        {/* Edit/Save/Cancel buttons */}
+                {/* Hotel Selection */}
+                {hotels.length > 1 && (
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Chọn khách sạn:
+                        </label>
+                        <div className="relative">
+                            <select
+                                value={selectedHotel?.hotelId || selectedHotel?.hotel_id || selectedHotel?.id || selectedHotel?._id || ''}
+                                onChange={(e) => {
+                                    const hotel = hotels.find(h => 
+                                        (h.hotelId || h.hotel_id || h.id || h._id) === e.target.value
+                                    );
+                                    setSelectedHotel(hotel);
+                                    // Reset editing state when switching hotels
+                                    setIsEditing(false);
+                                }}
+                                className="w-full md:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white pr-8"
+                            >
+                                {hotels.map((hotel) => {
+                                    const hotelId = hotel.hotelId || hotel.hotel_id || hotel.id || hotel._id;
+                                    return (
+                                        <option key={hotelId} value={hotelId}>
+                                            {hotel.name} - {hotel.address}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                            <ChevronDown size={16} className="absolute right-2 top-3 text-gray-400 pointer-events-none" />
+                        </div>
+                    </div>
+                )}
+
+                {/* Selected Hotel info */}
+                {selectedHotel && (
+                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="font-semibold text-gray-900 mb-2">{selectedHotel.name}</h3>
+                                <p className="text-gray-600">{selectedHotel.address}, {selectedHotel.city}</p>
+                            </div>
+                            {hotels.length === 1 && (
+                                <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                                    Khách sạn duy nhất
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Action buttons - only show if hotel is selected */}
+                {selectedHotel && (
+                    <div className="flex justify-end">
                         {!isEditing ? (
                             <button
                                 onClick={() => setIsEditing(true)}
@@ -233,22 +320,20 @@ const HotelAmenities = () => {
                             </div>
                         )}
                     </div>
-                </div>
-
-                {/* Hotel info */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                    <h3 className="font-semibold text-gray-900 mb-2">{hotelData.name}</h3>
-                    <p className="text-gray-600">{hotelData.address}, {hotelData.city}</p>
-                </div>
+                )}
             </div>
 
             {/* Current Amenities */}
             <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    Tiện nghi hiện tại ({getSelectedAmenitiesDetails().length})
+                    Tiện nghi hiện tại {selectedHotel ? `(${getSelectedAmenitiesDetails().length})` : ''}
                 </h2>
                 
-                {getSelectedAmenitiesDetails().length > 0 ? (
+                {!selectedHotel ? (
+                    <div className="text-center py-8 text-gray-500">
+                        Vui lòng chọn khách sạn để xem tiện nghi
+                    </div>
+                ) : getSelectedAmenitiesDetails().length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         {getSelectedAmenitiesDetails().map((amenity) => (
                             <div 
@@ -273,18 +358,18 @@ const HotelAmenities = () => {
                             Chưa có tiện nghi nào
                         </h3>
                         <p className="text-gray-600">
-                            Thêm tiện nghi để khách hàng biết về dịch vụ của bạn
+                            Thêm tiện nghi để khách hàng biết về dịch vụ của {selectedHotel.name}
                         </p>
                     </div>
                 )}
             </div>
 
             {/* Edit Amenities */}
-            {isEditing && (
+            {isEditing && selectedHotel && (
                 <div className="bg-white rounded-lg shadow p-6">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-semibold text-gray-900">
-                            Chọn tiện nghi
+                            Chọn tiện nghi cho {selectedHotel.name}
                         </h2>
                         
                         {/* Search */}
@@ -352,7 +437,7 @@ const HotelAmenities = () => {
                     {/* Selected count */}
                     <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                         <p className="text-blue-800">
-                            Đã chọn: <strong>{selectedAmenities.length}</strong> tiện nghi
+                            Đã chọn: <strong>{selectedAmenities.length}</strong> tiện nghi cho {selectedHotel.name}
                         </p>
                     </div>
                 </div>
