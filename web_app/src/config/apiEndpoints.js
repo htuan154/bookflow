@@ -343,17 +343,24 @@ export const API_ENDPOINTS = {
     },
 
     // --- Staff Management Endpoints (Hotel Owner) ---
+   // ✅ COMPLETE HOTEL STAFF ENDPOINTS
     STAFF: {
-    // GET /api/v1/hotels/:hotelId/staff
-    GET_HOTEL_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff`,
-    // POST /api/v1/hotels/:hotelId/staff
-    ADD_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff`,
-    // PUT /api/v1/staff/:staffId
-    UPDATE: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
-    // DELETE /api/v1/staff/:staffId
-    DELETE: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
-    // GET /api/v1/staff/:staffId
-    GET_BY_ID: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
+        // --- Hotel-specific staff operations ---
+        GET_HOTEL_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff`,
+        SEARCH_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff/search`,
+        GET_STAFF_STATISTICS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff/statistics`,
+        
+        // --- Add staff operations ---
+        ADD_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff`, // Auto-detect method
+        ADD_NEW_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff/new`, // Create new user + staff
+        ADD_EXISTING_USER_AS_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff/existing`, // Add existing user as staff
+        BULK_ADD_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff/bulk`, // Bulk operations
+        
+        // --- Individual staff operations ---
+        GET_BY_ID: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
+        UPDATE: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
+        DELETE: (staffId) => `${API_BASE_URL}/staff/${staffId}`, // Soft delete (remove from hotel)
+        DELETE_PERMANENT: (staffId) => `${API_BASE_URL}/staff/${staffId}/permanent`, // Hard delete (admin only)
     },
 
     // Common endpoints
