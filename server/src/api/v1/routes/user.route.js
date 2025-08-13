@@ -12,7 +12,7 @@ const { authenticate, authorize } = require('../middlewares/auth.middleware');
 
 // Áp dụng middleware xác thực và phân quyền cho tất cả các route bên dưới
 router.use(authenticate);
-router.use(authorize(['admin']));
+router.use(authorize(['admin', 'user', 'hotel_owner']));
 router.route('/')
     .get(userController.getAllUsers)
     .post(userController.createUser);

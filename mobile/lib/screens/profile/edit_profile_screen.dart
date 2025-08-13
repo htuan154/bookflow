@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import '../../classes/user_model.dart';
+import '../../services/auth_service.dart';
+import '../../services/token_service.dart';
+import '../../services/user_service.dart';
 
 // Edit Profile Screen
 class EditProfileScreen extends StatefulWidget {
+  final User? user;
+
+  const EditProfileScreen({Key? key, this.user}) : super(key: key);
+
   @override
   _EditProfileScreenState createState() => _EditProfileScreenState();
 }
@@ -11,14 +19,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _phoneController = TextEditingController();
   final _fullNameController = TextEditingController();
   final _addressController = TextEditingController();
+  final _emailController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    // Khởi tạo dữ liệu mẫu từ trang profile
-    _phoneController.text = '+84 123 456 789';
-    _fullNameController.text = 'Huỳnh Anh Tuấn';
-    _addressController.text = 'Thành phố Hồ Chí Minh';
+    // Khởi tạo dữ liệu từ user
+    if (widget.user != null) {
+      _emailController.text = widget.user!.email;
+      _phoneController.text = widget.user!.phoneNumber ?? '';
+      _fullNameController.text = widget.user!.fullName ?? '';
+      _addressController.text = widget.user!.address ?? '';
+    }
   }
 
   @override
@@ -26,7 +39,79 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _phoneController.dispose();
     _fullNameController.dispose();
     _addressController.dispose();
+    _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _updateProfile() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (widget.user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không tìm thấy thông tin người dùng'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Lấy token
+      final token = await TokenService.getToken();
+      if (token == null) {
+        throw Exception('Token không tồn tại');
+      }
+
+      // Gọi API update
+      final result = await AuthService().updateUser(
+        userId: widget.user!.userId,
+        email: _emailController.text.trim(),
+        fullName: _fullNameController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
+        address: _addressController.text.trim(),
+        token: token,
+      );
+
+      if (result['success'] == true) {
+        // Cập nhật user data trong storage
+        if (result['user'] != null) {
+          await UserService.saveUser(result['user']);
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Cập nhật thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true); // Return true to indicate success
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Cập nhật thất bại'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Update error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -69,25 +154,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         color: Color(0xFFFFD700),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        Icons.person,
-                        size: 50,
-                        color: Colors.white,
-                      ),
+                      child: Icon(Icons.person, size: 50, color: Colors.white),
                     ),
                     SizedBox(height: 12),
                     Text(
-                      'huynhanh.tuan@email.com',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[600],
-                      ),
+                      widget.user?.email ?? 'Chưa có email',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                     ),
                   ],
                 ),
               ),
 
               // Form Fields
+              _buildFormField(
+                controller: _emailController,
+                label: 'Email',
+                icon: Icons.email_outlined,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Vui lòng nhập email';
+                  }
+                  if (!RegExp(
+                    r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                  ).hasMatch(value)) {
+                    return 'Email không hợp lệ';
+                  }
+                  return null;
+                },
+              ),
+
+              SizedBox(height: 20),
+
               _buildFormField(
                 controller: _phoneController,
                 label: 'Số điện thoại',
@@ -99,9 +196,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   return null;
                 },
               ),
-              
+
               SizedBox(height: 20),
-              
+
               _buildFormField(
                 controller: _fullNameController,
                 label: 'Họ và tên',
@@ -113,9 +210,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   return null;
                 },
               ),
-              
+
               SizedBox(height: 20),
-              
+
               _buildFormField(
                 controller: _addressController,
                 label: 'Địa chỉ',
@@ -160,18 +257,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          // TODO: Implement update logic here
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Cập nhật thông tin thành công!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                          Navigator.pop(context);
-                        }
-                      },
+                      onPressed: _isLoading ? null : _updateProfile,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue[600],
                         foregroundColor: Colors.white,
@@ -181,13 +267,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: Text(
-                        'Cập nhật',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              'Cập nhật',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -231,11 +326,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 color: Colors.grey[100],
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Icon(
-                icon,
-                size: 16,
-                color: Colors.grey[600],
-              ),
+              child: Icon(icon, size: 16, color: Colors.grey[600]),
             ),
             hintText: 'Nhập $label',
             hintStyle: TextStyle(color: Colors.grey[500]),
