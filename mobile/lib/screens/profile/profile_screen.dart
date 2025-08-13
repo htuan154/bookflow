@@ -1,49 +1,58 @@
-// // lib/screens/profile_screen.dart
-// import 'package:flutter/material.dart';
-
-// class ProfileScreen extends StatelessWidget {
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: Text('Profile'),
-//         backgroundColor: Colors.white,
-//         foregroundColor: Colors.black,
-//         elevation: 0,
-//       ),
-//       body: Center(
-//         child: Column(
-//           mainAxisAlignment: MainAxisAlignment.center,
-//           children: [
-//             Icon(
-//               Icons.person,
-//               size: 100,
-//               color: Colors.orange,
-//             ),
-//             SizedBox(height: 20),
-//             Text(
-//               'Profile Screen',
-//               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-//             ),
-//             SizedBox(height: 10),
-//             Text(
-//               'Manage your account',
-//               style: TextStyle(fontSize: 16, color: Colors.grey),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-
 import 'package:flutter/material.dart';
 import 'edit_profile_screen.dart';
+import '../../classes/user_model.dart';
+import '../../services/user_service.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
+  @override
+  _ProfileScreenState createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  User? user;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final userData = await UserService.getUser();
+      if (mounted) {
+        setState(() {
+          user = userData;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.grey[50],
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: Colors.black87),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -109,7 +118,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 16),
                   Text(
-                    'Huỳnh Anh Tuấn',
+                    user?.fullName ?? 'Chưa có',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w600,
@@ -118,11 +127,8 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'huynhanh_tuan',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                    ),
+                    user?.username ?? 'Chưa có',
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -146,25 +152,27 @@ class ProfileScreen extends StatelessWidget {
                   _buildInfoRow(
                     icon: Icons.email_outlined,
                     label: 'Email',
-                    value: 'huynhanh.tuan@email.com',
+                    value: user?.email ?? 'Chưa có',
                   ),
                   _buildDivider(),
                   _buildInfoRow(
                     icon: Icons.phone_outlined,
                     label: 'Số điện thoại',
-                    value: '+84 123 456 789',
+                    value: user?.phoneNumber ?? 'Chưa có',
                   ),
                   _buildDivider(),
                   _buildInfoRow(
                     icon: Icons.person_outline,
                     label: 'Họ và tên',
-                    value: 'Huỳnh Anh Tuấn',
+                    value: user?.createdAt != null
+                        ? 'Tham gia vào ${user!.createdAt.toString().substring(0, 10)}'
+                        : 'Chưa có',
                   ),
                   _buildDivider(),
                   _buildInfoRow(
                     icon: Icons.location_on_outlined,
                     label: 'Địa chỉ',
-                    value: 'Thành phố Hồ Chí Minh',
+                    value: user?.address ?? 'Chưa có',
                     isLast: true,
                   ),
                 ],
@@ -187,17 +195,21 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
               child: Column(
-                children: [                  
+                children: [
                   _buildActionRow(
                     icon: Icons.edit_outlined,
                     title: 'Chỉnh sửa thông tin',
-                    onTap: () {
-                       Navigator.push(
+                    onTap: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => EditProfileScreen(),
+                          builder: (context) => EditProfileScreen(user: user),
                         ),
                       );
+                      if (result == true) {
+                        // Reload user data if profile was updated
+                        _loadUserData();
+                      }
                     },
                   ),
                   _buildDivider(),
@@ -236,11 +248,7 @@ class ProfileScreen extends StatelessWidget {
               color: Colors.grey[100],
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: Colors.grey[600],
-            ),
+            child: Icon(icon, size: 20, color: Colors.grey[600]),
           ),
           SizedBox(width: 16),
           Expanded(
@@ -293,11 +301,7 @@ class ProfileScreen extends StatelessWidget {
                 color: Colors.grey[100],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                icon,
-                size: 20,
-                color: textColor ?? Colors.grey[600],
-              ),
+              child: Icon(icon, size: 20, color: textColor ?? Colors.grey[600]),
             ),
             SizedBox(width: 16),
             Expanded(
@@ -310,10 +314,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(
-              Icons.chevron_right,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.chevron_right, color: Colors.grey[400]),
           ],
         ),
       ),
