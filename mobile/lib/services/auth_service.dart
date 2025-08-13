@@ -15,21 +15,68 @@ class AuthService {
     'Accept': 'application/json',
   };
 
+  // Cập nhật thông tin người dùng
+  Future<Map<String, dynamic>> updateUser({
+    required String userId,
+    required String email,
+    required String fullName,
+    required String phoneNumber,
+    required String address,
+    String? token,
+  }) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/users/$userId');
+      final headers = Map<String, String>.from(_headers);
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+      final body = {
+        'email': email,
+        'fullName': fullName,
+        'phoneNumber': phoneNumber,
+        'address': address,
+      };
+      final response = await http.patch(
+        url,
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Cập nhật thành công',
+          'user': responseData['data'] != null
+              ? User.fromJson(responseData['data'])
+              : null,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Cập nhật thất bại',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
   // Đăng ký tài khoản
   Future<Map<String, dynamic>> register({
     required String username,
     required String email,
     required String password,
-    String? phoneNumber,
-    String? fullName,
+    required String fullName,
   }) async {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}/auth/register');
 
-      final body = {'username': username, 'email': email, 'password': password};
-
-      if (phoneNumber != null) body['phoneNumber'] = phoneNumber;
-      if (fullName != null) body['fullName'] = fullName;
+      final body = {
+        'username': username,
+        'email': email,
+        'password': password,
+        'fullName': fullName,
+      };
 
       final response = await http.post(
         url,

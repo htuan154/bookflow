@@ -1,8 +1,8 @@
-// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import '../home/components/blog_card.dart';
 import '../../services/blog_service.dart';
 import '../../classes/blog_model.dart';
+import '../../screens/home/form/province_ward_form.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -10,6 +10,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // --- Widget chọn tỉnh/phường giống main.dart demo ---
+  // Không cần logic chọn tỉnh/phường ở HomeScreen, đã có ProvinceWardForm riêng
   List<Blog> blogs = [];
   bool isLoading = true;
   String error = '';
@@ -17,7 +19,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    print('DEBUG HomeScreen: initState() called');
     fetchBlogs();
   }
 
@@ -46,119 +47,68 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(Icons.location_on, color: Colors.orange),
-            SizedBox(width: 4),
-            Text('New York, USA', style: TextStyle(fontSize: 16)),
-            Icon(Icons.keyboard_arrow_down),
-          ],
-        ),
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: Icon(Icons.notifications_outlined, color: Colors.orange),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Notifications clicked!')),
-                  );
-                },
-              ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        title: const Text('Chọn Tỉnh/Phường'),
         backgroundColor: Colors.white,
-        iconTheme: IconThemeData(color: Colors.black),
-        titleTextStyle: TextStyle(color: Colors.black, fontSize: 18),
+        iconTheme: const IconThemeData(color: Colors.black),
+        titleTextStyle: const TextStyle(color: Colors.black, fontSize: 18),
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Search Bar
-            GestureDetector(
-              onTap: () {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text('Search clicked!')));
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.search, color: Colors.grey),
-                    SizedBox(width: 12),
-                    Text(
-                      'Search',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 24),
-            // Blog Section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Blogs',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('See all blogs clicked!')),
-                    );
-                  },
-                  child: Text(
-                    'See all',
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await fetchBlogs();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ProvinceWardForm(),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Blogs',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('See all blogs clicked!')),
+                      );
+                    },
+                    child: const Text(
+                      'See all',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (isLoading) const Center(child: CircularProgressIndicator()),
+              if (error.isNotEmpty)
+                Center(
+                  child: Text(error, style: const TextStyle(color: Colors.red)),
                 ),
-              ],
-            ),
-            SizedBox(height: 16),
-            if (isLoading) Center(child: CircularProgressIndicator()),
-            if (error.isNotEmpty)
-              Center(
-                child: Text(error, style: TextStyle(color: Colors.red)),
-              ),
-            if (!isLoading && error.isEmpty)
-              ListView.builder(
-                shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                itemCount: blogs.length,
-                itemBuilder: (context, index) {
-                  final blog = blogs[index];
-                  return BlogCard(blog: blog);
-                },
-              ),
-          ],
+              if (!isLoading && error.isEmpty)
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: blogs.length,
+                  itemBuilder: (context, index) {
+                    final blog = blogs[index];
+                    return BlogCard(blog: blog);
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
