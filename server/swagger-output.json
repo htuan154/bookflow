@@ -268,6 +268,72 @@
         }
       }
     },
+    "/api/v1/hotels/search/location": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "city",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ward",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/hotels/count/location": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "city",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ward",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/hotels/popular": {
       "get": {
         "description": "",
@@ -2494,12 +2560,45 @@
         }
       }
     },
-    "/api/v1/blogs/blogs/{likeId}/like": {
+    "/api/v1/blogs/blogs/like": {
       "delete": {
         "description": "",
         "parameters": [
           {
-            "name": "likeId",
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "blog_id": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/blogs/blogs/{blogId}/is-liked": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "blogId",
             "in": "path",
             "required": true,
             "schema": {
@@ -3548,12 +3647,45 @@
         }
       }
     },
-    "/api/v1/blogs/{likeId}/like": {
+    "/api/v1/blogs/like": {
       "delete": {
         "description": "",
         "parameters": [
           {
-            "name": "likeId",
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "blog_id": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/blogs/{blogId}/is-liked": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "blogId",
             "in": "path",
             "required": true,
             "schema": {

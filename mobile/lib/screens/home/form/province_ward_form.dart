@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../services/vietnam_province_service.dart';
+import '../../../services/hotel_service.dart';
+import '../search/search_results_screen.dart';
 
 // Widget chọn tỉnh/phường giống main.dart demo
 class ProvinceWardForm extends StatefulWidget {
@@ -11,6 +13,7 @@ class ProvinceWardForm extends StatefulWidget {
 
 class _ProvinceWardFormState extends State<ProvinceWardForm> {
   final VietnamProvinceService _service = VietnamProvinceService();
+  final HotelService _hotelService = HotelService();
   List<Province> _allProvinces = [];
   List<Province> _filteredProvinces = [];
   List<Ward> _allWards = [];
@@ -21,6 +24,7 @@ class _ProvinceWardFormState extends State<ProvinceWardForm> {
       TextEditingController();
   final TextEditingController _wardSearchController = TextEditingController();
   bool _isLoading = true;
+  bool _isSearching = false;
 
   @override
   void initState() {
@@ -77,6 +81,75 @@ class _ProvinceWardFormState extends State<ProvinceWardForm> {
       _filteredWards = _allWards;
       _wardSearchController.clear();
     });
+  }
+
+  Future<void> _performSearch() async {
+    // Kiểm tra có chọn tỉnh/thành không
+    if (_selectedProvince == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Vui lòng chọn tỉnh/thành phố'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+    });
+
+    try {
+      Map<String, dynamic> result;
+      String searchType;
+
+      // Nếu có cả tỉnh và phường thì gọi searchHotelsByLocation
+      if (_selectedWard != null) {
+        result = await _hotelService.searchHotelsByLocation(
+          city: _selectedProvince!.name,
+          ward: _selectedWard!.name,
+        );
+        searchType = 'location';
+      } else {
+        // Chỉ có tỉnh thì gọi searchHotels
+        result = await _hotelService.searchHotels(
+          city: _selectedProvince!.name,
+        );
+        searchType = 'city';
+      }
+
+      if (result['success'] == true) {
+        // Navigate to search results screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SearchResultsScreen(
+              hotels: result['data'] ?? [],
+              searchType: searchType,
+              city: _selectedProvince?.name,
+              ward: _selectedWard?.name,
+              pagination: result['pagination'],
+            ),
+          ),
+        );
+      } else {
+        // Hiển thị lỗi
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Lỗi khi tìm kiếm'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi kết nối: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() {
+        _isSearching = false;
+      });
+    }
   }
 
   @override
@@ -157,12 +230,15 @@ class _ProvinceWardFormState extends State<ProvinceWardForm> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () {
-                _filterProvinces(_provinceSearchController.text);
-                _filterWards(_wardSearchController.text);
-              },
-              icon: Icon(Icons.search),
-              label: Text('Tìm kiếm'),
+              onPressed: _isSearching ? null : _performSearch,
+              icon: _isSearching
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(Icons.search),
+              label: Text(_isSearching ? 'Đang tìm...' : 'Tìm kiếm'),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),

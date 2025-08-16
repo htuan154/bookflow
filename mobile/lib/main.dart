@@ -226,3 +226,36 @@ class MyApp extends StatelessWidget {
 //     );
 //   }
 // }
+
+// import 'package:flutter/material.dart';
+
+// void main() {
+//   runApp(MyApp());
+// }
+
+// class MyApp extends StatelessWidget {
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       debugShowCheckedModeBanner: false, // Ẩn banner debug
+//       home: Scaffold(
+//         appBar: AppBar(
+//           title: Text('Load ảnh từ mạng'),
+//           centerTitle: true,
+//         ),
+//         body: Center(
+//           child: Image.network(
+//             'https://pngimg.com/d/price_label_PNG50.png',
+//             loadingBuilder: (context, child, loadingProgress) {
+//               if (loadingProgress == null) return child; // Đã load xong
+//               return CircularProgressIndicator(); // Đang load
+//             },
+//             errorBuilder: (context, error, stackTrace) {
+//               return Text('Không tải được ảnh 😢');
+//             },
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }

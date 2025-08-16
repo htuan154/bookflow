@@ -6,6 +6,7 @@ import '../../../services/blog_service.dart';
 import '../../../services/token_service.dart';
 import 'widgets/blog_comment_tree.dart';
 import 'widgets/blog_detail_loader.dart';
+import '../../../services/user_service.dart';
 
 class BlogDetailScreen extends StatefulWidget {
   final String blogSlug; // Đổi từ blogId thành blogSlug
@@ -29,10 +30,16 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
   bool isSubmittingComment = false;
   String? error;
 
+  // Thêm các biến cho like
+  bool isLiking = false;
+  bool isLiked = false;
+  int likeCount = 0;
+
   @override
   void initState() {
     super.initState();
     _loadBlogDetail();
+    _checkIsLiked(); // Thêm dòng này
   }
 
   @override
@@ -41,18 +48,32 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
     super.dispose();
   }
 
+  // Thêm hàm kiểm tra đã like chưa
+  Future<void> _checkIsLiked() async {
+    if (blog == null) return;
+    final token = await TokenService.getToken();
+    if (token == null) return;
+    final result = await _blogService.isBlogLiked(blog!.blogId, token);
+    if (result['success']) {
+      setState(() {
+        isLiked = result['isLiked'] ?? false;
+      });
+    }
+  }
+
   Future<void> _loadBlogDetail() async {
     try {
       final result = await _blogService.getBlogBySlug(widget.blogSlug);
       if (result['success']) {
         setState(() {
           blog = result['data'];
+          likeCount = blog!.likeCount;
           isLoading = false;
         });
-        // Sau khi có blog, load images và comments với blogId
         if (blog != null) {
           _loadBlogImages();
           _loadBlogComments();
+          _checkIsLiked(); // Gọi lại ở đây để chắc chắn blog đã có
         }
       } else {
         setState(() {
@@ -168,17 +189,38 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
     });
 
     try {
-      // Cần token để submit comment
-      // final result = await _blogService.addComment(
-      //   blog!.blogId,
-      //   _commentController.text.trim(),
-      //   'your_token_here',
-      // );
+      final token = await TokenService.getToken();
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Bạn cần đăng nhập để bình luận!')),
+        );
+        setState(() {
+          isSubmittingComment = false;
+        });
+        return;
+      }
 
-      // if (result['success']) {
-      //   _commentController.clear();
-      //   _loadBlogComments(); // Reload comments
-      // }
+      final result = await _blogService.addComment(
+        blog!.blogId,
+        _commentController.text.trim(),
+        token,
+      );
+
+      if (result['success']) {
+        _commentController.clear();
+        _loadBlogComments();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Bình luận của bạn đã được gửi, hãy chờ duyệt'),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Gửi bình luận thất bại'),
+          ),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -246,6 +288,68 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
     }
 
     return rootComments;
+  }
+
+  // Thêm hàm xử lý like
+  Future<void> _handleLike() async {
+    if (isLiking || blog == null) return;
+
+    setState(() {
+      isLiking = true;
+    });
+
+    try {
+      final token = await TokenService.getToken();
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Bạn cần đăng nhập để thích bài viết')),
+        );
+        setState(() {
+          isLiking = false;
+        });
+        return;
+      }
+
+      Map<String, dynamic> result;
+      if (isLiked) {
+        // Nếu đã like thì gọi unlike (gửi đúng blogId)
+        result = await _blogService.unlikeBlog(blog!.blogId, token);
+      } else {
+        // Nếu chưa like thì gọi like
+        result = await _blogService.likeBlog(blog!.blogId, token);
+      }
+
+      if (result['success']) {
+        setState(() {
+          isLiked = !isLiked;
+          likeCount = isLiked ? likeCount + 1 : likeCount - 1;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isLiked ? 'Đã thích bài viết' : 'Đã bỏ thích bài viết',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Lỗi khi thao tác'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi kết nối: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() {
+        isLiking = false;
+      });
+    }
   }
 
   @override
@@ -436,6 +540,53 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
               '(${comments.length})',
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
+
+            Spacer(), // Đẩy nút like sang bên phải
+            // NÚT LIKE Ở ĐÂY
+            GestureDetector(
+              onTap: _handleLike,
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isLiked
+                      ? Colors.red.withOpacity(0.1)
+                      : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isLiked ? Colors.red : Colors.grey[300]!,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '$likeCount',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isLiked ? Colors.red : Colors.grey[700],
+                      ),
+                    ),
+                    SizedBox(width: 6),
+                    if (isLiking)
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(Colors.red),
+                        ),
+                      )
+                    else
+                      Icon(
+                        isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                        size: 18,
+                        color: isLiked ? Colors.blue : Colors.grey[600],
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -529,37 +680,104 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
 
   void _showReplyDialog(BlogComment parentComment) {
     final replyController = TextEditingController();
+    bool isReplying = false;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Trả lời ${parentComment.authorName}'),
-        content: TextField(
-          controller: replyController,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Viết phản hồi...',
-            border: OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Trả lời ${parentComment.authorName}'),
+          content: TextField(
+            controller: replyController,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Viết phản hồi...',
+              border: OutlineInputBorder(),
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: isReplying
+                  ? null
+                  : () async {
+                      if (replyController.text.trim().isEmpty) return;
+                      setState(() => isReplying = true);
+
+                      final token = await TokenService.getToken();
+                      if (token == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Bạn cần đăng nhập để phản hồi!'),
+                          ),
+                        );
+                        setState(() => isReplying = false);
+                        return;
+                      }
+
+                      // Gửi phản hồi (thêm parent_comment_id)
+                      final result = await _blogService.addComment(
+                        blog!.blogId,
+                        replyController.text.trim(),
+                        token,
+                        parentCommentId:
+                            parentComment.commentId, // Thêm dòng này
+                      );
+
+                      if (result['success']) {
+                        Navigator.pop(context);
+                        _loadBlogComments();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Bình luận của bạn đã được gửi, hãy chờ duyệt',
+                            ),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              result['message'] ?? 'Gửi phản hồi thất bại',
+                            ),
+                          ),
+                        );
+                        setState(() => isReplying = false);
+                      }
+                    },
+              child: isReplying
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Gửi'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // Handle reply submission
-              Navigator.pop(context);
-            },
-            child: const Text('Gửi'),
-          ),
-        ],
       ),
     );
   }
 
-  void _showDeleteDialog(BlogComment comment) {
+  void _showDeleteDialog(BlogComment comment) async {
+    // Dùng UserService.getUser() giống như profile screen
+    final currentUser = await UserService.getUser();
+    final currentUserId = currentUser?.userId;
+
+    // Debug: In ra 2 id
+    print('DEBUG: currentUserId from UserService = $currentUserId');
+    print('DEBUG: comment.userId = ${comment.userId}');
+
+    if (currentUserId == null || currentUserId != comment.userId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Bạn không được quyền xóa bình luận này')),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -571,9 +789,28 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
             child: const Text('Hủy'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // Handle delete
+            onPressed: () async {
               Navigator.pop(context);
+              final token = await TokenService.getToken();
+              if (token == null) return;
+              final result = await _blogService.deleteComment(
+                comment.commentId,
+                token,
+              );
+              if (result['success']) {
+                _loadBlogComments();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Đã xóa bình luận thành công')),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      result['message'] ?? 'Xóa bình luận thất bại',
+                    ),
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Xóa'),

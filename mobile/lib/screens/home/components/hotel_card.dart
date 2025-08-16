@@ -3,22 +3,22 @@ import 'package:flutter/material.dart';
 
 class HotelCard extends StatelessWidget {
   final String name;
-  final String price;
-  final String discount;
-  final double rating;
-  final String location;
-  final String imageUrl;
+  final String address;
+  final int? starRating;
+  final String? phoneNumber;
+  final String? email;
+  final String? imageUrl;
   final VoidCallback? onTap;
   final VoidCallback? onFavoritePressed;
 
   const HotelCard({
     Key? key,
     required this.name,
-    required this.price,
-    required this.discount,
-    required this.rating,
-    required this.location,
-    required this.imageUrl,
+    required this.address,
+    this.starRating,
+    this.phoneNumber,
+    this.email,
+    this.imageUrl,
     this.onTap,
     this.onFavoritePressed,
   }) : super(key: key);
@@ -26,13 +26,14 @@ class HotelCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap ?? () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$name hotel clicked!')),
-        );
-      },
+      onTap:
+          onTap ??
+          () {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('$name hotel clicked!')));
+          },
       child: Container(
-        width: 180,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -48,116 +49,205 @@ class HotelCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Image section - Fixed height
             Stack(
               children: [
                 Container(
-                  height: 140,
+                  height: 120, // Giảm từ 140 xuống 120
+                  width: double.infinity,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
                     image: DecorationImage(
-                      image: NetworkImage(imageUrl),
+                      image: AssetImage('assets/welcome/welcome-image-1.png'),
                       fit: BoxFit.cover,
                       onError: (exception, stackTrace) {},
                     ),
                   ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Colors.black.withOpacity(0.1)],
+                ),
+                // Star rating badge
+                if (starRating != null && starRating! > 0)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.star, color: Colors.white, size: 10),
+                          SizedBox(width: 2),
+                          Text(
+                            '$starRating',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ),
                 Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      discount,
-                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 12,
-                  right: 12,
+                  top: 8,
+                  right: 8,
                   child: GestureDetector(
-                    onTap: onFavoritePressed ?? () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('$name added to favorites!')),
-                      );
-                    },
+                    onTap:
+                        onFavoritePressed ??
+                        () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('$name added to favorites!'),
+                            ),
+                          );
+                        },
                     child: Container(
-                      padding: EdgeInsets.all(6),
+                      padding: EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.9),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.favorite_outline, color: Colors.grey[600], size: 18),
+                      child: Icon(
+                        Icons.favorite_outline,
+                        color: Colors.grey[600],
+                        size: 16,
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
-            Padding(
-              padding: EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name, 
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.location_on, color: Colors.grey[500], size: 14),
-                      SizedBox(width: 2),
-                      Expanded(
-                        child: Text(
-                          location, 
-                          style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+
+            // Content section - Flexible
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(8), // Giảm padding từ 12 xuống 8
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min, // Thêm này
+                  children: [
+                    // Hotel name
+                    Text(
+                      name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14, // Giảm từ 16 xuống 14
                       ),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '$price/Day',
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 4),
+
+                    // Address
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          color: Colors.grey[500],
+                          size: 12,
                         ),
-                      ),
+                        SizedBox(width: 2),
+                        Expanded(
+                          child: Text(
+                            address,
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 10, // Giảm font size
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Phone number - chỉ hiển thị nếu có space
+                    if (phoneNumber != null && phoneNumber!.isNotEmpty) ...[
+                      SizedBox(height: 2),
                       Row(
                         children: [
-                          Icon(Icons.star, color: Colors.orange, size: 16),
+                          Icon(Icons.phone, color: Colors.grey[500], size: 12),
                           SizedBox(width: 2),
-                          Text(
-                            '$rating', 
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                          Expanded(
+                            child: Text(
+                              phoneNumber!,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 9, // Giảm font size
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
                     ],
-                  ),
-                ],
+
+                    // Email
+                    if (email != null && email!.isNotEmpty) ...[
+                      SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.email, color: Colors.grey[500], size: 12),
+                          SizedBox(width: 2),
+                          Expanded(
+                            child: Text(
+                              email!,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 9,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+
+                    // Spacer để đẩy star rating xuống dưới
+                    Spacer(),
+
+                    // Star rating ở bottom
+                    if (starRating != null && starRating! > 0)
+                      Row(
+                        children: [
+                          ...List.generate(5, (index) {
+                            return Icon(
+                              index < starRating!
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              color: Colors.orange,
+                              size: 12, // Giảm size
+                            );
+                          }),
+                          SizedBox(width: 4),
+                          Text(
+                            '($starRating sao)',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 9, // Giảm font size
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Text(
+                        'Chưa có đánh giá',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 9, // Giảm font size
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ],

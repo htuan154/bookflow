@@ -16,22 +16,22 @@ class Hotel {
   final int? starRating;
   final String? phoneNumber;
   final String? email;
-  final String? checkInTime; 
-  final String? checkOutTime; 
+  final String? checkInTime;
+  final String? checkOutTime;
   final String status;
   final double averageRating;
   final int totalReviews;
   final DateTime createdAt;
-  
+
   // Quan hệ với User (owner) - optional
   final User? owner;
 
   Hotel({
     required this.hotelId,
-    required this.ownerId,
-    required this.name,
+    required this.name, // Có thể cần đổi thành this.name,
+    required this.address, // Có thể cần đổi thành this.address,
     this.description,
-    required this.address,
+    required this.ownerId,
     required this.city,
     this.starRating,
     this.phoneNumber,
@@ -48,43 +48,76 @@ class Hotel {
   // Factory constructor từ JSON
   factory Hotel.fromJson(Map<String, dynamic> json) {
     return Hotel(
-      hotelId: json['hotel_id'] as String,
-      ownerId: json['owner_id'] as String,
-      name: json['name'] as String,
+      hotelId:
+          json['hotelId']
+              as String, // API trả về 'hotelId', không phải 'hotel_id'
+      ownerId:
+          json['ownerId']
+              as String, // API trả về 'ownerId', không phải 'owner_id'
+      name: json['name'] ?? '',
       description: json['description'] as String?,
-      address: json['address'] as String,
+      address: json['address'] ?? '',
       city: json['city'] as String,
-      starRating: json['star_rating'] as int?,
-      phoneNumber: json['phone_number'] as String?,
+      starRating:
+          json['starRating']
+              as int?, // API trả về 'starRating', không phải 'star_rating'
+      phoneNumber:
+          json['phoneNumber']
+              as String?, // API trả về 'phoneNumber', không phải 'phone_number'
       email: json['email'] as String?,
-      checkInTime: json['check_in_time'] as String?,
-      checkOutTime: json['check_out_time'] as String?,
+      checkInTime:
+          json['checkInTime']
+              as String?, // API trả về 'checkInTime', không phải 'check_in_time'
+      checkOutTime:
+          json['checkOutTime']
+              as String?, // API trả về 'checkOutTime', không phải 'check_out_time'
       status: json['status'] as String? ?? 'pending',
-      averageRating: (json['average_rating'] as num?)?.toDouble() ?? 0.0,
-      totalReviews: json['total_reviews'] as int? ?? 0,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      averageRating: _parseDouble(
+        json['averageRating'],
+      ), // API trả về string "0.00"
+      totalReviews:
+          json['totalReviews'] as int? ??
+          0, // API trả về 'totalReviews', không phải 'total_reviews'
+      createdAt: DateTime.parse(
+        json['createdAt'] as String,
+      ), // API trả về 'createdAt', không phải 'created_at'
       owner: json['owner'] != null ? User.fromJson(json['owner']) : null,
     );
   }
 
-  // Chuyển đối tượng thành JSON
+  // Helper method để parse double từ string hoặc number
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value) ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  // Chuyển đối tượng thành JSON (cần khớp với API)
   Map<String, dynamic> toJson() {
     return {
-      'hotel_id': hotelId,
-      'owner_id': ownerId,
+      'hotelId': hotelId, // Sửa từ 'hotel_id' thành 'hotelId'
+      'ownerId': ownerId, // Sửa từ 'owner_id' thành 'ownerId'
       'name': name,
       'description': description,
       'address': address,
       'city': city,
-      'star_rating': starRating,
-      'phone_number': phoneNumber,
+      'starRating': starRating, // Sửa từ 'star_rating' thành 'starRating'
+      'phoneNumber': phoneNumber, // Sửa từ 'phone_number' thành 'phoneNumber'
       'email': email,
-      'check_in_time': checkInTime,
-      'check_out_time': checkOutTime,
+      'checkInTime': checkInTime, // Sửa từ 'check_in_time' thành 'checkInTime'
+      'checkOutTime':
+          checkOutTime, // Sửa từ 'check_out_time' thành 'checkOutTime'
       'status': status,
-      'average_rating': averageRating,
-      'total_reviews': totalReviews,
-      'created_at': createdAt.toIso8601String(),
+      'averageRating':
+          averageRating, // Sửa từ 'average_rating' thành 'averageRating'
+      'totalReviews':
+          totalReviews, // Sửa từ 'total_reviews' thành 'totalReviews'
+      'createdAt': createdAt
+          .toIso8601String(), // Sửa từ 'created_at' thành 'createdAt'
       if (owner != null) 'owner': owner!.toJson(),
     };
   }
