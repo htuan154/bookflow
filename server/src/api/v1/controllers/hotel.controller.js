@@ -286,6 +286,35 @@ class HotelController {
       next(error);
     }
   }
+
+  /**
+   * Tìm kiếm khách sạn theo thành phố và phường/xã
+   * GET /api/v1/hotels/search/location?city=...&ward=...
+   */
+  async getHotelsByCityAndWard(req, res, next) {
+    try {
+      const { city, ward, page, limit } = req.query;
+      const result = await hotelService.getHotelsByCityAndWard(city, ward, { page, limit });
+      successResponse(res, result.data, result.message, 200, result.pagination);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Đếm số lượng khách sạn theo thành phố và phường/xã
+   * GET /api/v1/hotels/count/location?city=...&ward=...
+   */
+  async countHotelsByCityAndWard(req, res, next) {
+    try {
+      const { city, ward } = req.query;
+      const result = await hotelService.countHotelsByCityAndWard(city, ward);
+      successResponse(res, result.data, result.message);
+    } catch (error) {
+      next(error);
+    }
+  }
+
 }
 
 module.exports = new HotelController();

@@ -228,6 +228,61 @@ class HotelService {
       data: hotels.slice(0, limit)
     };
   }
+
+  /**
+   * Tìm kiếm khách sạn theo thành phố và phường/xã
+   * @param {string} city - Tên thành phố/tỉnh
+   * @param {string} ward - Tên phường/xã
+   * @param {Object} options - Tùy chọn phân trang
+   * @returns {Promise<Object>}
+   */
+  async getHotelsByCityAndWard(city, ward, options = {}) {
+    const { page = 1, limit = 10 } = options;
+    const offset = (page - 1) * limit;
+
+    if (!city || !ward) {
+      throw new AppError('Vui lòng cung cấp đầy đủ thông tin thành phố và phường/xã', 400);
+    }
+
+    const hotels = await hotelRepository.findByCityAndWard(city, ward, limit, offset);
+    const totalCount = await hotelRepository.countByCityAndWard(city, ward);
+
+    return {
+      success: true,
+      message: `Tìm thấy ${totalCount} khách sạn tại ${ward}, ${city}`,
+      data: hotels,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit)
+      }
+    };
+  }
+
+  /**
+   * Đếm số lượng khách sạn theo thành phố và phường/xã
+   * @param {string} city - Tên thành phố/tỉnh
+   * @param {string} ward - Tên phường/xã
+   * @returns {Promise<Object>}
+   */
+  async countHotelsByCityAndWard(city, ward) {
+    if (!city || !ward) {
+      throw new AppError('Vui lòng cung cấp đầy đủ thông tin thành phố và phường/xã', 400);
+    }
+
+    const count = await hotelRepository.countByCityAndWard(city, ward);
+
+    return {
+      success: true,
+      message: `Số lượng khách sạn tại ${ward}, ${city}`,
+      data: {
+        city,
+        ward,
+        count
+      }
+    };
+  }
 }
 
 module.exports = new HotelService();
