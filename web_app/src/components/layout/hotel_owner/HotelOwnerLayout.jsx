@@ -6,7 +6,8 @@ import {
 } from "lucide-react";
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import useAuth from '../../../hooks/useAuth';
-
+import { AmenityProvider } from '../../../context/AmenityContext';
+import { HotelAmenityProvider } from '../../../context/HotelAmenityContext';
 const HotelOwnerLayout = () => {
     const { user, handleLogout } = useAuth();
     const location = useLocation();
@@ -282,7 +283,11 @@ const HotelOwnerLayout = () => {
                 </header>
                 
                 <main className="flex-1 bg-gray-50 p-6">
-                    <Outlet />
+                   <AmenityProvider>
+                        <HotelAmenityProvider>
+                            <Outlet />
+                        </HotelAmenityProvider>
+                    </AmenityProvider>
                 </main>
             </div>
         </div>

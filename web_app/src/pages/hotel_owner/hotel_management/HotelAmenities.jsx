@@ -1,465 +1,390 @@
-import React, { useState, useEffect } from 'react';
-import { 
-    Building2, Wifi, Car, Utensils, Dumbbell, Waves, 
-    Shield, Coffee, Tv, Wind, Phone, Bath, 
-    Save, X, CheckCircle, AlertCircle, Plus, ChevronDown
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Shield, Save, X, CheckCircle, ChevronDown,
+  Wifi, Car, Utensils, Dumbbell, Waves, Coffee, Tv, Wind, Phone, Bath
 } from 'lucide-react';
-import { useHotelOwner } from '../../../hooks/useHotelOwner';
+
 import useAuth from '../../../hooks/useAuth';
+import { useHotelOwner } from '../../../hooks/useHotelOwner';
+import useAmenity from '../../../hooks/useAmenity';
+import useHotelAmenity from '../../../hooks/useHotelAmenity';
 
-// Danh sách icon cho các tiện nghi
+/* ================== DEBUG ================== */
+const DEBUG = false;
+const dlog = (...args) => { if (DEBUG) console.log(...args); };
+
+/* ================= Icons ================= */
 const amenityIcons = {
-    wifi: <Wifi size={20} className="text-blue-500" />,
-    parking: <Car size={20} className="text-green-500" />,
-    restaurant: <Utensils size={20} className="text-orange-500" />,
-    gym: <Dumbbell size={20} className="text-red-500" />,
-    pool: <Waves size={20} className="text-cyan-500" />,
-    security: <Shield size={20} className="text-gray-500" />,
-    coffee: <Coffee size={20} className="text-yellow-600" />,
-    tv: <Tv size={20} className="text-purple-500" />,
-    ac: <Wind size={20} className="text-blue-400" />,
-    phone: <Phone size={20} className="text-green-600" />,
-    bath: <Bath size={20} className="text-blue-300" />,
-    default: <Shield size={20} className="text-gray-400" />
+  wifi: <Wifi size={20} className="text-blue-500" />,
+  parking: <Car size={20} className="text-green-500" />,
+  restaurant: <Utensils size={20} className="text-orange-500" />,
+  gym: <Dumbbell size={20} className="text-red-500" />,
+  pool: <Waves size={20} className="text-cyan-500" />,
+  coffee: <Coffee size={20} className="text-yellow-600" />,
+  tv: <Tv size={20} className="text-purple-500" />,
+  ac: <Wind size={20} className="text-blue-400" />,
+  phone: <Phone size={20} className="text-green-600" />,
+  bath: <Bath size={20} className="text-blue-300" />,
+  default: <Shield size={20} className="text-gray-400" />
 };
 
-const HotelAmenities = () => {
-    const { user } = useAuth();
-    const {
-        hotelData,
-        loading,
-        error,
-        fetchOwnerHotel,
-        updateHotelAmenities,
-        getAvailableAmenities,
-        clearError
-    } = useHotelOwner();
+/* ================= Helpers ================= */
+const hotelIdOf = (h) => h?.hotel_id ?? h?.id ?? h?.hotelId ?? h?._id ?? '';
 
-    const [availableAmenities, setAvailableAmenities] = useState([]);
-    const [selectedAmenities, setSelectedAmenities] = useState([]);
-    const [isEditing, setIsEditing] = useState(false);
-    const [saveLoading, setSaveLoading] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedHotel, setSelectedHotel] = useState(null); // Add hotel selection
+/** Lấy id từ master amenity list (GET /amenities) */
+const getAmenityId = (a) => a?.id ?? a?.amenity_id ?? a?.amenityId ?? a?._id ?? null;
 
-    // Load dữ liệu khi component mount
-    useEffect(() => {
-        fetchOwnerHotel();
-        loadAvailableAmenities();
-    }, [fetchOwnerHotel]);
+/** Lấy id từ dòng trả về của API /hotels/:id/amenities (mọi dạng có thể gặp) */
+const pickAmenityId = (row) => {
+  if (!row) return null;
+  if (typeof row === 'string') return row;
 
-    // Set default hotel when hotelData is available
-    useEffect(() => {
-        console.log('useEffect - Hotel data changed:', hotelData);
-        
-        if (hotelData && Array.isArray(hotelData) && hotelData.length > 0) {
-            // If no hotel is selected, select the first one by default
-            if (!selectedHotel) {
-                const firstHotel = hotelData[0];
-                setSelectedHotel(firstHotel);
-                console.log('Selected default hotel for HotelAmenities:', firstHotel);
-            }
-        } else if (hotelData && !Array.isArray(hotelData)) {
-            // Handle single hotel object
-            setSelectedHotel(hotelData);
-        }
-    }, [hotelData]);
+  const cands = [
+    row.amenityId, row.amenity_id, row.amenity_uuid,
+    row?.amenity, row?.amenity?.id, row?.amenity?.amenity_id,
+    row?.Amenity?.id, row?.Amenity?.amenity_id,
+    row?.pivot?.amenity_id, row?.pivot?.amenityId,
+  ];
+  const id = cands.find(Boolean);
+  return typeof id === 'string' ? id : null;
+};
 
-    // Update selectedAmenities khi selectedHotel thay đổi
-    useEffect(() => {
-        if (selectedHotel && selectedHotel.amenities) {
-            setSelectedAmenities(selectedHotel.amenities.map(amenity => 
-                typeof amenity === 'object' ? amenity.id : amenity
-            ));
-        } else {
-            setSelectedAmenities([]);
-        }
-    }, [selectedHotel]);
+export default function HotelAmenities() {
+  useAuth();
 
-    // Get hotel ID from selected hotel
-    const getHotelId = () => {
-        const possibleIds = [
-            selectedHotel?.hotel_id,
-            selectedHotel?.id,
-            selectedHotel?.hotelId
-        ];
-        
-        for (const id of possibleIds) {
-            if (id) {
-                return id;
-            }
-        }
-        
-        return null;
-    };
+  // Data hooks
+  const { hotelData, fetchOwnerHotel } = useHotelOwner();
+  const { amenities, getAmenities } = useAmenity();
+  const { getByHotel, addAmenity, removeAmenity } = useHotelAmenity();
 
-    const loadAvailableAmenities = async () => {
-        try {
-            const response = await getAvailableAmenities();
-            setAvailableAmenities(response.data || response || []);
-        } catch (error) {
-            console.error('Error loading amenities:', error);
-            setAvailableAmenities([]);
-        }
-    };
+  // UI state
+  const [selectedHotelId, setSelectedHotelId] = useState(''); // chỉ lưu ID cho ổn định
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [loadingAmenities, setLoadingAmenities] = useState(false);
 
-    // Toggle amenity selection
-    const toggleAmenity = (amenityId) => {
-        setSelectedAmenities(prev => {
-            if (prev.includes(amenityId)) {
-                return prev.filter(id => id !== amenityId);
-            } else {
-                return [...prev, amenityId];
-            }
-        });
-    };
+  // ids tiện ích hiện tại + snapshot khi vào edit
+  const [selectedAmenities, setSelectedAmenities] = useState([]);
+  const [originalAmenities, setOriginalAmenities] = useState([]);
 
-    // Save amenities
-    const handleSave = async () => {
-        const hotelId = getHotelId();
-        
-        if (!hotelId) {
-            alert('Không tìm thấy thông tin khách sạn');
-            return;
-        }
+  // chống race khi đổi KS nhanh
+  const requestIdRef = useRef(0);
 
-        try {
-            setSaveLoading(true);
-            await updateHotelAmenities(hotelId, selectedAmenities);
-            
-            // Refresh hotel data
-            await fetchOwnerHotel();
-            
-            setIsEditing(false);
-            alert('Cập nhật tiện nghi thành công!');
-        } catch (error) {
-            console.error('Save failed:', error);
-            alert('Cập nhật thất bại: ' + (error.message || 'Lỗi không xác định'));
-        } finally {
-            setSaveLoading(false);
-        }
-    };
+  /* ---------- init ---------- */
+  useEffect(() => {
+    fetchOwnerHotel();
+    getAmenities({ page: 1, limit: 200, sortBy: 'created_at', sortOrder: 'desc' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    // Cancel editing
-    const handleCancel = () => {
-        // Reset về trạng thái ban đầu
-        if (selectedHotel && selectedHotel.amenities) {
-            setSelectedAmenities(selectedHotel.amenities.map(amenity => 
-                typeof amenity === 'object' ? amenity.id : amenity
-            ));
-        }
-        setIsEditing(false);
-    };
+  /* ---------- chuẩn hoá danh sách KS ---------- */
+  const hotels = useMemo(() => {
+    if (Array.isArray(hotelData?.data)) return hotelData.data;
+    if (Array.isArray(hotelData)) return hotelData;
+    return hotelData ? [hotelData] : [];
+  }, [hotelData]);
 
-    // Filter amenities based on search
-    const filteredAmenities = availableAmenities.filter(amenity =>
-        amenity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        amenity.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  const selectedHotel = useMemo(
+    () => hotels.find(h => hotelIdOf(h) === selectedHotelId) || null,
+    [hotels, selectedHotelId]
+  );
+
+  /* ---------- lấy tiện ích theo KS (ổn định theo ID) ---------- */
+  useEffect(() => {
+    if (!selectedHotelId) return;
+
+    const myReq = ++requestIdRef.current;
+    setLoadingAmenities(true);
+
+    (async () => {
+      const res = await getByHotel(selectedHotelId);
+      dlog('[Amenity] getByHotel RAW =>', res);
+
+      const arr = (() => {
+        if (Array.isArray(res)) return res;
+        if (Array.isArray(res?.data?.amenities)) return res.data.amenities;
+        if (Array.isArray(res?.data?.items)) return res.data.items;
+        if (Array.isArray(res?.data?.data)) return res.data.data;
+        if (Array.isArray(res?.data)) return res.data;
+        if (Array.isArray(res?.items)) return res.items;
+        return [];
+      })();
+
+      dlog('[Amenity] normalized len =', arr.length);
+      if (arr.length) dlog('[Amenity] sample row =', arr[0]);
+
+      const ids = arr.map(pickAmenityId).filter(Boolean);
+      dlog('[Amenity] amenity ids =>', ids);
+
+      // chỉ update nếu là request mới nhất
+      if (myReq === requestIdRef.current) {
+        setSelectedAmenities(ids);
+        setOriginalAmenities(ids);
+        setLoadingAmenities(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedHotelId]); // KHÔNG để getByHotel vào deps để tránh tái chạy vô hạn
+
+  /* ---------- filter list khi chỉnh sửa ---------- */
+  const filteredAmenities = useMemo(() => {
+    const list = Array.isArray(amenities) ? amenities : (Array.isArray(amenities?.data) ? amenities.data : []);
+    const s = (searchTerm || '').toLowerCase();
+    return list.filter(a =>
+      (a.name || '').toLowerCase().includes(s) ||
+      (a.description || '').toLowerCase().includes(s)
     );
+  }, [amenities, searchTerm]);
 
-    // Get selected amenities details
-    const getSelectedAmenitiesDetails = () => {
-        if (!selectedHotel?.amenities) return [];
-        
-        return selectedHotel.amenities.map(amenity => {
-            if (typeof amenity === 'object') {
-                return amenity;
-            }
-            // Nếu chỉ có ID, tìm trong availableAmenities
-            return availableAmenities.find(a => a.id === amenity) || { id: amenity, name: amenity };
-        });
-    };
+  const toggleAmenity = (amenityId) => {
+    if (!amenityId) return;
+    setSelectedAmenities(prev =>
+      prev.includes(amenityId) ? prev.filter(id => id !== amenityId) : [...prev, amenityId]
+    );
+  };
 
-    if (loading && !hotelData) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Đang tải thông tin khách sạn...</p>
-                </div>
-            </div>
-        );
+  /* ---------- lưu thay đổi ---------- */
+  const handleSave = async () => {
+    if (!selectedHotelId) return alert('Vui lòng chọn khách sạn');
+    try {
+      setSaveLoading(true);
+
+      const toAdd = selectedAmenities.filter(id => !originalAmenities.includes(id));
+      const toRemove = originalAmenities.filter(id => !selectedAmenities.includes(id));
+      dlog('[Amenity] +add:', toAdd, ' -remove:', toRemove);
+
+      for (const id of toAdd) await addAmenity(selectedHotelId, id);
+      for (const id of toRemove) await removeAmenity(selectedHotelId, id);
+
+      // refetch để đồng bộ (giữ UI ổn định; không clear tạm thời)
+      const res = await getByHotel(selectedHotelId);
+      const arr = Array.isArray(res) ? res
+        : Array.isArray(res?.data?.amenities) ? res.data.amenities
+        : Array.isArray(res?.data?.items) ? res.data.items
+        : Array.isArray(res?.data?.data) ? res.data.data
+        : Array.isArray(res?.data) ? res.data
+        : Array.isArray(res?.items) ? res.items
+        : [];
+      const ids = arr.map(pickAmenityId).filter(Boolean);
+
+      setSelectedAmenities(ids);
+      setOriginalAmenities(ids);
+      setIsEditing(false);
+      alert('Cập nhật tiện nghi thành công!');
+    } catch (e) {
+      console.error(e);
+      alert('Cập nhật thất bại: ' + (e?.message || 'Lỗi không xác định'));
+    } finally {
+      setSaveLoading(false);
     }
+  };
 
-    // Handle both array and single object response
-    const hotels = Array.isArray(hotelData) ? hotelData : (hotelData ? [hotelData] : []);
+  /* ---------- render danh sách tiện ích hiện tại ---------- */
+  const selectedAmenitiesDetails = useMemo(() => {
+    if (!selectedAmenities?.length) return [];
+    const master = Array.isArray(amenities) ? amenities : (Array.isArray(amenities?.data) ? amenities.data : []);
+    const fromMaster = selectedAmenities
+      .map(id => master.find(m => getAmenityId(m) === id))
+      .filter(Boolean);
+    if (fromMaster.length) return fromMaster;
 
-    if (!hotelData || hotels.length === 0) {
-        return (
-            <div className="bg-white rounded-lg shadow p-6">
-                <div className="text-center py-12">
-                    <Building2 size={48} className="mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        Chưa có khách sạn
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                        Bạn cần tạo thông tin khách sạn trước khi quản lý tiện nghi
-                    </p>
-                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                        Tạo khách sạn
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    // fallback nhỏ nếu master chưa load xong
+    return selectedAmenities.map((id) => ({ id, key: 'default', name: `Amenity ${String(id).slice(0,6)}` }));
+  }, [selectedAmenities, amenities]);
 
-    return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
-                        <Shield size={24} className="text-blue-600 mr-3" />
-                        <h1 className="text-2xl font-bold text-gray-900">Tiện nghi khách sạn</h1>
-                    </div>
-                    
-                    {/* Hotel status */}
-                    {selectedHotel && (
-                        <div className="flex items-center space-x-4">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                selectedHotel.status === 'approved' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : selectedHotel.status === 'pending'
-                                    ? 'bg-yellow-100 text-yellow-800'
-                                    : 'bg-red-100 text-red-800'
-                            }`}>
-                                {selectedHotel.status === 'approved' && '✅ Đã duyệt'}
-                                {selectedHotel.status === 'pending' && '⏳ Chờ duyệt'}
-                                {selectedHotel.status === 'rejected' && '❌ Từ chối'}
-                            </span>
-                        </div>
-                    )}
-                </div>
-
-                {/* Hotel Selection */}
-                {hotels.length > 1 && (
-                    <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Chọn khách sạn:
-                        </label>
-                        <div className="relative">
-                            <select
-                                value={selectedHotel?.hotelId || selectedHotel?.hotel_id || selectedHotel?.id || selectedHotel?._id || ''}
-                                onChange={(e) => {
-                                    const hotel = hotels.find(h => 
-                                        (h.hotelId || h.hotel_id || h.id || h._id) === e.target.value
-                                    );
-                                    setSelectedHotel(hotel);
-                                    // Reset editing state when switching hotels
-                                    setIsEditing(false);
-                                }}
-                                className="w-full md:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white pr-8"
-                            >
-                                {hotels.map((hotel) => {
-                                    const hotelId = hotel.hotelId || hotel.hotel_id || hotel.id || hotel._id;
-                                    return (
-                                        <option key={hotelId} value={hotelId}>
-                                            {hotel.name} - {hotel.address}
-                                        </option>
-                                    );
-                                })}
-                            </select>
-                            <ChevronDown size={16} className="absolute right-2 top-3 text-gray-400 pointer-events-none" />
-                        </div>
-                    </div>
-                )}
-
-                {/* Selected Hotel info */}
-                {selectedHotel && (
-                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="font-semibold text-gray-900 mb-2">{selectedHotel.name}</h3>
-                                <p className="text-gray-600">{selectedHotel.address}, {selectedHotel.city}</p>
-                            </div>
-                            {hotels.length === 1 && (
-                                <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                                    Khách sạn duy nhất
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Action buttons - only show if hotel is selected */}
-                {selectedHotel && (
-                    <div className="flex justify-end">
-                        {!isEditing ? (
-                            <button
-                                onClick={() => setIsEditing(true)}
-                                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                            >
-                                Chỉnh sửa tiện nghi
-                            </button>
-                        ) : (
-                            <div className="flex space-x-2">
-                                <button
-                                    onClick={handleCancel}
-                                    className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
-                                >
-                                    <X size={16} className="mr-2 inline" />
-                                    Hủy
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={saveLoading}
-                                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                                >
-                                    {saveLoading ? (
-                                        <>
-                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block mr-2"></div>
-                                            Đang lưu...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Save size={16} className="mr-2 inline" />
-                                            Lưu thay đổi
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            {/* Current Amenities */}
-            <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    Tiện nghi hiện tại {selectedHotel ? `(${getSelectedAmenitiesDetails().length})` : ''}
-                </h2>
-                
-                {!selectedHotel ? (
-                    <div className="text-center py-8 text-gray-500">
-                        Vui lòng chọn khách sạn để xem tiện nghi
-                    </div>
-                ) : getSelectedAmenitiesDetails().length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {getSelectedAmenitiesDetails().map((amenity) => (
-                            <div 
-                                key={amenity.id} 
-                                className="flex items-center p-3 bg-green-50 border border-green-200 rounded-lg"
-                            >
-                                {amenityIcons[amenity.key] || amenityIcons.default}
-                                <div className="ml-3">
-                                    <div className="font-medium text-green-900">{amenity.name}</div>
-                                    {amenity.description && (
-                                        <div className="text-sm text-green-700">{amenity.description}</div>
-                                    )}
-                                </div>
-                                <CheckCircle size={16} className="ml-auto text-green-600" />
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center py-8">
-                        <Shield size={48} className="mx-auto text-gray-400 mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            Chưa có tiện nghi nào
-                        </h3>
-                        <p className="text-gray-600">
-                            Thêm tiện nghi để khách hàng biết về dịch vụ của {selectedHotel.name}
-                        </p>
-                    </div>
-                )}
-            </div>
-
-            {/* Edit Amenities */}
-            {isEditing && selectedHotel && (
-                <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-semibold text-gray-900">
-                            Chọn tiện nghi cho {selectedHotel.name}
-                        </h2>
-                        
-                        {/* Search */}
-                        <div className="relative">
-                            <input
-                                type="text"
-                                placeholder="Tìm tiện nghi..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-4 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Amenities grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {filteredAmenities.map((amenity) => {
-                            const isSelected = selectedAmenities.includes(amenity.id);
-                            
-                            return (
-                                <div
-                                    key={amenity.id}
-                                    onClick={() => toggleAmenity(amenity.id)}
-                                    className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all ${
-                                        isSelected
-                                            ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500'
-                                            : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    {amenityIcons[amenity.key] || amenityIcons.default}
-                                    <div className="ml-3 flex-1">
-                                        <div className={`font-medium ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
-                                            {amenity.name}
-                                        </div>
-                                        {amenity.description && (
-                                            <div className={`text-sm ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
-                                                {amenity.description}
-                                            </div>
-                                        )}
-                                    </div>
-                                    
-                                    {/* Checkbox */}
-                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                                        isSelected 
-                                            ? 'bg-blue-600 border-blue-600' 
-                                            : 'border-gray-300'
-                                    }`}>
-                                        {isSelected && (
-                                            <CheckCircle size={14} className="text-white" />
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {filteredAmenities.length === 0 && (
-                        <div className="text-center py-8">
-                            <p className="text-gray-500">
-                                {searchTerm ? 'Không tìm thấy tiện nghi phù hợp' : 'Chưa có tiện nghi nào'}
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Selected count */}
-                    <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                        <p className="text-blue-800">
-                            Đã chọn: <strong>{selectedAmenities.length}</strong> tiện nghi cho {selectedHotel.name}
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {/* Error Display */}
-            {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-center">
-                        <AlertCircle size={20} className="text-red-600 mr-2" />
-                        <span className="text-red-800">{error}</span>
-                        <button
-                            onClick={clearError}
-                            className="ml-auto text-red-600 hover:text-red-800"
-                        >
-                            <X size={16} />
-                        </button>
-                    </div>
-                </div>
-            )}
+  /* ================= UI ================= */
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <Shield size={24} className="text-blue-600 mr-3" />
+            <h1 className="text-2xl font-bold text-gray-900">Tiện nghi khách sạn</h1>
+          </div>
         </div>
-    );
-};
 
-export default HotelAmenities;
+        {/* Chọn khách sạn */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Chọn khách sạn:</label>
+          <div className="relative">
+            <select
+              value={selectedHotelId}
+              onChange={(e) => {
+                const id = e.target.value;
+                dlog('[Amenity] select hotel ->', id);
+                setSelectedHotelId(id);
+                setIsEditing(false); // đóng editing khi đổi KS
+              }}
+              className="w-full md:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white pr-8"
+            >
+              <option value="">— Vui lòng chọn khách sạn —</option>
+              {hotels.map((h) => {
+                const id = hotelIdOf(h);
+                return (
+                  <option key={id} value={id}>
+                    {h.name} - {h.address}
+                  </option>
+                );
+              })}
+            </select>
+            <ChevronDown size={16} className="absolute right-2 top-3 text-gray-400 pointer-events-none" />
+          </div>
+        </div>
+
+        {/* Thông tin KS */}
+        {selectedHotel && (
+          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <h3 className="font-semibold text-gray-900 mb-1">{selectedHotel.name}</h3>
+            <p className="text-gray-600">
+              {selectedHotel.address}{selectedHotel.city ? `, ${selectedHotel.city}` : ''}
+            </p>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-2">
+          {!isEditing ? (
+            <button
+              onClick={() => { setOriginalAmenities([...selectedAmenities]); setIsEditing(true); }}
+              disabled={!selectedHotelId}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                selectedHotelId
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+              }`}
+            >
+              Chỉnh sửa tiện nghi
+            </button>
+          ) : (
+            <div className="flex space-x-2">
+              <button
+                onClick={() => { setSelectedAmenities(originalAmenities); setIsEditing(false); }}
+                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                <X size={16} className="mr-2 inline" />
+                Hủy
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saveLoading || !selectedHotelId}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {saveLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block mr-2"></div>
+                    Đang lưu...
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} className="mr-2 inline" />
+                    Lưu thay đổi
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tiện nghi hiện tại */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          Tiện nghi hiện tại {selectedHotelId ? `(${selectedAmenitiesDetails.length})` : ''}
+        </h2>
+
+        {!selectedHotelId ? (
+          <div className="text-center py-8 text-gray-500">Vui lòng chọn khách sạn để xem tiện nghi</div>
+        ) : loadingAmenities ? (
+          <div className="text-center py-8 text-gray-500">Đang tải tiện nghi…</div>
+        ) : selectedAmenitiesDetails.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {selectedAmenitiesDetails.map((amenity, idx) => {
+              const id = getAmenityId(amenity) ?? `${amenity.name || 'a'}-${idx}`;
+              return (
+                <div key={id} className="flex items-center p-3 bg-green-50 border border-green-200 rounded-lg">
+                  {(amenityIcons[amenity.key] || amenityIcons.default)}
+                  <div className="ml-3">
+                    <div className="font-medium text-green-900">{amenity.name}</div>
+                    {amenity.description && <div className="text-sm text-green-700">{amenity.description}</div>}
+                  </div>
+                  <CheckCircle size={16} className="ml-auto text-green-600" />
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <Shield size={48} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900">Chưa có tiện nghi nào</h3>
+            <p className="text-gray-600">
+              Thêm tiện nghi để khách hàng biết về dịch vụ của {selectedHotel?.name}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Khối chỉnh sửa */}
+      {isEditing && selectedHotelId && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Chọn tiện nghi cho {selectedHotel?.name}
+            </h2>
+            <input
+              type="text"
+              placeholder="Tìm tiện nghi..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-4 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {filteredAmenities.map((amenity, idx) => {
+              const aid = getAmenityId(amenity);
+              const isSelected = aid ? selectedAmenities.includes(aid) : false;
+              return (
+                <div
+                  key={aid ?? (amenity.name || 'amenity') + '-' + idx}
+                  onClick={() => aid && toggleAmenity(aid)}
+                  className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all ${
+                    isSelected
+                      ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500'
+                      : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {(amenityIcons[amenity.key] || amenityIcons.default)}
+                  <div className="ml-3 flex-1">
+                    <div className={`font-medium ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
+                      {amenity.name}
+                    </div>
+                    {amenity.description && (
+                      <div className={`text-sm ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
+                        {amenity.description}
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                      isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                    }`}
+                  >
+                    {isSelected && <CheckCircle size={14} className="text-white" />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <p className="text-blue-800">
+              Đã chọn: <strong>{selectedAmenities.length}</strong> tiện ích cho {selectedHotel?.name}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
