@@ -11,6 +11,7 @@ import HotelAmenities from '../pages/hotel_owner/hotel_management/HotelAmenities
 import StaffList from '../pages/hotel_owner/staff/StaffList';
 import AddStaff from '../pages/hotel_owner/staff/AddStaff';
 
+
 const HotelOwnerRoutes = () => {
     const { isAuthenticated, user } = useAuth();
 
@@ -32,7 +33,8 @@ const HotelOwnerRoutes = () => {
                 <Route path="hotel" element={<Navigate to="/hotel-owner/hotel/info" replace />} />
                 <Route path="hotel/info" element={<HotelInfo />} />
                 <Route path="hotel/images" element={<HotelImages />} />
-                <Route path="hotel/amenities" element={<HotelAmenities />} />
+               <Route path="hotel/amenities" element={<HotelAmenities />} />
+
                 <Route path="hotel/settings" element={<div>Cài đặt chung</div>} />
                 
                 {/* Staff management routes */}

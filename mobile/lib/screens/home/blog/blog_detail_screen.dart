@@ -251,6 +251,7 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(blog?.title ?? 'Blog Detail'),
         backgroundColor: Colors.white,

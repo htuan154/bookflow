@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:client_khachhang/screens/sign_up_form/sign_up_form.dart';
 import 'package:client_khachhang/services/auth_service.dart';
 import 'package:client_khachhang/services/token_service.dart';
+import 'package:client_khachhang/services/user_service.dart';
 import 'package:client_khachhang/models/navbar.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -302,15 +303,15 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Validate email format
-    if (!RegExp(
-      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-    ).hasMatch(emailController.text)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid email address')),
-      );
-      return;
-    }
+    // // Validate email format
+    // if (!RegExp(
+    //   r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+    // ).hasMatch(emailController.text)) {
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     const SnackBar(content: Text('Please enter a valid email address')),
+    //   );
+    //   return;
+    // }
 
     setState(() {
       isLoading = true;
@@ -331,6 +332,13 @@ class _LoginScreenState extends State<LoginScreen> {
         if (token != null) {
           await TokenService.saveToken(token);
           print('Token saved successfully');
+        }
+
+        // Lưu thông tin user vào storage
+        final user = response['user'];
+        if (user != null) {
+          await UserService.saveUser(user);
+          print('User data saved successfully');
         }
 
         ScaffoldMessenger.of(

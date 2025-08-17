@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:client_khachhang/screens/login_form/login_form.dart';
+import '../../services/auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
   @override
@@ -8,6 +9,7 @@ class SignUpScreen extends StatefulWidget {
 
 class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController emailController = TextEditingController();
+  final TextEditingController fullNameController = TextEditingController();
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isPasswordVisible = false;
@@ -93,7 +95,39 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Username field (changed from second Email)
+                    // Full Name field
+                    const Text(
+                      'Full Name',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    TextField(
+                      controller: fullNameController,
+                      decoration: InputDecoration(
+                        hintText: 'Your full name',
+                        hintStyle: const TextStyle(color: Colors.grey),
+                        filled: true,
+                        fillColor: const Color(0xFFF5F5F5),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Username field
                     const Text(
                       'Username',
                       style: TextStyle(
@@ -214,8 +248,54 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     // Sign Up button
                     ElevatedButton(
                       onPressed: isAgreeTerms
-                          ? () {
-                              // Handle sign up
+                          ? () async {
+                              final email = emailController.text.trim();
+                              final fullName = fullNameController.text.trim();
+                              final username = usernameController.text.trim();
+                              final password = passwordController.text;
+                              if (email.isEmpty ||
+                                  fullName.isEmpty ||
+                                  username.isEmpty ||
+                                  password.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Vui lòng nhập đầy đủ thông tin!',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+                              final result = await AuthService().register(
+                                username: username,
+                                email: email,
+                                password: password,
+                                fullName: fullName,
+                              );
+                              if (result['success'] == true) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      result['message'] ??
+                                          'Đăng ký thành công!',
+                                    ),
+                                  ),
+                                );
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => LoginScreen(),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      result['message'] ?? 'Đăng ký thất bại!',
+                                    ),
+                                  ),
+                                );
+                              }
                             }
                           : null,
                       style: ElevatedButton.styleFrom(
