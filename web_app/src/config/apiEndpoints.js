@@ -207,6 +207,7 @@ export const API_ENDPOINTS = {
     UPDATE: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
     DELETE: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
 
+
     GET_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,
     ADD_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,
     GET_BY_ID: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
@@ -241,7 +242,7 @@ export const API_ENDPOINTS = {
         GET_HOTEL_STATISTICS: `${API_BASE_URL}/hotels/admin/statistics`,
         GET_DASHBOARD_STATS: `${API_BASE_URL}/admin/dashboard/stats`,
         
-        // Hotel Details for Admin
+        // Hotel Details for AdminF
         GET_HOTEL_DETAILS_ADMIN: (hotelId) => `${API_BASE_URL}/admin/hotels/${hotelId}/details`,
         
         // Bulk Operations
@@ -260,35 +261,40 @@ export const API_ENDPOINTS = {
         SUSPEND_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/users/${ownerId}`, // Có thể patch status
         ACTIVATE_HOTEL_OWNER: (ownerId) => `${API_BASE_URL}/users/${ownerId}`, // Có thể patch status
 
-        // Blog Management for Admin
-        GET_ALL_BLOGS: `${API_BASE_URL}/blogs/admin`,
+        // Blog Management for Admin  
+        GET_ALL_BLOGS: (params = '') => `${API_BASE_URL}/blogs/admin/blogs${params ? `?${params}` : ''}`,//comment
         GET_BLOGS_BY_STATUS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
         GET_REJECTED_BLOGS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
+        UPDATE_STATUS_ADMIN: (blogId) => `${API_BASE_URL}/blogs/admin/${blogId}/status`,
         
         // Blog Bulk Operations
         BULK_APPROVE_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/approve`,
         BULK_REJECT_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/reject`,
         BULK_DELETE_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/delete`,
         
-        // Blog Statistics for Admin
+        // Blog Statistics for Admin - ✅ SỬA: khớp với route
         GET_BLOG_STATISTICS: `${API_BASE_URL}/blogs/admin/statistics`,
-        GET_BLOG_DETAILS_ADMIN: (blogId) => `${API_BASE_URL}/admin/blogs/${blogId}/details`,
+        GET_BLOG_DETAILS_ADMIN: (blogId) => `${API_BASE_URL}/blogs/admin/${blogId}/details`,
     },
 
     // --- Blog/Travel Article Endpoints ---
     BLOGS: {
         // Public endpoints
-    GET_ALL: `${API_BASE_URL}/blogs`,
-    GET_PUBLISHED: `${API_BASE_URL}/blogs/published`,
-    GET_BY_ID: (blogId) => `${API_BASE_URL}/blogs/${blogId}`,
-    // Sửa lại cho đúng route backend: GET_BY_SLUG
-    GET_BY_SLUG: (slug) => `${API_BASE_URL}/blogs/${slug}`,
-    GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/blogs/hotel/${hotelId}`,
-    SEARCH: `${API_BASE_URL}/blogs/search`,
-    GET_BY_TAG: (tag) => `${API_BASE_URL}/blogs/tag/${tag}`,
-    GET_POPULAR: `${API_BASE_URL}/blogs/popular`,
-    GET_RECENT: `${API_BASE_URL}/blogs/recent`,
 
+        // Lấy thống kê bình luận của các blog đã xuất bản
+        GET_PUBLISHED_STATS: `${API_BASE_URL}/blogs/admin/published/stats`,
+        GET_ALL: `${API_BASE_URL}/blogs`,//trang bài viết 
+        GET_PUBLISHED: `${API_BASE_URL}/blogs`, // ✅ SỬA: từ /blogs/published thành /blogs
+        // Dùng GET_BY_ID để lấy chi tiết blog theo ID (dùng cho trang chi tiết)
+        GET_BY_ID: (blogId) => `${API_BASE_URL}/blogs/id/${blogId}`,
+        GET_BY_SLUG: (slug) => `${API_BASE_URL}/blogs/${slug}`, // ✅ SỬA: bỏ /slug/
+
+        GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/blogs/hotel/${hotelId}`,
+        SEARCH: `${API_BASE_URL}/blogs/search`,
+        GET_BY_TAG: (tag) => `${API_BASE_URL}/blogs/tag/${tag}`,
+        GET_POPULAR: `${API_BASE_URL}/blogs/popular`,
+        GET_RECENT: `${API_BASE_URL}/blogs/recent`,
+    
     // Admin endpoints
     CREATE: `${API_BASE_URL}/blogs`,
     UPDATE: (blogId) => `${API_BASE_URL}/blogs/${blogId}`,
@@ -361,6 +367,79 @@ export const API_ENDPOINTS = {
         UPDATE: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
         DELETE: (staffId) => `${API_BASE_URL}/staff/${staffId}`, // Soft delete (remove from hotel)
         DELETE_PERMANENT: (staffId) => `${API_BASE_URL}/staff/${staffId}/permanent`, // Hard delete (admin only)
+    },
+
+    // Common endpoints
+    COMMON: {
+        GET_AMENITIES: `${API_BASE_URL}/amenities`,
+        SEARCH_HOTELS: `${API_BASE_URL}/hotels/search`,
+        GET_CITIES: `${API_BASE_URL}/hotels/cities`,
+    },
+
+    // --- Hotel Owner Endpoints ---
+    HOTEL_OWNER: {
+        // Thêm các endpoints cho hotel owner
+        GET_MY_HOTELS: `${API_BASE_URL}/hotels/my-hotels`,
+        GET_HOTEL_DETAIL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
+        CREATE_HOTEL: `${API_BASE_URL}/hotels`,
+        UPDATE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
+        DELETE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
+        
+        // Image management
+        UPLOAD_IMAGES: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/images`,
+        DELETE_IMAGE: (hotelId, imageId) => `${API_BASE_URL}/hotels/${hotelId}/images/${imageId}`,
+        SET_THUMBNAIL: (hotelId, imageId) => `${API_BASE_URL}/hotels/${hotelId}/images/${imageId}/set-thumbnail`,
+        
+        // Status & amenities
+        UPDATE_STATUS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/status`,
+        UPDATE_AMENITIES: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/amenities`,
+        SUBMIT_FOR_APPROVAL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/submit`,
+        GET_STATISTICS: (hotelId = '') => `${API_BASE_URL}/hotels${hotelId ? `/${hotelId}` : ''}/statistics`,
+    },
+
+    // --- Staff Management Endpoints (Hotel Owner) ---
+    STAFF: {
+        GET_HOTEL_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff`,
+        CREATE: `${API_BASE_URL}/staff`,
+        UPDATE: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
+        DELETE: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
+        UPDATE_STATUS: (staffId) => `${API_BASE_URL}/staff/${staffId}/status`,
+        GET_BY_ID: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
+    },
+
+    // --- Blog Comment Endpoints ---
+    BLOG_COMMENTS: {
+        // Lấy danh sách bình luận của 1 blog (public)
+        GET_BY_BLOG: (blogId, params = '') => `${API_BASE_URL}/blogs/${blogId}/comments${params ? `?${params}` : ''}`,
+        // Lấy danh sách bình luận kèm tên người bình luận
+        GET_WITH_USER: (blogId, params = '') => `${API_BASE_URL}/blogs/${blogId}/comments-with-user${params ? `?${params}` : ''}`,
+       
+        // Tạo bình luận mới cho blog (authenticated)
+        CREATE: (blogId) => `${API_BASE_URL}/blogs/${blogId}/comments`,
+
+        // Trả lời bình luận (authenticated, admin & hotel owner)
+        //REPLY: (blogId, commentId) => `${API_BASE_URL}/blogs/${blogId}/comments/${commentId}/reply`,
+
+        // Xoá bình luận (authenticated)
+        DELETE: (commentId) => `${API_BASE_URL}/comments/${commentId}`,
+
+        // Cập nhật trạng thái bình luận (admin)
+        UPDATE_STATUS: (commentId) => `${API_BASE_URL}/comments/${commentId}/status`,
+    },
+
+    // --- Blog Admin Endpoints - ✅ SỬA: đổi tên và khớp với route
+    BLOG_ADMIN: {
+        // Danh sách blog với filter/search - khớp với /blogs/admin/blogs
+        GET_BLOGS: (params = '') => `${API_BASE_URL}/blogs/admin/blogs${params ? `?${params}` : ''}`,//comment
+        
+        // Thống kê blog - khớp với /blogs/admin/blogs/stats  
+        GET_STATS: `${API_BASE_URL}/blogs/admin/blogs/stats`,
+        
+        // Thống kê blog tổng quan - khớp với /blogs/admin/statistics
+        GET_STATISTICS: `${API_BASE_URL}/blogs/admin/statistics`,
+        
+        // Trả lời bình luận - sử dụng route có sẵn của blogComment
+        REPLY_COMMENT: (blogId, commentId) => `${API_BASE_URL}/blogs/${blogId}/comments/${commentId}/reply`,
     },
 
     // Common endpoints

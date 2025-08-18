@@ -17,9 +17,10 @@ export const useContractApproval = () => {
             setLoading(true);
             setError(null);
 
+            // Đảm bảo truyền status 'active' khi duyệt
             const result = await contractServices.approveContract(contractId, {
-                notes: approvalData.notes || '',
-                approvedBy: approvalData.approvedBy,
+                ...approvalData,
+                status: 'active',
             });
 
             return result;

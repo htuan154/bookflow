@@ -159,8 +159,8 @@ export const UserProvider = ({ children }) => {
                 page: params.page || state.pagination.page,
                 limit: params.limit || state.pagination.limit,
                 search: params.search || state.filters.search,
-                role: params.role || state.filters.role,
-                status: params.status || state.filters.status,
+                role: 'user', // luôn chỉ lấy user
+                // Xóa status nếu không cần lọc trạng thái
                 ...params
             };
 

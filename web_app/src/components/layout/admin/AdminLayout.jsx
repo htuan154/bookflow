@@ -20,7 +20,17 @@ const AdminLayout = () => {
     const navLinks = [
         { name: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/admin/dashboard' },
         { name: 'Quản lý người dùng', icon: <UserCog size={20} />, path: '/admin/users' },
-        { name: 'Bài viết du lịch', icon: <FileText size={20} />, path: '/admin/articles' },
+        { 
+            name: 'Bài viết du lịch', 
+            icon: <FileText size={20} />, 
+            path: '/admin/blog-management',
+            subItems: [
+                { name: 'Tất cả bài viết', path: '/admin/blog-management' },
+                { name: 'Tạo bài viết', path: '/admin/blog-management/create' },
+                { name: 'Bản nháp', path: '/admin/blog-management?status=draft' },
+                { name: 'Chờ duyệt', path: '/admin/blog-management?status=pending' }
+            ]
+        },
         { name: 'Quản lý đối tác', icon: <Briefcase size={20} />, path: '/admin/partners' },
         { name: 'Quản lý hợp đồng', icon: <FileSignature size={20} />, path: '/admin/contracts'},
         { name: 'Quản lý khách hàng', icon: <Users size={20} />, path: '/admin/customers' },

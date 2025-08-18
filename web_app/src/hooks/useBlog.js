@@ -125,7 +125,8 @@ const useBlog = () => {
             setLocalLoading(true);
             clearLocalError();
             
-            await blogContext.fetchBlogById(blogId);
+            // PHẢI return dữ liệu blog từ context
+            return await blogContext.getBlogById(blogId);
         } catch (error) {
             setError(error.message);
             throw error;

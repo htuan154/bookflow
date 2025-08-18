@@ -1,7 +1,7 @@
 // src/api/v1/controllers/blogComment.controller.js
-
 const BlogCommentService = require('../services/blogComment.service');
 const { successResponse } = require('../../../utils/response');
+
 
 class BlogCommentController {
     /**
@@ -49,6 +49,84 @@ class BlogCommentController {
             next(error);
         }
     }
+
+   /**
+ * Trả lời bình luận (Admin & Hotel Owner)
+ * POST /api/v1/blogs/:blogId/comments/:commentId/reply
+ */
+async replyToComment(req, res) {
+  try {
+    const { blogId, commentId } = req.params; 
+    const { content } = req.body;
+    const currentUser = req.user; // từ authenticate middleware
+
+    const reply = await BlogCommentService.replyToComment(
+      blogId,
+      commentId,
+      content,
+      currentUser
+    );
+
+    return res.status(201).json({
+      status: "success",
+      message: "Reply created successfully",
+      data: reply,
+    });
+  } catch (err) {
+    console.error("💥 Error in replyToComment:", err);
+
+    return res.status(500).json({
+      status: "error",
+      message: err.message || "Internal server error",
+    });
+  }
+}
+
+
+
+
+    //thêm ngày 14
+/**
+ * Lấy danh sách blog đã publish kèm like_count và comment_count thực tế
+ * GET /api/v1/blogs/published/stats
+ */
+    async getPublishedBlogsWithStats(req, res, next) {
+        try {
+            const blogs = await BlogCommentService.getPublishedBlogsWithStats();
+            successResponse(res, blogs);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+ * Lấy tất cả bình luận kèm tên người bình luận
+ * GET /api/v1/blogs/:blogId/comments-with-user
+ */
+    async getCommentsWithUserByBlog(req, res, next) {
+        try {
+            const { blogId } = req.params;
+            const comments = await BlogCommentService.getCommentsWithUser(blogId);
+            successResponse(res, comments);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+   //Cập nhật trạng thái bình luận nay16/8
+   async updateCommentStatus(req, res, next) {
+       try {
+           const { commentId } = req.params;
+           const { status } = req.body;
+           // ✅ Đúng
+           const updated = await BlogCommentService.updateCommentStatus(commentId, status, req.user);
+             console.log("Current user:", req.user);
+
+           successResponse(res, updated, 'Cập nhật trạng thái bình luận thành công');
+       } catch (error) {
+           next(error);
+       }
+   }
 }
 
 module.exports = new BlogCommentController();

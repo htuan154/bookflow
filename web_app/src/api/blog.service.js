@@ -1,5 +1,6 @@
 // src/api/blog.service.js
 import { API_ENDPOINTS } from '../config/apiEndpoints';
+import axiosClient from '../config/axiosClient';
 
 /**
  * Helper function to make API calls with authentication
@@ -9,26 +10,14 @@ import { API_ENDPOINTS } from '../config/apiEndpoints';
  */
 const makeApiCall = async (url, options = {}) => {
     try {
-        // Thử nhiều tên key khác nhau
+        // Bỏ bớt log spam, chỉ log khi cần
         let token = localStorage.getItem('accessToken') || 
                    localStorage.getItem('access_token') || 
                    localStorage.getItem('token') ||
                    localStorage.getItem('authToken') ||
                    localStorage.getItem('jwt');
-        
-        // Debug logging
-        console.log('🔍 Making API call to:', url);
-        console.log('🔑 Checking token keys:');
-        console.log('  - accessToken:', !!localStorage.getItem('accessToken'));
-        console.log('  - access_token:', !!localStorage.getItem('access_token'));
-        console.log('  - token:', !!localStorage.getItem('token'));
-        console.log('  - authToken:', !!localStorage.getItem('authToken'));
-        console.log('  - jwt:', !!localStorage.getItem('jwt'));
-        console.log('👤 Final token found:', !!token);
-        
         if (!token) {
             console.error('❌ No authentication token found in any key!');
-            console.log('Available localStorage keys:', Object.keys(localStorage));
             throw new Error('Bạn cần đăng nhập để truy cập tính năng này');
         }
 
@@ -44,8 +33,6 @@ const makeApiCall = async (url, options = {}) => {
                 ...options.headers,
             },
         });
-
-        console.log('📡 Response status:', response.status);
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
@@ -72,7 +59,12 @@ const makeApiCall = async (url, options = {}) => {
 
         return await response.json();
     } catch (error) {
-        console.error('💥 API call failed:', error);
+        // Chỉ log lỗi 1 lần, không spam
+        if (!window._apiErrorLogged) {
+            console.error('💥 API call failed:', error);
+            window._apiErrorLogged = true;
+            setTimeout(() => { window._apiErrorLogged = false; }, 5000); // reset sau 5s
+        }
         throw error;
     }
 };
@@ -80,6 +72,9 @@ const makeApiCall = async (url, options = {}) => {
 /**
  * Blog Service - Contains all blog-related API functions
  */
+let adminErrorCount = 0;
+const MAX_ADMIN_ERROR = 3;
+
 const blogService = {
     // ===============================
     // PUBLIC BLOG ENDPOINTS
@@ -131,7 +126,21 @@ const blogService = {
      * @returns {Promise<object>} - Blog data
      */
     getBlogById: async (blogId) => {
-        return await makeApiCall(API_ENDPOINTS.BLOGS.GET_BY_ID(blogId));
+        try {
+            console.log('🔍 Fetching blog with ID:', blogId);
+            console.log('📡 API URL:', API_ENDPOINTS.BLOGS.GET_BY_ID(blogId));
+            
+            const result = await makeApiCall(API_ENDPOINTS.BLOGS.GET_BY_ID(blogId));
+            return result; // result sẽ là { status: 'success', message: 'Success', data: { ...blog } }
+        } catch (error) {
+            console.error('❌ Error fetching blog:', error);
+            console.error('Blog ID that failed:', blogId);
+            
+            if (error.message.includes('404')) {
+                throw new Error(`Blog với ID ${blogId} không tồn tại hoặc đã bị xóa`);
+            }
+            throw error;
+        }
     },
 
     /**
@@ -307,7 +316,8 @@ const blogService = {
      * @returns {Promise<object>} - Updated blog data
      */
     updateBlogStatus: async (blogId, status) => {
-        return await makeApiCall(API_ENDPOINTS.BLOGS.UPDATE_STATUS(blogId), {
+        // Sử dụng endpoint cho admin
+        return await makeApiCall(API_ENDPOINTS.ADMIN.UPDATE_STATUS_ADMIN(blogId), {
             method: 'PATCH',
             body: JSON.stringify({ status }),
         });
@@ -393,12 +403,22 @@ const blogService = {
         
         if (params.page) queryParams.append('page', params.page);
         if (params.limit) queryParams.append('limit', params.limit);
-        if (params.search) queryParams.append('search', params.search);
+        if (params.keyword) queryParams.append('keyword', params.keyword); // SỬA search -> keyword
         if (params.sortBy) queryParams.append('sortBy', params.sortBy);
         if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
         const url = `${API_ENDPOINTS.ADMIN.GET_BLOGS_BY_STATUS(status)}${queryParams.toString() ? `?${queryParams}` : ''}`;
-        return await makeApiCall(url);
+        try {
+            const result = await makeApiCall(url);
+            adminErrorCount = 0; // reset nếu thành công
+            return result;
+        } catch (error) {
+            adminErrorCount++;
+            if (adminErrorCount >= MAX_ADMIN_ERROR) {
+                throw new Error('API lỗi liên tục, vui lòng thử lại sau!');
+            }
+            throw error;
+        }
     },
 
     // Thay thế các hàm riêng lẻ bằng hàm chung
@@ -430,6 +450,7 @@ const blogService = {
     getBlogDetailsAdmin: async (blogId) => {
         return await makeApiCall(API_ENDPOINTS.ADMIN.GET_BLOG_DETAILS_ADMIN(blogId));
     },
+    
 
     // ===============================
     // BULK OPERATIONS (ADMIN)
@@ -555,6 +576,27 @@ const blogService = {
     getBlogStatisticsAdmin: async () => {
         return await makeApiCall(API_ENDPOINTS.ADMIN.GET_BLOG_STATISTICS);
     },
+
+    /**
+     * Search blogs by title (with pagination, không dấu)
+     * @param {object} params - { keyword, page, limit }
+     * @returns {Promise<object>} - Search results
+     */
+    searchBlogsByTitle: async (params = {}) => {
+        const queryParams = new URLSearchParams();
+        if (params.keyword) queryParams.append('keyword', params.keyword);
+        if (params.page) queryParams.append('page', params.page);
+        if (params.limit) queryParams.append('limit', params.limit);
+
+        const url = `${API_ENDPOINTS.BLOGS.SEARCH}?${queryParams.toString()}`;
+        return await makeApiCall(url);
+    },
+
+    /**
+     * Get blogs (Sử dụng axios)
+     * @returns {Promise<object>} - Danh sách blogs
+     */
+    getBlogs: () => axiosClient.get('/api/v1/blogs'),
 };
 
 export default blogService;
