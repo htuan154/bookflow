@@ -54,29 +54,29 @@ export const API_ENDPOINTS = {
 
     // --- Room Type Endpoints ---
     ROOM_TYPES: {
-        GET_ALL: `${API_BASE_URL}/room-types`,
-        GET_PAGINATED: `${API_BASE_URL}/room-types/paginated`,
-        SEARCH: `${API_BASE_URL}/room-types/search`,
-        GET_STATS: `${API_BASE_URL}/room-types/stats`,
-        GET_AVAILABLE: `${API_BASE_URL}/room-types/available`,
-        GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/room-types/hotel/${hotelId}`,
-        GET_BY_ID: (id) => `${API_BASE_URL}/room-types/${id}`,
-        GET_ROOMS: (id) => `${API_BASE_URL}/room-types/${id}/rooms`,
-        CREATE: `${API_BASE_URL}/room-types`,
-        UPDATE: (id) => `${API_BASE_URL}/room-types/${id}`,
-        DELETE: (id) => `${API_BASE_URL}/room-types/${id}`,
-        BULK_CREATE: `${API_BASE_URL}/room-types/bulk`,
-        DUPLICATE: (id) => `${API_BASE_URL}/room-types/${id}/duplicate`,
-        GET_BOOKINGS: (id) => `${API_BASE_URL}/room-types/${id}/bookings`,
-        UPDATE_STATUS: (id) => `${API_BASE_URL}/room-types/${id}/status`,
+        GET_ALL: `${API_BASE_URL}/roomtypes`,
+        GET_PAGINATED: `${API_BASE_URL}/roomtypes/paginated`,
+        SEARCH: `${API_BASE_URL}/roomtypes/search`,
+        GET_STATS: `${API_BASE_URL}/roomtypes/stats`,
+        GET_AVAILABLE: `${API_BASE_URL}/roomtypes/available`,
+        GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/roomtypes/hotel/${hotelId}`,
+        GET_BY_ID: (id) => `${API_BASE_URL}/roomtypes/${id}`,
+        GET_ROOMS: (id) => `${API_BASE_URL}/roomtypes/${id}/rooms`,
+        CREATE: `${API_BASE_URL}/roomtypes`,
+        UPDATE: (id) => `${API_BASE_URL}/roomtypes/${id}`,
+        DELETE: (id) => `${API_BASE_URL}/roomtypes/${id}`,
+        BULK_CREATE: `${API_BASE_URL}/roomtypes/bulk`,
+        DUPLICATE: (id) => `${API_BASE_URL}/roomtypes/${id}/duplicate`,
+        GET_BOOKINGS: (id) => `${API_BASE_URL}/roomtypes/${id}/bookings`,
+        UPDATE_STATUS: (id) => `${API_BASE_URL}/roomtypes/${id}/status`,
     },
 
     // --- Room Type Image Endpoints ---
     ROOM_TYPE_IMAGES: {
-        GET_IMAGES: (roomTypeId) => `${API_BASE_URL}/room-types/${roomTypeId}/images`,
-        UPLOAD: (roomTypeId) => `${API_BASE_URL}/room-types/${roomTypeId}/images`,
-        DELETE: (roomTypeId, imageId) => `${API_BASE_URL}/room-types/${roomTypeId}/images/${imageId}`,
-        SET_THUMBNAIL: (roomTypeId, imageId) => `${API_BASE_URL}/room-types/${roomTypeId}/images/${imageId}/set-thumbnail`,
+        GET_IMAGES: (roomTypeId) => `${API_BASE_URL}/roomtypes/${roomTypeId}/images`,
+        UPLOAD: (roomTypeId) => `${API_BASE_URL}/roomtypes/${roomTypeId}/images`,
+        DELETE: (roomTypeId, imageId) => `${API_BASE_URL}/roomtypes/${roomTypeId}/images/${imageId}`,
+        SET_THUMBNAIL: (roomTypeId, imageId) => `${API_BASE_URL}/roomtypes/${roomTypeId}/images/${imageId}/set-thumbnail`,
     },
     // --- Review Endpoints ---
     REVIEWS: {
