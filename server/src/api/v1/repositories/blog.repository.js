@@ -40,12 +40,13 @@ const findBySlug = async (slug) => {
 };
 
 /**
- * Tìm một bài blog bằng ID.
+ * Tìm một bài blog bằng ID (dùng cho trang chi tiết).
  * @param {string} blogId - ID của bài blog.
  * @returns {Promise<Blog|null>}
  */
 const findById = async (blogId) => {
     const result = await pool.query('SELECT * FROM blogs WHERE blog_id = $1', [blogId]);
+    // Trả về đầy đủ trường, bao gồm view_count, like_count, comment_count,...
     return result.rows[0] ? new Blog(result.rows[0]) : null;
 };
 
@@ -208,6 +209,177 @@ const getBlogStatsByStatus = async () => {
         throw new Error(`Error fetching blog statistics: ${error.message}`);
     }
 };
+/**
+ * Xóa một bài blog theo ID.
+ * @param {string} blogId - ID của bài blog.
+ * @returns {Promise<boolean>} - Trả về true nếu xóa thành công, false nếu không tìm thấy blog.
+ */
+const deleteById = async (blogId) => {
+    const query = 'DELETE FROM blogs WHERE blog_id = $1 RETURNING *';
+    const result = await pool.query(query, [blogId]);
+    return result.rowCount > 0;
+};
+
+//Thêm hàm cập nhật trạng thái của blog
+/**
+ * Cập nhật trạng thái của một blog.
+ * @param {string} blogId - ID của blog.
+ * @param {string} newStatus - Trạng thái mới.
+ * @param {string|null} approvedBy - ID của người duyệt (nếu có).
+ * @returns {Promise<Blog|null>}
+ */
+const updateStatus = async (blogId, newStatus, approvedBy = null) => {
+    const validStatuses = ['draft', 'pending', 'published', 'archived', 'rejected'];
+
+    if (!validStatuses.includes(newStatus)) {
+        throw new Error(`Invalid status: ${newStatus}. Valid statuses are: ${validStatuses.join(', ')}`);
+    }
+
+    let query;
+    let values;
+
+    if (newStatus === 'published' && approvedBy) {
+        // Nếu là published và có người duyệt
+        query = `
+            UPDATE blogs
+            SET status = $1, approved_by = $2, approved_at = NOW()
+            WHERE blog_id = $3
+            RETURNING *;
+        `;
+        values = [newStatus, approvedBy, blogId];
+    } else {
+        // Các trường hợp khác
+        query = `
+            UPDATE blogs
+            SET status = $1
+            WHERE blog_id = $2
+            RETURNING *;
+        `;
+        values = [newStatus, blogId];
+    }
+
+    const result = await pool.query(query, values);
+    return result.rows[0] ? new Blog(result.rows[0]) : null;
+};
+
+//thêm hàm tìm kiếm theo tiêu đè có phân trang 
+/**
+ * Tìm kiếm blog theo tiêu đề (có phân trang, tùy chọn lọc theo trạng thái)
+ * @param {string} keyword - Từ khóa tiêu đề.
+ * @param {number} limit - Số lượng/trang.
+ * @param {number} offset - Vị trí bắt đầu.
+ * @param {string} [status] - Tùy chọn: 'published', 'pending', v.v...
+ * @returns {Promise<{blogs: Blog[], total: number}>}
+ */
+// src/api/v1/repositories/blog.repository.js
+// Hàm loại bỏ dấu tiếng Việt
+const removeVietnameseTones = (str) => {
+    if (!str) return '';
+    return str
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D');
+};
+const searchByTitleSimple = async (keyword, limit = 10, offset = 0, status) => {
+    const searchValue = `%${keyword}%`;
+
+    // Tạo điều kiện WHERE
+    let whereClause = `WHERE LOWER(title) LIKE LOWER($1)`;
+    const params = [searchValue];
+
+    if (status) {
+        whereClause = `WHERE status = $2 AND LOWER(title) LIKE LOWER($1)`;
+        params.push(status);
+    }
+
+    // Nếu có status thì limit/offset là param thứ 3 và 4, ép kiểu int
+    const limitParamIndex = params.length + 1;
+    const offsetParamIndex = params.length + 2;
+
+    const blogsQuery = `
+        SELECT * FROM blogs
+        ${whereClause}
+        ORDER BY created_at DESC
+        LIMIT $${limitParamIndex}::int OFFSET $${offsetParamIndex}::int
+    `;
+
+    const countQuery = `
+        SELECT COUNT(*) as total
+        FROM blogs
+        ${whereClause}
+    `;
+
+    const queryParams = [...params, parseInt(limit), parseInt(offset)];
+
+    const [blogsResult, countResult] = await Promise.all([
+        pool.query(blogsQuery, queryParams),
+        pool.query(countQuery, params)
+    ]);
+
+    let blogs = blogsResult.rows.map(row => new Blog(row));
+    let total = parseInt(countResult.rows[0].total);
+
+    // Tìm không dấu nếu không có kết quả
+    if (blogs.length === 0 && keyword) {
+        let allQuery = `SELECT * FROM blogs ORDER BY created_at DESC`;
+        const allResult = await pool.query(allQuery);
+
+        const keywordNoSign = removeVietnameseTones(keyword.toLowerCase());
+        blogs = allResult.rows
+            .filter(row => {
+                if (status && row.status !== status) return false;
+                return removeVietnameseTones(row.title?.toLowerCase() || '').includes(keywordNoSign);
+            })
+            .slice(offset, offset + limit)
+            .map(row => new Blog(row));
+
+        total = blogs.length;
+    }
+
+    return { blogs, total };
+};
+
+
+//thêm vào ngày 18
+// dành cho dashboard
+/**
+ * Lấy danh sách blog theo trạng thái kèm số lượt thích và số bình luận
+ * @param {string} status - Trạng thái blog ('published')
+ * @returns {Promise<Array>}
+ */
+    const findBlogsWithStatsByStatus = async (status = 'published') => {
+    const query = `
+        SELECT 
+        b.blog_id,
+        b.title,
+        b.excerpt,
+        b.author_id,
+        b.status,
+        b.tags,
+        b.created_at::date AS created_at,
+        b.like_count,
+        b.comment_count
+        FROM blogs b
+        WHERE b.status = $1
+        ORDER BY b.created_at DESC;
+    `;
+
+    const result = await pool.query(query, [status]);
+
+    return result.rows.map(row => ({
+        blogId: row.blog_id,
+        title: row.title,
+        excerpt: row.excerpt,
+        authorId: row.author_id,
+        status: row.status,
+        tags: row.tags,
+        createdAt: row.created_at,
+        likeCount: parseInt(row.like_count, 10) || 0,
+        commentCount: parseInt(row.comment_count, 10) || 0
+    }));
+};
+
 
 module.exports = {
     create,
@@ -220,4 +392,8 @@ module.exports = {
     incrementViewCount,
     updateLikeCount,
     updateCommentCount,
+    deleteById,
+    updateStatus, // Thêm function mới
+    searchByTitleSimple, // Thêm export hàm đơn giản này
+    findBlogsWithStatsByStatus
 };

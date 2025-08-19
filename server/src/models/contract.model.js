@@ -33,10 +33,22 @@ class Contract {
       userId: this.userId,
       hotelId: this.hotelId,
       contractNumber: this.contractNumber,
+      contractType: this.contractType,
       title: this.title,
+      description: this.description,
       startDate: this.startDate,
       endDate: this.endDate,
+      signedDate: this.signedDate,
+      contractValue: this.contractValue,
+      currency: this.currency,
+      paymentTerms: this.paymentTerms,
       status: this.status,
+      contractFileUrl: this.contractFileUrl,
+      termsAndConditions: this.termsAndConditions,
+      notes: this.notes,
+      createdBy: this.createdBy,
+      approvedBy: this.approvedBy,
+      createdAt: this.createdAt
     };
   }
 }

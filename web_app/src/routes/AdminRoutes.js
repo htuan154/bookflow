@@ -18,10 +18,11 @@ import ApprovedHotelsPage from '../pages/admin/HotelManagement/ApprovedHotelsPag
 import PendingApprovalPage from '../pages/admin/HotelManagement/PendingApprovalPage';
 
 // Blog Management Pages
-import BlogManagementPage from '../pages/admin/BlogManagement/BlogManagementPage';
-import BlogListPage from '../pages/admin/BlogManagement/BlogListPage';
 import CreateBlogPage from '../pages/admin/BlogManagement/CreateBlogPage';
 import EditBlogPage from '../pages/admin/BlogManagement/EditBlogPage';
+import BlogDetailPage from '../pages/admin/BlogManagement/BlogDetailPage';
+import BlogManagementPage from '../pages/admin/BlogManagement/BlogManagementPage';
+import BlogListPage from '../pages/admin/BlogManagement/BlogListPage';
 // import PublishedBlogsPage from '../pages/admin/BlogManagement/PublishedBlogsPage';
 // import PendingBlogsPage from '../pages/admin/BlogManagement/PendingBlogsPage';
 // import DraftBlogsPage from '../pages/admin/BlogManagement/DraftBlogsPage';
@@ -30,6 +31,7 @@ import ContractListPage from '../pages/admin/ContractManagement/ContractListPage
 
 
 import CustomerManagement from '../pages/admin/CustomerManagement/CustomerManagement';
+import CommentManagementPage from '../pages/admin/CommentManagement/CommentManagementPage';
 
 // Context Providers
 import { UserProvider } from '../context/UserContext';
@@ -38,6 +40,7 @@ import { ContractProvider } from '../context/ContractContext';
 import { PromotionsProvider } from '../context/PromotionsContext';
 import { BlogProvider } from '../context/BlogContext';
 import { CustomerProvider }  from '../context/CustomerContext';
+import { BlogCommentProvider } from '../context/BlogCommentContext'; // Thêm dòng này
 // Promotion pages
 import {
     PromotionManagement,
@@ -144,7 +147,7 @@ const AdminRoutes = () => {
 
                 {/* Blog Management - Articles */}
                 <Route
-                    path="articles"
+                    path="blog-management"
                     element={
                         <BlogProvider>
                             <Outlet />
@@ -155,6 +158,7 @@ const AdminRoutes = () => {
                     <Route path="list" element={<BlogListPage />} />
                     <Route path="create" element={<CreateBlogPage />} />
                     <Route path="edit/:blogId" element={<EditBlogPage />} />
+                    <Route path="view/:blogId" element={<BlogDetailPage />} />
                 </Route>
 
                 {/* Promotion Management */}
@@ -172,6 +176,16 @@ const AdminRoutes = () => {
                     <Route path="view/:id" element={<PromotionView />} />
                     <Route path="analytics" element={<PromotionAnalytics />} />
                 </Route>
+
+                {/* Comment Management */}
+                <Route
+                    path="comments"
+                    element={
+                        <BlogCommentProvider>
+                            <CommentManagementPage />
+                        </BlogCommentProvider>
+                    }
+                />
                 <Route path="*" element={<NotFoundPage />} />
             </Route>
         </Routes>

@@ -42,32 +42,87 @@ const useCustomer = () => {
             // Đảm bảo role luôn là hotel_owner
             params.role = 'hotel_owner';
             
-            const response = await apiCall('/api/admin/customers', 'GET', null, { params });
+            console.log('🔄 Calling customerService with params:', params);
             
-            if (response.success) {
-                // Filter thêm một lần nữa ở client để đảm bảo
-                const hotelOwners = (response.data.customers || []).filter(customer => 
-                    customer.role === 'hotel_owner'
-                );
-                
-                setCustomers(hotelOwners);
-                setPagination({
-                    page: response.data.page || 1,
-                    limit: response.data.limit || 10,
-                    total: hotelOwners.length, // Sử dụng số lượng sau khi filter
-                    totalPages: Math.ceil(hotelOwners.length / (response.data.limit || 10))
-                });
-            } else {
-                throw new Error(response.message || 'Lỗi khi lấy danh sách chủ khách sạn');
+            // Thử gọi API trực tiếp mà không dùng apiCall wrapper
+            let response;
+            try {
+                if (customerService.getHotelOwners) {
+                    response = await customerService.getHotelOwners(params);
+                } else if (customerService.getCustomers) {
+                    response = await customerService.getCustomers(params);
+                } else {
+                    throw new Error('Customer service not available');
+                }
+            } catch (serviceError) {
+                console.error('Customer service error:', serviceError);
+                // Fallback to mock data for now
+                response = {
+                    success: true,
+                    data: [],
+                    page: 1,
+                    limit: 10,
+                    total: 0,
+                    totalPages: 0
+                };
             }
-        } catch (err) {
-            console.error('Error fetching hotel owners:', err);
-            setError(err.message || 'Lỗi khi lấy danh sách chủ khách sạn');
-            setCustomers([]);
+
+            console.log('API response:', response);
+
+            // Xử lý response data
+            let customers = [];
+            let paginationData = {};
+
+            if (response) {
+                // Xử lý các format response khác nhau
+                if (Array.isArray(response.data)) {
+                    customers = response.data;
+                    paginationData = {
+                        page: response.page || response.currentPage || params.page || 1,
+                        limit: response.limit || response.pageSize || params.limit || 10,
+                        total: response.total || response.totalItems || customers.length,
+                        totalPages: response.totalPages || Math.ceil((response.total || customers.length) / (params.limit || 10))
+                    };
+                } else if (Array.isArray(response)) {
+                    customers = response;
+                    paginationData = {
+                        page: params.page || 1,
+                        limit: params.limit || 10,
+                        total: customers.length,
+                        totalPages: Math.ceil(customers.length / (params.limit || 10))
+                    };
+                } else if (response.items && Array.isArray(response.items)) {
+                    customers = response.items;
+                    paginationData = {
+                        page: response.page || params.page || 1,
+                        limit: response.limit || params.limit || 10,
+                        total: response.total || customers.length,
+                        totalPages: response.totalPages || Math.ceil((response.total || customers.length) / (params.limit || 10))
+                    };
+                }
+
+                // Đảm bảo customers là array và có role hotel_owner
+                customers = customers.filter(customer => 
+                    customer && (customer.role === 'hotel_owner' || customer.roleId === 2)
+                );
+            }
+
+            console.log('Processed customers:', customers);
+            console.log('Pagination data:', paginationData);
+
+            dispatch({ type: CUSTOMER_ACTIONS.SET_CUSTOMERS, payload: customers });
+            dispatch({ type: CUSTOMER_ACTIONS.SET_PAGINATION, payload: paginationData });
+
+        } catch (error) {
+            console.error('Error fetching customers:', error);
+            const errorMessage = error?.response?.data?.message || error.message || 'Không thể tải danh sách khách hàng';
+            setError(errorMessage);
+            // Set empty array nếu có lỗi
+            dispatch({ type: CUSTOMER_ACTIONS.SET_CUSTOMERS, payload: [] });
         } finally {
             setLoading(false);
         }
-    }, [apiCall]);
+    }, [setError, setLoading]);
     
     // Lấy thông tin chi tiết khách hàng (chỉ hotel_owner)
     const getCustomerById = useCallback(async (customerId) => {

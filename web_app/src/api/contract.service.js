@@ -13,6 +13,9 @@ export const contractServices = {
     // Lấy tất cả hợp đồng
     getAllContracts: async () => {
         try {
+            console.log('=== GET ALL CONTRACTS DEBUG ===');
+            console.log('Fetching all contracts from:', API_ENDPOINTS.CONTRACTS.GET_ALL);
+            
             const response = await fetch(API_ENDPOINTS.CONTRACTS.GET_ALL, {
                 method: 'GET',
                 headers: getAuthHeaders(),
@@ -22,9 +25,49 @@ export const contractServices = {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            return await response.json();
+            const data = await response.json();
+            console.log('Raw ALL contracts response:', data);
+            console.log('Response type:', typeof data);
+            console.log('Is array:', Array.isArray(data));
+            
+            // Debug: Kiểm tra cấu trúc dữ liệu chi tiết
+            if (data && data.data && Array.isArray(data.data)) {
+                console.log('✅ Structure: { data: [...] }');
+                console.log('Contracts array length:', data.data.length);
+                if (data.data.length > 0) {
+                    console.log('✅ First contract sample:', data.data[0]);
+                    console.log('✅ First contract keys:', Object.keys(data.data[0]));
+                    console.log('✅ Date fields in first contract:', {
+                        created_at: data.data[0].created_at,
+                        createdAt: data.data[0].createdAt,
+                        start_date: data.data[0].start_date,
+                        startDate: data.data[0].startDate,
+                        end_date: data.data[0].end_date,
+                        endDate: data.data[0].endDate
+                    });
+                }
+            } else if (data && Array.isArray(data)) {
+                console.log('✅ Structure: [...] (direct array)');
+                console.log('Direct array length:', data.length);
+                if (data.length > 0) {
+                    console.log('✅ First contract sample (direct array):', data[0]);
+                    console.log('✅ First contract keys (direct array):', Object.keys(data[0]));
+                    console.log('✅ Date fields in first contract (direct array):', {
+                        created_at: data[0].created_at,
+                        createdAt: data[0].createdAt,
+                        start_date: data[0].start_date,
+                        startDate: data[0].startDate,
+                        end_date: data[0].end_date,
+                        endDate: data[0].endDate
+                    });
+                }
+            } else {
+                console.error('❌ Unexpected data structure:', data);
+            }
+
+            return data;
         } catch (error) {
-            console.error('Error fetching contracts:', error);
+            console.error('❌ Error fetching contracts:', error);
             throw error;
         }
     },
@@ -32,6 +75,9 @@ export const contractServices = {
     // Lấy hợp đồng theo ID
     getContractById: async (contractId) => {
         try {
+            console.log('=== CONTRACT SERVICE DEBUG ===');
+            console.log('Fetching contract by ID:', contractId);
+            
             const response = await fetch(API_ENDPOINTS.CONTRACTS.GET_BY_ID(contractId), {
                 method: 'GET',
                 headers: getAuthHeaders(),
@@ -41,7 +87,11 @@ export const contractServices = {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            return await response.json();
+            const data = await response.json();
+            console.log('Raw API response:', data);
+            console.log('Contract data keys:', data?.data ? Object.keys(data.data) : 'No data field');
+            
+            return data;
         } catch (error) {
             console.error('Error fetching contract by ID:', error);
             throw error;
@@ -140,7 +190,7 @@ export const contractServices = {
     updateContractStatus: async (contractId, statusData) => {
         try {
             const response = await fetch(API_ENDPOINTS.CONTRACTS.UPDATE_STATUS(contractId), {
-                method: 'PUT',
+                method: 'PATCH', // Đổi từ 'PUT' sang 'PATCH'
                 headers: getAuthHeaders(),
                 body: JSON.stringify(statusData),
             });
@@ -160,17 +210,23 @@ export const contractServices = {
     approveContract: async (contractId, approvalData) => {
         try {
             const response = await fetch(API_ENDPOINTS.CONTRACTS.UPDATE_STATUS(contractId), {
-                method: 'PUT',
+                method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    status: 'APPROVED',
+                    status: 'active', // luôn là active khi duyệt
                     notes: approvalData.notes,
                     approvedBy: approvalData.approvedBy,
                 }),
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                // Đọc lỗi trả về từ backend (nếu có)
+                let errorMsg = `HTTP error! status: ${response.status}`;
+                try {
+                    const errJson = await response.json();
+                    if (errJson?.message) errorMsg = errJson.message;
+                } catch {}
+                throw new Error(errorMsg);
             }
 
             return await response.json();
@@ -184,17 +240,22 @@ export const contractServices = {
     rejectContract: async (contractId, rejectionData) => {
         try {
             const response = await fetch(API_ENDPOINTS.CONTRACTS.UPDATE_STATUS(contractId), {
-                method: 'PUT',
+                method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    status: 'REJECTED',
+                    status: 'cancelled', // luôn là cancelled khi từ chối
                     notes: rejectionData.notes,
                     approvedBy: rejectionData.approvedBy,
                 }),
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                let errorMsg = `HTTP error! status: ${response.status}`;
+                try {
+                    const errJson = await response.json();
+                    if (errJson?.message) errorMsg = errJson.message;
+                } catch {}
+                throw new Error(errorMsg);
             }
 
             return await response.json();

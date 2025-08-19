@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../classes/blog_model.dart';
 import 'api_config.dart';
+import 'user_service.dart';
 
 class BlogService {
   // Singleton pattern
@@ -734,12 +735,24 @@ class BlogService {
   /// POST /api/v1/blogs/:blogId/like
   Future<Map<String, dynamic>> likeBlog(String blogId, String token) async {
     try {
+      // Lấy user ID để gửi trong body
+      final currentUser = await UserService.getUser();
+      if (currentUser == null) {
+        return {'success': false, 'message': 'Không tìm thấy thông tin user'};
+      }
+
       final url = Uri.parse('${ApiConfig.baseUrl}/blogs/$blogId/like');
 
-      final response = await http.post(url, headers: _headersWithToken(token));
+      final body = {'blog_id': blogId, 'user_id': currentUser.userId};
+
+      final response = await http.post(
+        url,
+        headers: _headersWithToken(token),
+        body: jsonEncode(body),
+      );
       final responseData = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         return {
           'success': true,
           'message': responseData['message'] ?? 'Đã thích blog',
@@ -756,14 +769,24 @@ class BlogService {
   }
 
   /// Bỏ thích blog
-  /// DELETE /api/v1/blogs/:likeId/like (likeId là ID của record like, không phải blogId)
-  Future<Map<String, dynamic>> unlikeBlog(String likeId, String token) async {
+  /// DELETE /api/v1/blogs/like
+  Future<Map<String, dynamic>> unlikeBlog(String blogId, String token) async {
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/blogs/$likeId/like');
+      final currentUser = await UserService.getUser();
+      if (currentUser == null) {
+        return {'success': false, 'message': 'Không tìm thấy thông tin user'};
+      }
+
+      final url = Uri.parse('${ApiConfig.baseUrl}/blogs/like');
+      final body = jsonEncode({
+        'blog_id': blogId,
+        'user_id': currentUser.userId,
+      });
 
       final response = await http.delete(
         url,
         headers: _headersWithToken(token),
+        body: body, // PHẢI GỬI BODY
       );
       final responseData = jsonDecode(response.body);
 
@@ -788,15 +811,21 @@ class BlogService {
   Future<Map<String, dynamic>> addComment(
     String blogId,
     String content,
-    String token,
-  ) async {
+    String token, {
+    String? parentCommentId,
+  }) async {
+    final body = {
+      'blog_id': blogId,
+      'content': content,
+      if (parentCommentId != null) 'parent_comment_id': parentCommentId,
+    };
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}/blogs/$blogId/comments');
 
       final response = await http.post(
         url,
         headers: _headersWithToken(token),
-        body: jsonEncode({'content': content}),
+        body: jsonEncode(body),
       );
 
       final responseData = jsonDecode(response.body);
@@ -882,5 +911,30 @@ class BlogService {
   /// Đưa blog về trạng thái chờ duyệt (Admin)
   Future<Map<String, dynamic>> pendingBlog(String blogId, String token) {
     return updateBlogStatus(blogId, 'pending', token);
+  }
+
+  /// Kiểm tra user đã like blog chưa
+  /// GET /api/v1/blogs/:blogId/is-liked
+  Future<Map<String, dynamic>> isBlogLiked(String blogId, String token) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/blogs/$blogId/is-liked');
+      final response = await http.get(url, headers: _headersWithToken(token));
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'isLiked': responseData['data']['liked'] ?? false, // Sửa ở đây
+        };
+      } else {
+        return {
+          'success': false,
+          'message':
+              responseData['message'] ?? 'Không kiểm tra được trạng thái like',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
   }
 }

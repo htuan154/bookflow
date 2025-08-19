@@ -83,6 +83,7 @@ class BlogService {
         const blog = await blogRepository.findById(blogId);
         if (!blog) throw new AppError('Blog not found', 404);
 
+    
         if (blog.authorId !== userId) {
             throw new AppError('Forbidden: You can only edit your own blog posts', 403);
         }
@@ -95,7 +96,7 @@ class BlogService {
         return await blogRepository.update(blogId, updateData);
     }
 
-    /**
+     /**
      * Lấy danh sách blogs theo trạng thái (Admin only).
      * @param {string} status - Trạng thái của blog.
      * @param {object} options - Tùy chọn phân trang và sắp xếp.
@@ -135,6 +136,7 @@ class BlogService {
         }
     }
 
+
     /**
      * Lấy thống kê blogs theo trạng thái (Admin only).
      * @returns {Promise<object>}
@@ -156,20 +158,6 @@ class BlogService {
         } catch (error) {
             throw new Error(`Error getting blog statistics: ${error.message}`);
         }
-    }
-
-    /**
-     * Lấy tất cả hình ảnh của một bài blog.
-     * @param {string} blogId - ID của bài blog.
-     * @returns {Promise<BlogImage[]>}
-     */
-    async getImagesByBlogId(blogId) {
-        const blog = await blogRepository.findById(blogId);
-        if (!blog) {
-            throw new AppError('Blog not found', 404);
-        }
-
-        return await blogImageRepository.findByBlogId(blogId);
     }
 }
 

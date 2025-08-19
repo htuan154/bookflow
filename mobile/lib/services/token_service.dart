@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TokenService {
@@ -92,5 +93,27 @@ class TokenService {
   static Future<bool> hasToken() async {
     final token = await getToken();
     return token != null && token.isNotEmpty;
+  }
+
+  /// Lấy userId hiện tại từ SharedPreferences
+  static Future<String?> getUserId() async {
+    try {
+      final userJson = await getUser();
+      print('DEBUG: userJson from getUser(): $userJson');
+
+      if (userJson == null) return null;
+
+      final userMap = jsonDecode(userJson);
+      print('DEBUG: userMap: $userMap');
+
+      // Lấy userId từ cấu trúc đúng
+      final userId = userMap['user']?['userId']; // Quan trọng: user.userId
+      print('DEBUG: extracted userId: $userId');
+
+      return userId;
+    } catch (e) {
+      print('Error getting userId: $e');
+      return null;
+    }
   }
 }

@@ -102,12 +102,13 @@ class ContractService {
 
         const updateData = {
             status: newStatus,
-            approved_by: adminId, // Ghi nhận admin đã duyệt
-            signed_date: newStatus === 'active' ? new Date() : contract.signedDate,
+            approved_by: adminId,
+            signed_date: contract.signedDate  // Giữ nguyên ngày ký gốc
         };
 
         return await contractRepository.update(contractId, updateData);
     }
+
 
     /**
      * Lấy danh sách hợp đồng theo trạng thái (Admin).

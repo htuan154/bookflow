@@ -6,6 +6,7 @@ class Blog {
   }) {
     this.blogId = blog_id;
     this.authorId = author_id;
+
     this.hotelId = hotel_id;
     this.title = title;
     this.slug = slug;
@@ -38,8 +39,14 @@ class Blog {
       likeCount: this.likeCount,
       commentCount: this.commentCount,
       createdAt: this.createdAt,
+      tags: this.tags,
+      metaDescription: this.metaDescription,
+      approvedBy: this.approvedBy,
+      approvedAt: this.approvedAt
     };
   }
 }
+
+// Các trường đã đúng chuẩn camelCase cho frontend sử dụng.
 
 module.exports = Blog;

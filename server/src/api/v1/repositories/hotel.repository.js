@@ -273,6 +273,55 @@ const exists = async (hotelId) => {
   return result.rows.length > 0;
 };
 
+/**
+ * Tìm khách sạn theo thành phố và phường/xã
+ * @param {string} city - Tên thành phố/tỉnh (ví dụ: "Hà Nội", "Đà Nẵng")
+ * @param {string} ward - Tên phường/xã để tìm kiếm trong address (ví dụ: "Phường Cửa Nam", "Phường Hoàn Kiếm")
+ * @param {number} limit - Số lượng kết quả (mặc định: 10)
+ * @param {number} offset - Vị trí bắt đầu (mặc định: 0)
+ * @returns {Promise<Array<Hotel>>}
+ */
+const findByCityAndWard = async (city, ward, limit = 10, offset = 0) => {
+  const query = `
+    SELECT * FROM hotels 
+    WHERE LOWER(city) = LOWER($1) 
+      AND LOWER(address) LIKE LOWER($2) 
+      AND status = 'approved'
+    ORDER BY star_rating DESC, created_at DESC
+    LIMIT $3 OFFSET $4
+  `;
+  
+  // Thêm ký tự % để tìm kiếm LIKE
+  const wardPattern = `%${ward}%`;
+  
+  const values = [city, wardPattern, limit, offset];
+  const result = await pool.query(query, values);
+  
+  return result.rows.map(row => new Hotel(row));
+};
+
+/**
+ * Đếm số lượng khách sạn theo thành phố và phường/xã
+ * @param {string} city - Tên thành phố/tỉnh
+ * @param {string} ward - Tên phường/xã
+ * @returns {Promise<number>}
+ */
+const countByCityAndWard = async (city, ward) => {
+  const query = `
+    SELECT COUNT(*) as total 
+    FROM hotels 
+    WHERE LOWER(city) = LOWER($1) 
+      AND LOWER(address) LIKE LOWER($2) 
+      AND status = 'approved'
+  `;
+  
+  const wardPattern = `%${ward}%`;
+  const values = [city, wardPattern];
+  const result = await pool.query(query, values);
+  
+  return parseInt(result.rows[0].total);
+};
+
 module.exports = {
   // CRUD cơ bản
   create,
@@ -281,7 +330,8 @@ module.exports = {
   update,
   softDelete,
   hardDelete,
-  
+  findByCityAndWard,
+  countByCityAndWard,
   // Quản lý trạng thái
   findByStatus,
   updateStatus,

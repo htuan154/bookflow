@@ -88,7 +88,7 @@ class RoomTypeRepository {
     const result = await pool.query(query, [hotelId]);
     console.log("Raw room type row:", result.rows[0]);
 
-    console.log('DEBUG row:', result.rows[0]); // ← kiểm tra field tên
+    console.log('DEBUG row:', result.rows[0]);
     return result.rows.map(row => new RoomType(row));
   } catch (error) {
     throw new Error(`Error fetching room types by hotel: ${error.message}`);

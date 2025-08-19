@@ -604,4 +604,90 @@ class HotelService {
   Future<Map<String, dynamic>> deactivateHotel(String hotelId, String token) {
     return updateHotelStatus(hotelId, 'inactive', token);
   }
+
+  /// Tìm kiếm khách sạn theo thành phố và phường
+  /// GET /api/v1/hotels/search/location?city=...&ward=...
+  Future<Map<String, dynamic>> searchHotelsByLocation({
+    required String city,
+    required String ward,
+    int page = 1,
+    int limit = 10,
+  }) async {
+    try {
+      String queryString = 'page=$page&limit=$limit';
+      queryString += '&city=${Uri.encodeComponent(city)}';
+      queryString += '&ward=${Uri.encodeComponent(ward)}';
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}/hotels/search/location?$queryString',
+      );
+
+      final response = await http.get(url, headers: _headers);
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        List<Hotel> hotels = [];
+        if (responseData['data'] != null) {
+          hotels = (responseData['data'] as List)
+              .map((json) => Hotel.fromJson(json))
+              .toList();
+        }
+
+        return {
+          'success': true,
+          'message':
+              responseData['message'] ??
+              'Tìm kiếm khách sạn theo vị trí thành công',
+          'data': hotels,
+          'pagination': responseData['pagination'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message':
+              responseData['message'] ??
+              'Lỗi khi tìm kiếm khách sạn theo vị trí',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Đếm số khách sạn theo thành phố và phường
+  /// GET /api/v1/hotels/count/location?city=...&ward=...
+  Future<Map<String, dynamic>> countHotelsByLocation({
+    required String city,
+    required String ward,
+  }) async {
+    try {
+      String queryString =
+          'city=${Uri.encodeComponent(city)}&ward=${Uri.encodeComponent(ward)}';
+
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}/hotels/count/location?$queryString',
+      );
+
+      final response = await http.get(url, headers: _headers);
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message':
+              responseData['message'] ?? 'Đếm khách sạn theo vị trí thành công',
+          'data': responseData['data'],
+          'count': responseData['count'] ?? 0,
+        };
+      } else {
+        return {
+          'success': false,
+          'message':
+              responseData['message'] ?? 'Lỗi khi đếm khách sạn theo vị trí',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
 }

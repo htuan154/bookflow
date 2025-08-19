@@ -19,10 +19,11 @@ export const useContract = () => {
         currentContract,
         loading,
         error,
-        filters,
-        pagination,
+        filters = { status: 'ALL', search: '', dateRange: null },
+        pagination = { currentPage: 1, pageSize: 10 },
         fetchContracts,
         fetchContractById,
+        fetchContractDetail, // Thêm dòng này để lấy từ context
         approveContract,
         rejectContract,
         updateContractStatus,
@@ -239,6 +240,7 @@ export const useContract = () => {
 
         // Actions
         ...actions,
+        fetchContractDetail: fetchContractDetail || fetchContractById, // Sử dụng từ context hoặc fallback
 
         // Validation helpers
         ...validation,

@@ -29,13 +29,33 @@ const create = async (blogId, userId, client) => {
  * @param {object} client - Đối tượng client của pg từ transaction.
  * @returns {Promise<boolean>}
  */
-const deleteLike = async (likeId, userId, client) => {
-    const query = 'DELETE FROM blog_likes WHERE like_id = $1 AND user_id = $2';
-    const result = await client.query(query, [likeId, userId]);
+const deleteLike = async (blogId, userId, client) => {
+    const query = 'DELETE FROM blog_likes WHERE blog_id = $1 AND user_id = $2';
+    const result = await client.query(query, [blogId, userId]);
     return result.rowCount > 0;
 };
+
+/**
+ * Tìm một lượt thích theo blog_id và user_id.
+ * @param {string} blogId - ID của bài blog.
+ * @param {string} userId - ID của người dùng.
+ * @param {object} client - Đối tượng client của pg từ transaction.
+ * @returns {Promise<BlogLike|null>}
+ */
+const findByBlogAndUser = async (blogId, userId, client) => {
+    const query = `
+        SELECT * 
+        FROM blog_likes 
+        WHERE blog_id = $1 AND user_id = $2
+        LIMIT 1;
+    `;
+    const result = await client.query(query, [blogId, userId]);
+    return result.rows[0] ? new BlogLike(result.rows[0]) : null;
+};
+
 
 module.exports = {
     create,
     deleteLike,
+    findByBlogAndUser
 };

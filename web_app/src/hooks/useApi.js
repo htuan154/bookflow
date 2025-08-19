@@ -27,7 +27,20 @@ const useApi = () => {
         }
     }, []);
 
-    return { request, loading, error };
+    // Thêm method apiCall để tương thích với CustomerContext
+    const apiCall = useCallback(async (url, method = 'GET', data = null, config = {}) => {
+        const requestConfig = {
+            url,
+            method,
+            data,
+            ...config
+        };
+        
+        return await request(requestConfig);
+    }, [request]);
+
+    return { request, apiCall, loading, error };
 };
 
 export default useApi;
+export { useApi };
