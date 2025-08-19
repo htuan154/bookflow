@@ -267,6 +267,7 @@ export const ContractProvider = ({ children }) => {
         // Actions
         fetchContracts,
         fetchContractById,
+        fetchContractDetail: fetchContractById, // Thêm dòng này
         approveContract,
         rejectContract,
         updateContractStatus,

@@ -21,7 +21,6 @@ const UserListPage = () => {
         status: ''
     });
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
     const [isInitialized, setIsInitialized] = useState(false);
 
     // Helper functions
@@ -29,27 +28,31 @@ const UserListPage = () => {
         return user.full_name || user.username || 'Chưa cập nhật';
     };
 
+    // Lấy đúng vai trò user (role_name = 'user' hoặc roleId = 3)
     const getUserRole = (user) => {
         if (typeof user.roleId === 'number') {
-            switch (user.roleId) {
-                case 1: return 'admin';
-                case 2: return 'hotel_owner';
-                case 3: return 'customer';
-                case 6: return 'staff';
-                default: return 'customer';
-            }
+            if (user.roleId === 3) return 'user';
+            if (user.roleId === 1) return 'admin';
+            if (user.roleId === 2) return 'hotel_owner';
+            if (user.roleId === 6) return 'staff';
+            return 'unknown';
         }
-        return user.role || 'customer';
+        if (user.role === 'user' || user.role_name === 'user') return 'user';
+        if (user.role === 'admin' || user.role_name === 'admin') return 'admin';
+        if (user.role === 'hotel_owner' || user.role_name === 'hotel_owner') return 'hotel_owner';
+        if (user.role === 'staff' || user.role_name === 'staff') return 'staff';
+        return 'unknown';
     };
 
+    // Hiển thị label vai trò là "User" nếu là user
     const getRoleDisplay = (user) => {
         const role = getUserRole(user);
         switch (role) {
             case 'admin': return 'Admin';
             case 'hotel_owner': return 'Hotel Owner';
-            case 'customer': return 'Customer';
             case 'staff': return 'Staff';
-            default: return 'Customer';
+            case 'user': return 'User';
+            default: return 'User';
         }
     };
 
@@ -87,12 +90,12 @@ const UserListPage = () => {
     const activeUsers = users?.filter(user => getUserStatus(user) === 'active').length || 0;
     const inactiveUsers = users?.filter(user => getUserStatus(user) === 'inactive').length || 0;
 
-    // Filter users based on search and status
+    // Filter users: chỉ lấy user có role là "user"
     const filteredUsers = users?.filter(user => {
         const matchesSearch = getUserName(user).toLowerCase().includes(searchTerm.toLowerCase()) ||
                              (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesStatus = statusFilter === 'all' || getUserStatus(user) === statusFilter;
-        return matchesSearch && matchesStatus;
+        const isUser = getUserRole(user) === 'user';
+        return matchesSearch && isUser;
     }) || [];
 
     // Initialize component
@@ -100,7 +103,8 @@ const UserListPage = () => {
         const initializeComponent = async () => {
             try {
                 setIsInitialized(false);
-                await fetchUsers();
+                // Đảm bảo fetchUsers trả về dữ liệu mới nhất
+                await fetchUsers({ page: 1, limit: 20 }); // hoặc limit tuỳ ý
                 setIsInitialized(true);
             } catch (err) {
                 console.error('Error initializing UserListPage:', err);
@@ -183,7 +187,7 @@ const UserListPage = () => {
     // Handle refresh
     const handleRefresh = async () => {
         try {
-            await fetchUsers();
+            await fetchUsers({ page: 1, limit: 20 }); // Đảm bảo luôn lấy lại dữ liệu mới nhất
         } catch (error) {
             console.error('Error refreshing:', error);
         }
@@ -288,7 +292,7 @@ const UserListPage = () => {
 
                 {/* Main Content Card */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-                    {/* Search and Filter Header */}
+                    {/* Search Header (bỏ dropdown lọc vai trò) */}
                     <div className="p-6 border-b border-gray-100">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-lg font-semibold text-gray-900">Danh sách khách hàng</h2>
@@ -309,15 +313,7 @@ const UserListPage = () => {
                                     />
                                 </div>
                             </div>
-                            <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                            >
-                                <option value="all">Tất cả trạng thái</option>
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                            </select>
+                            {/* Bỏ dropdown lọc vai trò */}
                         </div>
                     </div>
 

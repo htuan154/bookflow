@@ -17,6 +17,7 @@ const userRoutes = require('./src/api/v1/routes/user.route');
 const hotelRoutes = require('./src/api/v1/routes/hotel.route');
 const amenityRoutes = require('./src/api/v1/routes/amenity.route');
 const roomRoutes = require('./src/api/v1/routes/room.routes'); 
+const roomTypeRoutes = require('./src/api/v1/routes/roomType.routes');
 const roomTypeImageRoutes = require('./src/api/v1/routes/roomTypeImage.route');
 const roomAssignmentRoutes = require('./src/api/v1/routes/roomAssignment.route');
 const contractRoutes = require('./src/api/v1/routes/contract.route');
@@ -36,7 +37,7 @@ const blogImageRoutes = require('./src/api/v1/routes/blogImage.route');
 const blogLikeRoutes = require('./src/api/v1/routes/blogLike.route');
 const blogRoutes = require('./src/api/v1/routes/blog.route');
 const chatRoutes = require('./src/api/v1/routes/chat.route');
-const roleRoutes = require('./src/api/v1/routes/role.route'); // Import route quản lý vai trò
+const roleRoutes = require('./src/api/v1/routes/role.route');
 // --- Khởi tạo ứng dụng Express ---
 const app = express();
 const port = process.env.PORT || 8080;
@@ -73,7 +74,8 @@ app.use('/api/v1/promotions', promotionRoutes);
 app.use('/api/v1/food-recommendations', foodRecommendationRoutes);
 app.use('/api/v1/blogs', blogRoutes);
 app.use('/api/v1/chats', chatRoutes);
-app.use('/api/v1/roles', roleRoutes); // Gắn route quản lý vai trò
+app.use('/api/v1/roles', roleRoutes);
+app.use('/api/v1/room-types', roomTypeRoutes);
 // Các route có cấu trúc đặc biệt hơn
 app.use('/api/v1', roomTypeImageRoutes);
 app.use('/api/v1', reviewImageRoutes);
