@@ -4,7 +4,8 @@ import { useBlogContext } from '../../context/BlogContext';
 import useAuth from '../../hooks/useAuth';
 
 const BlogForm = ({ 
-    blog = null, 
+    blog = null,
+    initialData = null,
     onSubmit, 
     onCancel, 
     isEditing = false,
@@ -30,22 +31,66 @@ const BlogForm = ({
     const [formErrors, setFormErrors] = useState({});
     const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
 
-    // Initialize form data when editing
+    // ✅ CẬP NHẬT: Initialize form data with correct Blog model mapping
     useEffect(() => {
-        if (isEditing && blog) {
+        const blogData = blog || initialData;
+        
+        if (isEditing && blogData) {
+            console.log('🔍 BlogForm received data:', blogData);
+            console.log('🔍 Available fields:', Object.keys(blogData));
+            
+            const newFormData = {
+                title: blogData.title || '',
+                slug: blogData.slug || '',
+                content: blogData.content || '',
+                excerpt: blogData.excerpt || '',
+                // ✅ ĐÚNG FIELD NAME từ toJSON() method
+                featuredImageUrl: blogData.featuredImageUrl || '',
+                metaDescription: blogData.metaDescription || '',
+                // ✅ XỬ LÝ TAGS từ toJSON()
+                tags: (() => {
+                    if (Array.isArray(blogData.tags)) {
+                        return blogData.tags.join(', ');
+                    } else if (typeof blogData.tags === 'string') {
+                        try {
+                            const parsed = JSON.parse(blogData.tags);
+                            if (Array.isArray(parsed)) {
+                                return parsed.join(', ');
+                            }
+                            return blogData.tags;
+                        } catch {
+                            return blogData.tags;
+                        }
+                    } else {
+                        return '';
+                    }
+                })(),
+                status: blogData.status || 'draft',
+                hotelId: blogData.hotelId || '',
+            };
+            
+            console.log('✅ Final form data to set:', newFormData);
+            console.log('✅ Form featuredImageUrl:', newFormData.featuredImageUrl);
+            console.log('✅ Form metaDescription:', newFormData.metaDescription);
+            console.log('✅ Form tags:', newFormData.tags);
+            
+            setFormData(newFormData);
+        } else if (!isEditing) {
+            // Reset form cho trường hợp tạo mới
+            console.log('🆕 Resetting form for new blog creation');
             setFormData({
-                title: blog.title || '',
-                slug: blog.slug || '',
-                content: blog.content || '',
-                excerpt: blog.excerpt || '',
-                featuredImageUrl: blog.featuredImageUrl || '',
-                metaDescription: blog.metaDescription || '',
-                tags: Array.isArray(blog.tags) ? blog.tags.join(', ') : (blog.tags || ''),
-                status: blog.status || 'draft',
-                hotelId: blog.hotelId || '',
+                title: '',
+                slug: '',
+                content: '',
+                excerpt: '',
+                featuredImageUrl: '',
+                metaDescription: '',
+                tags: '',
+                status: 'draft',
+                hotelId: '',
             });
         }
-    }, [isEditing, blog]);
+    }, [isEditing, blog, initialData]);
 
     // Auto-generate slug from title
     const generateSlug = (title) => {
@@ -139,20 +184,18 @@ const BlogForm = ({
         try {
             const blogData = {
                 ...formData,
-                authorId: user?.userId,
+                // ✅ MAPPING field names cho backend (snake_case)
+                author_id: user?.userId || user?.id,
                 tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
-                hotelId: formData.hotelId || null,
+                hotel_id: formData.hotelId || null,
+                featured_image_url: formData.featuredImageUrl || null,
+                meta_description: formData.metaDescription || null,
             };
 
-            let result;
-            if (isEditing) {
-                result = await updateBlog(blog.blogId, blogData);
-            } else {
-                result = await createBlog(blogData);
-            }
+            console.log('📤 Submitting blog data:', blogData);
 
             if (onSubmit) {
-                onSubmit(result);
+                await onSubmit(blogData);
             }
         } catch (error) {
             console.error('Error submitting blog:', error);
@@ -279,6 +322,9 @@ const BlogForm = ({
                         {formErrors.content && (
                             <p className="mt-1 text-sm text-red-600">{formErrors.content}</p>
                         )}
+                        <p className="mt-1 text-sm text-gray-500">
+                            {formData.content.length} ký tự
+                        </p>
                     </div>
 
                     {/* Excerpt */}

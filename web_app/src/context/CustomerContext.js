@@ -216,48 +216,52 @@ export const CustomerProvider = ({ children }) => {
             let response;
             
             try {
-                // Ưu tiên sử dụng getHotelOwners nếu có
+                // Thử các method API khả dụng theo thứ tự ưu tiên
                 if (customerService.getHotelOwners) {
+                    console.log('Using getHotelOwners API');
                     response = await customerService.getHotelOwners(queryParams);
                 } else if (customerService.getCustomersByRole) {
-                    // Fallback 1: sử dụng getCustomersByRole
+                    console.log('Using getCustomersByRole API');
                     response = await customerService.getCustomersByRole('hotel_owner', queryParams);
                 } else if (customerService.getCustomersWithHotels) {
-                    // Fallback 2: sử dụng getCustomersWithHotels
+                    console.log('Using getCustomersWithHotels API');
                     response = await customerService.getCustomersWithHotels(queryParams);
+                } else if (customerService.getCustomers) {
+                    console.log('Using general getCustomers API with role filter');
+                    response = await customerService.getCustomers({
+                        ...queryParams,
+                        role: 'hotel_owner'
+                    });
                 } else {
-                    throw new Error('No suitable API method available');
+                    throw new Error('No suitable API method available in customerService');
                 }
-            } catch (apiError) {
-                console.warn('Primary API call failed, trying alternative methods:', apiError);
                 
-                // Thử các phương thức khác nếu method chính thất bại
-                try {
-                    if (customerService.searchCustomers) {
-                        response = await customerService.searchCustomers(queryParams.search || '', queryParams);
-                    } else {
-                        throw new Error('All API methods failed');
-                    }
-                } catch (fallbackError) {
-                    console.error('All fallback methods failed:', fallbackError);
-                    throw new Error('Không thể kết nối đến server. Vui lòng thử lại sau.');
-                }
+                console.log('Raw API response:', response);
+            } catch (apiError) {
+                console.error('All API methods failed:', apiError);
+                throw new Error(`API call failed: ${apiError.message}`);
             }
-
-            console.log('API response:', response);
 
             // Xử lý response data
             let customers = [];
             let paginationData = {};
 
             if (response) {
-                // Xử lý các format response khác nhau
-                if (Array.isArray(response.data)) {
+                // Xử lý các format response khác nhau từ API
+                if (response.success && Array.isArray(response.data)) {
                     customers = response.data;
                     paginationData = {
                         page: response.page || response.currentPage || queryParams.page || 1,
                         limit: response.limit || response.pageSize || queryParams.limit || 10,
                         total: response.total || response.totalItems || customers.length,
+                        totalPages: response.totalPages || Math.ceil((response.total || customers.length) / (queryParams.limit || 10))
+                    };
+                } else if (Array.isArray(response.data)) {
+                    customers = response.data;
+                    paginationData = {
+                        page: response.page || queryParams.page || 1,
+                        limit: response.limit || queryParams.limit || 10,
+                        total: response.total || customers.length,
                         totalPages: response.totalPages || Math.ceil((response.total || customers.length) / (queryParams.limit || 10))
                     };
                 } else if (Array.isArray(response)) {
@@ -276,12 +280,29 @@ export const CustomerProvider = ({ children }) => {
                         total: response.total || customers.length,
                         totalPages: response.totalPages || Math.ceil((response.total || customers.length) / (queryParams.limit || 10))
                     };
+                } else {
+                    console.warn('Unexpected response format:', response);
+                    throw new Error('Invalid response format from API');
                 }
 
                 // Đảm bảo customers là array và có role hotel_owner
                 customers = customers.filter(customer => 
-                    customer && (customer.role === 'hotel_owner' || customer.roleId === 2)
+                    customer && (
+                        customer.role === 'hotel_owner' || 
+                        customer.roleId === 2 ||
+                        customer.role_id === 2 ||
+                        (customer.roles && customer.roles.includes('hotel_owner'))
+                    )
                 );
+            } else {
+                console.warn('No response data received');
+                customers = [];
+                paginationData = {
+                    page: queryParams.page || 1,
+                    limit: queryParams.limit || 10,
+                    total: 0,
+                    totalPages: 0
+                };
             }
 
             console.log('Processed customers:', customers);
@@ -299,7 +320,7 @@ export const CustomerProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    }, [state.filters, state.pagination.page, state.pagination.limit, clearError, setError, setLoading]);
+    }, [clearError, setError, setLoading]);
 
     const fetchCustomerById = useCallback(async (customerId) => {
         try {
@@ -349,13 +370,7 @@ export const CustomerProvider = ({ children }) => {
                 address: customerData.address
             };
 
-            console.log('CustomerContext - Input customerData:', customerData);
-            console.log('CustomerContext - Prepared dataWithRole:', dataWithRole);
-            console.log('CustomerContext - phoneNumber check:', {
-                input: customerData.phoneNumber,
-                prepared: dataWithRole.phoneNumber,
-                exists: !!dataWithRole.phoneNumber
-            });
+            console.log('Creating customer with data:', dataWithRole);
 
             // Gọi API thật
             let newCustomer;
@@ -363,13 +378,15 @@ export const CustomerProvider = ({ children }) => {
                 if (customerService.createHotelOwner) {
                     // Ưu tiên sử dụng createHotelOwner nếu có
                     newCustomer = await customerService.createHotelOwner(dataWithRole);
-                } else {
+                } else if (customerService.createCustomer) {
                     // Fallback sử dụng createCustomer
                     newCustomer = await customerService.createCustomer(dataWithRole);
+                } else {
+                    throw new Error('No create customer API method available');
                 }
             } catch (apiError) {
                 console.error('Create customer API error:', apiError);
-                throw new Error(apiError?.response?.data?.message || 'Không thể tạo khách hàng mới');
+                throw new Error(apiError?.response?.data?.message || apiError.message || 'Không thể tạo khách hàng mới');
             }
 
             console.log('Created customer:', newCustomer);

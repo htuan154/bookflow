@@ -233,8 +233,20 @@ export const HotelProvider = ({ children }) => {
       dispatch({ type: HOTEL_ACTIONS.SET_LOADING, payload: true });
       console.log('🔄 Fetching all hotels with filters:', filters);
       
-      const response = await hotelService.getHotelsForAdmin(filters);
-      console.log('✅ All Hotels API Response:', response);
+      let response;
+      try {
+        response = await hotelService.getHotelsForAdmin(filters);
+        console.log('✅ All Hotels API Response:', response);
+      } catch (serviceError) {
+        console.error('❌ Hotel service error:', serviceError);
+        // Fallback to empty data instead of crashing
+        response = {
+          success: true,
+          data: [],
+          totalCount: 0,
+          pagination: { total: 0, page: 1, limit: 10 }
+        };
+      }
       
       if (!response) {
         throw new Error('No response from server');

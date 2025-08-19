@@ -1,6 +1,5 @@
-
 class BlogComment {
-    constructor({ comment_id, blog_id, user_id, parent_comment_id, content, status, like_count, created_at, updated_at }) {
+    constructor({ comment_id, blog_id, user_id, parent_comment_id, content, status, like_count, created_at, updated_at, full_name }) {
         this.commentId = comment_id;
         this.blogId = blog_id;
         this.userId = user_id;
@@ -10,6 +9,7 @@ class BlogComment {
         this.likeCount = like_count;
         this.createdAt = created_at;
         this.updatedAt = updated_at;
+        this.full_name = full_name; 
     }
 
     toJSON() {
@@ -22,6 +22,7 @@ class BlogComment {
             status: this.status,
             likeCount: this.likeCount,
             createdAt: this.createdAt,
+            full_name: this.full_name 
         };
     }
 }
