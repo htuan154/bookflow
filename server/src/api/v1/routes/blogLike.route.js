@@ -13,8 +13,8 @@ router.use(authenticate);
 // POST /api/v1/blogs/:blogId/like -> Thích bài blog
 router.post('/blogs/:blogId/like', blogLikeController.likeBlog);
 
-// DELETE /api/v1/blogs/like -> Bỏ thích bài blog
-router.delete('/blogs/like', blogLikeController.unlikeBlog);
+// DELETE /api/v1/blogs/:blogId/like -> Bỏ thích bài blog
+router.delete('/blogs/:blogId/unlike', blogLikeController.unlikeBlog);
 
 // GET /api/v1/blogs/:blogId/is-liked -> Kiểm tra user đã like blog chưa
 router.get('/blogs/:blogId/is-liked', blogLikeController.isBlogLiked);

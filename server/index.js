@@ -75,7 +75,7 @@ app.use('/api/v1/food-recommendations', foodRecommendationRoutes);
 app.use('/api/v1/blogs', blogRoutes);
 app.use('/api/v1/chats', chatRoutes);
 app.use('/api/v1/roles', roleRoutes);
-app.use('/api/v1/room-types', roomTypeRoutes);
+app.use('/api/v1/roomtypes', roomTypeRoutes);
 // Các route có cấu trúc đặc biệt hơn
 app.use('/api/v1', roomTypeImageRoutes);
 app.use('/api/v1', reviewImageRoutes);
