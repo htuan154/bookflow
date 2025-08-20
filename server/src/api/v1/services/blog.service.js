@@ -159,6 +159,27 @@ class BlogService {
             throw new Error(`Error getting blog statistics: ${error.message}`);
         }
     }
+
+    /**
+     * Xóa một bài blog theo ID.
+     * @param {string} blogId - ID của bài blog.
+     * @param {string} userId - ID của người thực hiện.
+     * @returns {Promise<boolean>}
+     */
+    async deleteBlog(blogId, userId) {
+        // Kiểm tra quyền xóa: chỉ tác giả hoặc admin mới được xóa
+        const blog = await blogRepository.findById(blogId);
+        if (!blog) throw new AppError('Blog not found', 404);
+
+        // Nếu không phải tác giả và không phải admin thì không cho xóa
+        if (blog.authorId !== userId) {
+            throw new AppError('Forbidden: You can only delete your own blog posts', 403);
+        }
+
+        const deleted = await blogRepository.deleteById(blogId);
+        if (!deleted) throw new AppError('Delete failed', 500);
+        return true;
+    }
 }
 
 module.exports = new BlogService();
