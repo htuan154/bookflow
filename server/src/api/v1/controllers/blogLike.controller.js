@@ -25,9 +25,9 @@ class BlogLikeController {
      */
     async unlikeBlog(req, res, next) {
         try {
-            const { blog_id } = req.body;
+            const { blogId } = req.params; // Lấy từ params
             const userId = req.user.id;
-            await BlogLikeService.unlikeBlog(blog_id, userId);
+            await BlogLikeService.unlikeBlog(blogId, userId);
             successResponse(res, null, 'Blog unliked successfully');
         } catch (error) {
             next(error);

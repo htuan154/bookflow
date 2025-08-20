@@ -46,12 +46,16 @@ class BlogLikeService {
      * @returns {Promise<void>}
      */
     async unlikeBlog(blogId, userId) {
+        console.log('unlikeBlog called with:', blogId, userId); // Debug log
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
+            console.log('About to call deleteLike'); // Debug log
             const wasLiked = await blogLikeRepository.deleteLike(blogId, userId, client);
+            console.log('deleteLike result:', wasLiked); // Debug log
             await client.query('COMMIT');
         } catch (error) {
+            console.error('Error in unlikeBlog:', error); // Debug log
             await client.query('ROLLBACK');
             throw error;
         } finally {
@@ -59,7 +63,7 @@ class BlogLikeService {
         }
     }
 
-        /**
+    /**
      * Kiểm tra người dùng đã thích blog chưa.
      * @param {string} blogId - ID của blog.
      * @param {string} userId - ID của người dùng.
