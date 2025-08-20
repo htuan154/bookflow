@@ -2907,10 +2907,18 @@
         }
       }
     },
-    "/api/v1/blogs/blogs/like": {
+    "/api/v1/blogs/blogs/{blogId}/unlike": {
       "delete": {
         "description": "",
         "parameters": [
+          {
+            "name": "blogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "authorization",
             "in": "header",
@@ -2922,20 +2930,6 @@
         "responses": {
           "default": {
             "description": ""
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "blog_id": {
-                    "example": "any"
-                  }
-                }
-              }
-            }
           }
         }
       }
@@ -3126,7 +3120,7 @@
         }
       }
     },
-    "/api/v1/room-types/room-types/{roomTypeId}/images": {
+    "/api/v1/roomtypes/room-types/{roomTypeId}/images": {
       "get": {
         "description": "",
         "parameters": [
@@ -3146,7 +3140,7 @@
         }
       }
     },
-    "/api/v1/room-types/": {
+    "/api/v1/roomtypes/": {
       "get": {
         "description": "",
         "responses": {
@@ -3220,7 +3214,7 @@
         }
       }
     },
-    "/api/v1/room-types/paginated": {
+    "/api/v1/roomtypes/paginated": {
       "get": {
         "description": "",
         "parameters": [
@@ -3259,7 +3253,7 @@
         }
       }
     },
-    "/api/v1/room-types/search": {
+    "/api/v1/roomtypes/search": {
       "get": {
         "description": "",
         "parameters": [
@@ -3294,7 +3288,7 @@
         }
       }
     },
-    "/api/v1/room-types/stats": {
+    "/api/v1/roomtypes/stats": {
       "get": {
         "description": "",
         "parameters": [
@@ -3319,7 +3313,7 @@
         }
       }
     },
-    "/api/v1/room-types/available": {
+    "/api/v1/roomtypes/available": {
       "get": {
         "description": "",
         "parameters": [
@@ -3358,7 +3352,7 @@
         }
       }
     },
-    "/api/v1/room-types/hotel/{hotelId}": {
+    "/api/v1/roomtypes/hotel/{hotelId}": {
       "get": {
         "description": "",
         "parameters": [
@@ -3394,7 +3388,7 @@
         }
       }
     },
-    "/api/v1/room-types/{id}": {
+    "/api/v1/roomtypes/{id}": {
       "get": {
         "description": "",
         "parameters": [
@@ -3523,7 +3517,7 @@
         }
       }
     },
-    "/api/v1/room-types/{id}/rooms": {
+    "/api/v1/roomtypes/{id}/rooms": {
       "get": {
         "description": "",
         "parameters": [
@@ -3552,7 +3546,7 @@
         }
       }
     },
-    "/api/v1/room-types/bulk": {
+    "/api/v1/roomtypes/bulk": {
       "post": {
         "description": "",
         "parameters": [
@@ -3591,7 +3585,7 @@
         }
       }
     },
-    "/api/v1/room-types/{id}/duplicate": {
+    "/api/v1/roomtypes/{id}/duplicate": {
       "post": {
         "description": "",
         "parameters": [
@@ -3662,7 +3656,7 @@
         }
       }
     },
-    "/api/v1/room-types/{id}/bookings": {
+    "/api/v1/roomtypes/{id}/bookings": {
       "get": {
         "description": "",
         "parameters": [
@@ -3698,7 +3692,7 @@
         }
       }
     },
-    "/api/v1/room-types/{id}/status": {
+    "/api/v1/roomtypes/{id}/status": {
       "put": {
         "description": "",
         "parameters": [
@@ -4729,10 +4723,18 @@
         }
       }
     },
-    "/api/v1/blogs/like": {
+    "/api/v1/blogs/{blogId}/unlike": {
       "delete": {
         "description": "",
         "parameters": [
+          {
+            "name": "blogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "authorization",
             "in": "header",
@@ -4744,20 +4746,6 @@
         "responses": {
           "default": {
             "description": ""
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "blog_id": {
-                    "example": "any"
-                  }
-                }
-              }
-            }
           }
         }
       }

@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../classes/blog_model.dart';
 import 'api_config.dart';
 import 'user_service.dart';
+import 'token_service.dart';
 
 class BlogService {
   // Singleton pattern
@@ -185,28 +186,29 @@ class BlogService {
   Future<Map<String, dynamic>> getBlogBySlug(String slug) async {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}/blogs/$slug');
+      print('DEBUG: Calling API: $url');
 
-      final response = await http.get(url, headers: _headers);
-      final responseData = jsonDecode(response.body);
+      // Lấy token và gửi kèm headers
+      final token = await TokenService.getToken();
+      final headers = token != null ? _headersWithToken(token) : _headers;
+
+      final response = await http.get(url, headers: headers);
+
+      print('DEBUG: Status code: ${response.statusCode}');
+      print('DEBUG: Response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        Blog? blog;
-        if (responseData['data'] != null) {
-          blog = Blog.fromJson(responseData['data']);
-        }
-
-        return {
-          'success': true,
-          'message': responseData['message'] ?? 'Lấy thông tin blog thành công',
-          'data': blog,
-        };
+        final responseData = jsonDecode(response.body);
+        return {'success': true, 'data': responseData['data']};
       } else {
+        final responseData = jsonDecode(response.body);
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Không tìm thấy blog',
+          'message': responseData['message'] ?? 'Lỗi khi tải blog',
         };
       }
     } catch (e) {
+      print('DEBUG: Error in getBlogBySlug: $e');
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
@@ -770,6 +772,42 @@ class BlogService {
 
   /// Bỏ thích blog
   /// DELETE /api/v1/blogs/like
+  // Future<Map<String, dynamic>> unlikeBlog(String blogId, String token) async {
+  //   try {
+  //     final currentUser = await UserService.getUser();
+  //     if (currentUser == null) {
+  //       return {'success': false, 'message': 'Không tìm thấy thông tin user'};
+  //     }
+
+  //     final url = Uri.parse('${ApiConfig.baseUrl}/blogs/like');
+  //     final body = jsonEncode({
+  //       'blog_id': blogId,
+  //       'user_id': currentUser.userId,
+  //     });
+
+  //     final response = await http.delete(
+  //       url,
+  //       headers: _headersWithToken(token),
+  //       body: body, // PHẢI GỬI BODY
+  //     );
+  //     final responseData = jsonDecode(response.body);
+
+  //     if (response.statusCode == 200) {
+  //       return {
+  //         'success': true,
+  //         'message': responseData['message'] ?? 'Đã bỏ thích blog',
+  //       };
+  //     } else {
+  //       return {
+  //         'success': false,
+  //         'message': responseData['message'] ?? 'Lỗi khi bỏ thích blog',
+  //       };
+  //     }
+  //   } catch (e) {
+  //     return {'success': false, 'message': 'Lỗi kết nối: $e'};
+  //   }
+  // }
+
   Future<Map<String, dynamic>> unlikeBlog(String blogId, String token) async {
     try {
       final currentUser = await UserService.getUser();
@@ -777,16 +815,14 @@ class BlogService {
         return {'success': false, 'message': 'Không tìm thấy thông tin user'};
       }
 
-      final url = Uri.parse('${ApiConfig.baseUrl}/blogs/like');
-      final body = jsonEncode({
-        'blog_id': blogId,
-        'user_id': currentUser.userId,
-      });
+      // Sửa lại URL cho đúng RESTful endpoint
+      final url = Uri.parse('${ApiConfig.baseUrl}/blogs/$blogId/unlike');
+      final body = jsonEncode({'user_id': currentUser.userId});
 
       final response = await http.delete(
         url,
         headers: _headersWithToken(token),
-        body: body, // PHẢI GỬI BODY
+        body: body,
       );
       final responseData = jsonDecode(response.body);
 

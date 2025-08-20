@@ -63,17 +63,23 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
 
   Future<void> _loadBlogDetail() async {
     try {
+      print('DEBUG: Loading blog with slug: ${widget.blogSlug}');
+
       final result = await _blogService.getBlogBySlug(widget.blogSlug);
+
+      print('DEBUG: API result: $result');
+
       if (result['success']) {
         setState(() {
-          blog = result['data'];
+          // Sửa ở đây: convert Map thành Blog object
+          blog = Blog.fromJson(result['data']);
           likeCount = blog!.likeCount;
           isLoading = false;
         });
         if (blog != null) {
           _loadBlogImages();
           _loadBlogComments();
-          _checkIsLiked(); // Gọi lại ở đây để chắc chắn blog đã có
+          _checkIsLiked();
         }
       } else {
         setState(() {
@@ -82,6 +88,7 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
         });
       }
     } catch (e) {
+      print('DEBUG: Error in _loadBlogDetail: $e');
       setState(() {
         error = 'Lỗi khi tải blog: $e';
         isLoading = false;
