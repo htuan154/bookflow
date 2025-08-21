@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../classes/hotel_model.dart';
 import 'api_config.dart';
+import 'token_service.dart';
 
 class HotelService {
   // Singleton pattern
@@ -687,6 +688,71 @@ class HotelService {
         };
       }
     } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Lấy danh sách tiện nghi của khách sạn
+  /// GET /api/v1/hotels/:hotelId/amenities
+  Future<Map<String, dynamic>> getAmenitiesForHotel(String hotelId) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/hotels/$hotelId/amenities');
+
+      final response = await http.get(url, headers: _headers);
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        // Nếu có model Amenity thì parse, còn không trả raw data
+        final amenities = responseData['data'];
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Lấy danh sách tiện nghi thành công',
+          'data': amenities,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Lỗi khi lấy danh sách tiện nghi',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Lấy tất cả hình ảnh của một khách sạn
+  /// GET /api/v1/hotels/:hotelId/images
+  Future<Map<String, dynamic>> getHotelImages(String hotelId) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/hotels/$hotelId/images');
+      print('Calling API: $url'); // Debug log
+      
+      // Lấy token từ TokenService
+      final token = await TokenService.getToken();
+      
+      // Sử dụng headers có token nếu có, không thì dùng headers thường
+      final headers = token != null ? _headersWithToken(token) : _headers;
+      
+      final response = await http.get(url, headers: headers);
+      print('Response status: ${response.statusCode}'); // Debug log
+      print('Response body: ${response.body}'); // Debug log
+      
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Lấy danh sách ảnh thành công',
+          'data': responseData['data'],
+        };
+      } else {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Lỗi khi lấy danh sách ảnh',
+        };
+      }
+    } catch (e) {
+      print('Exception in getHotelImages: $e'); // Debug log
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }

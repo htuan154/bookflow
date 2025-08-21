@@ -50,6 +50,20 @@ class HotelImageController {
             next(error);
         }
     }
+
+    /**
+     * Lấy tất cả hình ảnh của một khách sạn.
+     * GET /api/v1/hotels/:hotelId/images
+     */
+    async getImagesByHotelId(req, res, next) {
+        try {
+            const { hotelId } = req.params;
+            const images = await HotelImageService.getImagesByHotelId(hotelId);
+            successResponse(res, images, 'Lấy danh sách ảnh thành công');
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new HotelImageController();

@@ -1,101 +1,7 @@
-//
-// // screens/hotel_detail_screen.dart
-// import 'package:flutter/material.dart';
-// import '../../../classes/hotel_model.dart'; // Import Hotel model thực
-// import '../hotel/widgets/custom_app_bar.dart';
-// import '../hotel/widgets/hotel_info.dart';
-// import '../hotel/widgets/tab_content.dart';
-// import '../hotel/widgets/image_slider.dart';
-// import '../hotel/widgets/booking_section.dart';
-
-// class HotelDetailScreen extends StatefulWidget {
-//   final Hotel hotel; // Thêm parameter này
-
-//   const HotelDetailScreen({Key? key, required this.hotel})
-//     : super(key: key); // Thêm constructor
-
-//   @override
-//   _HotelDetailScreenState createState() => _HotelDetailScreenState();
-// }
-
-// class _HotelDetailScreenState extends State<HotelDetailScreen>
-//     with TickerProviderStateMixin {
-//   late TabController _tabController;
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     _tabController = TabController(length: 2, vsync: this);
-//     // Xóa dòng hotel = Hotel.mockData(); vì giờ dùng widget.hotel
-//   }
-
-//   @override
-//   void dispose() {
-//     _tabController.dispose();
-//     super.dispose();
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       backgroundColor: Colors.grey[50],
-//       body: SafeArea(
-//         child: Column(
-//           children: [
-//             CustomAppBar(),
-//             Expanded(
-//               child: SingleChildScrollView(
-//                 child: Column(
-//                   children: [
-//                     ImageSlider(
-//                       images: _getHotelImages(),
-//                     ), // Sửa để dùng dữ liệu thực
-//                     HotelInfo(
-//                       hotel: widget.hotel, // Dùng widget.hotel thay vì hotel
-//                       tabController: _tabController,
-//                     ),
-//                     Container(
-//                       height: 400,
-//                       child: TabBarView(
-//                         controller: _tabController,
-//                         children: [
-//                           TabContent.about(widget.hotel), // Dùng widget.hotel
-//                           TabContent.reviews(
-//                             _getHotelReviews(),
-//                           ), // Tạm thời dùng empty list
-//                         ],
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//             ),
-//             BookingSection(price: _getHotelPrice()), // Sửa để lấy giá từ hotel
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   // Helper methods để convert dữ liệu
-//   List<String> _getHotelImages() {
-//     // Luôn dùng ảnh mặc định này
-//     return ['assets/welcome/welcome-image-1.png'];
-//   }
-
-//   List<dynamic> _getHotelReviews() {
-//     // Tạm thời return empty list vì chưa có reviews trong model
-//     return [];
-//   }
-
-//   double _getHotelPrice() {
-//     // Lấy giá từ hotel model hoặc return default
-//     return widget.hotel.pricePerNight?.toDouble() ?? 0.0;
-//   }
-// }
-
 import 'package:flutter/material.dart';
 import '../../../classes/hotel_model.dart';
+import '../../../classes/hotel_image_model.dart'; // Thêm import HotelImage
+import '../../../services/hotel_service.dart';
 
 class HotelDetailScreen extends StatefulWidget {
   final Hotel hotel;
@@ -109,43 +15,118 @@ class HotelDetailScreen extends StatefulWidget {
 class _HotelDetailScreenState extends State<HotelDetailScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
+  late PageController _pageController; // Controller cho slider
   bool isFavorite = false;
+  List<dynamic> amenities = [];
+  List<HotelImage> hotelImages = []; // Đổi thành List<HotelImage>
+  bool isLoadingAmenities = false;
+  bool isLoadingImages = false;
+  int currentImageIndex = 0; // Index hiện tại của slider
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _pageController = PageController();
+    _loadAmenities();
+    _loadHotelImages(); // Gọi hàm load ảnh
+  }
+
+  // Hàm load ảnh khách sạn
+  Future<void> _loadHotelImages() async {
+    setState(() {
+      isLoadingImages = true;
+    });
+
+    try {
+      print('Loading images for hotel ID: ${widget.hotel.hotelId}'); // Debug log
+      final result = await HotelService().getHotelImages(widget.hotel.hotelId);
+      
+      print('API result: $result'); // Debug log để xem response
+      
+      if (result['success'] && result['data'] != null) {
+        print('Images data from API: ${result['data']}'); // Debug log
+        
+        setState(() {
+          // Parse data thành List<HotelImage>
+          hotelImages = (result['data'] as List)
+              .map((json) => HotelImage.fromJson({
+                'image_id': json['imageId'],
+                'hotel_id': json['hotelId'],
+                'image_url': json['imageUrl'],
+                'caption': json['caption'],
+                'is_thumbnail': json['isThumbnail'] ?? false,
+                'order_index': null,
+                'uploaded_at': DateTime.now().toIso8601String(),
+              }))
+              .toList();
+        });
+        print('Parsed hotelImages: ${hotelImages.length} items'); // Debug log
+      } else {
+        print('API call failed or no data: ${result['message']}'); // Debug log
+        setState(() {
+          hotelImages = [];
+        });
+      }
+    } catch (e) {
+      print('Error loading hotel images: $e');
+      setState(() {
+        hotelImages = [];
+      });
+    } finally {
+      setState(() {
+        isLoadingImages = false;
+      });
+    }
+  }
+
+  // Thêm hàm load tiện nghi
+  Future<void> _loadAmenities() async {
+    setState(() {
+      isLoadingAmenities = true;
+    });
+
+    try {
+      final result = await HotelService().getAmenitiesForHotel(
+        widget.hotel.hotelId,
+      );
+      if (result['success']) {
+        setState(() {
+          amenities = result['data'] ?? [];
+        });
+      }
+    } catch (e) {
+      print('Error loading amenities: $e');
+    } finally {
+      setState(() {
+        isLoadingAmenities = false;
+      });
+    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: CustomScrollView(
         slivers: [
-          // Custom App Bar
           _buildSliverAppBar(),
-
-          // Hotel Content
           SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHotelHeader(),
-                  SizedBox(height: 20),
-                  _buildTabBar(),
-                  SizedBox(height: 20),
-                  _buildTabContent(),
-                ],
-              ),
+            child: Column(
+              children: [
+                _buildHotelHeader(),
+                _buildTabBar(),
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.6,
+                  child: _buildTabContent(),
+                ),
+              ],
             ),
           ),
         ],
@@ -156,51 +137,213 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
 
   Widget _buildSliverAppBar() {
     return SliverAppBar(
-      expandedHeight: 300.0,
+      expandedHeight: 300,
       floating: false,
       pinned: true,
       backgroundColor: Colors.white,
-      foregroundColor: Colors.black,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage(
-                'assets/welcome/welcome-image-1.png',
-              ), // Dùng ảnh mặc định
-              fit: BoxFit.cover,
-            ),
-          ),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.black.withOpacity(0.3)],
-              ),
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        Container(
-          margin: EdgeInsets.all(8),
+      elevation: 0,
+      leading: IconButton(
+        icon: Container(
+          padding: EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.9),
             shape: BoxShape.circle,
           ),
-          child: IconButton(
-            icon: Icon(
-              isFavorite ? Icons.favorite : Icons.favorite_outline,
-              color: isFavorite ? Colors.red : Colors.grey[700],
-            ),
-            onPressed: () {
-              setState(() {
-                isFavorite = !isFavorite;
-              });
-            },
-          ),
+          child: Icon(Icons.arrow_back, color: Colors.black),
         ),
+        onPressed: () => Navigator.pop(context),
+      ),
+      actions: [
+        IconButton(
+          icon: Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.9),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: isFavorite ? Colors.red : Colors.grey[600],
+            ),
+          ),
+          onPressed: () {
+            setState(() {
+              isFavorite = !isFavorite;
+            });
+          },
+        ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(background: _buildImageSlider()),
+    );
+  }
+
+  Widget _buildImageSlider() {
+    // Debug: In ra để kiểm tra
+    print('isLoadingImages: $isLoadingImages');
+    print('hotelImages length: ${hotelImages.length}');
+    print('hotelImages data: $hotelImages');
+
+    if (isLoadingImages) {
+      return Container(
+        color: Colors.grey[200],
+        child: Center(child: CircularProgressIndicator(color: Colors.orange)),
+      );
+    }
+
+    // Nếu không có ảnh từ API, dùng ảnh mặc định
+    List<String> imagesToShow = [];
+
+    if (hotelImages.isNotEmpty) {
+      // Có ảnh từ API - sắp xếp theo isThumbnail và orderIndex
+      List<HotelImage> sortedImages = [...hotelImages];
+      sortedImages.sort((a, b) {
+        // Ảnh thumbnail lên đầu
+        if (a.isThumbnail && !b.isThumbnail) return -1;
+        if (!a.isThumbnail && b.isThumbnail) return 1;
+        // Sau đó sắp xếp theo orderIndex
+        return (a.orderIndex ?? 0).compareTo(b.orderIndex ?? 0);
+      });
+
+      imagesToShow = sortedImages
+          .map<String>((img) => img.imageUrl)
+          .where((url) => url.isNotEmpty)
+          .toList();
+    }
+
+    // Nếu vẫn không có ảnh nào, dùng ảnh mặc định
+    if (imagesToShow.isEmpty) {
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        child: Image.asset(
+          'assets/welcome/welcome-image-1.png',
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.grey[300],
+              child: Center(
+                child: Icon(Icons.hotel, size: 64, color: Colors.grey[500]),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        // Slider ảnh
+        PageView.builder(
+          controller: _pageController,
+          onPageChanged: (index) {
+            setState(() {
+              currentImageIndex = index;
+            });
+          },
+          itemCount: imagesToShow.length,
+          itemBuilder: (context, index) {
+            return Container(
+              width: double.infinity,
+              height: double.infinity,
+              child: Image.network(
+                imagesToShow[index],
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Image.asset(
+                    'assets/welcome/welcome-image-1.png',
+                    fit: BoxFit.cover,
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    color: Colors.grey[200],
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.orange,
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+
+        // Dots indicator (chỉ hiện khi có > 1 ảnh)
+        if (imagesToShow.length > 1)
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                imagesToShow.length,
+                (index) => AnimatedContainer(
+                  duration: Duration(milliseconds: 300),
+                  margin: EdgeInsets.symmetric(horizontal: 4),
+                  height: 8,
+                  width: currentImageIndex == index ? 24 : 8,
+                  decoration: BoxDecoration(
+                    color: currentImageIndex == index
+                        ? Colors.white
+                        : Colors.white.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+        // Image counter (chỉ hiện khi có > 1 ảnh)
+        if (imagesToShow.length > 1)
+          Positioned(
+            top: 40,
+            right: 16,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                '${currentImageIndex + 1}/${imagesToShow.length}',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+
+        // Caption overlay (nếu có caption)
+        if (imagesToShow.length > 0 &&
+            hotelImages.length > currentImageIndex &&
+            hotelImages[currentImageIndex].caption != null &&
+            hotelImages[currentImageIndex].caption!.isNotEmpty)
+          Positioned(
+            bottom: 60,
+            left: 16,
+            right: 16,
+            child: Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                hotelImages[currentImageIndex].caption!,
+                style: TextStyle(color: Colors.white, fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -428,25 +571,155 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
   }
 
   Widget _buildAmenitiesTab() {
-    return Center(
+    if (isLoadingAmenities) {
+      return Center(child: CircularProgressIndicator(color: Colors.orange));
+    }
+
+    if (amenities.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.hotel_class, size: 64, color: Colors.grey[400]),
+            SizedBox(height: 16),
+            Text(
+              'Chưa có tiện ích nào',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[600],
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Khách sạn này chưa cập nhật thông tin tiện ích',
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle('Tiện ích khách sạn (${amenities.length})'),
+          SizedBox(height: 16),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 1.2, // Điều chỉnh tỷ lệ
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemCount: amenities.length,
+            itemBuilder: (context, index) {
+              final amenity = amenities[index];
+              return _buildAmenityCard(amenity);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAmenityCard(dynamic amenity) {
+    final String name = amenity['name'] ?? 'Tiện ích';
+    final String description = amenity['description'] ?? '';
+
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(Icons.hotel_class, size: 64, color: Colors.grey[400]),
-          SizedBox(height: 16),
-          Text(
-            'Thông tin tiện ích',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
+          // Icon container với kích thước cố định
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: amenity['iconUrl'] != null
+                  ? Image.network(
+                      amenity['iconUrl'],
+                      width: 28,
+                      height: 28,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(
+                          Icons.hotel_class,
+                          color: Colors.orange,
+                          size: 24,
+                        );
+                      },
+                    )
+                  : Icon(Icons.hotel_class, color: Colors.orange, size: 24),
             ),
           ),
+
           SizedBox(height: 8),
-          Text(
-            'Sẽ được cập nhật sớm',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+
+          // Tên tiện ích với container có chiều cao cố định
+          Container(
+            height: 32, // Chiều cao cố định cho 2 dòng text
+            child: Center(
+              child: Text(
+                name,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                  height: 1.2,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ),
           ),
+
+          // Mô tả với container có chiều cao cố định
+          if (description.isNotEmpty) ...[
+            SizedBox(height: 4),
+            Container(
+              height: 24, // Chiều cao cố định cho mô tả
+              child: Center(
+                child: Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey[600],
+                    height: 1.2,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ] else ...[
+            // Thêm khoảng trống để cân bằng layout khi không có mô tả
+            SizedBox(height: 28),
+          ],
         ],
       ),
     );
