@@ -5,7 +5,8 @@ import '../search/search_results_screen.dart';
 
 // Widget chọn tỉnh/phường giống main.dart demo
 class ProvinceWardForm extends StatefulWidget {
-  const ProvinceWardForm({Key? key}) : super(key: key);
+  final VoidCallback? onLoadCompleted; // Thêm callback
+  const ProvinceWardForm({Key? key, this.onLoadCompleted}) : super(key: key);
 
   @override
   State<ProvinceWardForm> createState() => _ProvinceWardFormState();
@@ -40,11 +41,17 @@ class _ProvinceWardFormState extends State<ProvinceWardForm> {
         _filteredProvinces = provinces;
         _isLoading = false;
       });
+
+      // Gọi callback báo HomeScreen là đã load xong
+      widget.onLoadCompleted?.call();
     } catch (e) {
       debugPrint('Error: $e');
       setState(() {
         _isLoading = false;
       });
+
+      // Vẫn gọi callback dù có lỗi
+      widget.onLoadCompleted?.call();
     }
   }
 
@@ -154,9 +161,7 @@ class _ProvinceWardFormState extends State<ProvinceWardForm> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    // Không hiển thị loading riêng nữa, để HomeScreen quản lý
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,

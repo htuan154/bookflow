@@ -706,13 +706,15 @@ class HotelService {
         final amenities = responseData['data'];
         return {
           'success': true,
-          'message': responseData['message'] ?? 'Lấy danh sách tiện nghi thành công',
+          'message':
+              responseData['message'] ?? 'Lấy danh sách tiện nghi thành công',
           'data': amenities,
         };
       } else {
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Lỗi khi lấy danh sách tiện nghi',
+          'message':
+              responseData['message'] ?? 'Lỗi khi lấy danh sách tiện nghi',
         };
       }
     } catch (e) {
@@ -726,17 +728,17 @@ class HotelService {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}/hotels/$hotelId/images');
       print('Calling API: $url'); // Debug log
-      
+
       // Lấy token từ TokenService
       final token = await TokenService.getToken();
-      
+
       // Sử dụng headers có token nếu có, không thì dùng headers thường
       final headers = token != null ? _headersWithToken(token) : _headers;
-      
+
       final response = await http.get(url, headers: headers);
       print('Response status: ${response.statusCode}'); // Debug log
       print('Response body: ${response.body}'); // Debug log
-      
+
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         return {
@@ -753,6 +755,78 @@ class HotelService {
       }
     } catch (e) {
       print('Exception in getHotelImages: $e'); // Debug log
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Lấy tất cả đánh giá của một khách sạn
+  /// GET /api/v1/reviews/:hotelId/reviews
+  Future<Map<String, dynamic>> getReviewsForHotel(String hotelId) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/reviews/$hotelId');
+      // Lấy token từ TokenService
+      final token = await TokenService.getToken();
+      // Sử dụng headers có token nếu có, không thì dùng headers thường
+      final headers = token != null ? _headersWithToken(token) : _headers;
+
+      print('GET $url'); // Debug URL
+      final response = await http.get(url, headers: headers);
+      print('Status code: ${response.statusCode}'); // Debug status code
+      print('Response body: ${response.body}'); // Debug body
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message':
+              responseData['message'] ?? 'Lấy danh sách đánh giá thành công',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message':
+              responseData['message'] ?? 'Lỗi khi lấy danh sách đánh giá',
+        };
+      }
+    } catch (e) {
+      print('Lỗi kết nối: $e'); // Debug lỗi kết nối
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Lấy tất cả hình ảnh của một đánh giá
+  /// GET /api/v1/reviews/:reviewId/images
+  Future<Map<String, dynamic>> getReviewImages(String reviewId) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/reviews/$reviewId/images');
+      // Lấy token từ TokenService
+      final token = await TokenService.getToken();
+      // Sử dụng headers có token nếu có, không thì dùng headers thường
+      final headers = token != null ? _headersWithToken(token) : _headers;
+
+      print('GET $url'); // Debug URL
+      final response = await http.get(url, headers: headers);
+      print('Status code: ${response.statusCode}'); // Debug status code
+      print('Response body: ${response.body}'); // Debug body
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Lấy danh sách hình ảnh thành công',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Lỗi khi lấy danh sách hình ảnh',
+        };
+      }
+    } catch (e) {
+      print('Lỗi kết nối: $e'); // Debug lỗi kết nối
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }

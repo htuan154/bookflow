@@ -41,27 +41,13 @@ class BlogCommentService {
     }
 
     /**
-     * Lấy các bình luận của một bài blog (đã được cấu trúc).
+     * Lấy các bình luận của một bài blog (không cấu trúc cây).
      * @param {string} blogId - ID của bài blog.
      * @returns {Promise<any[]>}
      */
     async getCommentsByBlog(blogId) {
         const comments = await blogCommentRepository.findByBlogId(blogId);
-        // Cấu trúc lại thành dạng cây (cha-con)
-        const commentMap = {};
-        const rootComments = [];
-        comments.forEach(comment => {
-            comment.replies = [];
-            commentMap[comment.commentId] = comment;
-            if (comment.parentCommentId) {
-                if(commentMap[comment.parentCommentId]) {
-                   commentMap[comment.parentCommentId].replies.push(comment);
-                }
-            } else {
-                rootComments.push(comment);
-            }
-        });
-        return rootComments;
+        return comments; // Trả về danh sách phẳng, không cấu trúc cây
     }
 
     /**
