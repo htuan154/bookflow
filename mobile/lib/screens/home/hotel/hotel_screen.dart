@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../classes/hotel_model.dart';
 import '../../../classes/hotel_image_model.dart'; // Thêm import HotelImage
 import '../../../services/hotel_service.dart';
+import '../../../classes/review_model.dart'; // Thêm import này
+import '../../../screens/home/review/review_detail_screen.dart';
 
 class HotelDetailScreen extends StatefulWidget {
   final Hotel hotel;
@@ -22,6 +24,8 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
   bool isLoadingAmenities = false;
   bool isLoadingImages = false;
   int currentImageIndex = 0; // Index hiện tại của slider
+  List<Review> reviews = [];
+  bool isLoadingReviews = false;
 
   @override
   void initState() {
@@ -29,7 +33,8 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
     _tabController = TabController(length: 3, vsync: this);
     _pageController = PageController();
     _loadAmenities();
-    _loadHotelImages(); // Gọi hàm load ảnh
+    _loadHotelImages();
+    _loadReviews(); // Thêm dòng này
   }
 
   // Hàm load ảnh khách sạn
@@ -39,26 +44,30 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
     });
 
     try {
-      print('Loading images for hotel ID: ${widget.hotel.hotelId}'); // Debug log
+      print(
+        'Loading images for hotel ID: ${widget.hotel.hotelId}',
+      ); // Debug log
       final result = await HotelService().getHotelImages(widget.hotel.hotelId);
-      
+
       print('API result: $result'); // Debug log để xem response
-      
+
       if (result['success'] && result['data'] != null) {
         print('Images data from API: ${result['data']}'); // Debug log
-        
+
         setState(() {
           // Parse data thành List<HotelImage>
           hotelImages = (result['data'] as List)
-              .map((json) => HotelImage.fromJson({
-                'image_id': json['imageId'],
-                'hotel_id': json['hotelId'],
-                'image_url': json['imageUrl'],
-                'caption': json['caption'],
-                'is_thumbnail': json['isThumbnail'] ?? false,
-                'order_index': null,
-                'uploaded_at': DateTime.now().toIso8601String(),
-              }))
+              .map(
+                (json) => HotelImage.fromJson({
+                  'image_id': json['imageId'],
+                  'hotel_id': json['hotelId'],
+                  'image_url': json['imageUrl'],
+                  'caption': json['caption'],
+                  'is_thumbnail': json['isThumbnail'] ?? false,
+                  'order_index': null,
+                  'uploaded_at': DateTime.now().toIso8601String(),
+                }),
+              )
               .toList();
         });
         print('Parsed hotelImages: ${hotelImages.length} items'); // Debug log
@@ -100,6 +109,42 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
     } finally {
       setState(() {
         isLoadingAmenities = false;
+      });
+    }
+  }
+
+  Future<void> _loadReviews() async {
+    setState(() {
+      isLoadingReviews = true;
+    });
+    try {
+      final result = await HotelService().getReviewsForHotel(
+        widget.hotel.hotelId,
+      );
+      debugPrint('API getReviewsForHotel result: $result'); // Thêm dòng này
+
+      if (result['success'] && result['data'] != null) {
+        setState(() {
+          reviews = (result['data'] as List)
+              .map((json) => Review.fromJson(json))
+              .toList();
+        });
+      } else {
+        debugPrint(
+          'Không lấy được review: ${result['message']}',
+        ); // Thêm dòng này
+        setState(() {
+          reviews = [];
+        });
+      }
+    } catch (e) {
+      debugPrint('Lỗi khi load reviews: $e'); // Thêm dòng này
+      setState(() {
+        reviews = [];
+      });
+    } finally {
+      setState(() {
+        isLoadingReviews = false;
       });
     }
   }
@@ -601,29 +646,33 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
       );
     }
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionTitle('Tiện ích khách sạn (${amenities.length})'),
-          SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Tiện ích khách sạn (${amenities.length})'),
+        SizedBox(height: 16),
+        Expanded(
+          child: GridView.builder(
+            physics: BouncingScrollPhysics(),
+            padding: EdgeInsets.zero,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              childAspectRatio: 1.2, // Điều chỉnh tỷ lệ
+              childAspectRatio: 1.2,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
             itemCount: amenities.length,
             itemBuilder: (context, index) {
+              if (index >= amenities.length) {
+                // Trả về ô trống để lố
+                return SizedBox.shrink();
+              }
               final amenity = amenities[index];
               return _buildAmenityCard(amenity);
             },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -726,33 +775,155 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
   }
 
   Widget _buildReviewsTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.rate_review_outlined, size: 64, color: Colors.grey[400]),
-          SizedBox(height: 16),
-          Text(
-            widget.hotel.totalReviews > 0
-                ? '${widget.hotel.totalReviews} đánh giá'
-                : 'Chưa có đánh giá',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
-            ),
-          ),
-          if (widget.hotel.averageRating > 0) ...[
-            SizedBox(height: 8),
+    if (isLoadingReviews) {
+      return Center(child: CircularProgressIndicator(color: Colors.orange));
+    }
+
+    if (reviews.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.rate_review_outlined, size: 64, color: Colors.grey[400]),
+            SizedBox(height: 16),
             Text(
-              'Điểm trung bình: ${widget.hotel.averageRating.toStringAsFixed(1)}/5.0',
+              'Chưa có đánh giá',
               style: TextStyle(
-                fontSize: 16,
-                color: Colors.orange,
-                fontWeight: FontWeight.w500,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[600],
               ),
             ),
           ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: EdgeInsets.all(16),
+      itemCount: reviews.length,
+      separatorBuilder: (_, __) => SizedBox(height: 16),
+      itemBuilder: (context, index) {
+        return _buildReviewCard(reviews[index]);
+      },
+    );
+  }
+
+  Widget _buildReviewCard(Review review) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ReviewDetailScreen(review: review)),
+        );
+      },
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[200]!),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header: User + Rating + Date
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.orange[100],
+                  child: Icon(Icons.person, color: Colors.orange),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    review.user?.fullName ?? 'Ẩn danh',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                ),
+                Row(
+                  children: List.generate(
+                    5,
+                    (i) => Icon(
+                      i < (review.rating ?? 0) ? Icons.star : Icons.star_border,
+                      color: Colors.orange,
+                      size: 18,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.calendar_today, size: 14, color: Colors.grey[500]),
+                SizedBox(width: 4),
+                Text(
+                  '${review.createdAt.day.toString().padLeft(2, '0')}/${review.createdAt.month.toString().padLeft(2, '0')}/${review.createdAt.year}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+            // Nếu có các điểm phụ, hiển thị thêm
+            if (review.cleanlinessRating != null ||
+                review.comfortRating != null ||
+                review.serviceRating != null ||
+                review.locationRating != null ||
+                review.valueRating != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    if (review.cleanlinessRating != null)
+                      _buildSubRating('Sạch sẽ', review.cleanlinessRating!),
+                    if (review.comfortRating != null)
+                      _buildSubRating('Thoải mái', review.comfortRating!),
+                    if (review.serviceRating != null)
+                      _buildSubRating('Dịch vụ', review.serviceRating!),
+                    if (review.locationRating != null)
+                      _buildSubRating('Vị trí', review.locationRating!),
+                    if (review.valueRating != null)
+                      _buildSubRating('Giá trị', review.valueRating!),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubRating(String label, int value) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$label: ',
+            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+          ),
+          Text(
+            '$value',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.orange,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );

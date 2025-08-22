@@ -26,7 +26,7 @@ const create = async (commentData) => {
  * @returns {Promise<BlogComment[]>}
  */
 const findByBlogId = async (blogId) => {
-    const query = 'SELECT * FROM blog_comments WHERE blog_id = $1 AND status = \'approved\' ORDER BY created_at ASC';
+    const query = 'SELECT blog_comments.*, users.username FROM blog_comments JOIN users On users.user_id = blog_comments.user_id WHERE blog_id = $1 AND status = \'approved\' ORDER BY created_at ASC';
     const result = await pool.query(query, [blogId]);
     // Đảm bảo trả về new BlogComment(row) để mapping sang camelCase
     return result.rows.map(row => new BlogComment(row));

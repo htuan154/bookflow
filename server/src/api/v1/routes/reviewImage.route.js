@@ -12,6 +12,8 @@ const router = express.Router();
 // --- Áp dụng middleware xác thực cho tất cả các route bên dưới ---
 router.use(authenticate);
 
+router.get('/reviews/:reviewId/images', reviewImageController.getImagesByReviewId);
+
 // POST /api/v1/reviews/:reviewId/images -> Thêm một hoặc nhiều ảnh vào một đánh giá
 router.post(
     '/reviews/:reviewId/images',

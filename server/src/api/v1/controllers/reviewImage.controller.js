@@ -36,6 +36,20 @@ class ReviewImageController {
             next(error);
         }
     }
+
+    /**
+     * Lấy tất cả hình ảnh của một đánh giá.
+     * GET /api/v1/reviews/:reviewId/images
+     */
+    async getImagesByReviewId(req, res, next) {
+        try {
+            const { reviewId } = req.params;
+            const images = await ReviewImageService.getImagesByReviewId(reviewId);
+            successResponse(res, images, 'Lấy danh sách hình ảnh của đánh giá thành công');
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new ReviewImageController();
