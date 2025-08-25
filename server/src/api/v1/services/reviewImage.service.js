@@ -31,6 +31,16 @@ class ReviewImageService {
     }
 
     /**
+     * Lấy tất cả hình ảnh của một đánh giá.
+     * @param {string} reviewId - ID của đánh giá.
+     * @returns {Promise<ReviewImage[]>}
+     */
+    async getImagesByReviewId(reviewId) {
+        // Có thể kiểm tra quyền truy cập ở đây nếu cần
+        return await reviewImageRepository.findByReviewId(reviewId);
+    }
+
+    /**
      * Xóa một hình ảnh của đánh giá.
      * @param {string} imageId - ID của hình ảnh.
      * @param {object} currentUser - Thông tin người dùng hiện tại từ token.

@@ -161,24 +161,131 @@ class BlogService {
     }
 
     /**
+     * Lấy thống kê blogs cho admin (Admin only).
+     * @returns {Promise<object>}
+     */
+    async getAdminBlogStats() {
+        // Có thể dùng lại logic của getBlogStatistics hoặc tùy chỉnh cho admin
+        return await this.getBlogStatistics();
+    }
+
+        /**
      * Xóa một bài blog theo ID.
      * @param {string} blogId - ID của bài blog.
-     * @param {string} userId - ID của người thực hiện.
-     * @returns {Promise<boolean>}
+     * @param {string} userId - ID của người thực hiện (để kiểm tra quyền).
+     * @returns {Promise<void>}
      */
     async deleteBlog(blogId, userId) {
-        // Kiểm tra quyền xóa: chỉ tác giả hoặc admin mới được xóa
         const blog = await blogRepository.findById(blogId);
         if (!blog) throw new AppError('Blog not found', 404);
 
-        // Nếu không phải tác giả và không phải admin thì không cho xóa
-        if (blog.authorId !== userId) {
-            throw new AppError('Forbidden: You can only delete your own blog posts', 403);
+        // if (blog.authorId !== userId) {
+        //     throw new AppError('Forbidden: You can only delete your own blog posts', 403);
+        // }
+
+        const success = await blogRepository.deleteById(blogId);
+        if (!success) {
+            throw new AppError('Failed to delete blog', 500);
+        }
+    }
+
+    /**
+     * Lấy một bài blog theo ID.
+     * @param {string} blogId - ID của bài blog.
+     * @returns {Promise<Blog>}
+     */
+    async getBlogById(blogId) {
+        const blog = await blogRepository.findById(blogId);
+        if (!blog) {
+            throw new AppError('Blog not found', 404);
+        }
+        return blog;
+    }
+
+    //Thêm hàm cập nhật trạng thái của blogs
+    /**
+     * Cập nhật trạng thái của một blog (Admin only).
+     * @param {string} blogId - ID của blog.
+     * @param {string} newStatus - Trạng thái mới.
+     * @param {string} userId - ID của người thực hiện (người duyệt nếu là published).
+     * @param {boolean} isAdmin - Có phải admin hay không.
+     * @returns {Promise<Blog>}
+     */
+    async updateBlogStatus(blogId, newStatus, userId, isAdmin = false) {
+        const blog = await blogRepository.findById(blogId);
+        if (!blog) {
+            throw new AppError('Blog not found', 404);
         }
 
-        const deleted = await blogRepository.deleteById(blogId);
-        if (!deleted) throw new AppError('Delete failed', 500);
-        return true;
+        // Chỉ admin mới được đổi trạng thái
+        if (!isAdmin) {
+            throw new AppError('Forbidden: Only admins can change blog status', 403);
+        }
+
+        // Nếu trạng thái mới là published thì lưu người duyệt
+        const updatedBlog = await blogRepository.updateStatus(
+            blogId,
+            newStatus,
+            newStatus === 'published' ? userId : null
+        );
+
+        if (!updatedBlog) {
+            throw new AppError('Failed to update blog status', 500);
+        }
+
+        return updatedBlog;
+    }
+
+    /**
+ /**
+ * Tìm kiếm blog theo tiêu đề (đơn giản, có phân trang, tùy chọn trạng thái)
+ * @param {string} keyword - Từ khóa tìm kiếm.
+ * @param {object} options - { page, limit, status }
+ * @returns {Promise<object>}
+ */
+async searchBlogsByTitleSimple(keyword, options = {}) {
+    const page = parseInt(options.page, 10) || 1;
+    const limit = parseInt(options.limit, 10) || 10;
+    const offset = (page - 1) * limit;
+    const status = options.status; // 'published' hoặc undefined
+
+    // Gọi repository đã sửa để tránh lỗi param Postgres
+    const result = await blogRepository.searchByTitleSimple(keyword, limit, offset, status);
+
+    const totalPages = Math.ceil(result.total / limit);
+
+    return {
+        success: true,
+        data: {
+            blogs: result.blogs,
+            pagination: {
+                currentPage: page,
+                totalPages,
+                totalItems: result.total,
+                itemsPerPage: limit,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1
+            }
+        }
+    };
+}
+
+
+    //Thêm ngày 14/8
+  // Lấy blog được xuất bản kèm bình luận và lượt thích
+  // src/api/v1/services/blog.service.js
+    async getBlogsWithStatsByStatus(status = 'published') {
+        try {
+            // gọi thẳng hàm từ repository
+            const blogs = await blogRepository.findBlogsWithStatsByStatus(status);
+
+            return {
+                success: true,
+                data: blogs
+            };
+        } catch (error) {
+            throw new Error(`Error getting blogs with stats by status: ${error.message}`);
+        }
     }
 }
 
