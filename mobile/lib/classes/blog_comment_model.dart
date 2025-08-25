@@ -20,6 +20,7 @@ class BlogComment {
   final User? user;
   final BlogComment? parentComment;
   final List<BlogComment>? replies;
+  final String? username; // Thêm trường này
 
   BlogComment({
     required this.commentId,
@@ -34,6 +35,7 @@ class BlogComment {
     this.user,
     this.parentComment,
     this.replies,
+    this.username,
   });
 
   // Factory constructor từ JSON
@@ -61,6 +63,7 @@ class BlogComment {
                   .map((reply) => BlogComment.fromJson(reply))
                   .toList()
             : null,
+        username: json['username'] as String?, // Thêm dòng này
       );
       print('DEBUG BlogComment.fromJson success: ${comment.commentId}');
       return comment;
@@ -87,6 +90,7 @@ class BlogComment {
       if (parentComment != null) 'parent_comment': parentComment!.toJson(),
       if (replies != null)
         'replies': replies!.map((reply) => reply.toJson()).toList(),
+      'username': username, // Thêm dòng này
     };
   }
 
@@ -112,6 +116,7 @@ class BlogComment {
     User? user,
     BlogComment? parentComment,
     List<BlogComment>? replies,
+    String? username,
   }) {
     return BlogComment(
       commentId: commentId ?? this.commentId,
@@ -126,6 +131,7 @@ class BlogComment {
       user: user ?? this.user,
       parentComment: parentComment ?? this.parentComment,
       replies: replies ?? this.replies,
+      username: username ?? this.username,
     );
   }
 
@@ -142,7 +148,9 @@ class BlogComment {
   bool get isReply => parentCommentId != null;
 
   // Lấy tên người comment
-  String get authorName => user?.fullName ?? user?.username ?? 'Anonymous';
+  String get authorName => (username != null && username!.isNotEmpty)
+      ? username!
+      : (user?.fullName ?? 'Anonymous');
 
   // Lấy avatar người comment
   String? get authorAvatar => user?.profilePictureUrl;

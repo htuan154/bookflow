@@ -45,18 +45,19 @@ class Review {
 
   factory Review.fromJson(Map<String, dynamic> json) {
     return Review(
-      reviewId: json['review_id'] as String,
-      userId: json['user_id'] as String,
-      hotelId: json['hotel_id'] as String,
-      bookingId: json['booking_id'] as String?,
+      reviewId: json['reviewId'] as String,
+      userId: json['userId'] as String,
+      hotelId: json['hotelId'] as String,
+      bookingId: json['bookingId'] as String?,
       rating: json['rating'] as int?,
       comment: json['comment'] as String?,
-      cleanlinessRating: json['cleanliness_rating'] as int?,
-      comfortRating: json['comfort_rating'] as int?,
-      serviceRating: json['service_rating'] as int?,
-      locationRating: json['location_rating'] as int?,
-      valueRating: json['value_rating'] as int?,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      cleanlinessRating: json['cleanlinessRating'] as int?,
+      comfortRating: json['comfortRating'] as int?,
+      serviceRating: json['serviceRating'] as int?,
+      locationRating: json['locationRating'] as int?,
+      valueRating: json['valueRating'] as int?,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      // Nếu API trả về user/hotel/booking thì parse tiếp, còn không thì để null
       user: json['user'] != null ? User.fromJson(json['user']) : null,
       hotel: json['hotel'] != null ? Hotel.fromJson(json['hotel']) : null,
       booking: json['booking'] != null

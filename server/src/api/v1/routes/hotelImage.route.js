@@ -7,6 +7,12 @@ const { uploadHotelImagesSchema } = require('../../../validators/hotelImage.vali
 
 const router = express.Router();
 
+// Lấy tất cả hình ảnh của một khách sạn.
+// GET /api/v1/hotels/:hotelId/images 
+router.get(
+    '/hotels/:hotelId/images',
+    hotelImageController.getImagesByHotelId
+);
 
 // --- Áp dụng middleware xác thực cho tất cả các route ---
 router.use(authenticate);

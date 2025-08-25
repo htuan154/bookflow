@@ -2,6 +2,7 @@
 
 const pool = require('../../../config/db');
 const Blog = require('../../../models/blog.model');
+const Blog_custom = require('../../../models/blog_custom');
 
 /**
  * Tạo một bài blog mới.
@@ -59,13 +60,15 @@ const findById = async (blogId) => {
  */
 const findAllPublished = async (limit = 10, offset = 0) => {
     const query = `
-        SELECT * FROM blogs 
-        WHERE status = 'published' 
-        ORDER BY created_at DESC 
+        SELECT blogs.*, users.username
+        FROM blogs
+        JOIN users ON users.user_id = blogs.author_id
+        WHERE blogs.status = 'published'
+        ORDER BY blogs.created_at DESC
         LIMIT $1 OFFSET $2
     `;
     const result = await pool.query(query, [limit, offset]);
-    return result.rows.map(row => new Blog(row));
+    return result.rows.map(row => new Blog_custom(row));
 };
 
 /**
