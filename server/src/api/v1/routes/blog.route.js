@@ -66,18 +66,17 @@ router.get(
 
 // --- ROUTES CÔNG KHAI ---
 router.get('/', blogController.getPublishedBlogs);
-
-// --- TÍCH HỢP CÁC ROUTE CON TRƯỚC CÁC ROUTE CÓ PARAMETER ---
-router.use('/', blogCommentRoutes);
-router.use('/', blogImageRoutes);
-router.use('/', blogLikeRoutes); // Di chuyển lên đây
-
-// --- CÁC ROUTE CÓ PARAMETER ĐẶT CUỐI CÙNG ---
 router.get('/:slug', blogController.getBlogBySlug);
 
 // --- AUTHENTICATED ROUTES ---
 router.post('/', authenticate, validate(createBlogSchema), blogController.createBlog);
 router.put('/:blogId', authenticate, validate(updateBlogSchema), blogController.updateBlog);
-router.delete('/:blogId', authenticate, blogController.deleteBlog); // Để cuối
+// chỉ tác giả hoặc admin mới được xóa bài viết
+router.delete('/:blogId', authenticate, blogController.deleteBlog);
+
+// --- TÍCH HỢP CÁC ROUTE CON ---
+router.use('/', blogCommentRoutes);
+router.use('/', blogImageRoutes);
+router.use('/', blogLikeRoutes);
 
 module.exports = router;

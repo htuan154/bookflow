@@ -65,6 +65,16 @@ class HotelImageService {
         }
         await hotelImageRepository.setAsThumbnail(image.hotelId, imageId);
     }
+
+    /**
+     * Lấy tất cả hình ảnh của một khách sạn.
+     * @param {string} hotelId
+     * @returns {Promise<HotelImage[]>}
+     */
+    async getImagesByHotelId(hotelId) {
+        // Có thể kiểm tra quyền nếu cần
+        return await hotelImageRepository.findByHotelId(hotelId);
+    }
 }
 
 module.exports = new HotelImageService();

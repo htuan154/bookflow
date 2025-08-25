@@ -4,6 +4,7 @@ import '../classes/blog_model.dart';
 import 'api_config.dart';
 import 'user_service.dart';
 import 'token_service.dart';
+import '../classes/blog_custom_model.dart';
 
 class BlogService {
   // Singleton pattern
@@ -157,10 +158,10 @@ class BlogService {
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        List<Blog> blogs = [];
+        List<BlogCustom> blogs = [];
         if (responseData['data'] != null) {
           blogs = (responseData['data'] as List)
-              .map((json) => Blog.fromJson(json))
+              .map((json) => BlogCustom.fromJson(json))
               .toList();
         }
 

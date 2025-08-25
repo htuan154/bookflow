@@ -41,14 +41,13 @@ class BlogCommentService {
     }
 
     /**
-     * Lấy các bình luận của một bài blog (đã được cấu trúc).
+     * Lấy các bình luận của một bài blog (không cấu trúc cây).
      * @param {string} blogId - ID của bài blog.
      * @returns {Promise<any[]>}
      */
     async getCommentsByBlog(blogId) {
-        // Trả về toàn bộ danh sách comment (flat)
         const comments = await blogCommentRepository.findByBlogId(blogId);
-        return comments;
+        return comments; // Trả về danh sách phẳng, không cấu trúc cây
     }
 
     /**

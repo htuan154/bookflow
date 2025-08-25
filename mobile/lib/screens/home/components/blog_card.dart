@@ -3,11 +3,12 @@
 // ============================================
 
 import 'package:flutter/material.dart';
-import '../../../classes/blog_model.dart';
+//import '../../../classes/blog_model.dart';
 import '../blog/blog_detail_screen.dart';
+import '../../../classes/blog_custom_model.dart';
 
 class BlogCard extends StatelessWidget {
-  final Blog blog;
+  final BlogCustom blog;
   final VoidCallback? onTap;
 
   const BlogCard({Key? key, required this.blog, this.onTap}) : super(key: key);
