@@ -4,6 +4,7 @@ import '../../../classes/hotel_image_model.dart'; // Thêm import HotelImage
 import '../../../services/hotel_service.dart';
 import '../../../classes/review_model.dart'; // Thêm import này
 import '../../../screens/home/review/review_detail_screen.dart';
+import '../booking/booking_screen.dart';
 
 class HotelDetailScreen extends StatefulWidget {
   final Hotel hotel;
@@ -844,7 +845,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    review.user?.fullName ?? 'Ẩn danh',
+                    review.username ?? 'Ẩn danh',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
@@ -1040,7 +1041,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
           Expanded(
             flex: 2,
             child: ElevatedButton(
-              onPressed: _showBookingDialog,
+              onPressed: _showBooking,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
@@ -1077,20 +1078,12 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
     }
   }
 
-  void _showBookingDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Đặt phòng'),
-        content: Text(
-          'Tính năng đặt phòng sẽ được phát triển trong tương lai.\n\nHiện tại bạn có thể liên hệ trực tiếp qua:\n${widget.hotel.phoneNumber ?? 'SĐT sẽ cập nhật sớm'}\n${widget.hotel.email ?? 'Email sẽ cập nhật sớm'}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Đóng'),
-          ),
-        ],
+  void _showBooking() {
+    // Thay thế dialog bằng navigation tới BookingScreen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BookingScreen(hotel: widget.hotel),
       ),
     );
   }

@@ -49,7 +49,8 @@ class SeasonalPricing {
       'start_date': startDate.toIso8601String().split('T')[0],
       'end_date': endDate.toIso8601String().split('T')[0],
       'price_modifier': priceModifier,
-      if (roomType != null) 'room_type': roomType!.toJson(),
+      // Sửa key từ 'room_type' thành 'roomType'
+      if (roomType != null) 'roomType': roomType!.toJson(),
       if (season != null) 'season': season!.toJson(),
     };
   }
