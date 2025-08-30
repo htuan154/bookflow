@@ -3801,6 +3801,26 @@
         }
       }
     },
+    "/api/v1/room-types/{roomTypeId}/thumbnail": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "roomTypeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/room-types/{roomTypeId}/images/{imageId}": {
       "delete": {
         "description": "",

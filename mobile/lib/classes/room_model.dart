@@ -48,7 +48,8 @@ class Room {
       'floor_number': floorNumber,
       'status': status,
       'created_at': createdAt.toIso8601String(),
-      if (roomType != null) 'room_type': roomType!.toJson(),
+      // Sửa key từ 'room_type' thành 'roomType'
+      if (roomType != null) 'roomType': roomType!.toJson(),
     };
   }
 

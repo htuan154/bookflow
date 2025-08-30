@@ -816,13 +816,130 @@ class HotelService {
       if (response.statusCode == 200) {
         return {
           'success': true,
-          'message': responseData['message'] ?? 'Lấy danh sách hình ảnh thành công',
+          'message':
+              responseData['message'] ?? 'Lấy danh sách hình ảnh thành công',
           'data': responseData['data'],
         };
       } else {
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Lỗi khi lấy danh sách hình ảnh',
+          'message':
+              responseData['message'] ?? 'Lỗi khi lấy danh sách hình ảnh',
+        };
+      }
+    } catch (e) {
+      print('Lỗi kết nối: $e'); // Debug lỗi kết nối
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Lấy tất cả loại phòng của một khách sạn
+  /// GET /api/v1/room-types/hotel/:hotelId
+  Future<Map<String, dynamic>> getRoomTypesByHotelId(String hotelId) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/roomtypes/hotel/$hotelId');
+      // Lấy token từ TokenService
+      final token = await TokenService.getToken();
+      // Sử dụng headers có token nếu có, không thì dùng headers thường
+      final headers = token != null ? _headersWithToken(token) : _headers;
+
+      print('GET $url'); // Debug URL
+      final response = await http.get(url, headers: headers);
+      print('Status code: ${response.statusCode}'); // Debug status code
+      print('Response body: ${response.body}'); // Debug body
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message':
+              responseData['message'] ?? 'Lấy danh sách loại phòng thành công',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message':
+              responseData['message'] ?? 'Lỗi khi lấy danh sách loại phòng',
+        };
+      }
+    } catch (e) {
+      print('Lỗi kết nối: $e'); // Debug lỗi kết nối
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Lấy tất cả hình ảnh của một loại phòng
+  /// GET /api/v1/room-types/:roomTypeId/images
+  Future<Map<String, dynamic>> getRoomTypeImages(String roomTypeId) async {
+    try {
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}/room-types/$roomTypeId/images',
+      );
+      // Lấy token từ TokenService
+      final token = await TokenService.getToken();
+      // Sử dụng headers có token nếu có, không thì dùng headers thường
+      final headers = token != null ? _headersWithToken(token) : _headers;
+
+      print('GET $url'); // Debug URL
+      final response = await http.get(url, headers: headers);
+      print('Status code: ${response.statusCode}'); // Debug status code
+      print('Response body: ${response.body}'); // Debug body
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message':
+              responseData['message'] ??
+              'Lấy danh sách hình ảnh loại phòng thành công',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message':
+              responseData['message'] ??
+              'Lỗi khi lấy danh sách hình ảnh loại phòng',
+        };
+      }
+    } catch (e) {
+      print('Lỗi kết nối: $e'); // Debug lỗi kết nối
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Lấy hình ảnh thumbnail của một loại phòng
+  /// GET /api/v1/room-types/:roomTypeId/thumbnail
+  Future<Map<String, dynamic>> getRoomTypeThumbnail(String roomTypeId) async {
+    try {
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}/room-types/$roomTypeId/thumbnail',
+      );
+      // Lấy token từ TokenService
+      final token = await TokenService.getToken();
+      // Sử dụng headers có token nếu có, không thì dùng headers thường
+      final headers = token != null ? _headersWithToken(token) : _headers;
+
+      print('GET $url'); // Debug URL
+      final response = await http.get(url, headers: headers);
+      print('Status code: ${response.statusCode}'); // Debug status code
+      print('Response body: ${response.body}'); // Debug body
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Lấy thumbnail thành công',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Lỗi khi lấy thumbnail',
         };
       }
     } catch (e) {

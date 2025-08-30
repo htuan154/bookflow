@@ -12,6 +12,9 @@ const router = express.Router();
 
 router.get('/room-types/:roomTypeId/images', roomTypeImageController.getImages);
 
+// Thêm route mới để lấy thumbnail
+router.get('/room-types/:roomTypeId/thumbnail', roomTypeImageController.getThumbnail);
+
 router.post(
     '/room-types/:roomTypeId/images',
     authenticate,

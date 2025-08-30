@@ -1,5 +1,5 @@
 // ============================================
-// REVIEW IMAGE MODEL
+// REVIEW MODEL
 // ============================================
 
 import 'user_model.dart';
@@ -19,6 +19,7 @@ class Review {
   final int? locationRating;
   final int? valueRating;
   final DateTime createdAt;
+  final String? username; // Thêm trường này
 
   // Quan hệ với các model khác
   final User? user;
@@ -38,6 +39,7 @@ class Review {
     this.locationRating,
     this.valueRating,
     required this.createdAt,
+    this.username, // Thêm parameter này
     this.user,
     this.hotel,
     this.booking,
@@ -57,6 +59,7 @@ class Review {
       locationRating: json['locationRating'] as int?,
       valueRating: json['valueRating'] as int?,
       createdAt: DateTime.parse(json['createdAt'] as String),
+      username: json['username'] as String?, // Thêm dòng này
       // Nếu API trả về user/hotel/booking thì parse tiếp, còn không thì để null
       user: json['user'] != null ? User.fromJson(json['user']) : null,
       hotel: json['hotel'] != null ? Hotel.fromJson(json['hotel']) : null,
@@ -68,18 +71,19 @@ class Review {
 
   Map<String, dynamic> toJson() {
     return {
-      'review_id': reviewId,
-      'user_id': userId,
-      'hotel_id': hotelId,
-      'booking_id': bookingId,
+      'reviewId': reviewId,
+      'userId': userId,
+      'hotelId': hotelId,
+      'bookingId': bookingId,
       'rating': rating,
       'comment': comment,
-      'cleanliness_rating': cleanlinessRating,
-      'comfort_rating': comfortRating,
-      'service_rating': serviceRating,
-      'location_rating': locationRating,
-      'value_rating': valueRating,
-      'created_at': createdAt.toIso8601String(),
+      'cleanlinessRating': cleanlinessRating,
+      'comfortRating': comfortRating,
+      'serviceRating': serviceRating,
+      'locationRating': locationRating,
+      'valueRating': valueRating,
+      'createdAt': createdAt.toIso8601String(),
+      'username': username, // Thêm dòng này
       if (user != null) 'user': user!.toJson(),
       if (hotel != null) 'hotel': hotel!.toJson(),
       if (booking != null) 'booking': booking!.toJson(),
@@ -99,6 +103,7 @@ class Review {
     int? locationRating,
     int? valueRating,
     DateTime? createdAt,
+    String? username, // Thêm parameter này
     User? user,
     Hotel? hotel,
     Booking? booking,
@@ -116,11 +121,17 @@ class Review {
       locationRating: locationRating ?? this.locationRating,
       valueRating: valueRating ?? this.valueRating,
       createdAt: createdAt ?? this.createdAt,
+      username: username ?? this.username, // Thêm dòng này
       user: user ?? this.user,
       hotel: hotel ?? this.hotel,
       booking: booking ?? this.booking,
     );
   }
+
+  /// Lấy tên người đánh giá (ưu tiên username, sau đó user.fullName)
+  String get reviewerName => (username != null && username!.isNotEmpty)
+      ? username!
+      : (user?.fullName ?? 'Ẩn danh');
 
   /// Tính điểm trung bình của tất cả các rating
   double? get averageRating {
@@ -145,7 +156,7 @@ class Review {
 
   @override
   String toString() {
-    return 'Review(reviewId: $reviewId, userId: $userId, hotelId: $hotelId, rating: $rating, comment: ${comment?.substring(0, comment!.length > 50 ? 50 : comment!.length)}...)';
+    return 'Review(reviewId: $reviewId, userId: $userId, hotelId: $hotelId, rating: $rating, username: $username, comment: ${comment?.substring(0, comment!.length > 50 ? 50 : comment!.length)}...)';
   }
 
   @override

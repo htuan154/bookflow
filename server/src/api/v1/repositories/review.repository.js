@@ -2,6 +2,7 @@
 
 const pool = require('../../../config/db');
 const Review = require('../../../models/review.model');
+const Review_custom = require('../../../models/review_custom');
 
 /**
  * Tạo một đánh giá mới.
@@ -72,12 +73,19 @@ const create = async (reviewData) => {
  * @param {string} hotelId - ID của khách sạn.
  * @param {number} limit - Số lượng kết quả.
  * @param {number} offset - Vị trí bắt đầu.
- * @returns {Promise<Review[]>}
+ * @returns {Promise<Review_custom[]>}
  */
 const findByHotelId = async (hotelId, limit = 10, offset = 0) => {
-    const query = 'SELECT * FROM reviews WHERE hotel_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3';
+    const query = `
+        SELECT r.*, u.username
+        FROM reviews r
+        LEFT JOIN users u ON r.user_id = u.user_id
+        WHERE r.hotel_id = $1 
+        ORDER BY r.created_at DESC 
+        LIMIT $2 OFFSET $3
+    `;
     const result = await pool.query(query, [hotelId, limit, offset]);
-    return result.rows.map(row => new Review(row));
+    return result.rows.map(row => new Review_custom(row));
 };
 
 /**
