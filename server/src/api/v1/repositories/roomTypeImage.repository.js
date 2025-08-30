@@ -99,6 +99,25 @@ const findById = async (imageId) => {
     }
 };
 
+/**
+ * Tìm hình ảnh thumbnail của một loại phòng.
+ * @param {string} roomTypeId - ID của loại phòng.
+ * @returns {Promise<RoomTypeImage|null>} - Trả về ảnh thumbnail nếu có, ngược lại null.
+ */
+const findThumbnailByRoomTypeId = async (roomTypeId) => {
+    const query = `
+        SELECT image_id, room_type_id, image_url, caption, is_thumbnail, uploaded_at
+        FROM room_type_images
+        WHERE room_type_id = $1 AND is_thumbnail = true
+        LIMIT 1
+    `;
+    try {
+        const result = await pool.query(query, [roomTypeId]);
+        return result.rows.length > 0 ? new RoomTypeImage(result.rows[0]) : null;
+    } catch (error) {
+        throw new Error(`Error finding thumbnail by room type ID: ${error.message}`);
+    }
+};
 
 module.exports = {
     addImages,
@@ -106,4 +125,5 @@ module.exports = {
     deleteById,
     findById,
     setAsThumbnail,
+    findThumbnailByRoomTypeId, // Thêm export này
 };

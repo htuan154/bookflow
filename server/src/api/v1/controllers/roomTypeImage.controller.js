@@ -66,6 +66,25 @@ class RoomTypeImageController {
             next(error);
         }
     }
+
+    /**
+     * Lấy hình ảnh thumbnail của một loại phòng.
+     * GET /api/v1/room-types/:roomTypeId/thumbnail
+     */
+    async getThumbnail(req, res, next) {
+        try {
+            const { roomTypeId } = req.params;
+            const thumbnail = await RoomTypeImageService.getThumbnailForRoomType(roomTypeId);
+            
+            if (!thumbnail) {
+                return successResponse(res, null, 'No thumbnail found for this room type', 200);
+            }
+            
+            successResponse(res, thumbnail, 'Thumbnail retrieved successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new RoomTypeImageController();
