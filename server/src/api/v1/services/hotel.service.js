@@ -283,6 +283,51 @@ class HotelService {
       }
     };
   }
+
+  /**
+   * Tìm kiếm phòng có sẵn theo thành phố và khoảng thời gian
+   * @param {string} city - Tên thành phố
+   * @param {string} checkInDate - Ngày nhận phòng (YYYY-MM-DD)
+   * @param {string} checkOutDate - Ngày trả phòng (YYYY-MM-DD)
+   * @param {string} [ward] - Tên phường/xã (optional)
+   * @returns {Promise<Object>}
+   */
+  async searchAvailableRooms(city, checkInDate, checkOutDate, ward = null) {
+    // Validate input
+    if (!city || !checkInDate || !checkOutDate) {
+      throw new AppError('Vui lòng cung cấp đầy đủ thông tin: thành phố, ngày nhận phòng và ngày trả phòng', 400);
+    }
+
+    // Validate dates
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+      throw new AppError('Định dạng ngày không hợp lệ. Sử dụng YYYY-MM-DD', 400);
+    }
+
+    const availableRooms = await hotelRepository.findAvailableRoomsByCity(city, checkInDate, checkOutDate, ward);
+
+    // Tạo message phù hợp
+    let locationText = city;
+    if (ward && ward.trim() !== '') {
+      locationText = `${ward}, ${city}`;
+    }
+
+    return {
+      success: true,
+      message: `Tìm thấy ${availableRooms.length} loại phòng có sẵn tại ${locationText} từ ${checkInDate} đến ${checkOutDate}`,
+      data: availableRooms,
+      searchParams: {
+        city,
+        checkInDate,
+        checkOutDate,
+        ward: ward || null
+      }
+    };
+  }
 }
 
 module.exports = new HotelService();

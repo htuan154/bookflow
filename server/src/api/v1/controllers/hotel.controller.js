@@ -315,6 +315,25 @@ class HotelController {
     }
   }
 
+   /**
+   * Tìm kiếm phòng có sẵn theo thành phố và khoảng thời gian (POST)
+   * POST /api/v1/hotels/search/availability
+   * Body: { city, checkInDate, checkOutDate, ward }
+   */
+  async searchAvailableRoomsPost(req, res, next) {
+    try {
+      const { city, checkInDate, checkOutDate, ward } = req.body;
+      
+      const result = await hotelService.searchAvailableRooms(city, checkInDate, checkOutDate, ward);
+      
+      successResponse(res, result.data, result.message, 200, {
+        searchParams: result.searchParams,
+        totalResults: result.data.length
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new HotelController();

@@ -40,6 +40,7 @@ const router = express.Router();
 router.get('/', hotelController.getAllHotels);
 router.get('/search', hotelController.searchHotels);
 router.get('/search/location', hotelController.getHotelsByCityAndWard);
+router.post('/search/availability', hotelController.searchAvailableRoomsPost); // Thêm POST
 router.get('/count/location', hotelController.countHotelsByCityAndWard);
 router.get('/popular', hotelController.getPopularHotels);
 // ===============================================
