@@ -308,6 +308,39 @@
         }
       }
     },
+    "/api/v1/hotels/search/availability": {
+      "post": {
+        "description": "",
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "example": "any"
+                  },
+                  "checkInDate": {
+                    "example": "any"
+                  },
+                  "checkOutDate": {
+                    "example": "any"
+                  },
+                  "ward": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/hotels/count/location": {
       "get": {
         "description": "",

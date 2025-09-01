@@ -2,13 +2,21 @@ import 'package:flutter/material.dart';
 import '../../../classes/hotel_model.dart';
 import '../../../classes/room_type_model.dart';
 import '../../../classes/room_type_image_model.dart';
+import '../../../classes/roomtypeavailability_model.dart'; // Thêm import này
 import '../../../services/hotel_service.dart';
 import 'room_type_detail_screen.dart';
 
 class BookingScreen extends StatefulWidget {
   final Hotel hotel;
+  final List<RoomTypeAvailability>? suitableRoomsForHotel; // Thêm parameter này
+  final Map<String, dynamic>? searchParams; // Thêm parameter này
 
-  const BookingScreen({Key? key, required this.hotel}) : super(key: key);
+  const BookingScreen({
+    Key? key, 
+    required this.hotel,
+    this.suitableRoomsForHotel, // Thêm parameter này
+    this.searchParams, // Thêm parameter này
+  }) : super(key: key);
 
   @override
   _BookingScreenState createState() => _BookingScreenState();
@@ -23,6 +31,14 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // Debug prints for the parameters
+    // print('=== BookingScreen Debug ===');
+    // print('suitableRoomsForHotel: ${widget.suitableRoomsForHotel}');
+    // print('suitableRoomsForHotel length: ${widget.suitableRoomsForHotel?.length ?? 0}');
+    // print('searchParams: ${widget.searchParams}');
+    // print('===========================');
+    
     _loadRoomTypes();
   }
 
