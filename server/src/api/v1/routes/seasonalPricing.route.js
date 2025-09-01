@@ -10,7 +10,8 @@ const router = express.Router();
 
 
 // --- Áp dụng middleware xác thực cho tất cả các route bên dưới ---
-router.use(authenticate, authorize(['hotel_owner', 'admin']));
+//router.use(authenticate, authorize(['hotel_owner', 'admin']));
+router.use(authenticate);
 
 // POST /api/v1/seasonal-pricings -> Tạo một quy tắc giá mới
 router.post(

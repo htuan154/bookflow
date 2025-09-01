@@ -1015,4 +1015,39 @@ class HotelService {
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }
+
+  /// Lấy tất cả quy tắc giá mùa vụ của một loại phòng
+  /// GET /api/v1/seasonal-pricings/:roomTypeId
+  Future<Map<String, dynamic>> getSeasonalPricingsForRoomType(String roomTypeId) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/seasonal-pricings/$roomTypeId');
+      // Lấy token từ TokenService
+      final token = await TokenService.getToken();
+      // Sử dụng headers có token nếu có, không thì dùng headers thường
+      final headers = token != null ? _headersWithToken(token) : _headers;
+
+      print('GET $url'); // Debug URL
+      final response = await http.get(url, headers: headers);
+      print('Status code: ${response.statusCode}'); // Debug status code
+      print('Response body: ${response.body}'); // Debug body
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Lấy danh sách seasonal pricing thành công',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Lỗi khi lấy danh sách seasonal pricing',
+        };
+      }
+    } catch (e) {
+      print('Lỗi kết nối: $e'); // Debug lỗi kết nối
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
 }

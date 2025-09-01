@@ -3,6 +3,7 @@ import '../../../classes/hotel_model.dart';
 import '../../../classes/room_type_model.dart';
 import '../../../classes/room_type_image_model.dart';
 import '../../../classes/roomtypeavailability_model.dart'; // Thêm import này
+import '../../../classes/season_pricing_model.dart'; // Thêm import này
 import '../../../services/hotel_service.dart';
 import 'room_type_detail_screen.dart';
 
@@ -12,7 +13,7 @@ class BookingScreen extends StatefulWidget {
   final Map<String, dynamic>? searchParams; // Thêm parameter này
 
   const BookingScreen({
-    Key? key, 
+    Key? key,
     required this.hotel,
     this.suitableRoomsForHotel, // Thêm parameter này
     this.searchParams, // Thêm parameter này
@@ -27,19 +28,137 @@ class _BookingScreenState extends State<BookingScreen> {
   Map<String, RoomTypeImage?> roomTypeThumbnails = {};
   bool isLoadingRoomTypes = false;
   bool isLoadingThumbnails = false;
+  Map<String, List<SeasonalPricing>> seasonalPricingsByRoomType = {};
+  bool isLoadingSeasonalPricings = false;
+
+  List<Map<String, dynamic>> calculatedRooms =
+      []; // Mảng chứa roomTypeId và số phòng
+  Map<String, double> calculatedPrices = {}; // Mảng chứa giá đã tính cho từng roomTypeId
 
   @override
   void initState() {
     super.initState();
-    
-    // Debug prints for the parameters
-    // print('=== BookingScreen Debug ===');
-    // print('suitableRoomsForHotel: ${widget.suitableRoomsForHotel}');
-    // print('suitableRoomsForHotel length: ${widget.suitableRoomsForHotel?.length ?? 0}');
-    // print('searchParams: ${widget.searchParams}');
-    // print('===========================');
-    
     _loadRoomTypes();
+    _loadSeasonalPricingsForSuitableRooms().then((_) {
+      _calculateRequiredRooms();
+      _calculatePricesForAllRoomTypes(); // Tính giá sau khi load seasonal pricing
+    });
+
+    // Debug prints for the parameters
+    print('=== BookingScreen Debug ===');
+    print('suitableRoomsForHotel: ${widget.suitableRoomsForHotel}');
+    print(
+      'suitableRoomsForHotel length: ${widget.suitableRoomsForHotel?.length ?? 0}',
+    );
+    print('searchParams: ${widget.searchParams}');
+    print('===========================');
+  }
+
+  void _calculatePricesForAllRoomTypes() {
+    if (widget.searchParams == null) return;
+
+    // Lấy ngày check-in và check-out từ searchParams
+    final String checkInDateStr = widget.searchParams!['checkInDate'] ?? '';
+    final String checkOutDateStr = widget.searchParams!['checkOutDate'] ?? '';
+
+    if (checkInDateStr.isEmpty || checkOutDateStr.isEmpty) return;
+
+    final DateTime checkInDate = DateTime.parse(checkInDateStr);
+    final DateTime checkOutDate = DateTime.parse(checkOutDateStr);
+
+    print('=== TÍNH GIÁ CHO TẤT CẢ LOẠI PHÒNG ===');
+    print('Check-in: ${checkInDate.toLocal().toString().split(' ')[0]}');
+    print('Check-out: ${checkOutDate.toLocal().toString().split(' ')[0]}');
+
+    for (var calculatedRoom in calculatedRooms) {
+      final String roomTypeId = calculatedRoom['roomTypeId'];
+      final int requiredRooms = calculatedRoom['requiredRooms'];
+
+      // Tìm roomType từ danh sách để lấy basePrice
+      final roomType = roomTypes.firstWhere(
+        (rt) => rt.roomTypeId == roomTypeId,
+        orElse: () => RoomType(
+          roomTypeId: roomTypeId,
+          hotelId: '',
+          name: '',
+          basePrice: 0,
+          maxOccupancy: 1,
+          numberOfRooms: 0,
+        ),
+      );
+
+      final double basePrice = roomType.basePrice;
+      final List<SeasonalPricing> seasonalPricings = seasonalPricingsByRoomType[roomTypeId] ?? [];
+
+      final double totalPrice = _calculatePriceForRoomType(
+        checkInDate,
+        checkOutDate,
+        basePrice,
+        requiredRooms,
+        seasonalPricings,
+      );
+
+      calculatedPrices[roomTypeId] = totalPrice;
+
+      print('---');
+      print('RoomTypeID: $roomTypeId');
+      print('Tên phòng: ${roomType.name}');
+      print('Giá gốc: ${_formatPrice(basePrice)} / đêm');
+      print('Số phòng cần: $requiredRooms');
+      print('Tổng giá: ${_formatPrice(totalPrice)}');
+    }
+
+    print('======================================');
+    setState(() {}); // Cập nhật UI
+  }
+
+  double _calculatePriceForRoomType(
+    DateTime checkInDate,
+    DateTime checkOutDate,
+    double basePrice,
+    int requiredRooms,
+    List<SeasonalPricing> seasonalPricings,
+  ) {
+    // Tính số ngày ở
+    final int totalDays = checkOutDate.difference(checkInDate).inDays;
+    if (totalDays <= 0) return 0;
+
+    double totalPrice = 0;
+
+    // Duyệt qua từng ngày trong khoảng thời gian
+    for (int dayOffset = 0; dayOffset < totalDays; dayOffset++) {
+      final DateTime currentDate = checkInDate.add(Duration(days: dayOffset));
+
+      // Kiểm tra xem ngày hiện tại có nằm trong seasonal pricing nào không
+      SeasonalPricing? applicableSeasonalPricing;
+
+      for (var pricing in seasonalPricings) {
+        if (pricing.isDateInRange(currentDate)) {
+          applicableSeasonalPricing = pricing;
+          break; // Lấy seasonal pricing đầu tiên phù hợp
+        }
+      }
+
+      double dailyPrice;
+      if (applicableSeasonalPricing != null) {
+        // Có seasonal pricing áp dụng
+        dailyPrice = basePrice * applicableSeasonalPricing.priceModifier;
+        print('  ${currentDate.toLocal().toString().split(' ')[0]}: ${_formatPrice(basePrice)} x ${applicableSeasonalPricing.priceModifier} (${applicableSeasonalPricing.name}) = ${_formatPrice(dailyPrice)}');
+      } else {
+        // Không có seasonal pricing, dùng giá gốc
+        dailyPrice = basePrice;
+        print('  ${currentDate.toLocal().toString().split(' ')[0]}: ${_formatPrice(basePrice)} (giá thường)');
+      }
+
+      totalPrice += dailyPrice;
+    }
+
+    // Nhân với số phòng cần thiết
+    final double finalPrice = totalPrice * requiredRooms;
+
+    print('  Tổng ${totalDays} ngày x ${requiredRooms} phòng = ${_formatPrice(finalPrice)}');
+
+    return finalPrice;
   }
 
   Future<void> _loadRoomTypes() async {
@@ -133,6 +252,44 @@ class _BookingScreenState extends State<BookingScreen> {
     });
   }
 
+  Future<void> _loadSeasonalPricingsForSuitableRooms() async {
+    if (widget.suitableRoomsForHotel == null) return;
+    setState(() {
+      isLoadingSeasonalPricings = true;
+    });
+
+    for (var room in widget.suitableRoomsForHotel!) {
+      final roomTypeId = room.roomTypeId;
+      if (roomTypeId != null) {
+        try {
+          final result = await HotelService().getSeasonalPricingsForRoomType(
+            roomTypeId,
+          );
+          if (result['success'] && result['data'] != null) {
+            final List<SeasonalPricing> pricings = (result['data'] as List)
+                .map((json) => SeasonalPricing.fromJson(json))
+                .toList();
+            setState(() {
+              seasonalPricingsByRoomType[roomTypeId] = pricings;
+            });
+          } else {
+            setState(() {
+              seasonalPricingsByRoomType[roomTypeId] = [];
+            });
+          }
+        } catch (e) {
+          setState(() {
+            seasonalPricingsByRoomType[roomTypeId] = [];
+          });
+        }
+      }
+    }
+
+    setState(() {
+      isLoadingSeasonalPricings = false;
+    });
+  }
+
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -144,12 +301,69 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _onRoomTypeTap(RoomType roomType) {
-     Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => RoomTypeDetailScreen(roomType: roomType),
-    ),
-  );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RoomTypeDetailScreen(roomType: roomType),
+      ),
+    );
+  }
+
+  void _calculateRequiredRooms() {
+    if (widget.suitableRoomsForHotel == null || widget.searchParams == null) {
+      print('=== Không có dữ liệu để tính toán ===');
+      return;
+    }
+
+    // Lấy số khách và số phòng từ searchParams
+    final int totalGuests = widget.searchParams!['guestCount'] ?? 1;
+    final int requestedRooms = widget.searchParams!['roomCount'] ?? 1;
+
+    print('=== THÔNG TIN TÌM KIẾM ===');
+    print('Tổng số khách: $totalGuests');
+    print('Số phòng khách chọn: $requestedRooms');
+    print('=============================');
+
+    calculatedRooms.clear();
+
+    for (var suitableRoom in widget.suitableRoomsForHotel!) {
+      final roomTypeId = suitableRoom.roomTypeId;
+      final maxOccupancy = suitableRoom.maxOccupancy ?? 1;
+
+      if (roomTypeId != null) {
+        // Tính số phòng cần thiết
+        int requiredRooms;
+
+        // Kiểm tra xem số phòng khách chọn * max_occupancy có đủ chứa số khách không
+        final totalCapacityWithRequestedRooms = maxOccupancy * requestedRooms;
+
+        if (totalCapacityWithRequestedRooms >= totalGuests) {
+          // Đủ chỗ với số phòng khách chọn
+          requiredRooms = requestedRooms;
+        } else {
+          // Không đủ chỗ, tính số phòng tối thiểu cần thiết
+          requiredRooms = (totalGuests / maxOccupancy).ceil();
+        }
+
+        calculatedRooms.add({
+          'roomTypeId': roomTypeId,
+          'requiredRooms': requiredRooms,
+          'maxOccupancy': maxOccupancy,
+          'totalCapacity': maxOccupancy * requiredRooms,
+        });
+      }
+    }
+
+    // Debug: In ra mảng kết quả
+    print('=== MẢNG KẾT QUẢ TÍNH TOÁN ===');
+    for (var room in calculatedRooms) {
+      print('RoomTypeID: ${room['roomTypeId']}');
+      print('Số phòng cần thiết: ${room['requiredRooms']}');
+      print('Max occupancy: ${room['maxOccupancy']}');
+      print('Tổng sức chứa: ${room['totalCapacity']}');
+      print('---');
+    }
+    print('================================');
   }
 
   @override
@@ -291,6 +505,19 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Widget _buildRoomTypeCard(RoomType roomType, RoomTypeImage? thumbnail) {
+    final seasonalPricings =
+        seasonalPricingsByRoomType[roomType.roomTypeId] ?? [];
+
+    // Kiểm tra xem roomType này có trong calculatedRooms không
+    final calculatedRoom = calculatedRooms.firstWhere(
+      (room) => room['roomTypeId'] == roomType.roomTypeId,
+      orElse: () => {},
+    );
+    final bool isRoomSuitable = calculatedRoom.isNotEmpty;
+
+    // Lấy giá đã tính (nếu có)
+    final double? calculatedPrice = calculatedPrices[roomType.roomTypeId];
+
     return InkWell(
       onTap: () => _onRoomTypeTap(roomType),
       child: Container(
@@ -344,16 +571,36 @@ class _BookingScreenState extends State<BookingScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
+                          color: isRoomSuitable
+                              ? Colors.orange.withOpacity(0.1)
+                              : Colors.red.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Text(
-                          _formatPrice(roomType.basePrice),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              isRoomSuitable
+                                  ? (calculatedPrice != null
+                                      ? _formatPrice(calculatedPrice)
+                                      : _formatPrice(roomType.basePrice))
+                                  : 'Không phù hợp để đặt',
+                              style: TextStyle(
+                                fontSize: isRoomSuitable ? 16 : 14,
+                                fontWeight: FontWeight.bold,
+                                color: isRoomSuitable ? Colors.orange : Colors.red,
+                              ),
+                            ),
+                            if (isRoomSuitable && calculatedPrice != null) ...[
+                              Text(
+                                'Tổng cộng',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ],
@@ -398,6 +645,90 @@ class _BookingScreenState extends State<BookingScreen> {
                     ],
                   ),
 
+                  // Hiển thị thông tin giá chi tiết nếu phù hợp
+                  if (isRoomSuitable && calculatedPrice != null) ...[
+                    SizedBox(height: 12),
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Chi tiết giá:',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Giá gốc: ${_formatPrice(roomType.basePrice)} / đêm',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.blue[600],
+                            ),
+                          ),
+                          Text(
+                            'Số phòng: ${calculatedRoom['requiredRooms']}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.blue[600],
+                            ),
+                          ),
+                          if (seasonalPricings.isNotEmpty) ...[
+                            Text(
+                              '(Đã áp dụng giá theo mùa)',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.blue[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ] else if (isRoomSuitable) ...[
+                    SizedBox(height: 12),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Cần ${calculatedRoom['requiredRooms']} phòng (${calculatedRoom['totalCapacity']} khách)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ] else ...[
+                    SizedBox(height: 12),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Loại phòng này không đáp ứng yêu cầu tìm kiếm của bạn',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.red[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+
                   if (roomType.bedType != null &&
                       roomType.bedType!.isNotEmpty) ...[
                     SizedBox(height: 12),
@@ -413,14 +744,39 @@ class _BookingScreenState extends State<BookingScreen> {
                       ),
                     ),
                   ],
+
+                  if (seasonalPricings.isNotEmpty && isRoomSuitable) ...[
+                    SizedBox(height: 8),
+                    Text(
+                      'Giá theo mùa:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    ...seasonalPricings.map(
+                      (pricing) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2.0),
+                        child: Text(
+                          '${pricing.name}: ${pricing.priceDescription} '
+                          '(${pricing.startDate.toLocal().toString().split(' ')[0]} '
+                          '- ${pricing.endDate.toLocal().toString().split(' ')[0]})',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
+      )
+      );
+    }
 
   Widget _buildRoomImage(RoomTypeImage? thumbnail) {
     if (isLoadingThumbnails) {
