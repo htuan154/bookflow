@@ -1,12 +1,30 @@
 import 'package:flutter/material.dart';
 import '../../../classes/room_type_model.dart';
 import '../../../classes/room_type_image_model.dart';
+import '../../../classes/season_pricing_model.dart';
 import '../../../services/hotel_service.dart';
+import 'booking_detail_screen.dart'; // Thêm nếu chưa có
+import '../../../classes/hotel_model.dart'; // Thêm dòng này
 
 class RoomTypeDetailScreen extends StatefulWidget {
+  final Hotel hotel; // Thêm dòng này
   final RoomType roomType;
+  final Map<String, dynamic>? calculatedRoom;
+  final double? calculatedPrice;
+  final List<SeasonalPricing>? seasonalPricings;
+  final bool? isRoomSuitable;
+  final Map<String, dynamic>? searchParams; // Thêm dòng này
 
-  const RoomTypeDetailScreen({Key? key, required this.roomType}) : super(key: key);
+  const RoomTypeDetailScreen({
+    Key? key,
+    required this.hotel, // Thêm dòng này
+    required this.roomType,
+    this.calculatedRoom,
+    this.calculatedPrice,
+    this.seasonalPricings,
+    this.isRoomSuitable,
+    this.searchParams, // Thêm dòng này
+  }) : super(key: key);
 
   @override
   _RoomTypeDetailScreenState createState() => _RoomTypeDetailScreenState();
@@ -39,31 +57,36 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
     });
 
     try {
-      final result = await HotelService().getRoomTypeImages(widget.roomType.roomTypeId!);
-      
+      final result = await HotelService().getRoomTypeImages(
+        widget.roomType.roomTypeId!,
+      );
+
       if (result['success'] && result['data'] != null) {
         setState(() {
           roomTypeImages = (result['data'] as List)
-              .map((json) => RoomTypeImage.fromJson({
-                    'image_id': json['imageId'] ?? json['image_id'],
-                    'room_type_id': json['roomTypeId'] ?? json['room_type_id'],
-                    'image_url': json['imageUrl'] ?? json['image_url'],
-                    'caption': json['caption'],
-                    'is_thumbnail': json['isThumbnail'] ?? json['is_thumbnail'] ?? false,
-                    'uploaded_at': json['uploadedAt'] ?? json['uploaded_at'],
-                  }))
+              .map(
+                (json) => RoomTypeImage.fromJson({
+                  'image_id': json['imageId'] ?? json['image_id'],
+                  'room_type_id': json['roomTypeId'] ?? json['room_type_id'],
+                  'image_url': json['imageUrl'] ?? json['image_url'],
+                  'caption': json['caption'],
+                  'is_thumbnail':
+                      json['isThumbnail'] ?? json['is_thumbnail'] ?? false,
+                  'uploaded_at': json['uploadedAt'] ?? json['uploaded_at'],
+                }),
+              )
               .toList();
-          
+
           // Sắp xếp: thumbnail trước, sau đó theo thứ tự upload
           roomTypeImages.sort((a, b) {
             if (a.isThumbnail && !b.isThumbnail) return -1;
             if (!a.isThumbnail && b.isThumbnail) return 1;
-            
+
             // Xử lý null safety cho uploadedAt
             if (a.uploadedAt == null && b.uploadedAt == null) return 0;
             if (a.uploadedAt == null) return 1;
             if (b.uploadedAt == null) return -1;
-            
+
             return a.uploadedAt!.compareTo(b.uploadedAt!);
           });
         });
@@ -86,6 +109,9 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isRoomSuitable = widget.isRoomSuitable ?? true;
+    final seasonalPricings = widget.seasonalPricings ?? [];
+
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -96,17 +122,27 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildRoomTypeHeader(),
+                  _buildRoomTypeHeader(isRoomSuitable),
+                  SizedBox(height: 24),
+                  _buildRoomSuitabilityInfo(isRoomSuitable),
                   SizedBox(height: 24),
                   _buildRoomTypeDetails(),
-                  //SizedBox(height: 100), // Space for bottom button
+                  if (widget.calculatedPrice != null && isRoomSuitable) ...[
+                    SizedBox(height: 24),
+                    _buildPriceBredown(),
+                  ],
+                  if (seasonalPricings.isNotEmpty && isRoomSuitable) ...[
+                    SizedBox(height: 24),
+                    _buildSeasonalPricingInfo(),
+                  ],
+                  SizedBox(height: 100), // Space for bottom button
                 ],
               ),
             ),
           ),
         ],
       ),
-      bottomNavigationBar: _buildBookingButton(),
+      bottomNavigationBar: _buildBookingButton(isRoomSuitable),
     );
   }
 
@@ -128,9 +164,7 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
         ),
         onPressed: () => Navigator.pop(context),
       ),
-      flexibleSpace: FlexibleSpaceBar(
-        background: _buildImageSlider(),
-      ),
+      flexibleSpace: FlexibleSpaceBar(background: _buildImageSlider()),
     );
   }
 
@@ -138,9 +172,7 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
     if (isLoadingImages) {
       return Container(
         color: Colors.grey[200],
-        child: Center(
-          child: CircularProgressIndicator(color: Colors.orange),
-        ),
+        child: Center(child: CircularProgressIndicator(color: Colors.orange)),
       );
     }
 
@@ -157,10 +189,7 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
               SizedBox(height: 16),
               Text(
                 'Không có hình ảnh',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[500],
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey[500]),
               ),
             ],
           ),
@@ -193,9 +222,16 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.broken_image, size: 64, color: Colors.grey[400]),
+                          Icon(
+                            Icons.broken_image,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
                           SizedBox(height: 8),
-                          Text('Lỗi tải ảnh', style: TextStyle(color: Colors.grey[500])),
+                          Text(
+                            'Lỗi tải ảnh',
+                            style: TextStyle(color: Colors.grey[500]),
+                          ),
                         ],
                       ),
                     ),
@@ -210,7 +246,7 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
                         color: Colors.orange,
                         value: loadingProgress.expectedTotalBytes != null
                             ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
+                                  loadingProgress.expectedTotalBytes!
                             : null,
                       ),
                     ),
@@ -220,7 +256,7 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
             );
           },
         ),
-        
+
         // Image indicators
         if (roomTypeImages.length > 1)
           Positioned(
@@ -246,7 +282,7 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
               ),
             ),
           ),
-        
+
         // Image counter
         if (roomTypeImages.length > 1)
           Positioned(
@@ -268,9 +304,9 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
               ),
             ),
           ),
-        
+
         // Image caption
-        if (roomTypeImages.isNotEmpty && 
+        if (roomTypeImages.isNotEmpty &&
             roomTypeImages[currentImageIndex].caption != null &&
             roomTypeImages[currentImageIndex].caption!.isNotEmpty)
           Positioned(
@@ -294,7 +330,7 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
     );
   }
 
-  Widget _buildRoomTypeHeader() {
+  Widget _buildRoomTypeHeader(bool isRoomSuitable) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -305,7 +341,7 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
               child: Text(
                 widget.roomType.name,
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
@@ -314,23 +350,50 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
             Container(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.orange,
+                color: isRoomSuitable
+                    ? Colors.orange.withOpacity(0.1)
+                    : Colors.red.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _formatPrice(widget.roomType.basePrice),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                border: Border.all(
+                  color: isRoomSuitable ? Colors.orange : Colors.red,
+                  width: 1,
                 ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    isRoomSuitable
+                        ? (widget.calculatedPrice != null
+                              ? _formatPrice(widget.calculatedPrice!)
+                              : _formatPrice(widget.roomType.basePrice))
+                        : 'Không phù hợp để đặt',
+                    style: TextStyle(
+                      fontSize: isRoomSuitable ? 20 : 16,
+                      fontWeight: FontWeight.bold,
+                      color: isRoomSuitable ? Colors.orange : Colors.red,
+                    ),
+                  ),
+                  if (isRoomSuitable && widget.calculatedPrice != null) ...[
+                    Text(
+                      'Tổng cộng',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                  ] else if (isRoomSuitable) ...[
+                    Text(
+                      'mỗi đêm',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
         ),
-        
-        if (widget.roomType.description != null && widget.roomType.description!.isNotEmpty) ...[
-          SizedBox(height: 12),
+
+        if (widget.roomType.description != null &&
+            widget.roomType.description!.isNotEmpty) ...[
+          SizedBox(height: 16),
           Text(
             widget.roomType.description!,
             style: TextStyle(
@@ -341,6 +404,200 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildRoomSuitabilityInfo(bool isRoomSuitable) {
+    if (!isRoomSuitable) {
+      return Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.red.withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning, color: Colors.red, size: 24),
+                SizedBox(width: 8),
+                Text(
+                  'Không phù hợp',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Loại phòng này không đáp ứng yêu cầu tìm kiếm của bạn',
+              style: TextStyle(fontSize: 14, color: Colors.red[700]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (widget.calculatedRoom != null) {
+      return Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.green.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.green.withOpacity(0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 24),
+                SizedBox(width: 8),
+                Text(
+                  'Phù hợp với yêu cầu',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Cần ${widget.calculatedRoom!['requiredRooms']} phòng (${widget.calculatedRoom!['totalCapacity']} khách)',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.green[700],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SizedBox.shrink();
+  }
+
+  Widget _buildPriceBredown() {
+    if (widget.calculatedRoom == null || widget.calculatedPrice == null)
+      return SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Chi tiết giá:',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[700],
+            ),
+          ),
+          SizedBox(height: 12),
+          _buildPriceRow(
+            'Giá gốc',
+            '${_formatPrice(widget.roomType.basePrice)} / đêm',
+          ),
+          _buildPriceRow(
+            'Số phòng',
+            '${widget.calculatedRoom!['requiredRooms']}',
+          ),
+          if (widget.seasonalPricings != null &&
+              widget.seasonalPricings!.isNotEmpty) ...[
+            _buildPriceRow('Áp dụng', 'Giá theo mùa'),
+          ],
+          Divider(color: Colors.blue[300]),
+          _buildPriceRow(
+            'Tổng cộng',
+            _formatPrice(widget.calculatedPrice!),
+            isTotal: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceRow(String label, String value, {bool isTotal = false}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: isTotal ? 16 : 14,
+              color: Colors.blue[600],
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: isTotal ? 16 : 14,
+              color: Colors.blue[700],
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeasonalPricingInfo() {
+    if (widget.seasonalPricings == null || widget.seasonalPricings!.isEmpty)
+      return SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.purple.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.purple.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Giá theo mùa:',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.purple[700],
+            ),
+          ),
+          SizedBox(height: 12),
+          ...widget.seasonalPricings!.map(
+            (pricing) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                '${pricing.name}: ${pricing.priceDescription} '
+                '(${pricing.startDate.toLocal().toString().split(' ')[0]} '
+                '- ${pricing.endDate.toLocal().toString().split(' ')[0]})',
+                style: TextStyle(fontSize: 14, color: Colors.purple[600]),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -357,7 +614,7 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
           ),
         ),
         SizedBox(height: 16),
-        
+
         Container(
           padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -396,7 +653,8 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
                   Colors.purple,
                 ),
               ],
-              if (widget.roomType.bedType != null && widget.roomType.bedType!.isNotEmpty) ...[
+              if (widget.roomType.bedType != null &&
+                  widget.roomType.bedType!.isNotEmpty) ...[
                 _buildDivider(),
                 _buildDetailRow(
                   Icons.bed,
@@ -412,7 +670,12 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value, Color iconColor) {
+  Widget _buildDetailRow(
+    IconData icon,
+    String label,
+    String value,
+    Color iconColor,
+  ) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -455,14 +718,10 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
   }
 
   Widget _buildDivider() {
-    return Divider(
-      color: Colors.grey[200],
-      thickness: 1,
-      height: 20,
-    );
+    return Divider(color: Colors.grey[200], thickness: 1, height: 20);
   }
 
-  Widget _buildBookingButton() {
+  Widget _buildBookingButton(bool isRoomSuitable) {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -483,21 +742,30 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Giá phòng',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-                Text(
-                  _formatPrice(widget.roomType.basePrice),
+                  isRoomSuitable ? 'Giá phòng' : 'Không thể đặt',
                   style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
+                    fontSize: 12,
+                    color: isRoomSuitable ? Colors.grey[600] : Colors.red[600],
                   ),
                 ),
                 Text(
-                  'mỗi đêm',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  isRoomSuitable
+                      ? (widget.calculatedPrice != null
+                            ? _formatPrice(widget.calculatedPrice!)
+                            : _formatPrice(widget.roomType.basePrice))
+                      : 'Không phù hợp',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isRoomSuitable ? Colors.orange : Colors.red,
+                  ),
                 ),
+                if (isRoomSuitable) ...[
+                  Text(
+                    widget.calculatedPrice != null ? 'tổng cộng' : 'mỗi đêm',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
               ],
             ),
           ),
@@ -505,7 +773,7 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
           Expanded(
             flex: 2,
             child: ElevatedButton(
-              onPressed: () => _showBookingDialog(),
+              onPressed: isRoomSuitable ? () => _showBookingDialog() : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
@@ -526,30 +794,17 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
   }
 
   void _showBookingDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Đặt phòng'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Loại phòng: ${widget.roomType.name}'),
-            SizedBox(height: 8),
-            Text('Giá: ${_formatPrice(widget.roomType.basePrice)}/đêm'),
-            SizedBox(height: 16),
-            Text(
-              'Tính năng đặt phòng sẽ được phát triển trong tương lai.',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BookingDetailScreen(
+          hotel: widget.hotel, // Truyền hotel sang đây
+          roomType: widget.roomType,
+          calculatedRoom: widget.calculatedRoom,
+          calculatedPrice: widget.calculatedPrice,
+          seasonalPricings: widget.seasonalPricings,
+          searchParams: widget.searchParams,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Đóng'),
-          ),
-        ],
       ),
     );
   }

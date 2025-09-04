@@ -33,16 +33,12 @@ class _BookingScreenState extends State<BookingScreen> {
 
   List<Map<String, dynamic>> calculatedRooms =
       []; // Mảng chứa roomTypeId và số phòng
-  Map<String, double> calculatedPrices = {}; // Mảng chứa giá đã tính cho từng roomTypeId
+  Map<String, double> calculatedPrices =
+      {}; // Mảng chứa giá đã tính cho từng roomTypeId
 
   @override
   void initState() {
     super.initState();
-    _loadRoomTypes();
-    _loadSeasonalPricingsForSuitableRooms().then((_) {
-      _calculateRequiredRooms();
-      _calculatePricesForAllRoomTypes(); // Tính giá sau khi load seasonal pricing
-    });
 
     // Debug prints for the parameters
     print('=== BookingScreen Debug ===');
@@ -52,6 +48,22 @@ class _BookingScreenState extends State<BookingScreen> {
     );
     print('searchParams: ${widget.searchParams}');
     print('===========================');
+
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    // 1. Load room types trước
+    await _loadRoomTypes();
+
+    // 2. Load seasonal pricings
+    await _loadSeasonalPricingsForSuitableRooms();
+
+    // 3. Tính toán số phòng cần thiết
+    _calculateRequiredRooms();
+
+    // 4. Tính giá cho tất cả loại phòng
+    _calculatePricesForAllRoomTypes();
   }
 
   void _calculatePricesForAllRoomTypes() {
@@ -65,31 +77,34 @@ class _BookingScreenState extends State<BookingScreen> {
 
     final DateTime checkInDate = DateTime.parse(checkInDateStr);
     final DateTime checkOutDate = DateTime.parse(checkOutDateStr);
+    final int totalGuests = widget.searchParams!['guestCount'] ?? 1;
+    final int requestedRooms = widget.searchParams!['roomCount'] ?? 1;
 
     print('=== TÍNH GIÁ CHO TẤT CẢ LOẠI PHÒNG ===');
     print('Check-in: ${checkInDate.toLocal().toString().split(' ')[0]}');
     print('Check-out: ${checkOutDate.toLocal().toString().split(' ')[0]}');
 
-    for (var calculatedRoom in calculatedRooms) {
-      final String roomTypeId = calculatedRoom['roomTypeId'];
-      final int requiredRooms = calculatedRoom['requiredRooms'];
-
-      // Tìm roomType từ danh sách để lấy basePrice
-      final roomType = roomTypes.firstWhere(
-        (rt) => rt.roomTypeId == roomTypeId,
-        orElse: () => RoomType(
-          roomTypeId: roomTypeId,
-          hotelId: '',
-          name: '',
-          basePrice: 0,
-          maxOccupancy: 1,
-          numberOfRooms: 0,
-        ),
-      );
-
+    // Tính giá cho TẤT CẢ loại phòng (không phụ thuộc calculatedRooms)
+    for (var roomType in roomTypes) {
+      final String roomTypeId = roomType.roomTypeId!;
       final double basePrice = roomType.basePrice;
-      final List<SeasonalPricing> seasonalPricings = seasonalPricingsByRoomType[roomTypeId] ?? [];
+      final List<SeasonalPricing> seasonalPricings =
+          seasonalPricingsByRoomType[roomTypeId] ?? [];
 
+      // Tính số phòng cần thiết cho loại phòng này
+      int requiredRooms;
+      final int maxOccupancy = roomType.maxOccupancy;
+      final totalCapacityWithRequestedRooms = maxOccupancy * requestedRooms;
+
+      if (totalCapacityWithRequestedRooms >= totalGuests) {
+        // Đủ chỗ với số phòng khách chọn
+        requiredRooms = requestedRooms;
+      } else {
+        // Không đủ chỗ, tính số phòng tối thiểu cần thiết
+        requiredRooms = (totalGuests / maxOccupancy).ceil();
+      }
+
+      // Tính giá cho loại phòng này
       final double totalPrice = _calculatePriceForRoomType(
         checkInDate,
         checkOutDate,
@@ -143,11 +158,15 @@ class _BookingScreenState extends State<BookingScreen> {
       if (applicableSeasonalPricing != null) {
         // Có seasonal pricing áp dụng
         dailyPrice = basePrice * applicableSeasonalPricing.priceModifier;
-        print('  ${currentDate.toLocal().toString().split(' ')[0]}: ${_formatPrice(basePrice)} x ${applicableSeasonalPricing.priceModifier} (${applicableSeasonalPricing.name}) = ${_formatPrice(dailyPrice)}');
+        print(
+          '  ${currentDate.toLocal().toString().split(' ')[0]}: ${_formatPrice(basePrice)} x ${applicableSeasonalPricing.priceModifier} (${applicableSeasonalPricing.name}) = ${_formatPrice(dailyPrice)}',
+        );
       } else {
         // Không có seasonal pricing, dùng giá gốc
         dailyPrice = basePrice;
-        print('  ${currentDate.toLocal().toString().split(' ')[0]}: ${_formatPrice(basePrice)} (giá thường)');
+        print(
+          '  ${currentDate.toLocal().toString().split(' ')[0]}: ${_formatPrice(basePrice)} (giá thường)',
+        );
       }
 
       totalPrice += dailyPrice;
@@ -156,7 +175,9 @@ class _BookingScreenState extends State<BookingScreen> {
     // Nhân với số phòng cần thiết
     final double finalPrice = totalPrice * requiredRooms;
 
-    print('  Tổng ${totalDays} ngày x ${requiredRooms} phòng = ${_formatPrice(finalPrice)}');
+    print(
+      '  Tổng ${totalDays} ngày x ${requiredRooms} phòng = ${_formatPrice(finalPrice)}',
+    );
 
     return finalPrice;
   }
@@ -301,10 +322,28 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _onRoomTypeTap(RoomType roomType) {
+    // Tìm thông tin phòng đã tính
+    final calculatedRoom = calculatedRooms.firstWhere(
+      (room) => room['roomTypeId'] == roomType.roomTypeId,
+      orElse: () => {},
+    );
+    final bool isRoomSuitable = calculatedRoom.isNotEmpty;
+    final double? calculatedPrice = calculatedPrices[roomType.roomTypeId];
+    final seasonalPricings =
+        seasonalPricingsByRoomType[roomType.roomTypeId] ?? [];
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => RoomTypeDetailScreen(roomType: roomType),
+        builder: (context) => RoomTypeDetailScreen(
+          hotel: widget.hotel, // Truyền hotel sang đây
+          roomType: roomType,
+          calculatedRoom: calculatedRoom.isNotEmpty ? calculatedRoom : null,
+          calculatedPrice: calculatedPrice,
+          seasonalPricings: seasonalPricings,
+          isRoomSuitable: isRoomSuitable,
+          searchParams: widget.searchParams,
+        ),
       ),
     );
   }
@@ -582,13 +621,15 @@ class _BookingScreenState extends State<BookingScreen> {
                             Text(
                               isRoomSuitable
                                   ? (calculatedPrice != null
-                                      ? _formatPrice(calculatedPrice)
-                                      : _formatPrice(roomType.basePrice))
+                                        ? _formatPrice(calculatedPrice)
+                                        : _formatPrice(roomType.basePrice))
                                   : 'Không phù hợp để đặt',
                               style: TextStyle(
                                 fontSize: isRoomSuitable ? 16 : 14,
                                 fontWeight: FontWeight.bold,
-                                color: isRoomSuitable ? Colors.orange : Colors.red,
+                                color: isRoomSuitable
+                                    ? Colors.orange
+                                    : Colors.red,
                               ),
                             ),
                             if (isRoomSuitable && calculatedPrice != null) ...[
@@ -774,9 +815,9 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
           ],
         ),
-      )
-      );
-    }
+      ),
+    );
+  }
 
   Widget _buildRoomImage(RoomTypeImage? thumbnail) {
     if (isLoadingThumbnails) {
