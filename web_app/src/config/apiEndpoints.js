@@ -1,8 +1,13 @@
 // src/config/apiEndpoints.js
 
 const API_BASE_URL = 'http://localhost:8080/api/v1';
-
+const CHATBOT_BASE = 'http://localhost:8080';
 export const API_ENDPOINTS = {
+    CHATBOT: {
+        SUGGEST: `${CHATBOT_BASE}/ai/suggest`,                  // POST
+        HEALTH:  `${CHATBOT_BASE}/ai/health`,                   // GET
+        AUTOCOMPLETE: (q) => `${CHATBOT_BASE}/provinces/autocomplete?q=${encodeURIComponent(q)}`, // GET
+    },
     // --- Season Endpoints ---
     SEASONS: {
         GET_ALL: `${API_BASE_URL}/seasons`,

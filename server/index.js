@@ -1,28 +1,37 @@
 // server/index.js
+'use strict';
 
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-// Import các module cho Swagger
-const swaggerUi = require('swagger-ui-express');
-const swaggerFile = require('./swagger-output.json'); 
+// Mongo (chatbot) + middlewares AI
+const { connectDB } = require('./src/config/mongodb');
+const aiRoutes = require('./src/api/v1/routes/ai.routes');
+const healthRoutes = require('./src/api/v1/routes/health.routes');
+const { aiLimiter } = require('./src/api/v1/middlewares/rateLimit.middleware');
+const errorHandler = require('./src/api/v1/middlewares/error.middleware');
 
+// Swagger
+const swaggerUi = require('swagger-ui-express');
+const swaggerFile = require('./swagger-output.json');
+
+// Postgres (các module khác của bạn)
 const pool = require('./src/config/db');
 
-// Import tất cả các file route chính
+// Routes v1 hiện có
 const authRoutes = require('./src/api/v1/routes/auth.route');
 const userRoutes = require('./src/api/v1/routes/user.route');
 const hotelRoutes = require('./src/api/v1/routes/hotel.route');
 const amenityRoutes = require('./src/api/v1/routes/amenity.route');
-const roomRoutes = require('./src/api/v1/routes/room.routes'); 
+const roomRoutes = require('./src/api/v1/routes/room.routes');
 const roomTypeRoutes = require('./src/api/v1/routes/roomType.routes');
 const roomTypeImageRoutes = require('./src/api/v1/routes/roomTypeImage.route');
 const roomAssignmentRoutes = require('./src/api/v1/routes/roomAssignment.route');
 const contractRoutes = require('./src/api/v1/routes/contract.route');
 const bookingRoutes = require('./src/api/v1/routes/booking.route');
-const bookingDetailRoutes = require('./src/api/v1/routes/bookingDetail.route'); 
+const bookingDetailRoutes = require('./src/api/v1/routes/bookingDetail.route');
 const seasonRoutes = require('./src/api/v1/routes/season.route');
 const seasonalPricingRoutes = require('./src/api/v1/routes/seasonalPricing.route');
 const touristLocationRoutes = require('./src/api/v1/routes/touristLocation.route');
@@ -38,25 +47,24 @@ const blogLikeRoutes = require('./src/api/v1/routes/blogLike.route');
 const blogRoutes = require('./src/api/v1/routes/blog.route');
 const chatRoutes = require('./src/api/v1/routes/chat.route');
 const roleRoutes = require('./src/api/v1/routes/role.route');
-// --- Khởi tạo ứng dụng Express ---
+const provincesRoutes = require('./src/api/v1/routes/provinces.routes');
+// --- App ---
 const app = express();
 const port = process.env.PORT || 8080;
 
-// --- Middlewares ---
+// --- Middlewares cơ bản ---
 app.use(cors({
-  origin: 'http://localhost:3000', // Chỉ cho phép frontend của bạn truy cập
+  origin: 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'] // Quan trọng: Cho phép header Authorization
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// --- API Documentation Route ---
+// --- Swagger ---
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
-// --- API Routes ---
-// Gắn các route vào đường dẫn tương ứng
+// --- API v1 (Postgres + các module sẵn có) ---
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/hotels', hotelRoutes);
@@ -65,7 +73,7 @@ app.use('/api/v1/rooms', roomRoutes);
 app.use('/api/v1/assignments', roomAssignmentRoutes);
 app.use('/api/v1/contracts', contractRoutes);
 app.use('/api/v1/bookings', bookingRoutes);
-app.use('/api/v1/booking-details', bookingDetailRoutes); 
+app.use('/api/v1/booking-details', bookingDetailRoutes);
 app.use('/api/v1/seasons', seasonRoutes);
 app.use('/api/v1/seasonal-pricings', seasonalPricingRoutes);
 app.use('/api/v1/tourist-locations', touristLocationRoutes);
@@ -84,19 +92,47 @@ app.use('/api/v1', hotelStaffRoutes);
 app.use('/api/v1', blogCommentRoutes);
 app.use('/api/v1', blogImageRoutes);
 app.use('/api/v1', blogLikeRoutes);
-// --- Khởi động Server ---
+
+// --- Chatbot (Mongo) ---
+app.use('/ai', aiLimiter, aiRoutes);  // POST /ai/suggest
+app.use('/ai', healthRoutes);         // GET  /ai/health
+app.use('/provinces', provincesRoutes);
+// --- 404 chung ---
+app.use((req, res) => {
+  res.status(404).json({ success: false, code: 404, message: 'Not found' });
+});
+
+// --- Error handler cuối chuỗi ---
+app.use(errorHandler);
+
+// --- Bootstrap: kết nối Mongo, kiểm tra Postgres, rồi listen ---
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(port, async () => {
-    console.log(`🚀 Server is listening at http://localhost:${port}`);
-    console.log(`📚 API documentation available at http://localhost:${port}/api-docs`);
+  (async () => {
     try {
-      const client = await pool.connect();
-      console.log('✅ Database connected successfully!');
-      client.release();
-    } catch (error) {
-      console.error('❌ Failed to connect to the database:', error.message);
+      // 1) Mongo (cho chatbot)
+      const db = await connectDB();
+      app.locals.db = db;
+      console.log('✅ MongoDB connected.');
+
+      // 2) Postgres (cho các module hiện hữu)
+      try {
+        const client = await pool.connect();
+        console.log('✅ Postgres connected.');
+        client.release();
+      } catch (pgErr) {
+        console.error('⚠️  Postgres connect failed:', pgErr.message);
+      }
+
+      // 3) Listen
+      app.listen(port, () => {
+        console.log(`🚀 Server is listening at http://localhost:${port}`);
+        console.log(`📚 API docs: http://localhost:${port}/api-docs`);
+      });
+    } catch (err) {
+      console.error('❌ Bootstrap failed:', err);
+      process.exit(1);
     }
-  });
+  })();
 }
 
 module.exports = app;

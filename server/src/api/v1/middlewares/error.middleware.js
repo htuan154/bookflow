@@ -11,7 +11,7 @@ const errorHandler = (err, req, res, next) => {
 
     // Log lỗi ra console để debug ở môi trường development
     if (process.env.NODE_ENV === 'development') {
-        console.error('ERROR 💥', err);
+        console.error('ERROR ', err);
     }
 
     res.status(err.statusCode).json({
@@ -22,5 +22,17 @@ const errorHandler = (err, req, res, next) => {
         ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
     });
 };
+module.exports = function errorHandler(err, req, res, next) {
+  const status = err.statusCode || err.status || 500;
+  const isDev = process.env.NODE_ENV !== 'production';
 
+  if (isDev) console.error('ERROR ', err);
+
+  res.status(status).json({
+    success: false,
+    code: status,
+    message: err.message || 'Đã có lỗi xảy ra trên server.',
+    ...(isDev && { stack: err.stack }),
+  });
+};
 module.exports = errorHandler;
