@@ -23,7 +23,7 @@ const pool = require('./src/config/db');
 // Routes v1 hiện có
 const authRoutes = require('./src/api/v1/routes/auth.route');
 const userRoutes = require('./src/api/v1/routes/user.route');
-const hotelRoutes = require('./src/api/v1/routes/hotel.route');
+const hotelRoutes = require('./src/api/v1/routes/hotel.route'); // ✅ Đúng tên file
 const amenityRoutes = require('./src/api/v1/routes/amenity.route');
 const roomRoutes = require('./src/api/v1/routes/room.routes');
 const roomTypeRoutes = require('./src/api/v1/routes/roomType.routes');

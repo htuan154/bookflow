@@ -328,6 +328,28 @@ class HotelService {
       }
     };
   }
+
+  //thêm vào ngày 28/8 để lấy tất cả khách sạn đã duyệt của chủ sở hữu
+  
+/**
+   * Lấy khách sạn đã duyệt của chủ sở hữu (cho dropdown)
+   * @param {string} ownerId - ID chủ sở hữu
+   * @returns {Promise<Object>}
+   */
+  async getApprovedHotelsDropdown(ownerId) {
+    console.log('🔍 Service getApprovedHotelsDropdown called with ownerId:', ownerId);
+    
+    const hotels = await hotelRepository.findByOwnerAndStatus(ownerId, 'approved');
+    
+    console.log('📊 Found hotels:', hotels?.length || 0);
+
+    return {
+      success: true,
+      message: `Tìm thấy ${hotels.length} khách sạn đã duyệt`,
+      data: hotels
+    };
+  }
+
 }
 
 module.exports = new HotelService();

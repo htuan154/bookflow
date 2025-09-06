@@ -322,6 +322,37 @@ const countByCityAndWard = async (city, ward) => {
   
   return parseInt(result.rows[0].total);
 };
+//thêm vào ngày 28/8 lấy tất cả khách sạn đã duyệt để thêm vào trang hợp đồng
+/**
+ * Tìm khách sạn theo chủ sở hữu và trạng thái (tùy chọn)
+ * @param {string} ownerId - ID chủ sở hữu
+ * @param {string|null} status - Trạng thái (ví dụ: 'approved') hoặc null để bỏ lọc
+ * @returns {Promise<Array<Hotel>>}
+ */
+const findByOwnerAndStatus = async (ownerId, status = null) => {
+  console.log('🔍 Repository findByOwnerAndStatus called:', { ownerId, status });
+  
+  let query = 'SELECT * FROM hotels WHERE owner_id = $1';
+  const values = [ownerId];
+
+  if (status) {
+    query += ' AND status = $2';
+    
+    values.push(status);
+  }
+
+  query += ' ORDER BY name ASC';
+  
+  console.log('📝 SQL Query:', query);
+  console.log('📊 Values:', values);
+  
+  const result = await pool.query(query, values);
+  
+  console.log('📊 Query result count:', result.rows.length);
+  
+  return result.rows.map(row => new Hotel(row));
+};
+
 
 /**
  * Tìm kiếm phòng có sẵn theo thành phố và khoảng thời gian
@@ -384,7 +415,6 @@ module.exports = {
   // Quản lý trạng thái
   findByStatus,
   updateStatus,
-  
   // Tìm kiếm và lọc
   findByOwner,
   findByCity,
@@ -392,7 +422,7 @@ module.exports = {
   findByRating,
   findWithFilters,
   findAvailableRoomsByCity,
-
+  findByOwnerAndStatus,
   // Tiện ích
   countByStatus,
   exists

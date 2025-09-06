@@ -26,6 +26,15 @@ export const contractServices = {
             }
 
             const data = await response.json();
+            // Chuẩn hóa trả về: luôn là { data: [...] }
+            let normalized;
+            if (data && Array.isArray(data.data)) {
+                normalized = { data: data.data };
+            } else if (data && Array.isArray(data)) {
+                normalized = { data };
+            } else {
+                normalized = { data: [] };
+            }
             console.log('Raw ALL contracts response:', data);
             console.log('Response type:', typeof data);
             console.log('Is array:', Array.isArray(data));
@@ -65,7 +74,7 @@ export const contractServices = {
                 console.error('❌ Unexpected data structure:', data);
             }
 
-            return data;
+            return normalized;
         } catch (error) {
             console.error('❌ Error fetching contracts:', error);
             throw error;
@@ -88,10 +97,19 @@ export const contractServices = {
             }
 
             const data = await response.json();
+            // Chuẩn hóa trả về: luôn là { data: {...} }
+            let normalized;
+            if (data && data.data) {
+                normalized = { data: data.data };
+            } else if (data && typeof data === 'object') {
+                normalized = { data };
+            } else {
+                normalized = { data: null };
+            }
             console.log('Raw API response:', data);
             console.log('Contract data keys:', data?.data ? Object.keys(data.data) : 'No data field');
             
-            return data;
+            return normalized;
         } catch (error) {
             console.error('Error fetching contract by ID:', error);
             throw error;
@@ -138,9 +156,18 @@ export const contractServices = {
             }
 
             const data = await response.json();
+            // Chuẩn hóa trả về: luôn là { data: [...] }
+            let normalized;
+            if (data && Array.isArray(data.data)) {
+                normalized = { data: data.data };
+            } else if (data && Array.isArray(data)) {
+                normalized = { data };
+            } else {
+                normalized = { data: [] };
+            }
             console.log('✅ [DEBUG] Response JSON:', data);
 
-            return data;
+            return normalized;
         } catch (error) {
             console.error('❌ Error fetching contracts by status:', error);
             throw error;
@@ -150,16 +177,37 @@ export const contractServices = {
     // Lấy hợp đồng theo hotel
     getContractsByHotel: async (hotelId) => {
         try {
+            console.log('=== GET CONTRACTS BY HOTEL DEBUG ===');
+            console.log('Fetching contracts for hotelId:', hotelId);
+            console.log('URL:', API_ENDPOINTS.CONTRACTS.GET_BY_HOTEL(hotelId));
+            console.log('Headers:', getAuthHeaders());
+            
             const response = await fetch(API_ENDPOINTS.CONTRACTS.GET_BY_HOTEL(hotelId), {
                 method: 'GET',
                 headers: getAuthHeaders(),
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorText = await response.text();
+                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
 
-            return await response.json();
+            const data = await response.json();
+            // Chuẩn hóa trả về: luôn là { data: [...] }
+            let normalized;
+            if (data && Array.isArray(data.data)) {
+                normalized = { data: data.data };
+            } else if (data && Array.isArray(data)) {
+                normalized = { data };
+            } else {
+                normalized = { data: [] };
+            }
+            console.log('Raw hotel contracts response:', data);
+            console.log('Data structure:', typeof data);
+            console.log('Is data.data array?', Array.isArray(data.data));
+            console.log('Contracts count:', data.data?.length || 0);
+            
+            return normalized;
         } catch (error) {
             console.error('Error fetching contracts by hotel:', error);
             throw error;
@@ -264,4 +312,70 @@ export const contractServices = {
             throw error;
         }
     },
+///thêm ngafy21/8/9h53
+    // Sửa hợp đồng
+  // Cập nhật hợp đồng
+    updateContract: async (contractId, updateData) => {
+        try {
+            const response = await fetch(API_ENDPOINTS.CONTRACTS.UPDATE(contractId), {
+                method: 'PATCH', // khớp với route backend
+                headers: getAuthHeaders(),
+                body: JSON.stringify(updateData),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error updating contract:', error);
+            throw error;
+        }
+    },
+
+
+    // Xóa hợp đồng
+    deleteContract: async (contractId) => {
+        try {
+            const response = await fetch(API_ENDPOINTS.CONTRACTS.DELETE(contractId), {
+                method: 'DELETE',
+                headers: getAuthHeaders(),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error deleting contract:', error);
+            throw error;
+        }
+    },
+    // Gửi hợp đồng đi duyệt (draft -> pending)
+    sendForApproval: async (contractId) => {
+        try {
+            const response = await fetch(API_ENDPOINTS.CONTRACTS.SEND_FOR_APPROVAL(contractId), {
+                method: 'PATCH',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({}), // body rỗng
+            });
+
+            if (!response.ok) {
+                let errorMsg = `HTTP error! status: ${response.status}`;
+                try {
+                    const errJson = await response.json();
+                    if (errJson?.message) errorMsg = errJson.message;
+                } catch {}
+                throw new Error(errorMsg);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('❌ Error sending contract for approval:', error);
+            throw error;
+        }
+    },
+
 };
