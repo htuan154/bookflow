@@ -2,6 +2,7 @@
 
 const pool = require('../../../config/db');
 const Contract = require('../../../models/contract.model');
+const Contract_custom = require('../../../models/contract_hotel');
 
 // /**
 //  * Tạo một hợp đồng mới.
@@ -36,7 +37,7 @@ const Contract = require('../../../models/contract.model');
 // };
 
 /**
- * Tạo một hợp đồng mới.
+ * Tạo một hợp đồng mới.ngay 23/8
  * @param {object} contractData - Dữ liệu của hợp đồng.
  * @returns {Promise<Contract>} - Trả về instance của Contract vừa được tạo.
  */
@@ -88,36 +89,67 @@ const create = async (contractData) => {
 
 
 /**
- * Tìm một hợp đồng bằng ID.
+ * Tìm một hợp đồng bằng ID, kèm tên khách sạn.
  * @param {string} contractId - UUID của hợp đồng.
  * @returns {Promise<Contract|null>}
  */
 const findById = async (contractId) => {
-    const result = await pool.query('SELECT * FROM contracts WHERE contract_id = $1', [contractId]);
+    const query = `
+        SELECT c.*, h.name AS hotel_name
+        FROM contracts c
+        LEFT JOIN hotels h ON c.hotel_id = h.hotel_id
+        WHERE c.contract_id = $1
+        LIMIT 1
+    `;
+    const result = await pool.query(query, [contractId]);
     if (!result.rows[0]) {
         return null;
     }
-    return new Contract(result.rows[0]);
+    const contract = new Contract(result.rows[0]);
+    contract.hotelName = result.rows[0].hotel_name;
+    return contract;
 };
 
 /**
- * Tìm tất cả các hợp đồng của một khách sạn.
+ * Tìm tất cả các hợp đồng của một khách sạn, kèm tên khách sạn.
  * @param {string} hotelId - ID của khách sạn.
  * @returns {Promise<Contract[]>}
  */
 const findByHotelId = async (hotelId) => {
-    const result = await pool.query('SELECT * FROM contracts WHERE hotel_id = $1 ORDER BY start_date DESC', [hotelId]);
-    return result.rows.map(row => new Contract(row));
+    const query = `
+        SELECT c.*, h.name AS hotel_name
+        FROM contracts c
+        LEFT JOIN hotels h ON c.hotel_id = h.hotel_id
+        WHERE c.hotel_id = $1
+        ORDER BY c.start_date DESC
+    `;
+    const result = await pool.query(query, [hotelId]);
+    return result.rows.map(row => {
+        const contract = new Contract(row);
+        contract.hotelName = row.hotel_name;
+        return contract;
+    });
 };
 
 /**
- * Tìm tất cả các hợp đồng của một người dùng (chủ khách sạn).
+ * Tìm tất cả các hợp đồng của một người dùng (chủ khách sạn), kèm tên khách sạn.
  * @param {string} userId - ID của người dùng.
  * @returns {Promise<Contract[]>}
  */
 const findByUserId = async (userId) => {
-    const result = await pool.query('SELECT * FROM contracts WHERE user_id = $1 ORDER BY start_date DESC', [userId]);
-    return result.rows.map(row => new Contract(row));
+    const query = `
+        SELECT c.*, h.name AS hotel_name
+        FROM contracts c
+        LEFT JOIN hotels h ON c.hotel_id = h.hotel_id
+        WHERE c.user_id = $1
+        ORDER BY c.start_date DESC
+    `;
+    const result = await pool.query(query, [userId]);
+    return result.rows.map(row => {
+        const contract = new Contract_custom(row);
+        contract.hotelName = row.hotel_name;
+        return contract;
+    });
 };
 
 /**
@@ -167,18 +199,53 @@ const deleteById = async (contractId) => {
     return result.rowCount > 0;
 };
 
+/**
+ * Lấy tất cả hợp đồng, kèm tên khách sạn.
+ * @returns {Promise<Contract_custom[]>}
+ */
+const findAll = async () => {
+    const query = `
+        SELECT c.*, h.name AS hotel_name
+        FROM contracts c
+        LEFT JOIN hotels h ON c.hotel_id = h.hotel_id
+        ORDER BY c.created_at DESC;
+    `;
+    try {
+        const result = await pool.query(query);
+        return result.rows.map(row => {
+            const contract = new Contract_custom(row);
+            contract.hotelName = row.hotel_name; // Bỏ comment dòng này!
+            console.log('[DEBUG Contract_custom]', contract); // Thêm dòng này để debug
+
+            return contract;
+        });
+    } catch (error) {
+        console.error('[findAll] ❌ Error fetching all contracts:', error);
+        throw error;
+    }
+};
+
+/**
+ * Lấy hợp đồng theo trạng thái, kèm tên khách sạn.
+ * @param {string} status
+ * @returns {Promise<Contract[]>}
+ */
 async function findByStatus(status) {
     const query = `
-        SELECT * 
-        FROM contracts
-        WHERE status = $1
-        ORDER BY start_date DESC;
+        SELECT c.*, h.name AS hotel_name
+        FROM contracts c
+        LEFT JOIN hotels h ON c.hotel_id = h.hotel_id
+        WHERE c.status = $1
+        ORDER BY c.start_date DESC;
     `;
     const values = [status];
-
     try {
         const result = await pool.query(query, values);
-        return result.rows;
+        return result.rows.map(row => {
+            const contract = new Contract(row);
+            contract.hotelName = row.hotel_name;
+            return contract;
+        });
     } catch (error) {
         console.error('Error fetching contracts by status:', error);
         throw error;
@@ -186,21 +253,36 @@ async function findByStatus(status) {
 }
 
 /**
- * Lấy tất cả hợp đồng.
- * @returns {Promise<Contract[]>}
+ * Gửi duyệt hợp đồng (hotel owner)
+ * @param {string} contractId - ID hợp đồng
+ * @param {string} userId - ID của chủ khách sạn (người gửi duyệt)
+ * @returns {Promise<Object|null>}
  */
-const findAll = async () => {
-    const query = `SELECT * FROM contracts ORDER BY created_at DESC;`;
+const sendForApproval = async (contractId, userId) => {
+    const query = `
+        UPDATE contracts
+        SET status = 'pending',
+            signed_date = NOW()::DATE
+        WHERE contract_id = $1
+          AND user_id = $2
+          AND status = 'draft'
+          AND hotel_id IN (
+              SELECT hotel_id FROM hotels WHERE owner_id = $2
+          )
+        RETURNING *;
+    `;
 
     try {
-        const result = await pool.query(query);
-        return result.rows.map(row => new Contract(row));
+        const result = await pool.query(query, [contractId, userId]);
+        if (result.rows.length === 0) {
+            return null; // Không tìm thấy hoặc không phải draft / không phải chủ khách sạn
+        }
+        return result.rows[0];
     } catch (error) {
-        console.error('[findAll] ❌ Error fetching all contracts:', error);
+        console.error('[ContractRepo] ❌ Error sendForApproval:', error);
         throw error;
     }
 };
-
 
 module.exports = {
     create,
@@ -209,6 +291,8 @@ module.exports = {
     findByUserId,
     update,
     deleteById,
-    findByStatus,
     findAll,
+    findByStatus,
+    sendForApproval
 };
+

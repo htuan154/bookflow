@@ -334,6 +334,30 @@ class HotelController {
       next(error);
     }
   }
+  // thêm vào ngày 28/8 để lấy tất cả khách sạn đã duyệt của chủ sở hữu
+  
+  /**
+   * Lấy khách sạn đã duyệt của user hiện tại (cho dropdown)
+   * GET /api/v1/hotels/my-hotels/dropdown
+   */
+  async getApprovedHotelsDropdown(req, res, next) {
+    try {
+      console.log('🎯 Controller getApprovedHotelsDropdown hit!');
+      console.log('👤 User:', req.user?.id);
+      
+      if (!req.user?.id) {
+        throw new AppError('User không hợp lệ', 401);
+      }
+      
+      const result = await hotelService.getApprovedHotelsDropdown(req.user.id);
+      console.log('✅ Controller result:', result);
+      
+      successResponse(res, result.data, result.message);
+    } catch (error) {
+      console.error('❌ Controller error:', error);
+      next(error);
+    }
+  }
 }
 
 module.exports = new HotelController();

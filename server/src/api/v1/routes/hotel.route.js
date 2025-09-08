@@ -1,8 +1,8 @@
-// src/api/v1/routes/hotel.route.js
+// src/api/v1/routes/hotel.routes.js (SỬA: thêm 's' vào routes)
 const express = require('express');
 const hotelController = require('../controllers/hotel.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
-const hotelAmenityRoutes = require('./hotelAmenity.route');
+const hotelAmenityRoutes = require('./hotelAmenity.route'); // Kiểm tra file này có tồn tại không
 // Import với error handling
 let isAdmin;
 try {
@@ -34,41 +34,63 @@ try {
   validateHotelUpdate = {};
 }
 const router = express.Router();
+
+// Debug middleware để track requests
+router.use((req, res, next) => {
+  console.log(`📍 Hotel Route: ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // ===============================================
-// PUBLIC ROUTES
+// SPECIFIC ROUTES FIRST - CRITICAL ORDER
 // ===============================================
-router.get('/', hotelController.getAllHotels);
+
+// Public routes WITHOUT params first
 router.get('/search', hotelController.searchHotels);
 router.get('/search/location', hotelController.getHotelsByCityAndWard);
 router.post('/search/availability', hotelController.searchAvailableRoomsPost); // Thêm POST
 router.get('/count/location', hotelController.countHotelsByCityAndWard);
 router.get('/popular', hotelController.getPopularHotels);
-// ===============================================
-// AUTHENTICATED ROUTES (Đặt trước /:id)
-// ===============================================
+
+// Authenticated specific routes BEFORE /:id
+router.get('/my-hotels/dropdown', authenticate, hotelController.getApprovedHotelsDropdown);
 router.get('/my-hotels', authenticate, hotelController.getMyHotels);
-// ===============================================
-// PUBLIC ROUTES (với params - đặt sau)
-// ===============================================
-router.get('/owner/:ownerId', authenticate, hotelController.getHotelsByOwner);
-router.get('/:id', hotelController.getHotelById);
-// ===============================================
-// HOTEL OWNER ROUTES (Yêu cầu đăng nhập)
-// ===============================================
-router.post('/', authenticate, validate(validateHotelData), hotelController.createHotel);
-router.put('/:id', authenticate, validate(validateHotelUpdate), hotelController.updateHotel);
-router.delete('/:id', authenticate, hotelController.deleteHotel);
+
 // ===============================================
 // ADMIN ROUTES
 // ===============================================
 const adminRouter = express.Router();
-adminRouter.use(authenticate); // Admin routes need authentication
+adminRouter.use(authenticate);
 adminRouter.use(isAdmin);
+
 adminRouter.get('/all', hotelController.getAllHotelsAdmin);
 adminRouter.get('/pending', hotelController.getPendingHotels);
 adminRouter.get('/statistics', hotelController.getHotelStatistics);
-adminRouter.patch('/:id/status', hotelController.updateHotelStatus);
 adminRouter.get('/status/:status', hotelController.getHotelsByStatus);
+adminRouter.patch('/:id/status', hotelController.updateHotelStatus);
+
 router.use('/admin', adminRouter);
+
+// ===============================================
+// PARAMETERIZED ROUTES - MUST BE LAST
+// ===============================================
+
+// Owner routes
+router.get('/owner/:ownerId', authenticate, hotelController.getHotelsByOwner);
+
+// These MUST be at the very end
+router.get('/', hotelController.getAllHotels);
+router.get('/:id', hotelController.getHotelById);
+
+// ===============================================
+// CRUD OPERATIONS
+// ===============================================
+router.post('/', authenticate, validate(validateHotelData), hotelController.createHotel);
+router.put('/:id', authenticate, validate(validateHotelUpdate), hotelController.updateHotel);
+router.delete('/:id', authenticate, hotelController.deleteHotel);
+
+// ===============================================
+// SUB ROUTES
+// ===============================================
 router.use('/:hotelId/amenities', hotelAmenityRoutes);
 module.exports = router;

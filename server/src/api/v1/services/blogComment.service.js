@@ -41,7 +41,7 @@ class BlogCommentService {
     }
 
     /**
-     * Lấy các bình luận của một bài blog (không cấu trúc cây).
+     * Lấy các bình luận của một bài blog (đã được cấu trúc).
      * @param {string} blogId - ID của bài blog.
      * @returns {Promise<any[]>}
      */

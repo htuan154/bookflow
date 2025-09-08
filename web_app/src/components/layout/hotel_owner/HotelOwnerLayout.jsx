@@ -134,11 +134,14 @@ const HotelOwnerLayout = () => {
             name: 'Hợp đồng', 
             icon: <FileText size={20} />, 
             path: '/hotel-owner/contracts',
+            /*
             subItems: [
                 { name: 'Xem hợp đồng', path: '/hotel-owner/contracts/view' },
                 { name: 'Điều khoản', path: '/hotel-owner/contracts/terms' }
             ]
+                */
         }
+            
     ];
 
     // Hàm render menu item với sub-items
