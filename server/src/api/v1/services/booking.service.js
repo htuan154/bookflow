@@ -46,7 +46,7 @@ class BookingService {
             const masterBookingData = {
                 ...bookingData,
                 user_id: userId,
-                total_price: 0, // hoặc bạn có thể thay thế bằng giá cố định/tạm thời nếu cần
+                //total_price: total_price, // hoặc bạn có thể thay thế bằng giá cố định/tạm thời nếu cần
                 // total_price: calculatedTotalPrice,
             };
             const newBooking = await bookingRepository.create(masterBookingData, client);

@@ -1,6 +1,7 @@
 // src/api/v1/repositories/hotel.repository.js
 const pool = require('../../../config/db');
 const Hotel = require('../../../models/hotel.model');
+const RoomTypeAvailability = require('../../../models/roomtypeavailability.model');
 
 // --- CÁC HÀM CRUD CƠ BẢN ---
 
@@ -321,6 +322,85 @@ const countByCityAndWard = async (city, ward) => {
   
   return parseInt(result.rows[0].total);
 };
+//thêm vào ngày 28/8 lấy tất cả khách sạn đã duyệt để thêm vào trang hợp đồng
+/**
+ * Tìm khách sạn theo chủ sở hữu và trạng thái (tùy chọn)
+ * @param {string} ownerId - ID chủ sở hữu
+ * @param {string|null} status - Trạng thái (ví dụ: 'approved') hoặc null để bỏ lọc
+ * @returns {Promise<Array<Hotel>>}
+ */
+const findByOwnerAndStatus = async (ownerId, status = null) => {
+  console.log('🔍 Repository findByOwnerAndStatus called:', { ownerId, status });
+  
+  let query = 'SELECT * FROM hotels WHERE owner_id = $1';
+  const values = [ownerId];
+
+  if (status) {
+    query += ' AND status = $2';
+    
+    values.push(status);
+  }
+
+  query += ' ORDER BY name ASC';
+  
+  console.log('📝 SQL Query:', query);
+  console.log('📊 Values:', values);
+  
+  const result = await pool.query(query, values);
+  
+  console.log('📊 Query result count:', result.rows.length);
+  
+  return result.rows.map(row => new Hotel(row));
+};
+
+
+/**
+ * Tìm kiếm phòng có sẵn theo thành phố và khoảng thời gian
+ * @param {string} city - Tên thành phố
+ * @param {string} checkInDate - Ngày nhận phòng (YYYY-MM-DD)
+ * @param {string} checkOutDate - Ngày trả phòng (YYYY-MM-DD)
+ * @param {string} [ward] - Tên phường/xã (optional)
+ * @returns {Promise<Array<RoomTypeAvailability>>}
+ */
+const findAvailableRoomsByCity = async (city, checkInDate, checkOutDate, ward = null) => {  
+  let query = `
+    SELECT
+        h.hotel_id,
+        rt.room_type_id,
+        rt.name AS room_type_name,
+        rt.number_of_rooms,
+        rt.max_occupancy,
+        COALESCE(SUM(bd.quantity), 0) AS total_rooms_booked,
+        (rt.number_of_rooms - COALESCE(SUM(bd.quantity), 0)) AS available_rooms
+    FROM room_types rt
+    JOIN hotels h ON rt.hotel_id = h.hotel_id
+    LEFT JOIN booking_details bd ON rt.room_type_id = bd.room_type_id
+    LEFT JOIN bookings b 
+           ON bd.booking_id = b.booking_id
+          AND b.check_in_date <= $2
+          AND b.check_out_date >= $1
+          AND b.booking_status IN ('pending', 'confirmed')
+    WHERE h.city = $3
+      AND h.status = 'approved'
+  `;
+  
+  let values = [checkInDate, checkOutDate, city];
+  
+  // Thêm điều kiện ward nếu có
+  if (ward && ward.trim() !== '') {
+    query += ` AND LOWER(h.address) LIKE LOWER($4)`;
+    values.push(`%${ward}%`);
+  }
+  
+  query += `
+    GROUP BY rt.room_type_id, rt.name, rt.number_of_rooms, h.hotel_id, rt.max_occupancy
+    HAVING COALESCE(SUM(bd.quantity), 0) <= rt.number_of_rooms
+  `;
+  
+  const result = await pool.query(query, values);
+  
+  return result.rows.map(row => new RoomTypeAvailability(row));
+};
 
 module.exports = {
   // CRUD cơ bản
@@ -335,14 +415,14 @@ module.exports = {
   // Quản lý trạng thái
   findByStatus,
   updateStatus,
-  
   // Tìm kiếm và lọc
   findByOwner,
   findByCity,
   searchByName,
   findByRating,
   findWithFilters,
-  
+  findAvailableRoomsByCity,
+  findByOwnerAndStatus,
   // Tiện ích
   countByStatus,
   exists

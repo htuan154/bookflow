@@ -74,7 +74,13 @@ class HotelService {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}/hotels/$hotelId');
 
-      final response = await http.get(url, headers: _headers);
+      // Lấy token từ TokenService
+      final token = await TokenService.getToken();
+
+      // Sử dụng headers có token nếu có, không thì dùng headers thường
+      final headers = token != null ? _headersWithToken(token) : _headers;
+
+      final response = await http.get(url, headers: headers);
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
@@ -940,6 +946,103 @@ class HotelService {
         return {
           'success': false,
           'message': responseData['message'] ?? 'Lỗi khi lấy thumbnail',
+        };
+      }
+    } catch (e) {
+      print('Lỗi kết nối: $e'); // Debug lỗi kết nối
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Tìm kiếm phòng có sẵn theo thành phố, ngày và phường (optional)
+  /// POST /api/v1/hotels/search/availability
+  Future<Map<String, dynamic>> searchAvailableRooms({
+    required String city,
+    required String checkInDate,
+    required String checkOutDate,
+    String? ward,
+  }) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/hotels/search/availability');
+
+      // Tạo request body
+      Map<String, dynamic> requestBody = {
+        'city': city,
+        'checkInDate': checkInDate,
+        'checkOutDate': checkOutDate,
+      };
+
+      // Thêm ward nếu có
+      if (ward != null && ward.trim().isNotEmpty) {
+        requestBody['ward'] = ward;
+      }
+
+      print('POST $url'); // Debug URL
+      print('Request body: ${jsonEncode(requestBody)}'); // Debug body
+
+      // Lấy token từ TokenService
+      final token = await TokenService.getToken();
+      
+      // Sử dụng headers có token nếu có, không thì dùng headers thường
+      final headers = token != null ? _headersWithToken(token) : _headers;
+
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: jsonEncode(requestBody),
+      );
+
+      print('Status code: ${response.statusCode}'); // Debug status
+      print('Response body: ${response.body}'); // Debug response
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Tìm kiếm phòng trống thành công',
+          'data': responseData['data'], // List of RoomTypeAvailability
+          'pagination': responseData['pagination'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Lỗi khi tìm kiếm phòng trống',
+        };
+      }
+    } catch (e) {
+      print('Exception in searchAvailableRooms: $e'); // Debug exception
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Lấy tất cả quy tắc giá mùa vụ của một loại phòng
+  /// GET /api/v1/seasonal-pricings/:roomTypeId
+  Future<Map<String, dynamic>> getSeasonalPricingsForRoomType(String roomTypeId) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/seasonal-pricings/$roomTypeId');
+      // Lấy token từ TokenService
+      final token = await TokenService.getToken();
+      // Sử dụng headers có token nếu có, không thì dùng headers thường
+      final headers = token != null ? _headersWithToken(token) : _headers;
+
+      print('GET $url'); // Debug URL
+      final response = await http.get(url, headers: headers);
+      print('Status code: ${response.statusCode}'); // Debug status code
+      print('Response body: ${response.body}'); // Debug body
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Lấy danh sách seasonal pricing thành công',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Lỗi khi lấy danh sách seasonal pricing',
         };
       }
     } catch (e) {

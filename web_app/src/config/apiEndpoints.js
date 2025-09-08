@@ -1,8 +1,13 @@
 // src/config/apiEndpoints.js
 
 const API_BASE_URL = 'http://localhost:8080/api/v1';
-
+const CHATBOT_BASE = 'http://localhost:8080';
 export const API_ENDPOINTS = {
+    CHATBOT: {
+        SUGGEST: `${CHATBOT_BASE}/ai/suggest`,                  // POST
+        HEALTH:  `${CHATBOT_BASE}/ai/health`,                   // GET
+        AUTOCOMPLETE: (q) => `${CHATBOT_BASE}/provinces/autocomplete?q=${encodeURIComponent(q)}`, // GET
+    },
     // --- Season Endpoints ---
     SEASONS: {
         GET_ALL: `${API_BASE_URL}/seasons`,
@@ -158,6 +163,8 @@ export const API_ENDPOINTS = {
         // Authenticated (Hotel Owner)
         CREATE: `${API_BASE_URL}/hotels`,
         MY_HOTELS: `${API_BASE_URL}/hotels/my-hotels`,
+        // Thêm endpoint mới cho dropdown khách sạn đã duyệt ngày 28/8
+        GET_APPROVED_HOTELS_DROPDOWN: `${API_BASE_URL}/hotels/my-hotels/dropdown`,
         UPDATE: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
         DELETE: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
     },
@@ -191,8 +198,12 @@ export const API_ENDPOINTS = {
         GET_BY_ID: (contractId) => `${API_BASE_URL}/contracts/${contractId}`,
         GET_BY_STATUS: (status) => `${API_BASE_URL}/contracts/status/${status}`,
         GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/contracts/hotels/${hotelId}/contracts`,
-        CREATE: `${API_BASE_URL}/contracts`,
+        CREATE: `${API_BASE_URL}/contracts`,// chỉ có chủ khách sạn mới được tạo hợp đồng
+        UPDATE: (contractId) => `${API_BASE_URL}/contracts/${contractId}`, // 🆕 Update hợp đồng
+        DELETE: (contractId) => `${API_BASE_URL}/contracts/${contractId}`, // 🆕 Xóa hợp đồng
         UPDATE_STATUS: (contractId) => `${API_BASE_URL}/contracts/${contractId}/status`,
+        // 🆕 Thêm endpoint gửi duyệt hợp đồng (draft -> pending)
+        SEND_FOR_APPROVAL: (contractId) => `${API_BASE_URL}/contracts/${contractId}/send-for-approval`,
     },
 
     // --- Promotion Endpoints (Admin & Hotel Owner) ---

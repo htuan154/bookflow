@@ -339,4 +339,25 @@ export const hotelApiService = {
       throw error;
     }
   },
+
+  /**
+   * Lấy danh sách khách sạn đã duyệt của user hiện tại (cho dropdown) ngày 28/8 
+   */
+  async getApprovedHotelsDropdown() {
+    try {
+      console.log('🔍 Frontend calling endpoint:', API_ENDPOINTS.HOTELS.GET_APPROVED_HOTELS_DROPDOWN);
+      const response = await axiosClient.get(API_ENDPOINTS.HOTELS.GET_APPROVED_HOTELS_DROPDOWN);
+      console.log('✅ Frontend received response:', response.data);
+      return response.data;
+    } catch (error) {
+      // Thêm log chi tiết lỗi để debug
+      console.error('❌ Frontend error:', {
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+        url: error?.config?.url
+      });
+      throw error;
+    }
+  },
 };

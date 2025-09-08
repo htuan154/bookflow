@@ -26,7 +26,7 @@ import BlogListPage from '../pages/admin/BlogManagement/BlogListPage';
 // import PublishedBlogsPage from '../pages/admin/BlogManagement/PublishedBlogsPage';
 // import PendingBlogsPage from '../pages/admin/BlogManagement/PendingBlogsPage';
 // import DraftBlogsPage from '../pages/admin/BlogManagement/DraftBlogsPage';
-
+import AdminSuggestionsPage from '../pages/admin/ChatBotAi/AdminSuggestionsPage';
 import ContractListPage from '../pages/admin/ContractManagement/ContractListPage';
 
 
@@ -186,6 +186,7 @@ const AdminRoutes = () => {
                         </BlogCommentProvider>
                     }
                 />
+                <Route path="suggestions" element={<AdminSuggestionsPage />} />
                 <Route path="*" element={<NotFoundPage />} />
             </Route>
         </Routes>

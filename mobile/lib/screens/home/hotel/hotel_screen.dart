@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import '../../../classes/hotel_model.dart';
-import '../../../classes/hotel_image_model.dart'; // Thêm import HotelImage
+import '../../../classes/hotel_image_model.dart';
+import '../../../classes/roomtypeavailability_model.dart'; // Thêm import này
 import '../../../services/hotel_service.dart';
-import '../../../classes/review_model.dart'; // Thêm import này
+import '../../../classes/review_model.dart';
 import '../../../screens/home/review/review_detail_screen.dart';
 import '../booking/booking_screen.dart';
 
 class HotelDetailScreen extends StatefulWidget {
   final Hotel hotel;
+  final List<RoomTypeAvailability>? suitableRoomsForHotel; // Thêm parameter này
+  final Map<String, dynamic>? searchParams; // Thêm parameter này
 
-  const HotelDetailScreen({Key? key, required this.hotel}) : super(key: key);
+  const HotelDetailScreen({
+    Key? key, 
+    required this.hotel,
+    this.suitableRoomsForHotel, // Thêm parameter này
+    this.searchParams, // Thêm parameter này
+  }) : super(key: key);
 
   @override
   _HotelDetailScreenState createState() => _HotelDetailScreenState();
@@ -31,6 +39,14 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
   @override
   void initState() {
     super.initState();
+    
+    // Debug prints for the parameters
+    // print('=== HotelDetailScreen Debug ===');
+    // print('suitableRoomsForHotel: ${widget.suitableRoomsForHotel}');
+    // print('suitableRoomsForHotel length: ${widget.suitableRoomsForHotel?.length ?? 0}');
+    // print('searchParams: ${widget.searchParams}');
+    // print('================================');
+  
     _tabController = TabController(length: 3, vsync: this);
     _pageController = PageController();
     _loadAmenities();
@@ -1079,11 +1095,15 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
   }
 
   void _showBooking() {
-    // Thay thế dialog bằng navigation tới BookingScreen
+    // Thay thế dialog bằng navigation tới BookingScreen với các parameter mới
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BookingScreen(hotel: widget.hotel),
+        builder: (context) => BookingScreen(
+          hotel: widget.hotel,
+          suitableRoomsForHotel: widget.suitableRoomsForHotel, // Pass the parameter
+          searchParams: widget.searchParams, // Pass the parameter
+        ),
       ),
     );
   }
