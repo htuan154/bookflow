@@ -1,374 +1,463 @@
 // src/pages/admin/ChatBotAi/AdminSuggestionsPage.jsx
-import React, { useMemo, useRef, useEffect, useState } from 'react';
-import { MapPin, Send, Loader2, Sparkles, Utensils, ChevronDown } from 'lucide-react';
-import { ChatbotProvider } from '../../../context/ChatbotContext';
-import useChatbot from '../../../hooks/useChatbot';
-import useAutocomplete from '../../../hooks/useAutocomplete';
+'use client';
 
-/* ===================== helpers ===================== */
-const cx = (...cls) => cls.filter(Boolean).join(' ');
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus, Send, Loader2 } from 'lucide-react';
+import {
+  chatSuggest,
+  getChatSessions,
+  getChatMessages,
+} from '../../../api/chatbot.service';
 
-// RỘNG FULL NGANG (không giới hạn max-width)
-const containerCls = 'mx-auto w-full px-6 max-w-none';
+/* ========================== Utils & Helpers ========================== */
+const cls = (...a) => a.filter(Boolean).join(' ');
+const fmtTime = (s) => (s ? new Date(s).toLocaleString('vi-VN') : '');
+const fmtDate = (s) => (s ? new Date(s).toLocaleDateString('vi-VN') : '');
+const fmtPercent = (v) =>
+  v || v === 0 ? `${Number(v).toFixed(Number(v) % 1 ? 2 : 0)}%` : null;
+const fmtMoney = (v) =>
+  v || v === 0 ? new Intl.NumberFormat('vi-VN').format(Number(v)) + '₫' : null;
 
-const Bubble = ({ role = 'assistant', children }) => {
-  const isUser = role === 'user';
+/** Trả về payload chuẩn hoá từ nhiều schema khác nhau (kể cả chuỗi JSON) */
+function pickPayload(m) {
+  let p =
+    m?.reply?.payload ||
+    m?.replyPayload ||
+    m?.payload ||
+    m?.reply ||
+    null;
+  if (typeof p === 'string') {
+    try {
+      p = JSON.parse(p);
+    } catch {
+      p = { text: p };
+    }
+  }
+  return p;
+}
+
+/** Lấy text câu hỏi (user) từ nhiều schema */
+function pickUserText(m) {
   return (
-    <div className={cx('w-full', isUser ? 'flex justify-end' : 'flex justify-start')}>
-      <div
-        className={cx(
-          'w-full rounded-2xl px-5 py-4 shadow-sm border',
-          isUser
-            ? 'bg-orange-500 text-white border-orange-500'
-            : 'bg-white text-gray-800 border-gray-200'
-        )}
-      >
-        {children}
-      </div>
+    m?.message?.text ||
+    m?.messageText ||
+    m?.message_text ||
+    m?.question ||
+    ''
+  );
+}
+
+/* ========================== Rich render cho payload ========================== */
+function HotelsList({ hotels = [] }) {
+  if (!Array.isArray(hotels) || hotels.length === 0) return null;
+  return (
+    <div className="space-y-3">
+      <div className="font-semibold text-lg">Khách sạn nổi bật</div>
+      <ul className="list-disc pl-6 space-y-2">
+        {hotels.map((h, i) => (
+          <li key={h?.hotel_id || i} className="text-base leading-relaxed">
+            <span className="font-medium">{h?.name || 'Khách sạn'}</span>
+            {h?.address && <span className="text-gray-600"> — {h.address}</span>}
+            {(h?.star_rating || h?.average_rating) && (
+              <span className="text-gray-700">
+                {' '}
+                • ⭐ {h?.star_rating ?? '-'} | ĐG TB: {h?.average_rating ?? '-'}
+              </span>
+            )}
+            {h?.phone_number && <span className="text-gray-600"> • {h.phone_number}</span>}
+          </li>
+        ))}
+      </ul>
     </div>
   );
-};
-
-const TypingDots = () => (
-  <div className="inline-flex items-center gap-1">
-    <span className="w-2 h-2 rounded-full bg-gray-300 animate-bounce [animation-delay:-0.2s]" />
-    <span className="w-2 h-2 rounded-full bg-gray-300 animate-bounce [animation-delay:-0.05s]" />
-    <span className="w-2 h-2 rounded-full bg-gray-300 animate-bounce" />
-  </div>
-);
-
-const Pill = ({ children, onClick }) => (
-  <button
-    onClick={onClick}
-    className="px-3 py-1.5 text-sm rounded-full bg-orange-100 text-orange-700 hover:bg-orange-200 transition"
-  >
-    {children}
-  </button>
-);
-
-// Chuẩn hóa list theo nhiều schema BE khác nhau
-function normalizeList(x) {
-  if (!x) return [];
-  if (Array.isArray(x)) return x;
-  if (Array.isArray(x?.items)) return x.items;
-  if (Array.isArray(x?.data)) return x.data;
-  return [];
 }
-// Lấy danh sách đầu tiên có phần tử từ một loạt key
-function pickList(obj, keys) {
-  for (const k of keys) {
-    const arr = normalizeList(obj?.[k]);
-    if (arr && arr.length > 0) return arr;
+
+function PromotionsList({ promotions = [] }) {
+  if (!Array.isArray(promotions) || promotions.length === 0) return null;
+  return (
+    <div className="space-y-3">
+      <div className="font-semibold text-lg">Khuyến mãi</div>
+      <ul className="list-disc pl-6 space-y-2">
+        {promotions.map((p, i) => {
+          const discount =
+            fmtPercent(p?.discount_value) || fmtMoney(p?.discount_value);
+          const timerange =
+            (fmtDate(p?.valid_from) || '') +
+            (p?.valid_from || p?.valid_until ? ' → ' : '') +
+            (fmtDate(p?.valid_until) || '');
+          return (
+            <li key={p?.promotion_id || i} className="text-base leading-relaxed">
+              <span className="font-medium">
+                {p?.name || p?.code || 'Ưu đãi'}
+              </span>
+              {discount && <span className="text-gray-700"> — Giảm {discount}</span>}
+              {timerange.trim() && <span className="text-gray-600"> • {timerange}</span>}
+              {p?.description && <span className="text-gray-700">. {p.description}</span>}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function SimpleList({ title, items = [], nameKey = 'name' }) {
+  if (!Array.isArray(items) || items.length === 0) return null;
+  return (
+    <div className="space-y-3">
+      <div className="font-semibold text-lg">{title}</div>
+      <ul className="list-disc pl-6 space-y-2">
+        {items.map((x, i) => {
+          const name = typeof x === 'string' ? x : x?.[nameKey] || x?.title || '';
+          const where = x?.where || x?.place || x?.location || x?.address || '';
+          const note = x?.hint || x?.description || x?.note || '';
+          return (
+            <li key={i} className="text-base leading-relaxed">
+              <span className="font-medium">{name}</span>
+              {where && <span className="text-gray-600"> — {where}</span>}
+              {note && <span className="text-gray-700">. {note}</span>}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function AssistantReply({ message }) {
+  // 1) reply.text
+  if (message?.reply?.text) {
+    return <div className="text-base leading-relaxed whitespace-pre-wrap">{message.reply.text}</div>;
   }
-  return [];
-}
 
-/* ===================== Assistant Result (chat style) ===================== */
-function AssistantResult({ response }) {
-  const [showRaw, setShowRaw] = useState(false);
+  // 2) payload
+  const p = pickPayload(message);
+  if (!p || (typeof p !== 'object' && !p.text)) return <div className="text-base">(payload)</div>;
 
-  const province =
-    response?.province || response?.tinh || response?.provinceName || '';
-
-  // Dùng pickList để không dính lỗi [] là truthy
-  const places = pickList(response, ['places', 'destinations', 'diem_den']);
-  const foods  = pickList(response, ['foods', 'dishes', 'mon_an', 'specialties']);
-  const tips   = pickList(response, ['tips', 'ghi_chu', 'notes', 'suggestions']);
-
-  const hasAny = places.length > 0 || foods.length > 0 || tips.length > 0;
-
-  if (!hasAny) {
+  // 2a) Clarify/no data
+  if (p.clarify_required || (Array.isArray(p.suggestions) && p.suggestions.length === 0)) {
     return (
-      <div className="space-y-2 leading-relaxed">
-        <p>
-          Mình chưa đọc được dữ liệu theo mẫu chuẩn. Bạn thử gõ lại tên tỉnh/thành
-          hoặc chọn từ gợi ý phía trên nhé.
-        </p>
-        <button
-          onClick={() => setShowRaw((v) => !v)}
-          className="text-sm text-orange-600 hover:underline"
-        >
-          {showRaw ? 'Ẩn JSON' : 'Xem JSON'}
-        </button>
-        {showRaw && (
-          <pre className="bg-gray-900 text-gray-100 p-4 rounded-xl overflow-auto text-sm md:text-[15px] max-h-[70vh]">
-{JSON.stringify(response ?? {}, null, 2)}
-          </pre>
-        )}
+      <div className="space-y-3">
+        <div className="text-base">Hiện mình chưa có đủ dữ liệu để trả lời câu hỏi này.</div>
+        <div className="text-gray-700 text-base">Bạn có thể thử:</div>
+        <ul className="list-disc pl-6 text-gray-700 space-y-1 text-base">
+          <li>Nhập rõ <b>tỉnh/thành</b> (VD: "Đà Nẵng", "Đà Lạt", "Hà Nội"…)</li>
+          <li>Thêm ngữ cảnh: "khách sạn <i>có hồ bơi</i>", "<i>voucher</i> khách sạn <i>tháng 9</i>"…</li>
+          <li>Dùng nhanh: "Top 5 khách sạn Đà Nẵng", "Voucher khách sạn Hồ Chí Minh tháng 9"…</li>
+        </ul>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-5 leading-relaxed text-[15px]">
-      {province && (
-        <p>Đây là một vài gợi ý cho <b>{province}</b>:</p>
-      )}
+  // 2b) Render rich
+  const hotels = p.hotels || p.data?.hotels || [];
+  const promos = p.promotions || p.data?.promotions || [];
+  const places = p.places || p.destinations || p.diem_den || [];
+  const foods = p.dishes || p.foods || p.mon_an || p.specialties || [];
+  const tips = p.tips || p.ghi_chu || p.notes || [];
 
-      {places.length > 0 && (
-        <div>
-          <p className="font-semibold mb-2 flex items-center gap-2">
-            <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-orange-100">
-              <MapPin size={16} className="text-orange-600" />
-            </span>
-            Địa danh nên ghé
-          </p>
-          <ul className="list-disc pl-6 text-gray-800">
-            {places.map((p, i) => {
-              const name = p?.name || p?.title || String(p);
-              const where = p?.location || p?.address || p?.area;
-              const note = p?.description || p?.note;
-              return (
-                <li key={i} className="mb-1">
-                  <span className="font-medium">{name}</span>
-                  {where && <span className="text-gray-500"> — {where}</span>}
-                  {note && <span className="text-gray-600">. {note}</span>}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
+  // Kiểm tra nếu tất cả mảng đều rỗng
+  const allEmpty = hotels.length === 0 && promos.length === 0 && places.length === 0 && foods.length === 0 && tips.length === 0;
+  
+  // Nếu có structure dự kiến nhưng tất cả mảng rỗng
+  if (allEmpty && (p.hotels !== undefined || p.promotions !== undefined || p.places !== undefined || p.dishes !== undefined || p.foods !== undefined)) {
+    return (
+      <div className="space-y-3">
+        <div className="text-orange-600 font-medium text-lg">Xin lỗi, dữ liệu không có trên hệ thống</div>
+        <div className="text-gray-700 text-base">Bạn có thể thử:</div>
+        <ul className="list-disc pl-6 text-gray-700 space-y-1 text-base">
+          <li>Thay đổi địa điểm: "Top 5 khách sạn Hà Nội", "Voucher Đà Nẵng"…</li>
+          <li>Thử từ khóa khác: "spa", "hồ bơi", "gần biển"…</li>
+          <li>Kiểm tra chính tả tên tỉnh/thành phố</li>
+        </ul>
+      </div>
+    );
+  }
 
-      {foods.length > 0 && (
-        <div>
-          <p className="font-semibold mb-2 flex items-center gap-2">
-            <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-orange-100">
-              <Utensils size={16} className="text-orange-600" />
-            </span>
-            Món ăn nên thử
-          </p>
-          <ul className="list-disc pl-6 text-gray-800">
-            {foods.map((f, i) => {
-              const name = f?.name || String(f);
-              const where = f?.place || f?.where;
-              const note = f?.description || f?.note;
-              return (
-                <li key={i} className="mb-1">
-                  <span className="font-medium">{name}</span>
-                  {where && <span className="text-gray-500"> — {where}</span>}
-                  {note && <span className="text-gray-600">. {note}</span>}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
+  const hasAny = hotels.length || promos.length || places.length || foods.length || tips.length;
 
-      {tips.length > 0 && (
-        <div>
-          <p className="font-semibold mb-2">Mẹo nhỏ</p>
-          <ul className="list-disc pl-6 text-gray-700">
-            {tips.map((t, i) => (
-              <li key={i} className="mb-1">{String(t)}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+  if (hasAny) {
+    return (
+      <div className="space-y-5">
+        <HotelsList hotels={hotels} />
+        <PromotionsList promotions={promos} />
+        <SimpleList title="Địa danh gợi ý" items={places} />
+        <SimpleList title="Món ăn nên thử" items={foods} />
+        <SimpleList title="Mẹo nhỏ" items={tips} nameKey="" />
+      </div>
+    );
+  }
 
-      <button
-        onClick={() => setShowRaw((v) => !v)}
-        className="text-sm text-orange-600 hover:underline"
-      >
-        {showRaw ? 'Ẩn JSON' : 'Xem JSON'}
-      </button>
-      {showRaw && (
-        <pre className="bg-gray-900 text-gray-100 p-4 rounded-xl overflow-auto text-sm md:text-[15px] max-h-[70vh]">
-{JSON.stringify(response ?? {}, null, 2)}
-        </pre>
-      )}
-    </div>
-  );
+  // 2c) Không nhận diện được → in JSON đầy đủ
+  try {
+    return (
+      <pre className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+        {JSON.stringify(p, null, 2)}
+      </pre>
+    );
+  } catch {
+    return <div className="text-base">(payload)</div>;
+  }
 }
 
-/* ===================== Chat page ===================== */
-function SuggestionsChat() {
-  const {
-    state,
-    sendMessage,
-    chooseSuggestion,
-    setFilters,
-    setTopN,
-  } = useChatbot();
+/* ========================== Main Page ========================== */
+export default function AdminSuggestionsPage() {
+  const [sessions, setSessions] = useState([]);
+  const [activeSession, setActiveSession] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [loadingList, setLoadingList] = useState(false);
+  const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [msg, setMsg] = useState('');
 
-  // LLM đã được bật mặc định ở ChatbotContext (useLLM: true)
+  const listEndRef = useRef(null);
 
-  const [input, setInput] = useState('');
-  const [openAC, setOpenAC] = useState(false);
-  const { list: acList, loading: acLoading } = useAutocomplete(input, 2);
+  const headers = useMemo(() => {
+    const h = {};
+    const token = localStorage.getItem('accessToken');
+    if (token) h.Authorization = `Bearer ${token}`;
+    return h;
+  }, []);
 
-  // auto-scroll
-  const bottomRef = useRef(null);
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [state.loading, state.lastResponse, state.error]);
-
-  const onSubmit = async (e) => {
-    e?.preventDefault?.();
-    const q = input.trim();
-    if (!q) return;
-    setOpenAC(false);
-    await sendMessage(q);
-    setInput('');
-  };
-  const onKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      onSubmit(e);
+  const loadSessions = async () => {
+    setLoadingList(true);
+    try {
+      const res = await getChatSessions(headers);
+      setSessions(res?.data || []);
+    } catch {
+      setSessions([]);
+    } finally {
+      setLoadingList(false);
     }
   };
 
+  const openSession = async (sid) => {
+    setActiveSession(sid);
+    setLoadingMsgs(true);
+    try {
+      const res = await getChatMessages(sid, 1, 500, headers);
+      setMessages(res?.items || []);
+    } catch {
+      setMessages([]);
+    } finally {
+      setLoadingMsgs(false);
+    }
+  };
+
+  const newChat = () => {
+    const sid = crypto.randomUUID();
+    setActiveSession(sid);
+    setMessages([]);
+  };
+
+  const onSend = async () => {
+    const text = msg.trim();
+    if (!text || sending) return;
+
+    let sid = activeSession;
+    if (!sid) {
+      sid = crypto.randomUUID();
+      setActiveSession(sid);
+    }
+
+    setSending(true);
+
+    try {
+      // Push user bubble ngay
+      setMessages((prev) => [
+        ...prev,
+        { message: { text }, created_at: new Date().toISOString(), source: 'client' },
+      ]);
+
+      // Kiểm tra token trước khi gửi
+      const token = localStorage.getItem('accessToken');
+      console.log('🔑 Token found:', !!token, token?.slice(0, 20) + '...');
+
+      // Gọi BE
+      const body = { message: text };
+      const h = { 
+        ...headers, 
+        'X-Session-Id': sid,
+        // Đảm bảo Authorization header được gửi
+        ...(token && { Authorization: `Bearer ${token}` })
+      };
+      
+      console.log('📤 Headers sent:', h);
+      
+      const res = await chatSuggest(text, body, h);
+      console.log('📥 Response:', res);
+
+      // Push assistant tạm (render đầy đủ từ payload)
+      setMessages((prev) => [
+        ...prev,
+        { replyPayload: res, created_at: new Date().toISOString(), source: res?.source || 'nosql+llm' },
+      ]);
+
+      setMsg('');
+      // Đồng bộ lại từ server (đã lưu lịch sử)
+      setTimeout(() => openSession(sid), 250);
+      // Refresh danh sách phiên
+      loadSessions();
+    } catch (e) {
+      console.error('❌ Chat error:', e?.response?.data || e?.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto scroll khi có tin mới
+  useEffect(() => {
+    listEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, sending]);
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-[#f7f7f9] border-b border-gray-200">
-        <div className={`${containerCls} py-4 flex items-center justify-between`}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
-              <MapPin size={20} className="text-orange-600" />
-            </div>
-            <div>
-              <div className="text-[20px] font-semibold text-gray-800">Gợi ý địa danh</div>
-              <div className="text-xs text-gray-500">Theo tỉnh/thành Việt Nam</div>
-            </div>
-          </div>
-
-          {/* Quick controls */}
-          <div className="flex items-center gap-2">
-            <div className="text-xs text-gray-500 hidden md:block">Top</div>
-            <div className="relative">
-              <select
-                className="text-sm rounded-lg border-gray-300 pr-8 h-9"
-                value={state.topN}
-                onChange={(e) => setTopN(Number(e.target.value))}
-              >
-                {[5, 7, 10, 12, 15, 20].map(n => <option key={n} value={n}>Top {n}</option>)}
-              </select>
-              <ChevronDown size={16} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Conversation area */}
-      <div className="flex-1 bg-[#f7f7f9]">
-        <div className={`${containerCls} py-6 space-y-4`}>
-          {/* Hướng dẫn + filter nhanh */}
-          <Bubble role="assistant">
-            <div className="text-sm text-gray-700">
-              Hãy nhập tên tỉnh/thành (ví dụ: <em>Hà Nội</em>, <em>Đà Nẵng</em>). Có thể lọc nhanh:
-            </div>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <Pill onClick={() => setFilters({ category: 'places' })}>
-                <span className="inline-flex items-center gap-1"><MapPin size={14}/> Địa danh</span>
-              </Pill>
-              <Pill onClick={() => setFilters({ category: 'foods' })}>
-                <span className="inline-flex items-center gap-1"><Utensils size={14}/> Món ăn</span>
-              </Pill>
-              <Pill onClick={() => setFilters({ special: 'must_try' })}>
-                <span className="inline-flex items-center gap-1"><Sparkles size={14}/> Must-try</span>
-              </Pill>
-            </div>
-          </Bubble>
-
-          {/* Clarify (chọn tỉnh) */}
-          {state.suggestions?.length > 0 && (
-            <Bubble role="assistant">
-              <div className="text-sm text-amber-700 mb-2">Bạn muốn chọn tỉnh/thành nào?</div>
-              <div className="flex flex-wrap gap-2">
-                {state.suggestions.map((s) => (
-                  <Pill key={s} onClick={() => chooseSuggestion(s)}>{s}</Pill>
-                ))}
-              </div>
-            </Bubble>
-          )}
-
-          {/* Kết quả */}
-          {state.loading && (
-            <Bubble role="assistant">
-              <div className="flex items-center gap-2 text-gray-600">
-                <Loader2 size={18} className="animate-spin" />
-                <TypingDots />
-              </div>
-            </Bubble>
-          )}
-
-          {!state.loading && state.error && (
-            <Bubble role="assistant">
-              <div className="p-3 rounded-lg bg-red-50 text-red-700 border border-red-200">
-                Lỗi: {typeof state.error === 'string' ? state.error : JSON.stringify(state.error)}
-              </div>
-            </Bubble>
-          )}
-
-          {!state.loading && !state.error && state.lastResponse && (
-            <Bubble role="assistant">
-              <AssistantResult response={state.lastResponse} />
-              {state?.latencyMs != null && (
-                <p className="text-xs text-gray-500 mt-3">Độ trễ: {state.latencyMs} ms</p>
-              )}
-            </Bubble>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-      </div>
-
-      {/* Input bar cố định dưới */}
-      <div className="sticky bottom-0 z-10 bg-gradient-to-t from-[#f7f7f9] via-[#f7f7f9] to-transparent">
-        <div className={`${containerCls} pb-5`}>
-          <form
-            onSubmit={onSubmit}
-            className="relative bg-white border border-gray-200 rounded-2xl shadow-sm text-[15px]"
+    <div className="h-screen w-full flex overflow-hidden">
+      {/* Sidebar - tăng width */}
+      <aside className="w-[320px] shrink-0 border-r bg-white flex flex-col">
+        <div className="p-4 flex gap-3 shrink-0">
+          <button
+            onClick={newChat}
+            className="flex-1 h-11 inline-flex items-center justify-center gap-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium"
+            title="New chat"
           >
-            <textarea
-              rows={1}
-              value={input}
-              onChange={(e) => { setInput(e.target.value); setOpenAC(true); }}
-              onFocus={() => setOpenAC(true)}
-              onKeyDown={onKeyDown}
-              placeholder="Nhập tỉnh/thành cần gợi ý… (Enter để gửi, Shift+Enter xuống dòng)"
-              className="w-full resize-none px-5 py-[14px] pr-14 rounded-2xl focus:outline-none"
-            />
+            <Plus size={18} /> New chat
+          </button>
+          <button
+            onClick={loadSessions}
+            className="w-11 h-11 inline-flex items-center justify-center rounded-lg border hover:bg-gray-50"
+            title="Tải lại"
+          >
+            {loadingList ? <Loader2 className="animate-spin" size={18} /> : '↻'}
+          </button>
+        </div>
 
-            {/* Autocomplete tỉnh/thành */}
-            {openAC && acList.length > 0 && (
-              <div className="absolute bottom-full mb-2 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow max-h-[56vh] overflow-auto">
-                {acList.map((name) => (
-                  <button
-                    key={name}
-                    type="button"
-                    onClick={() => { setInput(name); setOpenAC(false); }}
-                    className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm"
-                  >
-                    {name}
-                  </button>
-                ))}
-              </div>
-            )}
+        <div className="px-4 pb-3 text-sm text-gray-500 shrink-0">Phiên gần đây</div>
+        <div className="flex-1 overflow-y-auto px-3 space-y-2 min-h-0">
+          {sessions.map((s) => {
+            const sid = s._id || s.session_id;
+            const active = activeSession === sid;
+            return (
+              <button
+                key={sid}
+                onClick={() => openSession(sid)}
+                className={cls(
+                  'w-full text-left p-4 rounded-lg border transition',
+                  active ? 'border-orange-300 bg-orange-50' : 'border-gray-200 hover:bg-gray-50'
+                )}
+              >
+                <div className="text-sm text-gray-500">{fmtTime(s.last_at)}</div>
+                <div className="text-base font-medium line-clamp-2 leading-tight mt-1">{s.last_question || 'Untitled'}</div>
+                <div className="text-sm text-gray-500 mt-1">Turns: {s.turns || 0} • {s.last_source || ''}</div>
+              </button>
+            );
+          })}
+          {!sessions.length && !loadingList && (
+            <div className="text-sm text-gray-500 px-3">
+              Chưa có phiên nào (hãy đăng nhập và chat).
+            </div>
+          )}
+        </div>
+      </aside>
 
-            <button
-              type="submit"
-              className="absolute right-2 bottom-2 inline-flex items-center justify-center w-10 h-10 rounded-xl bg-orange-500 hover:bg-orange-600 text-white"
-              title="Gửi"
-            >
-              {state.loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-            </button>
-          </form>
-
-          <div className="text-[10px] text-center text-gray-500 mt-2">
-            Dùng LLM đã được bật mặc định • Tuỳ chọn TopN ở góc phải trên
+      {/* Chat area */}
+      <main className="flex-1 flex flex-col bg-[#fafafa] min-w-0">
+        {/* Header - Fixed */}
+        <div className="h-14 px-6 border-b bg-white flex items-center justify-between shrink-0">
+          <div className="font-semibold text-lg">Chat gợi ý du lịch</div>
+          <div className="text-sm text-gray-500 truncate ml-2">
+            {activeSession ? `Session: ${activeSession.slice(0, 8)}...` : 'Chưa chọn phiên'}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
 
-export default function AdminSuggestionsPage() {
-  return (
-    <ChatbotProvider>
-      <SuggestionsChat />
-    </ChatbotProvider>
+        {/* Messages - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5 min-h-0">
+          {loadingMsgs && !messages.length && (
+            <div className="text-gray-500 text-base">Đang tải hội thoại…</div>
+          )}
+
+          {!messages.length && !loadingMsgs && (
+            <div className="text-gray-500 text-base">Hãy bắt đầu bằng "New chat" hoặc chọn một phiên bên trái.</div>
+          )}
+
+          {messages.map((m, idx) => {
+            const userText =
+              m?.message?.text ||
+              m?.messageText ||
+              m?.message_text ||
+              m?.question ||
+              '';
+
+            const hasAssistantText = !!m?.reply?.text;
+            const hasAssistantPayload =
+              !!m?.replyPayload || !!m?.reply?.payload || !!m?.payload || !!m?.reply;
+
+            return (
+              <div key={idx} className="space-y-3">
+                {/* USER bubble */}
+                {userText && (
+                  <div className="flex justify-end">
+                    <div className="max-w-[min(800px,85%)] w-fit px-5 py-3 rounded-2xl bg-orange-600 text-white text-base leading-relaxed">
+                      {userText}
+                    </div>
+                  </div>
+                )}
+
+                {/* ASSISTANT bubble */}
+                {(hasAssistantText || hasAssistantPayload) && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[min(800px,85%)] w-fit px-5 py-4 rounded-2xl bg-white shadow border">
+                      <div className="text-xs text-gray-500 mb-3">
+                        {fmtTime(m.created_at)} {m.source ? `• ${m.source}` : ''}
+                      </div>
+                      <AssistantReply message={m} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {sending && (
+            <div className="flex justify-start">
+              <div className="max-w-[75%] px-5 py-3 rounded-2xl bg-white shadow border text-gray-600 flex items-center gap-2 text-base">
+                <Loader2 className="animate-spin" size={18} /> Đang suy nghĩ…
+              </div>
+            </div>
+          )}
+
+          {/* Auto scroll anchor */}
+          <div ref={listEndRef} />
+        </div>
+
+        {/* Composer - Fixed */}
+        <div className="border-t bg-white p-4 flex gap-3 shrink-0">
+          <input
+            value={msg}
+            onChange={(e) => setMsg(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onSend()}
+            placeholder="Nhập câu hỏi… (VD: Top 5 khách sạn Đà Nẵng / Voucher khách sạn Hồ Chí Minh tháng 9)"
+            className="flex-1 h-12 px-4 rounded-lg border text-base"
+          />
+          <button
+            onClick={onSend}
+            disabled={sending || !msg.trim()}
+            className={cls(
+              'h-12 px-5 rounded-lg inline-flex items-center gap-2 text-base font-medium',
+              sending || !msg.trim()
+                ? 'bg-gray-200 text-gray-500'
+                : 'bg-orange-600 text-white hover:bg-orange-700'
+            )}
+          >
+            <Send size={18} />
+            Gửi
+          </button>
+        </div>
+      </main>
+    </div>
   );
 }

@@ -104,7 +104,11 @@ const HotelOwnerLayout = () => {
                 { name: 'Yêu cầu hỗ trợ', path: '/hotel-owner/support/requests' }
             ]
         },
-
+        { 
+            name: 'Tin nhắn', 
+            icon: <MessageSquare size={20} />, 
+            path: '/hotel-owner/messages'
+        },
         // Marketing
         { 
             name: 'Marketing', 
@@ -232,10 +236,10 @@ const HotelOwnerLayout = () => {
                     {navLinks.slice(3, 5).map(renderMenuItem)}
                     
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Nhân sự & Khách hàng</p>
-                    {navLinks.slice(5, 8).map(renderMenuItem)}
+                    {navLinks.slice(5, 9).map(renderMenuItem)}
                     
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Báo cáo & Hợp đồng</p>
-                    {navLinks.slice(8).map(renderMenuItem)}
+                    {navLinks.slice(9).map(renderMenuItem)}
                 </nav>
 
                 {/* User Info & Logout */}

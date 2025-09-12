@@ -12,7 +12,11 @@ const aiRoutes = require('./src/api/v1/routes/ai.routes');
 const healthRoutes = require('./src/api/v1/routes/health.routes');
 const { aiLimiter } = require('./src/api/v1/middlewares/rateLimit.middleware');
 const errorHandler = require('./src/api/v1/middlewares/error.middleware');
-
+const { initIM } = require('./src/im/bootstrap');
+const imConversations = require('./src/api/v1/routes/conversations.route');
+const imMessages      = require('./src/api/v1/routes/messages.route');
+const imUploads       = require('./src/api/v1/routes/uploads.route');
+const imStream        = require('./src/api/v1/routes/stream.route');
 // Swagger
 const swaggerUi = require('swagger-ui-express');
 const swaggerFile = require('./swagger-output.json');
@@ -48,6 +52,7 @@ const blogRoutes = require('./src/api/v1/routes/blog.route');
 const chatRoutes = require('./src/api/v1/routes/chat.route');
 const roleRoutes = require('./src/api/v1/routes/role.route');
 const provincesRoutes = require('./src/api/v1/routes/provinces.routes');
+
 // --- App ---
 const app = express();
 const port = process.env.PORT || 8080;
@@ -56,10 +61,11 @@ const port = process.env.PORT || 8080;
 app.use(cors({
   origin: 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Id', 'X-User-Id', 'Last-Event-ID']
 }));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ extended: true }));
+
 
 // --- Swagger ---
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
@@ -97,11 +103,15 @@ app.use('/api/v1', blogLikeRoutes);
 app.use('/ai', aiLimiter, aiRoutes);  // POST /ai/suggest
 app.use('/ai', healthRoutes);         // GET  /ai/health
 app.use('/provinces', provincesRoutes);
+app.use('/api/v1/im', imConversations);
+app.use('/api/v1/im', imMessages);
+app.use('/api/v1/im', imUploads);
+app.use('/api/v1/im', imStream);
 // --- 404 chung ---
 app.use((req, res) => {
   res.status(404).json({ success: false, code: 404, message: 'Not found' });
 });
-
+app.set('trust proxy', 1);
 // --- Error handler cuối chuỗi ---
 app.use(errorHandler);
 
@@ -113,7 +123,7 @@ if (process.env.NODE_ENV !== 'test') {
       const db = await connectDB();
       app.locals.db = db;
       console.log('✅ MongoDB connected.');
-
+      await initIM();
       // 2) Postgres (cho các module hiện hữu)
       try {
         const client = await pool.connect();

@@ -68,9 +68,11 @@ function detectRegion(normalized = '') {
   return null;
 }
 
-/** Rút số lượng top-N nếu người dùng chỉ định (mặc định 7) */
-function extractTopN(normalized = '', fallback = 7) {
-  // match: "top 5", "top5", hoặc "5 mon / 5 dia danh"
+/** Rút số lượng top-N nếu người dùng chỉ định (mặc định 5) */
+
+
+
+function extractTopN(normalized = '', fallback = 5) {
   const m1 = normalized.match(/top\s*(\d{1,2})/);
   if (m1) return Math.max(1, Math.min(20, Number(m1[1])));
   const m2 = normalized.match(/\b(\d{1,2})\s*(mon|dia danh|dia diem|diem|noi)\b/);
@@ -81,51 +83,69 @@ function extractTopN(normalized = '', fallback = 7) {
 /** Trích filters cơ bản cho LLM (hoặc để sort) */
 function extractFilters(normalized = '') {
   const f = {};
-  // bữa
   if (/\bsang\b/.test(normalized)) f.meal = 'sang';
   else if (/\btrua\b/.test(normalized)) f.meal = 'trua';
   else if (/\btoi\b/.test(normalized)) f.meal = 'toi';
   else if (/\bdem\b/.test(normalized)) f.meal = 'dem';
-
-  // vị cay/không cay
   if (/\bit cay\b/.test(normalized)) f.spice = 'less';
   if (/\bkhong cay\b/.test(normalized)) f.spice = 'none';
-
-  // chế độ ăn
   if (/\bchay\b/.test(normalized)) f.veg = true;
   if (/\bhai san\b/.test(normalized)) f.seafood = true;
-
-  // môi trường
   if (/\btrong nha\b/.test(normalized)) f.indoor = true;
   if (/\bngoai troi\b/.test(normalized)) f.outdoor = true;
-
-  // đối tượng
   if (/\btre em\b/.test(normalized)) f.kids = true;
   if (/\bgia dinh\b/.test(normalized)) f.family = true;
-
-  // ngân sách (rất thô)
   if (/\bre\b|\bbinh dan\b|\btiet kiem\b/.test(normalized)) f.price = 'low';
   if (/\bcao cap\b|\bsang trong\b/.test(normalized)) f.price = 'high';
-
   return f;
 }
 
-/**
- * Trả về thông tin NLU cho chatbot:
- * - normalized: câu đã chuẩn hoá
- * - intent: ask_dishes | ask_places | ask_both
- * - region: {code,name} nếu phát hiện "miền/vùng" (để clarify)
- * - top_n: số lượng mục muốn lấy (mặc định 7)
- * - filters: {meal, spice, veg, seafood, indoor, outdoor, kids, family, price}
- * - tokens: mảng token
- * - ngrams: mảng n-gram 1..3 (để repo dò alias/norm)
- */
+/** Alias 63 tỉnh/thành (không dấu → tên chuẩn có dấu) */
+const CITY_ALIASES = {
+  // TP trực thuộc TW
+  'ha noi': 'Hà Nội', 'hanoi': 'Hà Nội',
+  'ho chi minh': 'Hồ Chí Minh', 'hcm': 'Hồ Chí Minh', 'sai gon': 'Hồ Chí Minh', 'saigon': 'Hồ Chí Minh', 'tp hcm': 'Hồ Chí Minh',
+  'da nang': 'Đà Nẵng', 'danang': 'Đà Nẵng',
+  'can tho': 'Cần Thơ', 'cantho': 'Cần Thơ',
+  'hai phong': 'Hải Phòng', 'haiphong': 'Hải Phòng',
+  // Tỉnh
+  'an giang': 'An Giang', 'ba ria vung tau': 'Bà Rịa - Vũng Tàu', 'brvt': 'Bà Rịa - Vũng Tàu',
+  'bac giang': 'Bắc Giang', 'bac kan': 'Bắc Kạn', 'bac lieu': 'Bạc Liêu', 'bac ninh': 'Bắc Ninh',
+  'ben tre': 'Bến Tre', 'binh dinh': 'Bình Định', 'binh duong': 'Bình Dương', 'binh phuoc': 'Bình Phước',
+  'binh thuan': 'Bình Thuận', 'ca mau': 'Cà Mau', 'cao bang': 'Cao Bằng',
+  'dak lak': 'Đắk Lắk', 'daklak': 'Đắk Lắk', 'dak nong': 'Đắk Nông',
+  'dien bien': 'Điện Biên', 'dong nai': 'Đồng Nai', 'dong thap': 'Đồng Tháp',
+  'gia lai': 'Gia Lai', 'ha giang': 'Hà Giang', 'ha nam': 'Hà Nam', 'ha tinh': 'Hà Tĩnh',
+  'hai duong': 'Hải Dương', 'hau giang': 'Hậu Giang', 'hoa binh': 'Hòa Bình', 'hung yen': 'Hưng Yên',
+  'khanh hoa': 'Khánh Hòa', 'kien giang': 'Kiên Giang', 'kon tum': 'Kon Tum',
+  'lai chau': 'Lai Châu', 'lam dong': 'Lâm Đồng', 'lang son': 'Lạng Sơn', 'lao cai': 'Lào Cai',
+  'long an': 'Long An', 'nam dinh': 'Nam Định', 'nghe an': 'Nghệ An',
+  'ninh binh': 'Ninh Bình', 'ninh thuan': 'Ninh Thuận',
+  'phu tho': 'Phú Thọ', 'phu yen': 'Phú Yên', 'quang binh': 'Quảng Bình',
+  'quang nam': 'Quảng Nam', 'quang ngai': 'Quảng Ngãi', 'quang ninh': 'Quảng Ninh', 'quang tri': 'Quảng Trị',
+  'soc trang': 'Sóc Trăng', 'son la': 'Sơn La', 'tay ninh': 'Tây Ninh',
+  'thai binh': 'Thái Bình', 'thai nguyen': 'Thái Nguyên', 'thanh hoa': 'Thanh Hóa',
+  'thua thien hue': 'Thừa Thiên Huế', 'hue': 'Thừa Thiên Huế',
+  'tien giang': 'Tiền Giang', 'tra vinh': 'Trà Vinh', 'tuyen quang': 'Tuyên Quang',
+  'vinh long': 'Vĩnh Long', 'vinh phuc': 'Vĩnh Phúc', 'yen bai': 'Yên Bái',
+};
+
+/** Nhận diện tỉnh/thành (trên chuỗi đã normalize) */
+function detectCity(normalized = '') {
+  for (const [alias, city] of Object.entries(CITY_ALIASES)) {
+    if (normalized.includes(alias)) return city;
+  }
+  return null;
+}
+
+/** Hàm analyze DUY NHẤT (có city) */
 function analyze(message = '') {
   const normalized = normalize(message);
   return {
     normalized,
     intent: detectIntent(normalized),
-    region: detectRegion(normalized),     // null nếu không có
+    region: detectRegion(normalized),
+    city: detectCity(normalized),
     top_n: extractTopN(normalized, 7),
     filters: extractFilters(normalized),
     tokens: tokensOf(normalized),
@@ -141,5 +161,6 @@ module.exports = {
   detectRegion,
   extractTopN,
   extractFilters,
+  detectCity,
   analyze,
 };

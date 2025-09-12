@@ -41,6 +41,8 @@ import { PromotionsProvider } from '../context/PromotionsContext';
 import { BlogProvider } from '../context/BlogContext';
 import { CustomerProvider }  from '../context/CustomerContext';
 import { BlogCommentProvider } from '../context/BlogCommentContext'; // Thêm dòng này
+import AdminMessagesPage from '../pages/admin/messages';
+import { IMProvider } from '../context/IMContext';
 // Promotion pages
 import {
     PromotionManagement,
@@ -176,6 +178,14 @@ const AdminRoutes = () => {
                     <Route path="view/:id" element={<PromotionView />} />
                     <Route path="analytics" element={<PromotionAnalytics />} />
                 </Route>
+                <Route
+                    path="messages"
+                    element={
+                        <IMProvider>
+                            <AdminMessagesPage />
+                        </IMProvider>
+                    }
+                />
 
                 {/* Comment Management */}
                 <Route

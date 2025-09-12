@@ -1,7 +1,6 @@
 // src/config/mongodb.js
 'use strict';
-
-const { MongoClient } = require('mongodb');
+const { MongoClient, GridFSBucket } = require('mongodb');
 require('dotenv').config();
 
 const uri    = process.env.MONGO_URI;
@@ -50,5 +49,51 @@ function getDb() {
 function getClient() {
   return client;
 }
+let _client, _db;
+async function connectMongo() {
+  if (_db) return _db;
+  const uri = process.env.MONGO_URI;
+  const dbName = process.env.MONGO_DB || 'chat_bot';
+  _client = new MongoClient(uri, { maxPoolSize: 20 });
+  await _client.connect();
+  _db = _client.db(dbName);
+  return _db;
+}
 
-module.exports = { connectDB, getDb, getClient };
+// TẠO INDEX CHO CÁC COLLECTION CHAT
+async function ensureChatIndexes(db) {
+  // conversations
+  await db.collection('conversations').createIndex({ type: 1, hotel_id: 1, created_at: -1 });
+  // DM chỉ 1 đoạn chat duy nhất giữa (admin, owner, hotel)
+  await db.collection('conversations').createIndex(
+    { type: 1, hotel_id: 1, admin_id: 1, owner_id: 1 },
+    { unique: true, partialFilterExpression: { type: 'dm' } }
+  );
+
+  // participants
+  await db.collection('participants').createIndex(
+    { conversation_id: 1, user_id: 1 },
+    { unique: true }
+  );
+  await db.collection('participants').createIndex({ user_id: 1 });
+
+  // messages
+  await db.collection('messages').createIndex({ conversation_id: 1, created_at: -1 });
+  await db.collection('messages').createIndex({ sender_id: 1, created_at: -1 });
+}
+
+// BUCKET CHO FILE ĐÍNH KÈM (GridFS)
+function getGridFSBucket(db) {
+  const bucketName = process.env.GRIDFS_BUCKET || 'chat_files';
+  return new GridFSBucket(db, { bucketName });
+}
+
+module.exports = { 
+  connectDB, 
+  getDb, 
+  getClient,
+  connectMongo,
+  ensureChatIndexes,
+  getGridFSBucket,
+
+};
