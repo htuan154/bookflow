@@ -6,7 +6,6 @@ import useAuth from '../../../hooks/useAuth';
 import {
     LayoutDashboard, FileText, Briefcase, Users, Ticket, MessageSquare,
     MapPin, BarChart2, Bell, FileSignature, BadgePercent,
-
 } from 'lucide-react';
 
 const AdminLayout = () => {
@@ -35,6 +34,7 @@ const AdminLayout = () => {
         { name: 'Quản lý hợp đồng', icon: <FileSignature size={20} />, path: '/admin/contracts'},
         { name: 'Quản lý khách hàng', icon: <Users size={20} />, path: '/admin/customers' },
         { name: 'Thanh toán', icon: <Ticket size={20} />, path: '/admin/payments' },
+        { name: 'Tin nhắn', icon: <MessageSquare size={20} />, path: '/admin/messages' },
         { 
             name: 'Chương trình KM', 
             icon: <BadgePercent size={20} />, 
@@ -48,6 +48,7 @@ const AdminLayout = () => {
         { name: 'Quản lý bình luận', icon: <MessageSquare size={20} />, path: '/admin/comments' },
         { name: 'Gợi ý địa danh', icon: <MapPin size={20} />, path: '/admin/suggestions' },
         { name: 'Báo cáo thống kê', icon: <BarChart2 size={20} />, path: '/admin/reports' },
+        
     ];
 
     // Hàm render menu item với sub-items
@@ -113,57 +114,63 @@ const AdminLayout = () => {
     };
 
     return (
-        <div className="flex bg-gray-50 min-h-screen font-sans">
+        <div className="flex bg-gray-50 h-screen font-sans overflow-hidden">
             {/* Sidebar */}
-            <aside className="w-72 bg-white border-r border-gray-200 p-4 flex flex-col">
-                <div className="text-2xl font-bold text-orange-500 mb-4 px-2">Bookflow Manager</div>
-                <div className="flex border border-gray-200 rounded-lg p-1 mb-6">
-                    <button className="flex-1 text-sm font-semibold bg-orange-500 text-white rounded-md py-2">Quản trị viên</button>
-
+            <aside className="w-72 bg-white border-r border-gray-200 flex flex-col">
+                {/* Header cố định */}
+                <div className="p-4 border-b border-gray-200 shrink-0">
+                    <div className="text-2xl font-bold text-orange-500 mb-4">Bookflow Manager</div>
+                    <div className="flex border border-gray-200 rounded-lg p-1">
+                        <button className="flex-1 text-sm font-semibold bg-orange-500 text-white rounded-md py-2">
+                            Quản trị viên
+                        </button>
+                    </div>
                 </div>
                 
-                <nav className="flex-1 space-y-1 overflow-y-auto">
+                {/* Navigation - có thể scroll */}
+                <nav className="flex-1 overflow-y-auto p-4 space-y-1 min-h-0">
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mb-2">Quản lý chính</p>
                     {navLinks.slice(0, 4).map(renderMenuItem)}
                     
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Khách hàng</p>
                     {navLinks.slice(4, 7).map(renderMenuItem)}
-                    
+                    {/* Tin nhắn */}
+                    <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Tin nhắn</p>
+                    {navLinks.slice(7, 8).map(renderMenuItem)}
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Nội dung</p>
-                    {navLinks.slice(7, 10).map(renderMenuItem)}
+                    {navLinks.slice(8, 11).map(renderMenuItem)}
                     
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Báo cáo</p>
-                    {navLinks.slice(10).map(renderMenuItem)}
+                    {navLinks.slice(11).map(renderMenuItem)}
                 </nav>
-                {/* Nút đăng xuất cuối sidebar */}
-                <button
-                    onClick={handleLogout}
-                    className="mt-6 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition duration-300"
-                >
-                    Đăng xuất
-                </button>
+
+                {/* Footer cố định - nút đăng xuất */}
+                <div className="p-4 border-t border-gray-200 shrink-0">
+                    <button
+                        onClick={handleLogout}
+                        className="w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition duration-300"
+                    >
+                        Đăng xuất
+                    </button>
+                </div>
             </aside>
             
             {/* Phần nội dung chính */}
-            <div className="flex-1 flex flex-col">
-                <header className="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+            <div className="flex-1 flex flex-col min-w-0">
+                <header className="bg-white border-b border-gray-200 p-4 flex justify-between items-center shrink-0">
                     <h1 className="text-xl font-bold text-gray-800">Dashboard Quản trị viên</h1>
                     <div className="flex items-center gap-4">
                         <button className="relative text-gray-600 hover:text-gray-800">
                             <Bell size={22} />
-
                         </button>
-                        
                     </div>
                 </header>
-                <main className="flex-1 bg-gray-50 p-6">
+                <main className="flex-1 bg-gray-50 overflow-auto">
                     <Outlet />
                 </main>
             </div>
         </div>
     );
 };
-
-
 
 export default AdminLayout;

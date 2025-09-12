@@ -3,10 +3,45 @@
 const API_BASE_URL = 'http://localhost:8080/api/v1';
 const CHATBOT_BASE = 'http://localhost:8080';
 export const API_ENDPOINTS = {
+    IM: {
+        CREATE_DM: `${API_BASE_URL}/im/conversations/dm`,
+        CREATE_GROUP: `${API_BASE_URL}/im/conversations/group`,
+        SEND_TEXT: `${API_BASE_URL}/im/messages/text`,
+        UPLOAD_BASE64: `${API_BASE_URL}/im/uploads`,
+        STREAM: (id) => `${API_BASE_URL}/im/stream?conversation_id=${encodeURIComponent(id)}`,
+        LIST: `${API_BASE_URL}/im/conversations`,
+        HISTORY: `${API_BASE_URL}/im/messages`,
+        SEND_FILE: `${API_BASE_URL}/im/messages/file`,
+        MARK_READ: `${API_BASE_URL}/im/messages/read`,
+        },
+
     CHATBOT: {
         SUGGEST: `${CHATBOT_BASE}/ai/suggest`,                  // POST
         HEALTH:  `${CHATBOT_BASE}/ai/health`,                   // GET
         AUTOCOMPLETE: (q) => `${CHATBOT_BASE}/provinces/autocomplete?q=${encodeURIComponent(q)}`, // GET
+        HISTORY: {
+            SESSIONS: `${CHATBOT_BASE}/ai/history/sessions`,                // GET
+            MESSAGES: (sessionId, page=1, pageSize=20) =>
+                `${CHATBOT_BASE}/ai/history/messages?session_id=${encodeURIComponent(sessionId)}&page=${page}&page_size=${pageSize}`, // GET
+        },
+         HOTELS: {
+            SEARCH: (city, q, limit) =>
+                `/ai/hotels/search?city=${encodeURIComponent(city)}&q=${encodeURIComponent(q||'')}&limit=${limit}`,
+            BY_ANY_AMENITIES: '/ai/hotels/by-any-amenities',
+            FULL: (hotelId) => `/ai/hotels/full?hotelId=${hotelId}`,
+            CITIES: '/ai/hotel-cities',
+            },
+    PROMOTIONS: {
+        VALID_TODAY: (limit) => `/ai/promotions/valid-today?limit=${limit}`,
+        VALID_TODAY_CITY: (city, limit) =>
+            `/ai/promotions/valid-today-city?city=${encodeURIComponent(city)}&limit=${limit}`,
+        KEYWORD_CITY_MONTH: (city, kw, year, month, limit) =>
+            `/ai/promotions/by-keyword-city-month?city=${encodeURIComponent(city)}&kw=${encodeURIComponent(kw||'')}&year=${year}&month=${month}&limit=${limit}`,
+        CHECK: '/ai/promotions/check',
+        USAGE_STATS: (promotionId) =>
+            `/ai/promotions/usage-stats?promotionId=${promotionId}`,
+        },
+    
     },
     // --- Season Endpoints ---
     SEASONS: {
