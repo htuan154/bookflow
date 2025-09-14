@@ -18,6 +18,7 @@ const ContractListContent = () => {
     fetchContracts,
     approveContract,
     rejectContract,
+    updateContractStatus,
     setError,
   } = useContext(ContractContext);
 
@@ -57,10 +58,24 @@ const ContractListContent = () => {
 
   const handleApprove = async (contractIds) => {
     try {
-        await Promise.all(contractIds.map(id => approveContract(id, {
-          approvedBy: 'admin',
-          notes: 'Đã duyệt'
-        })));
+        await Promise.all(contractIds.map(id => {
+          // Tìm contract để kiểm tra signed_date
+          const contract = contracts.find(c => c.contractId === id || c.contract_id === id || c.id === id);
+          
+          const approvalData = {
+            approvedBy: 'admin',
+            notes: 'Đã duyệt'
+          };
+          
+          // Kiểm tra và thêm signed_date nếu chưa có
+          if (contract && !contract.signed_date && !contract.signedDate) {
+            approvalData.signed_date = new Date().toISOString();
+            console.log(`✅ Adding signed_date for contract ${id}:`, approvalData.signed_date);
+          }
+          
+          return approveContract(id, approvalData);
+        }));
+        
         // Sau khi duyệt, fetch lại danh sách hợp đồng
         await fetchContracts();
         setSuccessMessage('Duyệt hợp đồng thành công!');
@@ -80,6 +95,57 @@ const ContractListContent = () => {
       handleApprovalSuccess('Từ chối hợp đồng thành công');
     } catch (error) {
       console.error('Error rejecting contracts:', error);
+    }
+  };
+
+  // Handle update contract status
+  const handleUpdateStatus = async (contractId, updateData) => {
+    try {
+      console.log('=== UPDATING CONTRACT STATUS ===');
+      console.log('Contract ID:', contractId);
+      console.log('Update Data:', updateData);
+
+      // Nếu updateData là string (backward compatibility)
+      if (typeof updateData === 'string') {
+        updateData = { status: updateData };
+      }
+
+      const finalUpdateData = {
+        ...updateData,
+        updatedBy: 'admin',
+        notes: `Đã cập nhật trạng thái thành ${updateData.status}`,
+        updatedAt: new Date().toISOString()
+      };
+
+      // Nếu có signed_date được set thì log ra
+      if (finalUpdateData.signed_date) {
+        console.log('✅ Setting signed_date:', finalUpdateData.signed_date);
+      }
+
+      await updateContractStatus(contractId, finalUpdateData);
+      
+      // Refresh danh sách contracts
+      await fetchContracts();
+      
+      // Hiển thị thông báo thành công
+      const statusText = {
+        'pending': 'Chờ duyệt',
+        'active': 'Đang hiệu lực',
+        'expired': 'Hết hạn',
+        'terminated': 'Đã chấm dứt',
+        'cancelled': 'Đã hủy'
+      };
+      
+      setSuccessMessage(`Cập nhật trạng thái thành "${statusText[updateData.status] || updateData.status}" thành công!`);
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 5000);
+      
+    } catch (error) {
+      console.error('Error updating contract status:', error);
+      setError(error.message || 'Có lỗi khi cập nhật trạng thái hợp đồng');
     }
   };
 
@@ -218,6 +284,7 @@ const ContractListContent = () => {
               onViewDetail={handleViewDetail}
               onApprove={handleApprove}
               onReject={handleReject}
+              onUpdateStatus={handleUpdateStatus}
               showActions={true}
             />
           </div>

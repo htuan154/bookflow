@@ -28,6 +28,7 @@ import BlogListPage from '../pages/admin/BlogManagement/BlogListPage';
 // import DraftBlogsPage from '../pages/admin/BlogManagement/DraftBlogsPage';
 import AdminSuggestionsPage from '../pages/admin/ChatBotAi/AdminSuggestionsPage';
 import ContractListPage from '../pages/admin/ContractManagement/ContractListPage';
+import HotelDetailPage from '../pages/admin/HotelManagement/HotelDetailPage';
 
 
 import CustomerManagement from '../pages/admin/CustomerManagement/CustomerManagement';
@@ -41,6 +42,8 @@ import { PromotionsProvider } from '../context/PromotionsContext';
 import { BlogProvider } from '../context/BlogContext';
 import { CustomerProvider }  from '../context/CustomerContext';
 import { BlogCommentProvider } from '../context/BlogCommentContext'; // Thêm dòng này
+import AdminMessagesPage from '../pages/admin/messages';
+import { IMProvider } from '../context/IMContext';
 // Promotion pages
 import {
     PromotionManagement,
@@ -93,6 +96,14 @@ const AdminRoutes = () => {
                     element={
                         <HotelProvider>
                             <HotelManagementPage />
+                        </HotelProvider>
+                    }
+                />
+                <Route
+                    path="hotels/:hotelId"
+                    element={
+                        <HotelProvider>
+                            <HotelDetailPage />
                         </HotelProvider>
                     }
                 />
@@ -176,6 +187,14 @@ const AdminRoutes = () => {
                     <Route path="view/:id" element={<PromotionView />} />
                     <Route path="analytics" element={<PromotionAnalytics />} />
                 </Route>
+                <Route
+                    path="messages"
+                    element={
+                        <IMProvider>
+                            <AdminMessagesPage />
+                        </IMProvider>
+                    }
+                />
 
                 {/* Comment Management */}
                 <Route

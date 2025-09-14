@@ -5,14 +5,26 @@ import { API_ENDPOINTS } from '../config/apiEndpoints';
 
 const customerService = {
     /**
-     * Lấy danh sách chủ khách sạn (hotel owners)
+     * Lấy danh sách chủ khách sạn (hotel owners) với phân trang
      * @param {Object} params - Query parameters (page, limit, search, status)
      * @returns {Promise} Response data
      */
     getHotelOwners: async (params = {}) => {
         console.log('customerService.getHotelOwners called with:', params);
         try {
-            const response = await axiosClient.get('/users/hotel-owners', { params });
+            // Đảm bảo có phân trang mặc định
+            const queryParams = {
+                page: params.page || 1,
+                limit: params.limit || 10,
+                ...params
+            };
+            
+            console.log('Final queryParams for getHotelOwners:', queryParams);
+            
+            const response = await axiosClient.get('/users/hotel-owners', { 
+                params: queryParams 
+            });
+            
             console.log('getHotelOwners response:', response.data);
             return response.data;
         } catch (error) {

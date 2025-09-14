@@ -32,18 +32,19 @@ const CustomerManagement = () => {
     useEffect(() => {
         const hotelOwnerFilters = {
             ...filters,
+            page: filters.page || pagination.page || 1,
+            limit: filters.limit || pagination.limit || 10,
             roleId: 2,
             role: 'hotel_owner'
         };
         
-        // Set filters to hotel owner filters if not already set
-        if (filters.roleId !== 2 || filters.role !== 'hotel_owner') {
-            setFilters(hotelOwnerFilters);
-        }
+        console.log('🔄 useEffect triggered with filters:', hotelOwnerFilters);
+        console.log('📊 Current pagination state:', pagination);
+        console.log('👥 Current customers count:', customers.length);
         
         // Fetch hotel owners specifically
         fetchCustomers(hotelOwnerFilters);
-    }, [fetchCustomers, filters.search, filters.status, filters.dateFrom, filters.dateTo, filters.sortBy, filters.sortOrder, pagination.page]);
+    }, [filters.search, filters.status, filters.dateFrom, filters.dateTo, filters.sortBy, filters.sortOrder, filters.page, filters.limit]); // Removed fetchCustomers to avoid infinite loop
 
     // Handle filter changes - Always maintain hotel owner filter
     const handleFilterChange = (newFilters) => {
@@ -55,14 +56,27 @@ const CustomerManagement = () => {
         setFilters(hotelOwnerFilters);
     };
 
-    // Handle pagination
+    // Handle pagination - Sửa để tránh gọi API 2 lần
     const handlePageChange = (page, limit) => {
-        fetchCustomers({ 
-            page, 
+        console.log('🔄 handlePageChange called:', { 
+            requestedPage: page, 
+            requestedLimit: limit, 
+            currentPagination: pagination,
+            currentFilters: filters 
+        });
+        
+        const newFilters = {
+            ...filters,
+            page,
             limit: limit || pagination.limit,
             roleId: 2,
             role: 'hotel_owner'
-        });
+        };
+        
+        console.log('📝 Setting new filters and calling fetchCustomers:', newFilters);
+        
+        // Chỉ cập nhật filters, useEffect sẽ tự động gọi fetchCustomers
+        setFilters(newFilters);
     };
 
     // Handle create customer - Create hotel owner specifically
@@ -285,11 +299,13 @@ const CustomerManagement = () => {
         }
     };
 
-    // Handle refresh data - Fetch hotel owners specifically
+    // Handle refresh data - Fetch hotel owners specifically với phân trang
     const handleRefresh = async () => {
         try {
             const hotelOwnerFilters = {
                 ...filters,
+                page: filters.page || pagination.page || 1,
+                limit: filters.limit || pagination.limit || 10,
                 roleId: 2,
                 role: 'hotel_owner'
             };
@@ -302,13 +318,10 @@ const CustomerManagement = () => {
         }
     };
 
-    // Filter customers to show only hotel owners
-    const displayCustomers = customers.filter(customer => {
-        return customer.roleId === 2 || 
-               customer.role === 'hotel_owner' ||
-               (customer.role_id === 2) ||
-               (customer.roleName && customer.roleName.toLowerCase().includes('hotel'));
-    });
+    // Filter customers to show only hotel owners - API đã filter rồi nên không cần filter thêm
+    const displayCustomers = customers; // API đã trả về hotel owners rồi
+    
+    console.log('🎯 Display customers:', displayCustomers.length, 'items');
 
     // Calculate statistics
     const activeCount = displayCustomers.filter(c => c.status === 'active').length;
@@ -442,15 +455,49 @@ const CustomerManagement = () => {
                     </div>
                     
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <div className="flex items-center">
-                            <div className="flex-shrink-0">
-                                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                                    <span className="text-gray-600">📄</span>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <span className="text-gray-600">📄</span>
+                                    </div>
+                                </div>
+                                <div className="ml-4">
+                                    <p className="text-sm font-medium text-gray-600">Trang hiện tại</p>
+                                    <p className="text-2xl font-bold text-gray-900">{pagination.page}/{pagination.totalPages || 1}</p>
                                 </div>
                             </div>
-                            <div className="ml-4">
-                                <p className="text-sm font-medium text-gray-600">Trang</p>
-                                <p className="text-2xl font-bold text-gray-900">{pagination.page}/{pagination.totalPages || 1}</p>
+                            
+                            {/* Quick page navigation */}
+                            <div className="flex items-center space-x-2">
+                                <button 
+                                    onClick={() => handlePageChange(1)}
+                                    disabled={pagination.page <= 1}
+                                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
+                                >
+                                    Đầu
+                                </button>
+                                <button 
+                                    onClick={() => handlePageChange(pagination.page - 1)}
+                                    disabled={pagination.page <= 1}
+                                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
+                                >
+                                    ← Trước
+                                </button>
+                                <button 
+                                    onClick={() => handlePageChange(pagination.page + 1)}
+                                    disabled={pagination.page >= pagination.totalPages}
+                                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
+                                >
+                                    Tiếp →
+                                </button>
+                                <button 
+                                    onClick={() => handlePageChange(pagination.totalPages)}
+                                    disabled={pagination.page >= pagination.totalPages}
+                                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
+                                >
+                                    Cuối
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -459,13 +506,37 @@ const CustomerManagement = () => {
                 {/* Filters Section */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
                     <div className="px-6 py-4 border-b border-gray-200">
-                        <div className="flex items-center space-x-3">
-                            <div className="flex items-center justify-center w-8 h-8 bg-purple-100 rounded-lg">
-                                <span className="text-purple-600">🔍</span>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                <div className="flex items-center justify-center w-8 h-8 bg-purple-100 rounded-lg">
+                                    <span className="text-purple-600">🔍</span>
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                    Bộ lọc và tìm kiếm
+                                </h3>
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900">
-                                Bộ lọc và tìm kiếm
-                            </h3>
+                            
+                            {/* Items per page selector */}
+                            <div className="flex items-center space-x-3">
+                                <label className="text-sm font-medium text-gray-700">
+                                    📊 Hiển thị:
+                                </label>
+                                <select 
+                                    value={pagination.limit || 10} 
+                                    onChange={(e) => handlePageChange(1, parseInt(e.target.value))}
+                                    className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                                >
+                                    <option value={5}>5 mục/trang</option>
+                                    <option value={10}>10 mục/trang</option>
+                                    <option value={20}>20 mục/trang</option>
+                                    <option value={50}>50 mục/trang</option>
+                                    <option value={100}>100 mục/trang</option>
+                                </select>
+                                
+                                <div className="text-sm text-gray-500 bg-gray-50 px-2 py-1 rounded">
+                                    Tổng: <span className="font-medium text-gray-900">{pagination.total || 0}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div className="p-6">
@@ -489,14 +560,52 @@ const CustomerManagement = () => {
                 )}
 
                 {/* Main Table Section */}
+                {/* Pagination Info Card */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-2">
+                                <span className="text-blue-600">📄</span>
+                                <span className="text-sm font-medium text-blue-900">
+                                    Trang <span className="font-bold">{pagination.page}</span> / <span className="font-bold">{pagination.totalPages || 1}</span>
+                                </span>
+                            </div>
+                            <div className="h-6 w-px bg-blue-300"></div>
+                            <div className="flex items-center space-x-2">
+                                <span className="text-blue-600">📊</span>
+                                <span className="text-sm text-blue-800">
+                                    Hiển thị <span className="font-medium">{((pagination.page - 1) * (pagination.limit || 10)) + 1}</span> - 
+                                    <span className="font-medium">{Math.min(pagination.page * (pagination.limit || 10), pagination.total || 0)}</span> 
+                                    trong tổng <span className="font-bold">{pagination.total || 0}</span> chủ khách sạn
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                            <button 
+                                onClick={() => handlePageChange(pagination.page - 1)}
+                                disabled={pagination.page <= 1}
+                                className="inline-flex items-center px-3 py-1 bg-white border border-blue-300 text-blue-700 text-sm font-medium rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                            >
+                                ← Trước
+                            </button>
+                            
+                            <button 
+                                onClick={() => handlePageChange(pagination.page + 1)}
+                                disabled={pagination.page >= (pagination.totalPages || 1)}
+                                className="inline-flex items-center px-3 py-1 bg-white border border-blue-300 text-blue-700 text-sm font-medium rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                            >
+                                Tiếp →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                     <CustomerTable
                         customers={displayCustomers}
                         loading={loading || localLoading}
-                        pagination={{
-                            ...pagination,
-                            total: displayCustomers.length
-                        }}
+                        pagination={pagination}
                         onPageChange={handlePageChange}
                         onView={handleViewCustomer}
                         onEdit={handleEditCustomer}

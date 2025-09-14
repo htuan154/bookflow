@@ -257,14 +257,28 @@ export const contractServices = {
     // Phê duyệt hợp đồng
     approveContract: async (contractId, approvalData) => {
         try {
+            console.log('📤 [CONTRACT SERVICE] Approving contract:', contractId);
+            console.log('📤 [CONTRACT SERVICE] Approval data:', approvalData);
+            console.log('📤 [CONTRACT SERVICE] Headers:', getAuthHeaders());
+            
+            // Tạo body data với các trường cơ bản
+            const bodyData = {
+                status: 'active', // luôn là active khi duyệt
+                notes: approvalData.notes,
+                approved_by: approvalData.approvedBy, // Thử cả approved_by và approvedBy
+                approvedBy: approvalData.approvedBy,
+            };
+
+            // Thêm signed_date nếu có trong approvalData
+            if (approvalData.signed_date) {
+                bodyData.signed_date = approvalData.signed_date;
+                console.log('📤 [CONTRACT SERVICE] Including signed_date:', bodyData.signed_date);
+            }
+
             const response = await fetch(API_ENDPOINTS.CONTRACTS.UPDATE_STATUS(contractId), {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
-                body: JSON.stringify({
-                    status: 'active', // luôn là active khi duyệt
-                    notes: approvalData.notes,
-                    approvedBy: approvalData.approvedBy,
-                }),
+                body: JSON.stringify(bodyData),
             });
 
             if (!response.ok) {
@@ -287,12 +301,17 @@ export const contractServices = {
     // Từ chối hợp đồng
     rejectContract: async (contractId, rejectionData) => {
         try {
+            console.log('📤 [CONTRACT SERVICE] Rejecting contract:', contractId);
+            console.log('📤 [CONTRACT SERVICE] Rejection data:', rejectionData);
+            console.log('📤 [CONTRACT SERVICE] Headers:', getAuthHeaders());
+            
             const response = await fetch(API_ENDPOINTS.CONTRACTS.UPDATE_STATUS(contractId), {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
                     status: 'cancelled', // luôn là cancelled khi từ chối
                     notes: rejectionData.notes,
+                    approved_by: rejectionData.approvedBy, // Thử cả approved_by và approvedBy
                     approvedBy: rejectionData.approvedBy,
                 }),
             });
