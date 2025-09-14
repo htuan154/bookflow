@@ -28,16 +28,33 @@ class SeasonalPricing {
 
   factory SeasonalPricing.fromJson(Map<String, dynamic> json) {
     return SeasonalPricing(
-      pricingId: json['pricing_id'] as String,
-      roomTypeId: json['room_type_id'] as String,
-      seasonId: json['season_id'] as int?,
-      name: json['name'] as String,
-      startDate: DateTime.parse(json['start_date'] as String),
-      endDate: DateTime.parse(json['end_date'] as String),
-      priceModifier: (json['price_modifier'] as num).toDouble(),
-      roomType: json['room_type'] != null ? RoomType.fromJson(json['room_type']) : null,
+      pricingId: json['pricingId'] ?? '',
+      roomTypeId: json['roomTypeId'] ?? '',
+      seasonId: json['seasonId'],
+      name: json['name'] ?? '',
+      startDate: DateTime.parse(json['startDate']),
+      endDate: DateTime.parse(json['endDate']),
+      // Sửa phần này để parse string thành double
+      priceModifier: _parseDouble(json['priceModifier']),
+      roomType: json['roomType'] != null ? RoomType.fromJson(json['roomType']) : null,
       season: json['season'] != null ? Season.fromJson(json['season']) : null,
     );
+  }
+
+  // Thêm hàm helper để parse double từ string hoặc number
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 1.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      try {
+        return double.parse(value);
+      } catch (e) {
+        print('Error parsing priceModifier: $value');
+        return 1.0;
+      }
+    }
+    return 1.0;
   }
 
   Map<String, dynamic> toJson() {
@@ -49,7 +66,8 @@ class SeasonalPricing {
       'start_date': startDate.toIso8601String().split('T')[0],
       'end_date': endDate.toIso8601String().split('T')[0],
       'price_modifier': priceModifier,
-      if (roomType != null) 'room_type': roomType!.toJson(),
+      // Sửa key từ 'room_type' thành 'roomType'
+      if (roomType != null) 'roomType': roomType!.toJson(),
       if (season != null) 'season': season!.toJson(),
     };
   }
@@ -104,12 +122,13 @@ class SeasonalPricing {
 
   /// Kiểm tra ngày cụ thể có nằm trong khoảng thời gian này không
   bool isDateInRange(DateTime date) {
-    final dateOnly = DateTime(date.year, date.month, date.day);
-    final startOnly = DateTime(startDate.year, startDate.month, startDate.day);
-    final endOnly = DateTime(endDate.year, endDate.month, endDate.day);
+    // Chuyển về UTC để so sánh chính xác
+    final dateOnly = DateTime.utc(date.year, date.month, date.day);
+    final startOnly = DateTime.utc(startDate.year, startDate.month, startDate.day);
+    final endOnly = DateTime.utc(endDate.year, endDate.month, endDate.day);
     
-    return (dateOnly.isAtSameMomentAs(startOnly) || dateOnly.isAfter(startOnly)) &&
-           (dateOnly.isAtSameMomentAs(endOnly) || dateOnly.isBefore(endOnly));
+    return (dateOnly.isAfter(startOnly) || dateOnly.isAtSameMomentAs(startOnly)) &&
+           (dateOnly.isBefore(endOnly) || dateOnly.isAtSameMomentAs(endOnly));
   }
 
   /// Kiểm tra có đang trong thời gian áp dụng không

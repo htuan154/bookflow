@@ -12,10 +12,25 @@ router.use(authenticate);
 // --- ADMIN-ONLY ROUTES ---
 router.post(
     '/',
-    authorize(['admin']),
+    authorize(['hotel_owner']),
     validate(createContractSchema),
     contractController.createContract
 );
+//Cập nhật hợp đồng ngày 24/8
+// Chủ khách sạn được update hợp đồng của mình
+router.patch(
+    '/:id',
+    authorize(['hotel_owner']),
+    contractController.updateContract
+);
+// xóa hợp đồng ngày 24/8
+// Xóa hợp đồng (chỉ chủ khách sạn được xóa hợp đồng của chính mình)
+router.delete(
+    '/:id',
+    authorize(['hotel_owner']),
+    contractController.deleteContract
+);
+
 
 router.patch(
     '/:id/status',
@@ -47,8 +62,14 @@ router.get(
 // ✅ Thêm API lấy tất cả hợp đồng (Admin only)
 router.get(
     '/',
-    authorize(['admin']),
+    authorize(['admin','hotel_owner']),
     contractController.getAllContracts
+);
+// Chủ khách sạn gửi duyệt hợp đồng (draft -> pending)
+router.patch(
+    '/:id/send-for-approval',
+    authorize(['hotel_owner']),
+    contractController.sendForApproval
 );
 
 

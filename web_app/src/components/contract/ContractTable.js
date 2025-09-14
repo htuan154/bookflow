@@ -1,5 +1,5 @@
 // src/components/Contract/ContractTable.js
-import  { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 
 const ContractTable = ({ 
     contracts = [], 
@@ -7,6 +7,7 @@ const ContractTable = ({
     onApprove, 
     onReject, 
     onViewDetail,
+    onUpdateStatus,
     showActions = true 
 }) => {
     console.log('=== CONTRACT TABLE DEBUG ===');
@@ -36,11 +37,12 @@ const ContractTable = ({
     const [currentTab, setCurrentTab] = useState('ALL');
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
+    const [editingContract, setEditingContract] = useState(null);
+    const [editFormData, setEditFormData] = useState({});
 
-    // Status tabs with improved styling
+    // Status tabs with improved styling (removed 'draft' status from UI)
     const statusTabs = [
-        { key: 'ALL', label: 'Tất cả', count: contracts.length, color: 'orange' },
-        { key: 'draft', label: 'Nháp', count: contracts.filter(c => c.status === 'draft').length, color: 'gray' },
+        { key: 'ALL', label: 'Tất cả', count: contracts.filter(c => c.status !== 'draft').length, color: 'orange' },
         { key: 'pending', label: 'Chờ duyệt', count: contracts.filter(c => c.status === 'pending').length, color: 'yellow' },
         { key: 'active', label: 'Đang hiệu lực', count: contracts.filter(c => c.status === 'active').length, color: 'green' },
         { key: 'expired', label: 'Hết hạn', count: contracts.filter(c => c.status === 'expired').length, color: 'orange' },
@@ -50,7 +52,8 @@ const ContractTable = ({
 
     // Filter contracts based on current tab and search
     const filteredContracts = useMemo(() => {
-        let filtered = contracts;
+        // Ẩn các contracts có status 'draft' khỏi UI
+        let filtered = contracts.filter(contract => contract.status !== 'draft');
 
         // Filter by status
         if (currentTab !== 'ALL') {
@@ -113,6 +116,82 @@ const ContractTable = ({
         }
     };
 
+    // Handle edit contract
+    const handleEditContract = (contract) => {
+        setEditingContract(contract);
+        setEditFormData({
+            status: contract.status,
+            // Có thể thêm các trường khác nếu cần
+        });
+    };
+
+    // Handle save edit
+    const handleSaveEdit = async () => {
+        if (!editingContract || !editFormData.status) return;
+        
+        try {
+            // Get contract ID with flexible field detection
+            const contractId = editingContract.contractId || 
+                              editingContract.contract_id || 
+                              editingContract.id || 
+                              editingContract._id;
+            
+            console.log('=== UPDATING CONTRACT STATUS ===');
+            console.log('Contract ID:', contractId);
+            console.log('Current status:', editingContract.status);
+            console.log('New status:', editFormData.status);
+            
+            if (!contractId) {
+                console.error('Contract ID not found');
+                alert('Không tìm thấy ID hợp đồng');
+                return;
+            }
+            
+            // Call the onUpdateStatus function to update in database
+            if (onUpdateStatus) {
+                // Kiểm tra nếu status là 'active' và contract chưa có signed_date
+                const updateData = {
+                    status: editFormData.status
+                };
+                
+                if (editFormData.status === 'active' && !editingContract.signed_date && !editingContract.signedDate) {
+                    updateData.signed_date = new Date().toISOString();
+                    console.log('✅ Adding signed_date for approval:', updateData.signed_date);
+                }
+                
+                await onUpdateStatus(contractId, updateData);
+            } else {
+                // Fallback to old method if onUpdateStatus is not provided
+                console.warn('onUpdateStatus not provided, using fallback method');
+                if (editFormData.status === 'active') {
+                    await onApprove([contractId]);
+                } else if (editFormData.status === 'cancelled') {
+                    await onReject([contractId]);
+                } else {
+                    console.warn('No handler for status:', editFormData.status);
+                    alert('Chưa hỗ trợ cập nhật trạng thái này');
+                    return;
+                }
+            }
+            
+            console.log('✅ Contract status updated successfully');
+            
+            // Close modal
+            setEditingContract(null);
+            setEditFormData({});
+            
+        } catch (error) {
+            console.error('Error updating contract:', error);
+            alert('Có lỗi xảy ra khi cập nhật trạng thái hợp đồng: ' + error.message);
+        }
+    };
+
+    // Handle close edit modal
+    const handleCloseEdit = () => {
+        setEditingContract(null);
+        setEditFormData({});
+    };
+
     // Status badge component with enhanced styling
     const StatusBadge = ({ status }) => {
         const getStatusStyle = (status) => {
@@ -137,7 +216,7 @@ const ContractTable = ({
         const getStatusText = (status) => {
             switch (status) {
                 case 'draft':
-                    return 'Nháp';
+                    return null; // Ẩn trạng thái draft khỏi UI
                 case 'pending':
                     return 'Chờ duyệt';
                 case 'active':
@@ -153,9 +232,14 @@ const ContractTable = ({
             }
         };
 
+        // Ẩn hoàn toàn badge nếu là draft status
+        if (status === 'draft') {
+            return null;
+        }
+
         return (
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusStyle(status)}`}>
-                <div className={`w-1.5 h-1.5 rounded-full mr-2 ${status === 'active' ? 'bg-emerald-600' : status === 'pending' ? 'bg-amber-600' : status === 'draft' ? 'bg-slate-600' : 'bg-red-600'}`}></div>
+                <div className={`w-1.5 h-1.5 rounded-full mr-2 ${status === 'active' ? 'bg-emerald-600' : status === 'pending' ? 'bg-amber-600' : 'bg-red-600'}`}></div>
                 {getStatusText(status)}
             </span>
         );
@@ -563,6 +647,15 @@ const ContractTable = ({
                                                     </svg>
                                                     Xem
                                                 </button>
+                                                <button
+                                                    onClick={() => handleEditContract(contract)}
+                                                    className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-all duration-200 transform hover:scale-105"
+                                                >
+                                                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    </svg>
+                                                    Sửa
+                                                </button>
                                             </div>
                                         </td>
                                     )}
@@ -620,6 +713,177 @@ const ContractTable = ({
                                     </svg>
                                 </button>
                             </nav>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Contract Modal */}
+            {editingContract && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                    <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-xl bg-white">
+                        <div className="mt-3">
+                            {/* Modal Header */}
+                            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                                <div className="flex items-center">
+                                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-gray-900">
+                                            Sửa hợp đồng
+                                        </h3>
+                                        <p className="text-sm text-gray-500 mt-1">
+                                            Chỉnh sửa thông tin hợp đồng {editingContract.contractNumber}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={handleCloseEdit}
+                                    className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {/* Contract Information Display */}
+                            <div className="p-6 space-y-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    {/* Left Column - Contract Details */}
+                                    <div className="space-y-4">
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <h4 className="text-sm font-semibold text-gray-700 mb-3">Thông tin hợp đồng</h4>
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className="text-xs text-gray-500">Số hợp đồng</label>
+                                                    <p className="text-sm font-medium text-gray-900">{editingContract.contractNumber}</p>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-gray-500">Tiêu đề</label>
+                                                    <p className="text-sm font-medium text-gray-900">{editingContract.title}</p>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-gray-500">Mô tả</label>
+                                                    <p className="text-sm text-gray-700">{editingContract.description}</p>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-gray-500">Loại hợp đồng</label>
+                                                    <p className="text-sm font-medium text-gray-900">{editingContract.contractType}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <h4 className="text-sm font-semibold text-gray-700 mb-3">Thông tin khách sạn</h4>
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className="text-xs text-gray-500">ID Khách sạn</label>
+                                                    <p className="text-sm font-medium text-gray-900">{editingContract.hotelId || 'N/A'}</p>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-gray-500">Tên khách sạn</label>
+                                                    <p className="text-sm font-medium text-gray-900">{editingContract.hotelName || 'N/A'}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Right Column - Financial & Dates */}
+                                    <div className="space-y-4">
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <h4 className="text-sm font-semibold text-gray-700 mb-3">Thông tin tài chính</h4>
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className="text-xs text-gray-500">Giá trị hợp đồng</label>
+                                                    <p className="text-sm font-bold text-emerald-700">
+                                                        {formatCurrency(editingContract.contractValue, editingContract.currency)}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-gray-500">Đơn vị tiền tệ</label>
+                                                    <p className="text-sm font-medium text-gray-900">{editingContract.currency || 'VND'}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-gray-50 p-4 rounded-lg">
+                                            <h4 className="text-sm font-semibold text-gray-700 mb-3">Thời gian hiệu lực</h4>
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className="text-xs text-gray-500">Ngày bắt đầu</label>
+                                                    <p className="text-sm font-medium text-gray-900">{formatDate(editingContract.startDate)}</p>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-gray-500">Ngày kết thúc</label>
+                                                    <p className="text-sm font-medium text-gray-900">{formatDate(editingContract.endDate)}</p>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs text-gray-500">Ngày tạo</label>
+                                                    <p className="text-sm font-medium text-gray-900">
+                                                        {formatDate(editingContract.createdAt || editingContract.created_at)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Status Edit Section */}
+                                        <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
+                                            <h4 className="text-sm font-semibold text-blue-700 mb-3">Chỉnh sửa trạng thái</h4>
+                                            <div>
+                                                <label className="text-xs text-gray-600 mb-2 block">Trạng thái hiện tại</label>
+                                                <div className="mb-4">
+                                                    <StatusBadge status={editingContract.status} />
+                                                </div>
+                                                
+                                                <label className="text-xs text-gray-600 mb-2 block">Trạng thái mới</label>
+                                                <select
+                                                    value={editFormData.status || editingContract.status}
+                                                    onChange={(e) => setEditFormData(prev => ({ ...prev, status: e.target.value }))}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                                >
+                                                    <option value="pending">Chờ duyệt</option>
+                                                    <option value="active">Đang hiệu lực</option>
+                                                    <option value="expired">Hết hạn</option>
+                                                    <option value="terminated">Đã chấm dứt</option>
+                                                    <option value="cancelled">Đã hủy</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="flex items-center justify-end px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-xl">
+                                <div className="flex space-x-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleCloseEdit}
+                                        className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200"
+                                    >
+                                        Hủy
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveEdit}
+                                        disabled={!editFormData.status || editFormData.status === editingContract.status}
+                                        className={`inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white transition-all duration-200 ${
+                                            !editFormData.status || editFormData.status === editingContract.status
+                                                ? 'bg-gray-400 cursor-not-allowed'
+                                                : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 hover:shadow-lg transform hover:-translate-y-0.5'
+                                        }`}
+                                    >
+                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Lưu thay đổi
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

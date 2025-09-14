@@ -62,6 +62,11 @@ const customerReducer = (state, action) => {
             };
 
         case CUSTOMER_ACTIONS.SET_CUSTOMERS:
+            console.log('👥 SET_CUSTOMERS reducer:', { 
+                oldCustomers: state.customers.length, 
+                newCustomers: (action.payload || []).length,
+                payload: action.payload 
+            });
             return {
                 ...state,
                 customers: action.payload || [],
@@ -136,6 +141,10 @@ const customerReducer = (state, action) => {
             };
 
         case CUSTOMER_ACTIONS.SET_PAGINATION:
+            console.log('📊 SET_PAGINATION reducer:', { 
+                oldPagination: state.pagination, 
+                newPagination: action.payload 
+            });
             return {
                 ...state,
                 pagination: {
@@ -218,44 +227,60 @@ export const CustomerProvider = ({ children }) => {
             try {
                 // Thử các method API khả dụng theo thứ tự ưu tiên
                 if (customerService.getHotelOwners) {
-                    console.log('Using getHotelOwners API');
+                    console.log('📞 Using getHotelOwners API with queryParams:', queryParams);
                     response = await customerService.getHotelOwners(queryParams);
+                    console.log('📥 getHotelOwners raw response:', response);
                 } else if (customerService.getCustomersByRole) {
-                    console.log('Using getCustomersByRole API');
+                    console.log('📞 Using getCustomersByRole API');
                     response = await customerService.getCustomersByRole('hotel_owner', queryParams);
+                    console.log('📥 getCustomersByRole raw response:', response);
                 } else if (customerService.getCustomersWithHotels) {
-                    console.log('Using getCustomersWithHotels API');
+                    console.log('📞 Using getCustomersWithHotels API');
                     response = await customerService.getCustomersWithHotels(queryParams);
+                    console.log('📥 getCustomersWithHotels raw response:', response);
                 } else if (customerService.getCustomers) {
-                    console.log('Using general getCustomers API with role filter');
+                    console.log('📞 Using general getCustomers API with role filter');
                     response = await customerService.getCustomers({
                         ...queryParams,
                         role: 'hotel_owner'
                     });
+                    console.log('📥 getCustomers raw response:', response);
                 } else {
                     throw new Error('No suitable API method available in customerService');
                 }
-                
-                console.log('Raw API response:', response);
             } catch (apiError) {
                 console.error('All API methods failed:', apiError);
                 throw new Error(`API call failed: ${apiError.message}`);
             }
 
-            // Xử lý response data
+            // Xử lý response data - Fixed để xử lý đúng format từ backend
             let customers = [];
             let paginationData = {};
 
+            console.log('🔍 Processing API response:', response);
+
             if (response) {
-                // Xử lý các format response khác nhau từ API
+                // Format từ backend: { success: true, data: [...], pagination: {...} }
                 if (response.success && Array.isArray(response.data)) {
                     customers = response.data;
-                    paginationData = {
-                        page: response.page || response.currentPage || queryParams.page || 1,
-                        limit: response.limit || response.pageSize || queryParams.limit || 10,
-                        total: response.total || response.totalItems || customers.length,
-                        totalPages: response.totalPages || Math.ceil((response.total || customers.length) / (queryParams.limit || 10))
-                    };
+                    
+                    // Xử lý pagination từ response.pagination hoặc fallback
+                    if (response.pagination) {
+                        paginationData = {
+                            page: response.pagination.page || queryParams.page || 1,
+                            limit: response.pagination.limit || queryParams.limit || 10,
+                            total: response.pagination.total || customers.length,
+                            totalPages: response.pagination.totalPages || Math.ceil((response.pagination.total || customers.length) / (queryParams.limit || 10))
+                        };
+                    } else {
+                        // Fallback nếu không có pagination object
+                        paginationData = {
+                            page: queryParams.page || 1,
+                            limit: queryParams.limit || 10,
+                            total: customers.length,
+                            totalPages: Math.ceil(customers.length / (queryParams.limit || 10))
+                        };
+                    }
                 } else if (Array.isArray(response.data)) {
                     customers = response.data;
                     paginationData = {
@@ -272,17 +297,16 @@ export const CustomerProvider = ({ children }) => {
                         total: customers.length,
                         totalPages: Math.ceil(customers.length / (queryParams.limit || 10))
                     };
-                } else if (response.items && Array.isArray(response.items)) {
-                    customers = response.items;
-                    paginationData = {
-                        page: response.page || queryParams.page || 1,
-                        limit: response.limit || queryParams.limit || 10,
-                        total: response.total || customers.length,
-                        totalPages: response.totalPages || Math.ceil((response.total || customers.length) / (queryParams.limit || 10))
-                    };
                 } else {
-                    console.warn('Unexpected response format:', response);
-                    throw new Error('Invalid response format from API');
+                    console.warn('⚠️ Unexpected response format:', response);
+                    // Thử extract data anyway
+                    customers = response.data || response.items || [];
+                    paginationData = {
+                        page: queryParams.page || 1,
+                        limit: queryParams.limit || 10,
+                        total: Array.isArray(customers) ? customers.length : 0, 
+                        totalPages: Math.ceil((Array.isArray(customers) ? customers.length : 0) / (queryParams.limit || 10))
+                    };
                 }
 
                 // Đảm bảo customers là array và có role hotel_owner
@@ -305,10 +329,13 @@ export const CustomerProvider = ({ children }) => {
                 };
             }
 
-            console.log('Processed customers:', customers);
-            console.log('Pagination data:', paginationData);
+            console.log('✅ Processed customers:', customers.length, 'items');
+            console.log('✅ Pagination data:', paginationData);
 
-            dispatch({ type: CUSTOMER_ACTIONS.SET_CUSTOMERS, payload: customers });
+            // Đảm bảo customers luôn là array
+            const validCustomers = Array.isArray(customers) ? customers : [];
+            
+            dispatch({ type: CUSTOMER_ACTIONS.SET_CUSTOMERS, payload: validCustomers });
             dispatch({ type: CUSTOMER_ACTIONS.SET_PAGINATION, payload: paginationData });
 
         } catch (error) {

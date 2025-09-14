@@ -98,7 +98,7 @@ class _ReviewDetailScreenState extends State<ReviewDetailScreen> {
                       SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          review.user?.fullName ?? 'Ẩn danh',
+                          review.username ?? 'Ẩn danh',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                       ),

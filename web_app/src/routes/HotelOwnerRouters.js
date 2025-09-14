@@ -23,6 +23,11 @@ import RoomStatusPage from '../pages/hotel_owner/roomtype_management/RoomStatusP
 // === Quản lý phòng: Providers (điều chỉnh path nếu bạn lưu khác)
 import { RoomTypeProvider } from '../context/RoomTypeContext';
 import { RoomProvider } from '../context/RoomContext';
+import { HotelOwnerContractProvider } from '../context/HotelOwnerContractContext';
+import ContractManagement from '../pages/hotel_owner/contract_management/ContractManagement';
+import { IMProvider } from '../context/IMContext';
+import OwnerMessagesPage from '../pages/hotel_owner/messages';
+
 
 const HotelOwnerRoutes = () => {
   const { isAuthenticated, user } = useAuth();
@@ -85,6 +90,23 @@ const HotelOwnerRoutes = () => {
         {/* Alias /rooms -> /rooms/types */}
         <Route path="rooms" element={<Navigate to="/hotel-owner/rooms/types" replace />} />
         {/* ============================================================ */}
+        <Route
+          path="messages"
+          element={
+            <IMProvider>
+              <OwnerMessagesPage />
+            </IMProvider>
+          }
+        />
+        {/* Quản lý hợp đồng khách sạn */}
+        <Route
+          path="contracts"
+          element={
+            <HotelOwnerContractProvider>
+              <ContractManagement />
+            </HotelOwnerContractProvider>
+          }
+        />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

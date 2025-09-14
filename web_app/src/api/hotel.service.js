@@ -135,10 +135,15 @@ export const hotelApiService = {
    */
   async getHotelById(hotelId) {
     try {
-      const response = await axiosClient.get(API_ENDPOINTS.HOTEL_OWNER.GET_HOTEL_DETAIL(hotelId));
+      console.log('🔄 [HOTEL SERVICE] Fetching hotel by ID:', hotelId);
+      const url = `/hotels/${hotelId}`;
+      console.log('🔄 [HOTEL SERVICE] Request URL:', url);
+      
+      const response = await axiosClient.get(url);
+      console.log('✅ [HOTEL SERVICE] Hotel response:', response.status, response.data);
       return response.data;
     } catch (error) {
-      console.error('Error fetching hotel by ID:', error);
+      console.error('❌ [HOTEL SERVICE] Error fetching hotel by ID:', error.response?.status, error.response?.data || error.message);
       throw error;
     }
   },
@@ -339,4 +344,196 @@ export const hotelApiService = {
       throw error;
     }
   },
+
+  /**
+   * Lấy danh sách khách sạn đã duyệt của user hiện tại (cho dropdown) ngày 28/8 
+   */
+  async getApprovedHotelsDropdown() {
+    try {
+      console.log('🔍 Frontend calling endpoint:', API_ENDPOINTS.HOTELS.GET_APPROVED_HOTELS_DROPDOWN);
+      const response = await axiosClient.get(API_ENDPOINTS.HOTELS.GET_APPROVED_HOTELS_DROPDOWN);
+      console.log('✅ Frontend received response:', response.data);
+      return response.data;
+    } catch (error) {
+      // Thêm log chi tiết lỗi để debug
+      console.error('❌ Frontend error:', {
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+        url: error?.config?.url
+      });
+      throw error;
+    }
+  },
+
+
+
+  /**
+   * Lấy thông tin chi tiết hotel theo ID
+   */
+  async getHotelById(hotelId) {
+    try {
+      console.log('🔄 [HOTEL SERVICE] Fetching hotel by ID:', hotelId);
+      const response = await axiosClient.get(`/hotels/${hotelId}`);
+      console.log('✅ [HOTEL SERVICE] Hotel response:', response.status, response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [HOTEL SERVICE] Error fetching hotel by ID:', error.response?.status, error.response?.data || error.message);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách amenities của hotel
+   */
+  async getHotelAmenities(hotelId) {
+    try {
+      console.log('🔄 [HOTEL SERVICE] Fetching hotel amenities for ID:', hotelId);
+      const response = await axiosClient.get(`/hotels/${hotelId}/amenities`);
+      console.log('✅ [HOTEL SERVICE] Hotel amenities response:', response.data);
+      
+      // Extract data from response - API trả về {status, message, data}
+      const amenities = response.data?.data || [];
+      console.log('✅ [HOTEL SERVICE] Extracted amenities:', amenities);
+      
+      return amenities;
+    } catch (error) {
+      console.error('❌ [HOTEL SERVICE] Error fetching hotel amenities:', error);
+      // Return empty array thay vì throw error để không break UI
+      return [];
+    }
+  },
+
+  /**
+   * Lấy danh sách images của hotel
+   */
+  async getHotelImages(hotelId) {
+    try {
+      console.log('🔄 [HOTEL SERVICE] Fetching hotel images for ID:', hotelId);
+      const response = await axiosClient.get(`/hotels/${hotelId}/images`);
+      console.log('✅ [HOTEL SERVICE] Hotel images response:', response.data);
+      
+      // Extract data from response - API trả về {status, message, data}
+      const images = response.data?.data || [];
+      console.log('✅ [HOTEL SERVICE] Extracted images:', images);
+      
+      return images;
+    } catch (error) {
+      console.error('❌ [HOTEL SERVICE] Error fetching hotel images:', error);
+      // Return empty array thay vì throw error để không break UI
+      return [];
+    }
+  },
+
+  /**
+   * Lấy danh sách room types của hotel
+   */
+  async getHotelRoomTypes(hotelId) {
+    try {
+      console.log('🔄 [HOTEL SERVICE] Fetching room types for hotel ID:', hotelId);
+      
+      // Sử dụng endpoint chính xác từ backend
+      const response = await axiosClient.get(`/roomtypes/hotel/${hotelId}`);
+      
+      const roomTypes = response.data?.data || response.data || [];
+      console.log('✅ [HOTEL SERVICE] Room types fetched:', roomTypes.length, 'items');
+      
+      return roomTypes;
+    } catch (error) {
+      console.error('❌ [HOTEL SERVICE] Error fetching hotel room types:', error);
+      // Return empty array thay vì throw error để không break UI
+      return [];
+    }
+  },
+
+  /**
+   * Lấy thumbnail của room type
+   */
+  async getRoomTypeThumbnail(roomTypeId) {
+    try {
+      console.log('🔄 [HOTEL SERVICE] Fetching room type thumbnail for ID:', roomTypeId);
+      const response = await axiosClient.get(`/room-types/${roomTypeId}/thumbnail`);
+      console.log('✅ [HOTEL SERVICE] Room type thumbnail response:', response.data);
+      return response.data?.data || null;
+    } catch (error) {
+      console.error('❌ [HOTEL SERVICE] Error fetching room type thumbnail:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Lấy danh sách hình ảnh của room type
+   */
+  async getRoomTypeImages(roomTypeId) {
+    try {
+      console.log('🔄 [HOTEL SERVICE] Fetching room type images for ID:', roomTypeId);
+      const response = await axiosClient.get(`/room-types/${roomTypeId}/images`);
+      console.log('✅ [HOTEL SERVICE] Room type images response:', response.data);
+      return response.data?.data || [];
+    } catch (error) {
+      console.error('❌ [HOTEL SERVICE] Error fetching room type images:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Lấy danh sách phòng của room type
+   */
+  async getRoomsByRoomType(roomTypeId) {
+    try {
+      console.log('🔄 [HOTEL SERVICE] Fetching rooms for room type ID:', roomTypeId);
+      const response = await axiosClient.get(`/rooms/room-type/${roomTypeId}`);
+      console.log('✅ [HOTEL SERVICE] Rooms response:', response.data);
+      return response.data?.data || [];
+    } catch (error) {
+      console.error('❌ [HOTEL SERVICE] Error fetching rooms by room type:', error);
+      return [];
+    }
+  },
+
+  // Get complete hotel data (hotel + amenities + images + room types)
+  async getCompleteHotelData(hotelId) {
+    try {
+      console.log('🔄 [HOTEL SERVICE] Fetching complete hotel data for ID:', hotelId);
+      
+      // Fetch hotel data first
+      let hotel = null;
+      try {
+        console.log('🔄 [HOTEL SERVICE] Fetching hotel by ID...');
+        const hotelResponse = await this.getHotelById(hotelId);
+        hotel = hotelResponse?.data || hotelResponse;
+        console.log('✅ [HOTEL SERVICE] Hotel data fetched:', hotel);
+      } catch (hotelError) {
+        console.error('❌ [HOTEL SERVICE] Error fetching hotel:', hotelError);
+        // Continue with other data even if hotel fetch fails
+      }
+
+      // Fetch other data in parallel with better error handling
+      console.log('🔄 [HOTEL SERVICE] Fetching amenities, images, and room types...');
+      const [amenities, images, roomTypes] = await Promise.allSettled([
+        this.getHotelAmenities(hotelId),
+        this.getHotelImages(hotelId),
+        this.getHotelRoomTypes(hotelId)
+      ]);
+
+      const completeData = {
+        hotel: hotel,
+        amenities: amenities.status === 'fulfilled' ? (amenities.value || []) : [],
+        images: images.status === 'fulfilled' ? (images.value || []) : [],  
+        roomTypes: roomTypes.status === 'fulfilled' ? (roomTypes.value || []) : []
+      };
+
+      console.log('✅ [HOTEL SERVICE] Complete hotel data assembled:', {
+        hotel: !!completeData.hotel,
+        amenitiesCount: completeData.amenities.length,
+        imagesCount: completeData.images.length,
+        roomTypesCount: completeData.roomTypes.length
+      });
+      
+      return completeData;
+    } catch (error) {
+      console.error('❌ [HOTEL SERVICE] Error fetching complete hotel data:', error);
+      throw error;
+    }
+  }
 };

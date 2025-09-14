@@ -41,6 +41,21 @@ class RoomTypeImageService {
     }
 
     /**
+     * Lấy hình ảnh thumbnail của một loại phòng.
+     * @param {string} roomTypeId - ID của loại phòng.
+     * @returns {Promise<RoomTypeImage|null>}
+     */
+    async getThumbnailForRoomType(roomTypeId) {
+        // Kiểm tra xem room type có tồn tại không
+        const roomType = await roomTypeRepository.findById(roomTypeId);
+        if (!roomType) {
+            throw new AppError('Room type not found', 404);
+        }
+        
+        return await roomTypeImageRepository.findThumbnailByRoomTypeId(roomTypeId);
+    }
+
+    /**
      * Xóa một hình ảnh.
      * @param {string} imageId - ID của hình ảnh.
      * @param {string} userId - ID của người dùng thực hiện.

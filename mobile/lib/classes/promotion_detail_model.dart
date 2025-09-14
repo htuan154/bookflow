@@ -54,7 +54,8 @@ class PromotionDetail {
       'discount_value': discountValue,
       'created_at': createdAt?.toIso8601String(),
       if (promotion != null) 'promotion': promotion!.toJson(),
-      if (roomType != null) 'room_type': roomType!.toJson(),
+      // Sửa key từ 'room_type' thành 'roomType' để match với RoomType.toJson()
+      if (roomType != null) 'roomType': roomType!.toJson(),
     };
   }
 

@@ -1,7 +1,9 @@
 // src/components/Contract/ContractDetail.js
 import { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ContractContext } from '../../context/ContractContext';
 import { contractServices } from '../../api/contract.service';
+import useAuth from '../../hooks/useAuth';
 
 const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onError, isPage = false }) => {
   const {
@@ -11,6 +13,10 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
     fetchContractDetail,
     clearError
   } = useContext(ContractContext);
+
+  // Lấy thông tin user từ auth context
+  const { user, token } = useAuth();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('details');
   const [fileLoading, setFileLoading] = useState(false);
@@ -253,23 +259,77 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
   // Approve contract sử dụng API thật
   const handleApprove = async () => {
     try {
-      console.log('🔄 Approving contract via REAL API:', displayContract.contract_id);
-      
-      // SỬ DỤNG contractServices THẬT
-      const result = await contractServices.approveContract(displayContract.contract_id, {
-        approved_by: 'admin', // Thay bằng user ID thật từ auth context
-        notes: 'Đã duyệt'
+      console.log('🔄 Approving contract via REAL API');
+      console.log('Full contract object:', displayContract);
+      console.log('Contract ID options:', {
+        contract_id: displayContract?.contract_id,
+        contractId: displayContract?.contractId,
+        id: displayContract?.id,
+        _id: displayContract?._id
       });
+      
+      // Tìm contract ID thực sự
+      const actualContractId = displayContract?.contract_id || 
+                              displayContract?.contractId || 
+                              displayContract?.id || 
+                              displayContract?._id;
+      
+      console.log('Actual Contract ID to use:', actualContractId);
+      
+      // Validate contract ID
+      if (!actualContractId) {
+        throw new Error('Không tìm thấy Contract ID hợp lệ trong object');
+      }
+
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(actualContractId)) {
+        console.warn('⚠️ Contract ID is not a valid UUID:', actualContractId);
+        console.log('Contract ID type:', typeof actualContractId);
+        console.log('Will try to use it anyway, backend might accept non-UUID');
+      }
+
+      // Lấy user info từ auth context
+      const userId = user?.userId || user?.id || 'admin';
+      
+      console.log('Current user from auth:', user);
+      console.log('Using userId for approval:', userId);
+      console.log('Token available:', !!token);
+      
+      // Chuẩn bị data approval
+      const approvalData = {
+        approvedBy: userId, // Sử dụng approvedBy thay vì approved_by
+        notes: 'Đã duyệt'
+      };
+
+      // Kiểm tra và thêm signed_date nếu contract chưa có
+      if (!displayContract?.signed_date && !displayContract?.signedDate) {
+        approvalData.signed_date = new Date().toISOString();
+        console.log('✅ Adding signed_date for approval:', approvalData.signed_date);
+      }
+
+      // SỬ DỤNG contractServices THẬT với actualContractId
+      const result = await contractServices.approveContract(actualContractId, approvalData);
 
       console.log('✅ Approval successful:', result);
       
       // Cập nhật local contract với dữ liệu mới từ API
-      setLocalContract(prev => ({
-        ...prev,
-        status: 'active',
-        approved_by: 'admin',
-        approved_at: new Date().toISOString()
-      }));
+      setLocalContract(prev => {
+        const updatedContract = {
+          ...prev,
+          status: 'active',
+          approved_by: userId,
+          approved_at: new Date().toISOString()
+        };
+
+        // Thêm signed_date nếu được set trong approval
+        if (approvalData.signed_date) {
+          updatedContract.signed_date = approvalData.signed_date;
+          console.log('✅ Updated local contract with signed_date:', updatedContract.signed_date);
+        }
+
+        return updatedContract;
+      });
 
       if (onApprovalSuccess) {
         onApprovalSuccess('Phê duyệt hợp đồng thành công!');
@@ -277,18 +337,66 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
       
     } catch (error) {
       console.error('❌ Approval failed:', error);
+      console.error('Error details:', error.message);
       alert('Có lỗi khi phê duyệt hợp đồng: ' + error.message);
+    }
+  };
+
+  // Handle view hotel detail
+  const handleViewHotelDetail = (hotelId) => {
+    console.log('🏨 Opening hotel detail for ID:', hotelId);
+    if (hotelId) {
+      // Điều hướng đến trang hotel detail trong cùng ứng dụng
+      navigate(`/admin/hotels/${hotelId}`);
+    } else {
+      console.error('Hotel ID is missing');
+      alert('Không có thông tin ID khách sạn');
     }
   };
 
   // Reject contract sử dụng API thật
   const handleReject = async () => {
     try {
-      console.log('🔄 Rejecting contract via REAL API:', displayContract.contract_id);
+      console.log('🔄 Rejecting contract via REAL API');
+      console.log('Full contract object:', displayContract);
+      console.log('Contract ID options:', {
+        contract_id: displayContract?.contract_id,
+        contractId: displayContract?.contractId,
+        id: displayContract?.id,
+        _id: displayContract?._id
+      });
       
-      // SỬ DỤNG contractServices THẬT
-      const result = await contractServices.rejectContract(displayContract.contract_id, {
-        approved_by: 'admin', // Thay bằng user ID thật từ auth context
+      // Tìm contract ID thực sự
+      const actualContractId = displayContract?.contract_id || 
+                              displayContract?.contractId || 
+                              displayContract?.id || 
+                              displayContract?._id;
+      
+      console.log('Actual Contract ID to use:', actualContractId);
+      
+      // Validate contract ID
+      if (!actualContractId) {
+        throw new Error('Không tìm thấy Contract ID hợp lệ trong object');
+      }
+
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(actualContractId)) {
+        console.warn('⚠️ Contract ID is not a valid UUID:', actualContractId);
+        console.log('Contract ID type:', typeof actualContractId);
+        console.log('Will try to use it anyway, backend might accept non-UUID');
+      }
+
+      // Lấy user info từ auth context
+      const userId = user?.userId || user?.id || 'admin';
+      
+      console.log('Current user from auth:', user);
+      console.log('Using userId for rejection:', userId);
+      console.log('Token available:', !!token);
+      
+      // SỬ DỤNG contractServices THẬT với actualContractId
+      const result = await contractServices.rejectContract(actualContractId, {
+        approvedBy: userId, // Sử dụng approvedBy thay vì approved_by
         notes: 'Đã từ chối'
       });
 
@@ -672,10 +780,24 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
                       </div>
                       <div className="flex-1">
                         <label className="text-sm font-semibold text-gray-600 block mb-1">Khách sạn ID</label>
-                        <p className="text-gray-900 text-base">{displayValue(
-                          getFieldValue(displayContract, 'hotel_id', 'hotelId'),
-                          'Chưa liên kết khách sạn'
-                        )}</p>
+                        <div className="flex items-center space-x-3">
+                          <p className="text-gray-900 text-base">{displayValue(
+                            getFieldValue(displayContract, 'hotel_id', 'hotelId'),
+                            'Chưa liên kết khách sạn'
+                          )}</p>
+                          {getFieldValue(displayContract, 'hotel_id', 'hotelId') && (
+                            <button
+                              onClick={() => handleViewHotelDetail(getFieldValue(displayContract, 'hotel_id', 'hotelId'))}
+                              className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-all duration-200 transform hover:scale-105"
+                            >
+                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              Xem chi tiết
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
 
