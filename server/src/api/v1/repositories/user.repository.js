@@ -145,6 +145,27 @@ const remove = async (userId) => {
     return result.rowCount > 0;
 };
 
+/**
+ * Lấy danh sách hotel owners (role_id = 2) có phân trang
+ * @param {Object} options - { page, limit }
+ * @returns {Promise<{data: User[], total: number}>}
+ */
+const findHotelOwners = async ({ page = 1, limit = 10 } = {}) => {
+  const offset = (page - 1) * limit;
+  const dataResult = await pool.query(
+    'SELECT * FROM users WHERE role_id = 2 ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+    [limit, offset]
+  );
+  const countResult = await pool.query(
+    'SELECT COUNT(*) FROM users WHERE role_id = 2'
+  );
+  const total = parseInt(countResult.rows[0].count, 10);
+  return {
+    data: dataResult.rows.map(row => new User(row)),
+    total
+  };
+};
+
 module.exports = {
   findByEmailOrUsername,
   findByEmail,
@@ -153,5 +174,6 @@ module.exports = {
   findById,
   findAll,
   update,
-  remove
+  remove,
+  findHotelOwners
 };

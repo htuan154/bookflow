@@ -70,10 +70,27 @@ const deleteUser = async (req, res, next) => {
     }
 };
 
+const getHotelOwners = async (req, res, next) => {
+    try {
+        // Lấy page, limit từ query string
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const result = await userService.getHotelOwners({ page, limit });
+        res.status(200).json({
+            success: true,
+            data: result.data,
+            pagination: result.pagination
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getAllUsers,
     getUser,
     createUser,
     updateUser,
     deleteUser,
+    getHotelOwners
 };

@@ -377,7 +377,33 @@ const CustomerTable = ({
                                 <option value={10}>10 mục</option>
                                 <option value={20}>20 mục</option>
                                 <option value={50}>50 mục</option>
+                                <option value={100}>100 mục</option>
                             </select>
+                        </div>
+                        
+                        {/* Quick navigation buttons */}
+                        <div className="flex items-center space-x-2">
+                            <button 
+                                onClick={() => onPageChange(pagination.page - 1)}
+                                disabled={pagination.page <= 1}
+                                className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-md hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <span className="mr-1">⬅️</span>
+                                Trước
+                            </button>
+                            
+                            <span className="text-sm text-gray-600">
+                                Trang <span className="font-bold text-blue-600">{pagination.page}</span> / {pagination.totalPages}
+                            </span>
+                            
+                            <button 
+                                onClick={() => onPageChange(pagination.page + 1)}
+                                disabled={pagination.page >= pagination.totalPages}
+                                className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-md hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Tiếp
+                                <span className="ml-1">➡️</span>
+                            </button>
                         </div>
                     </div>
                     

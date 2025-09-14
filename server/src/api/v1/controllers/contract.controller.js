@@ -98,10 +98,23 @@ async deleteContract(req, res, next) {
     async updateContractStatus(req, res, next) {
         try {
             const { id } = req.params;
-            const { status } = req.body;
+            const { status, signed_date, notes, approved_by, approvedBy } = req.body;
             const adminId = req.user.id;
 
-            const updatedContract = await ContractService.updateContractStatus(id, status, adminId);
+            console.log('📥 [CONTRACT CONTROLLER] Update status request:', {
+                id, status, signed_date, notes, approved_by, approvedBy, adminId
+            });
+
+            const updateData = {
+                status,
+                adminId,
+                ...(signed_date && { signed_date }),
+                ...(notes && { notes }),
+                ...(approved_by && { approved_by }),
+                ...(approvedBy && { approvedBy })
+            };
+
+            const updatedContract = await ContractService.updateContractStatus(id, updateData);
             successResponse(res, updatedContract, 'Contract status updated successfully');
         } catch (error) {
             next(error);

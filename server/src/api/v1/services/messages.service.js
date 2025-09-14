@@ -6,6 +6,7 @@ const { isMember, setLastRead } = require('../repositories/participant.repo');
 
 /** Kiểm tra ACL: user phải là participant của phòng */
 async function _assertMember(conversation_id, user_id) {
+  console.log('[isMember] Checking:', { conversation_id, user_id });
   const ok = await isMember({ conversation_id, user_id });
   if (!ok) {
     const e = new Error('FORBIDDEN: not a participant');
@@ -16,10 +17,10 @@ async function _assertMember(conversation_id, user_id) {
 
 /** Gửi tin nhắn văn bản */
 async function sendText({ conversation_id, user, text = '', links = [] }) {
-  await _assertMember(conversation_id, user.user_id);
+  await _assertMember(conversation_id, user);
   const msg = await insertMessage({
     conversation_id,
-    sender_id: user.user_id,
+    sender_id: user,
     sender_role: user.role,
     kind: 'text',
     text,
@@ -36,10 +37,10 @@ async function sendText({ conversation_id, user, text = '', links = [] }) {
 
 /** Gửi tin nhắn kèm file (metadata attachments đã có gridfs_id) */
 async function sendFile({ conversation_id, user, text = '', attachments = [] }) {
-  await _assertMember(conversation_id, user.user_id);
+  await _assertMember(conversation_id, user);
   const msg = await insertMessage({
     conversation_id,
-    sender_id: user.user_id,
+    sender_id: user,
     sender_role: user.role,
     kind: 'file',
     text,

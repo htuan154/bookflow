@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Paperclip, Send, Search, FileText, Loader2, AlertCircle, Users } from 'lucide-react';
+import { Paperclip, Send, Search, FileText, Loader2, AlertCircle, Users, Image as ImageIcon } from 'lucide-react';
 
 import useIM from '../../../hooks/useIM';
-import useUser from '../../../hooks/useUser';
+import useAuth from '../../../hooks/useAuth';
 import useHotel from '../../../hooks/useHotel';
 
 import imService from '../../../api/im.service';
@@ -61,7 +61,9 @@ function HotelPickerInline({ onPicked }) {
           >
             <option value="" disabled>Vui lòng chọn khách sạn</option>
             {hotels.map((h, i) => {
-              const hid = h?.hotel_id ?? h?.id ?? `row-${i}`;
+              // Debug log để xem hotel structure
+              console.log('Hotel item:', h);
+              const hid = h?.hotelId ?? h?.hotel_id ?? h?.id ?? h?._id ?? `row-${i}`;
               return (
                 <option key={hid} value={hid}>
                   {h.name} {h.city ? `• ${h.city}` : ''}
@@ -77,7 +79,7 @@ function HotelPickerInline({ onPicked }) {
 
 /* --------------------------- Messages Page (Owner) --------------------------- */
 function OwnerMessagesPage() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const { selectedHotel, setSelectedHotel } = useHotel();
   const { startStream, messages, sendText } = useIM();
 
@@ -87,6 +89,10 @@ function OwnerMessagesPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [text, setText] = useState('');
   const [cursor, setCursor] = useState(null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  const [filterType, setFilterType] = useState('dm'); // 'dm' hoặc 'group'
+  const [allConversations, setAllConversations] = useState([]); // lưu tất cả conversations
   const ensuredRef = useRef(false);
 
   const [historyLocal, setHistory] = useState([]);
@@ -98,7 +104,7 @@ function OwnerMessagesPage() {
     !!localStorage.getItem('current_hotel_id')
   );
 
-  const hotelId = hasSelectedHotel ? (selectedHotel?.hotel_id || localStorage.getItem('current_hotel_id')) : null;
+  const hotelId = hasSelectedHotel ? (selectedHotel?.hotelId || selectedHotel?.hotel_id || localStorage.getItem('current_hotel_id')) : null;
 
   const [myHotels, setMyHotels] = useState([]);
   useEffect(() => {
@@ -106,6 +112,12 @@ function OwnerMessagesPage() {
       try {
         const res = await axiosClient.get('/hotels/my-hotels');
         const rows = res?.data?.data ?? res?.data ?? [];
+        console.log('My hotels raw data:', res.data);
+        console.log('My hotels processed:', rows);
+        if (rows.length > 0) {
+          console.log('First hotel structure:', JSON.stringify(rows[0], null, 2));
+          console.log('Hotel fields:', Object.keys(rows[0]));
+        }
         setMyHotels(rows);
       } catch (e) {
         console.error('load my-hotels failed', e);
@@ -146,28 +158,100 @@ function OwnerMessagesPage() {
     } finally { setLoadingMore(false); }
   }
 
+  // Hàm reload tin nhắn mới nhất
+  async function reloadMessages() {
+    if (!active?._id) return;
+    try {
+      const his = await imService.history({ conversation_id: active._id, limit: 30 });
+      setHistory(his.items.reverse());
+      setCursor(his.nextCursor || null);
+      setTimeout(() => scrollToBottom(), 100);
+    } catch (error) {
+      console.error('Error reloading messages:', error);
+    }
+  }
+
+  // Hàm reload danh sách conversations để cập nhật last_message
+  async function reloadConversations() {
+    try {
+      const rows = await imService.listMyConversations({ hotel_id: hotelId });
+      setAllConversations(rows);
+      // Áp dụng filter hiện tại
+      const filtered = rows.filter(c => c.type === filterType);
+      setConversations(filtered);
+    } catch (error) {
+      console.error('Error reloading conversations:', error);
+    }
+  }
+
   async function onSend(e) {
     e?.preventDefault?.();
     if (!text.trim() || !active?._id) return;
-    await sendText({ convId: active._id, text: text.trim() });
-    setText('');
-    inputRef.current?.focus();
+    try {
+      await sendText({ convId: active._id, text: text.trim() });
+      setText('');
+      inputRef.current?.focus();
+      // Reload tin nhắn để hiển thị tin nhắn vừa gửi
+      await reloadMessages();
+      // Reload danh sách conversations để cập nhật last_message
+      await reloadConversations();
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
   }
 
   async function onAttachFile(e) {
     const file = e.target.files?.[0];
     if (!file || !active?._id) return;
-    const b64 = await fileToBase64(file);
-    const meta = await imService.uploadBase64({
-      file_name: file.name,
-      mime_type: file.type,
-      file_base64: b64.replace(/^data:.+;base64,/, '')
-    });
-    await imService.sendFile({
-      conversation_id: active._id,
-      text: '',
-      attachments: [meta]
-    });
+    try {
+      const b64 = await fileToBase64(file);
+      const meta = await imService.uploadBase64({
+        file_name: file.name,
+        mime_type: file.type,
+        file_base64: b64.replace(/^data:.+;base64,/, '')
+      });
+      const payload = {
+        conversation_id: String(active._id),
+        text: 'Đây là file gửi kèm',
+        attachments: [{
+          file_name: meta.file_name || file.name,
+          file_type: file.type || 'application/octet-stream'
+        }]
+      };
+      await imService.sendFile(payload);
+      // Reload tin nhắn để hiển thị file vừa gửi
+      await reloadMessages();
+      // Reload danh sách conversations để cập nhật last_message
+      await reloadConversations();
+    } catch (error) {
+      console.error('Error sending file:', error);
+    }
+  }
+
+  // Gửi URL/link như file attachment
+  async function onSendUrl() {
+    if (!urlInput.trim() || !active?._id) return;
+    try {
+      const payload = {
+        conversation_id: String(active._id),
+        text: 'Đây là file gửi kèm',
+        attachments: [{
+          file_name: urlInput,
+          file_type: urlInput.includes('.jpg') || urlInput.includes('.jpeg') ? 'image/jpeg' :
+                    urlInput.includes('.png') ? 'image/png' :
+                    urlInput.includes('.gif') ? 'image/gif' : 'image'
+        }]
+      };
+      await imService.sendFile(payload);
+      setUrlInput('');
+      setShowUrlInput(false);
+      // Reload tin nhắn để hiển thị URL vừa gửi
+      await reloadMessages();
+      // Reload danh sách conversations để cập nhật last_message
+      await reloadConversations();
+    } catch (error) {
+      console.error('Error sending URL:', error);
+    }
   }
 
   const ADMIN_ID = '76c26936-1c91-40bf-bfb4-89ddeeffbef7';
@@ -175,9 +259,10 @@ function OwnerMessagesPage() {
   async function resolveOwnerId() {
     try {
       const res = await axiosClient.get(`/hotels/${hotelId}`);
-      return res?.data?.data?.owner_id ?? res?.data?.owner_id ?? user?.user_id;
+      const actualUserId = user?.userId || user?.user_id || user?.id;
+      return res?.data?.data?.owner_id ?? res?.data?.owner_id ?? actualUserId;
     } catch {
-      return user?.user_id;
+      return user?.userId || user?.user_id || user?.id;
     }
   }
 
@@ -185,7 +270,17 @@ function OwnerMessagesPage() {
     const hasDM = (currentRows || []).some(
       (c) => c.type === 'dm' && c.subtype === 'admin_owner_dm'
     );
-    if (hasDM || !hotelId || !user?.user_id) return;
+    const actualUserId = user?.userId || user?.user_id || user?.id;
+    console.log('ensureDefaultDM check:', {
+      currentRows: currentRows,
+      hasDM: hasDM,
+      hotelId: hotelId,
+      actualUserId: actualUserId
+    });
+    if (hasDM || !hotelId || !actualUserId) {
+      console.log('Skipping DM creation:', { hasDM, hotelId: !!hotelId, actualUserId: !!actualUserId });
+      return;
+    }
 
     if (ensuredRef.current) return;
     ensuredRef.current = true;
@@ -195,7 +290,7 @@ function OwnerMessagesPage() {
         hotel_id: hotelId,
         owner_id: ownerId,
         admin_id: ADMIN_ID,
-        created_by: user.user_id
+        created_by: ADMIN_ID  // Đổi thành admin_id theo example
       };
       console.debug('[createDM] payload:', payload);
       const conv = await imService.createDM(payload);
@@ -210,7 +305,32 @@ function OwnerMessagesPage() {
   }
 
   useEffect(() => {
-    if (!hotelId || !user?.user_id) {
+    console.log('useEffect triggered:', { 
+      hotelId, 
+      userId: user?.userId,
+      userAltId: user?.user_id,
+      userIdField: user?.id,
+      hasSelectedHotel,
+      selectedHotel,
+      localStorageHotelId: localStorage.getItem('current_hotel_id'),
+      user: user
+    });
+    // Thử với user?.id hoặc user?.user_id thay vì user?.userId
+    const actualUserId = user?.userId || user?.user_id || user?.id;
+    console.log('User ID check:', { 
+      'user?.userId': user?.userId,
+      'user?.user_id': user?.user_id, 
+      'user?.id': user?.id,
+      actualUserId
+    });
+    
+    if (!hotelId || !actualUserId) {
+      console.log('Missing values:', {
+        hotelId: hotelId,
+        actualUserId: actualUserId,
+        'Boolean hotelId': Boolean(hotelId),
+        'Boolean actualUserId': Boolean(actualUserId)
+      });
       if (!hotelId) {
         setConversations([]); setActive(null); setHistory([]); setCursor(null);
         setLoadingList(false);
@@ -219,22 +339,49 @@ function OwnerMessagesPage() {
     }
     let mounted = true;
     (async () => {
+      console.log('Starting API call with hotelId:', hotelId);
       setLoadingList(true);
       try {
-        const rows = await imService.listConversations({ hotel_id: hotelId });
+        const rows = await imService.listMyConversations({ hotel_id: hotelId });
+        console.log('My conversations:', rows);
+        if (rows.length > 0) {
+          console.log('First conversation structure:', JSON.stringify(rows[0], null, 2));
+        }
         if (!mounted) return;
-        setConversations(rows);
-        if (rows.length) openConversation(rows[0]);
+        
+        // Lưu tất cả conversations và áp dụng filter
+        setAllConversations(rows);
+        const filtered = rows.filter(c => c.type === filterType);
+        setConversations(filtered);
+        
+        if (filtered.length) openConversation(filtered[0]);
         else await ensureDefaultDM(rows);
       } catch (err) {
-        console.error('listConversations failed:', err);
+        console.error('listMyConversations failed:', err);
         await ensureDefaultDM([]);
       } finally {
         setLoadingList(false);
       }
     })();
     return () => { mounted = false; };
-  }, [hotelId, user?.user_id]);
+  }, [hotelId, user?.userId, user?.user_id, user?.id]);
+
+  // Effect để filter conversations khi filterType thay đổi
+  useEffect(() => {
+    if (allConversations.length > 0) {
+      const filtered = allConversations.filter(c => c.type === filterType);
+      setConversations(filtered);
+      
+      // Nếu conversation hiện tại không thuộc filter mới, chọn conversation đầu tiên
+      if (active && active.type !== filterType) {
+        if (filtered.length > 0) {
+          openConversation(filtered[0]);
+        } else {
+          setActive(null);
+        }
+      }
+    }
+  }, [filterType, allConversations]);
 
   useEffect(() => { if (active?._id) scrollToBottom(); }, [allMessages.length]);
   useEffect(() => { ensuredRef.current = false; }, [hotelId]);
@@ -244,7 +391,7 @@ function OwnerMessagesPage() {
       <HotelPickerInline
         onPicked={(id) => {
           localStorage.setItem('current_hotel_id', id);
-          setSelectedHotel?.({ hotel_id: id });
+          setSelectedHotel?.({ hotelId: id });
           setHasSelectedHotel(true);
         }}
       />
@@ -263,7 +410,7 @@ function OwnerMessagesPage() {
               const id = e.target.value || '';
               if (id) {
                 localStorage.setItem('current_hotel_id', id);
-                setSelectedHotel?.({ hotel_id: id });
+                setSelectedHotel?.({ hotelId: id });
                 setHasSelectedHotel(true);
               } else {
                 localStorage.removeItem('current_hotel_id');
@@ -278,7 +425,8 @@ function OwnerMessagesPage() {
           >
             <option value="">Vui lòng chọn khách sạn</option>
             {myHotels.map((h, i) => {
-              const hid = h?.hotel_id ?? h?.id ?? `row-${i}`;
+              // console.log('Main dropdown hotel item:', h);
+              const hid = h?.hotelId ?? h?.hotel_id ?? h?.id ?? h?._id ?? `row-${i}`;
               return (
                 <option key={hid} value={hid}>
                   {h.name} {h.city ? `• ${h.city}` : ''}
@@ -295,21 +443,39 @@ function OwnerMessagesPage() {
 
         <div className="px-3 flex gap-2">
           <button
-            onClick={() => ensureDefaultDM(conversations)}
-            className="text-xs px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700"
+            onClick={() => {
+              setFilterType('dm');
+              if (filterType !== 'dm') {
+                // Nếu chuyển sang dm mà chưa có DM nào, tạo mới
+                const dmConversations = allConversations.filter(c => c.type === 'dm');
+                if (dmConversations.length === 0) {
+                  ensureDefaultDM([]);
+                }
+              }
+            }}
+            className={`text-xs px-3 py-1.5 rounded flex items-center gap-1 ${
+              filterType === 'dm' 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
           >
             + Chat với Admin
           </button>
           <button
-            disabled
-            className="text-xs px-3 py-1.5 rounded bg-gray-300 text-gray-600 cursor-not-allowed flex items-center gap-1"
-            title="API nhóm nội bộ chưa được hỗ trợ"
+            onClick={() => setFilterType('group')}
+            className={`text-xs px-3 py-1.5 rounded flex items-center gap-1 ${
+              filterType === 'group' 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
           >
             <Users size={14} /> Nhóm nội bộ
           </button>
         </div>
 
-        <div className="px-3 pb-1 text-xs text-gray-400">TẤT CẢ HỘI THOẠI</div>
+        <div className="px-3 pb-1 text-xs text-gray-400">
+          {filterType === 'dm' ? 'CHAT VỚI ADMIN' : 'NHÓM NỘI BỘ'}
+        </div>
         {pageError && (
           <div className="px-3 pb-2 text-xs text-red-600">{pageError}</div>
         )}
@@ -317,7 +483,9 @@ function OwnerMessagesPage() {
           {loadingList ? (
             <div className="p-4 text-sm text-gray-500">Đang tải…</div>
           ) : conversations.length === 0 ? (
-            <div className="p-4 text-sm text-gray-500">Chưa có cuộc trò chuyện</div>
+            <div className="p-4 text-sm text-gray-500">
+              {filterType === 'dm' ? 'Chưa có cuộc trò chuyện với Admin' : 'Chưa có nhóm nội bộ'}
+            </div>
           ) : (
             conversations.map(c => (
               <button
@@ -377,7 +545,8 @@ function OwnerMessagesPage() {
               )}
 
               {allMessages.map(m => {
-                const mine = user?.user_id && m.sender_id === user.user_id;
+                const actualUserId = user?.userId || user?.user_id || user?.id;
+                const mine = actualUserId && m.sender_id === actualUserId;
                 const isFile = m.kind === 'file' && m.attachments?.length;
                 return (
                   <div key={m._id} className={`mb-2 flex ${mine ? 'justify-end' : 'justify-start'}`}>
@@ -386,9 +555,32 @@ function OwnerMessagesPage() {
                     }`}>
                       {m.text && <div className="whitespace-pre-wrap break-words text-sm">{m.text}</div>}
                       {isFile && (
-                        <div className={`mt-1 text-xs flex items-center gap-2 ${mine ? 'text-white/90' : 'text-gray-600'}`}>
-                          <FileText size={16} />
-                          <span className="truncate">{m.attachments[0].file_name}</span>
+                        <div className={`mt-1 text-xs ${mine ? 'text-white/90' : 'text-gray-600'}`}>
+                          {/* Nếu là URL hình ảnh thì hiển thị ảnh */}
+                          {m.attachments[0]?.file_name?.startsWith('http') && 
+                           (m.attachments[0]?.file_type?.includes('image') || 
+                            m.attachments[0]?.file_name?.match(/\.(jpg|jpeg|png|gif)$/i)) ? (
+                            <div className="mb-2">
+                              <img 
+                                src={m.attachments[0].file_name} 
+                                alt="Shared image"
+                                className="max-w-48 max-h-48 rounded-lg"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.nextSibling.style.display = 'flex';
+                                }}
+                              />
+                              <div className="hidden items-center gap-2">
+                                <FileText size={16} />
+                                <span className="truncate">{m.attachments[0].file_name}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <FileText size={16} />
+                              <span className="truncate">{m.attachments[0]?.file_name}</span>
+                            </div>
+                          )}
                         </div>
                       )}
                       <div className={`text-[10px] mt-1 ${mine ? 'text-white/80' : 'text-gray-500'}`}>
@@ -400,11 +592,49 @@ function OwnerMessagesPage() {
               })}
             </div>
 
+            {/* URL input modal */}
+            {showUrlInput && (
+              <div className="border-t bg-white p-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    className="flex-1 bg-gray-100 px-3 py-2 rounded-full outline-none"
+                    placeholder="Nhập URL hình ảnh..."
+                    autoFocus
+                  />
+                  <button
+                    onClick={onSendUrl}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600"
+                    disabled={!urlInput.trim()}
+                  >
+                    Gửi
+                  </button>
+                  <button
+                    onClick={() => {setShowUrlInput(false); setUrlInput('');}}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-full hover:bg-gray-400"
+                  >
+                    Hủy
+                  </button>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={onSend} className="h-16 border-t bg-white flex items-center gap-2 px-3">
-              <label className="cursor-pointer p-2 rounded hover:bg-gray-100">
-                <input type="file" className="hidden" onChange={onAttachFile} />
-                <Paperclip size={20} />
-              </label>
+              <div className="flex gap-1">
+                <label className="cursor-pointer p-2 rounded hover:bg-gray-100" title="Gửi file">
+                  <input type="file" className="hidden" onChange={onAttachFile} />
+                  <Paperclip size={20} />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowUrlInput(!showUrlInput)}
+                  className="p-2 rounded hover:bg-gray-100"
+                  title="Gửi URL hình ảnh"
+                >
+                  <ImageIcon size={20} />
+                </button>
+              </div>
               <div className="flex-1">
                 <input
                   ref={inputRef}

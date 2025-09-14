@@ -20,10 +20,10 @@ exports.sendFile = Joi.object({
   text: Joi.string().allow('').max(4000).optional(),
   attachments: Joi.array().items(
     Joi.object({
-      gridfs_id: Joi.alternatives(Joi.string(), Joi.object()).required(),
+      //gridfs_id: Joi.alternatives(Joi.string(), Joi.object()).required(),
       file_name: Joi.string().required(),
-      mime_type: Joi.string().required(),
-      size: Joi.number().integer().min(1).required()
+      file_type: Joi.string().required(),
+      // size: Joi.number().integer().min(1).required()
     })
   ).min(1).required()
 });

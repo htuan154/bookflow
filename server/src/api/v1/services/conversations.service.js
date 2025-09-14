@@ -1,6 +1,6 @@
 'use strict';
 
-const { upsertDM, createGroup, getById } = require('../repositories/conversation.repo');
+const { upsertDM, createGroup, getById, listByHotelAndUser } = require('../repositories/conversation.repo');
 const { addMember, listMembers } = require('../repositories/participant.repo');
 
 /**
@@ -49,10 +49,17 @@ async function getMembers(conversation_id) {
   return listMembers(conversation_id);
 }
 
+async function addMemberToConversation({ conversation_id, user_id, role }) {
+  const { addMember } = require('../repositories/participant.repo');
+  return addMember({ conversation_id, user_id, role });
+}
+
 module.exports = {
   getOrCreateDM,
   createGroupA,
   createGroupB,
   getConversation,
   getMembers,
+  addMemberToConversation,
+  listByHotelAndUser,
 };

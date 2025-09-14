@@ -1,11 +1,13 @@
 'use strict';
 
 const Joi = require('joi');
+const { create } = require('../api/v1/repositories/contract.repository');
 
 exports.createDM = Joi.object({
   hotel_id: Joi.string().required(),
   admin_id: Joi.string().required(),
-  owner_id: Joi.string().required()
+  owner_id: Joi.string().required(),
+  created_by: Joi.string().required()
 });
 
 exports.createGroupA = Joi.object({
