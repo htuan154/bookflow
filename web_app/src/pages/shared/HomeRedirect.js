@@ -26,7 +26,7 @@ const HomeRedirect = () => {
 
     if (user?.roleId === USER_ROLES.USER) {
 
-        return <Navigate to="/user" replace />;
+        return <Navigate to="/unauthorized" replace />;
     }
 
     return <Navigate to="/unauthorized" replace />;

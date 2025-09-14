@@ -24,7 +24,9 @@ async function removeMember({ conversation_id, user_id }) {
 
 async function isMember({ conversation_id, user_id }) {
   const db = getDb();
+  console.log('[isMember] Checking:', { conversation_id, user_id });
   const doc = await db.collection('participants').findOne({ conversation_id: oid(conversation_id), user_id });
+  console.log('[isMember] Found:', !!doc);
   return !!doc;
 }
 

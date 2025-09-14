@@ -15,15 +15,17 @@ const LoginForm = () => {
     // Navigate khi user và isAuthenticated được update
     useEffect(() => {
         if (isAuthenticated && user) {
-            
-            if (user.roleId === USER_ROLES.ADMIN) {
-                navigate('/admin/dashboard', { replace: true });
-            } else if (user.roleId === USER_ROLES.HOTEL_OWNER) {
-                navigate('/hotel-owner', { replace: true });
-            } else if (user.roleId === USER_ROLES.USER) {
-                navigate('/user/dashboard', { replace: true });
+            if (
+                user.roleId === USER_ROLES.ADMIN ||
+                user.roleId === USER_ROLES.HOTEL_OWNER
+            ) {
+                if (user.roleId === USER_ROLES.ADMIN) {
+                    navigate('/admin/dashboard', { replace: true });
+                } else {
+                    navigate('/hotel-owner', { replace: true });
+                }
             } else {
-                navigate('/', { replace: true });
+                navigate('/unauthorized', { replace: true });
             }
         }
     }, [isAuthenticated, user, navigate]);

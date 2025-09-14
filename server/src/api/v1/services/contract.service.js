@@ -143,28 +143,46 @@ class ContractService {
     /**
      * Admin cập nhật trạng thái của một hợp đồng.
      * @param {string} contractId - ID của hợp đồng.
-     * @param {string} newStatus - Trạng thái mới.
-     * @param {string} adminId - ID của admin thực hiện.
+     * @param {object} updateData - Dữ liệu cập nhật (status, signed_date, notes, etc.).
      * @returns {Promise<Contract>}
      */
-    async updateContractStatus(contractId, newStatus, adminId) {
+    async updateContractStatus(contractId, updateData) {
         const contract = await contractRepository.findById(contractId);
         if (!contract) {
             throw new AppError('Contract not found', 404);
         }
 
+        console.log('📥 [CONTRACT SERVICE] Update contract status:', { contractId, updateData });
+
+        const { status, signed_date, adminId, notes, approved_by, approvedBy } = updateData;
+
         const validStatuses = ['pending', 'active', 'expired', 'terminated', 'cancelled'];
-        if (!validStatuses.includes(newStatus)) {
+        if (!validStatuses.includes(status)) {
             throw new AppError('Invalid status for contract', 400);
         }
 
-        const updateData = {
-            status: newStatus,
-            approved_by: adminId,
-            signed_date: contract.signedDate  // Giữ nguyên ngày ký gốc
+        const finalUpdateData = {
+            status: status,
+            approved_by: adminId || approved_by || approvedBy,
         };
 
-        return await contractRepository.update(contractId, updateData);
+        // Xử lý signed_date: ưu tiên từ request, nếu không có thì giữ nguyên
+        if (signed_date) {
+            finalUpdateData.signed_date = signed_date;
+            console.log('✅ [CONTRACT SERVICE] Setting signed_date:', signed_date);
+        } else if (contract.signed_date || contract.signedDate) {
+            finalUpdateData.signed_date = contract.signed_date || contract.signedDate;
+            console.log('ℹ️ [CONTRACT SERVICE] Keeping existing signed_date:', finalUpdateData.signed_date);
+        }
+
+        // Thêm notes nếu có
+        if (notes) {
+            finalUpdateData.notes = notes;
+        }
+
+        console.log('📤 [CONTRACT SERVICE] Final update data:', finalUpdateData);
+
+        return await contractRepository.update(contractId, finalUpdateData);
     }
 
 

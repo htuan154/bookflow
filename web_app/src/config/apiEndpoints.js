@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
         UPLOAD_BASE64: `${API_BASE_URL}/im/uploads`,
         STREAM: (id) => `${API_BASE_URL}/im/stream?conversation_id=${encodeURIComponent(id)}`,
         LIST: `${API_BASE_URL}/im/conversations`,
+        LIST_MY: `${API_BASE_URL}/im/conversations/my`,
         HISTORY: `${API_BASE_URL}/im/messages`,
         SEND_FILE: `${API_BASE_URL}/im/messages/file`,
         MARK_READ: `${API_BASE_URL}/im/messages/read`,

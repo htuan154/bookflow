@@ -13,7 +13,6 @@ async function insertMessage({
   const doc = {
     conversation_id: oid(conversation_id),
     sender_id,
-    sender_role,
     kind,
     text,
     attachments,

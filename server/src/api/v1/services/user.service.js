@@ -63,19 +63,21 @@ const deleteUser = async (userId) => {
 // === BỔ SUNG CÁC METHODS CHO QUẢN LÝ KHÁCH HÀNG ===
 
 /**
- * Lấy danh sách chủ khách sạn (hotel owners)
- * @param {Object} filters - Bộ lọc (page, limit, search, status)
- * @returns {Array} Danh sách hotel owners
+ * Lấy danh sách chủ khách sạn (hotel owners) có phân trang
+ * @param {Object} options - { page, limit }
+ * @returns {Object} { data, pagination }
  */
-const getHotelOwners = async (filters = {}) => {
-    // Thêm filter role_id cho hotel owner (giả sử role_id = 2)
-    const hotelOwnerFilters = {
-        ...filters,
-        role_id: 2 // Hotel Owner role
+const getHotelOwners = async ({ page = 1, limit = 10 } = {}) => {
+    const { data, total } = await userRepository.findHotelOwners({ page, limit });
+    return {
+        data: data.map(user => user.toJSON()),
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+        }
     };
-    
-    const hotelOwners = await userRepository.findAll(hotelOwnerFilters);
-    return hotelOwners.map(user => user.toJSON());
 };
 
 /**

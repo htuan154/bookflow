@@ -14,6 +14,8 @@ export default function AdminMessagesPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [text, setText] = useState('');
   const [cursor, setCursor] = useState(null);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -24,7 +26,7 @@ export default function AdminMessagesPage() {
       setLoadingList(true);
       try {
         // có thể truyền ?type='dm'|'group' hoặc hotel_id nếu muốn
-        const list = await imService.listConversations({});
+        const list = await imService.listConversations({type : 'dm'});
         if (!mounted) return;
         setConversations(list);
         if (list.length) openConversation(list[0]); // tự mở phòng đầu tiên
@@ -37,6 +39,7 @@ export default function AdminMessagesPage() {
   // 2) Mở 1 phòng: load lịch sử & startStream
   async function openConversation(conv) {
     if (!conv?._id) return;
+    console.log('Opening conversation:', conv);
     setActive(conv);
     setCursor(null);
     // lấy lịch sử trang đầu
@@ -84,30 +87,111 @@ export default function AdminMessagesPage() {
     }
   }
 
+  // Hàm reload tin nhắn mới nhất
+  async function reloadMessages() {
+    if (!active?._id) return;
+    try {
+      const his = await imService.history({ conversation_id: active._id, limit: 30 });
+      setHistory(his.items.reverse());
+      setCursor(his.nextCursor || null);
+      setTimeout(() => scrollToBottom(), 100);
+    } catch (error) {
+      console.error('Error reloading messages:', error);
+    }
+  }
+
+  // Hàm reload danh sách conversations để cập nhật last_message
+  async function reloadConversations() {
+    try {
+      const list = await imService.listConversations({type : 'dm'});
+      setConversations(list);
+    } catch (error) {
+      console.error('Error reloading conversations:', error);
+    }
+  }
+
   async function onSend(e) {
     e?.preventDefault?.();
     if (!text.trim() || !active?._id) return;
-    await sendText({ convId: active._id, text: text.trim() });
-    setText('');
-    inputRef.current?.focus();
+    try {
+      await sendText({ convId: active._id, text: text.trim() });
+      setText('');
+      inputRef.current?.focus();
+      // Reload tin nhắn để hiển thị tin nhắn vừa gửi
+      await reloadMessages();
+      // Reload danh sách conversations để cập nhật last_message
+      await reloadConversations();
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
   }
 
   async function onAttachFile(e) {
     const file = e.target.files?.[0];
     if (!file || !active?._id) return;
-    // chuyển base64
-    const b64 = await fileToBase64(file);
-    const meta = await imService.uploadBase64({
-      file_name: file.name,
-      mime_type: file.type,
-      file_base64: b64.replace(/^data:.+;base64,/, '')
-    });
-    // gửi message kiểu file
-    await imService.sendFile({
-      conversation_id: active._id,
-      text: '',
-      attachments: [meta]
-    });
+    try {
+      // chuyển base64
+      const b64 = await fileToBase64(file);
+      console.log('File info:', { name: file.name, type: file.type, size: file.size });
+      const uploadPayload = {
+        file_name: file.name,
+        mime_type: file.type,
+        file_base64: b64.replace(/^data:.+;base64,/, '')
+      };
+      console.log('Upload payload:', uploadPayload);
+      const meta = await imService.uploadBase64(uploadPayload);
+      console.log('Upload response:', meta);
+      // gửi message kiểu file theo đúng format server mong đợi
+      const payload = {
+        conversation_id: String(active._id), // đảm bảo là string
+        text: 'Đây là file gửi kèm',
+        attachments: [{
+          file_name: meta.file_name || file.name,
+          file_type: file.type || 'application/octet-stream'
+        }]
+      };
+      console.log('Sending file payload:', payload); // Debug log
+      console.log('Active conversation:', active);
+      await imService.sendFile(payload);
+      // Reload tin nhắn để hiển thị file vừa gửi
+      await reloadMessages();
+      // Reload danh sách conversations để cập nhật last_message
+      await reloadConversations();
+    } catch (error) {
+      console.error('Error sending file:', error);
+      console.error('Error details:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+    }
+  }
+
+  // Gửi URL/link như file attachment
+  async function onSendUrl() {
+    if (!urlInput.trim() || !active?._id) return;
+    try {
+      const payload = {
+        conversation_id: String(active._id), // đảm bảo là string
+        text: 'Đây là file gửi kèm',
+        attachments: [{
+          file_name: urlInput,
+          file_type: urlInput.includes('.jpg') || urlInput.includes('.jpeg') ? 'image/jpeg' :
+                    urlInput.includes('.png') ? 'image/png' :
+                    urlInput.includes('.gif') ? 'image/gif' : 'image'
+        }]
+      };
+      console.log('Sending URL payload:', payload);
+      console.log('Active conversation:', active);
+      await imService.sendFile(payload);
+      setUrlInput('');
+      setShowUrlInput(false);
+      // Reload tin nhắn để hiển thị URL vừa gửi
+      await reloadMessages();
+      // Reload danh sách conversations để cập nhật last_message
+      await reloadConversations();
+    } catch (error) {
+      console.error('Error sending URL:', error);
+      console.error('Error details:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+    }
   }
 
   return (
@@ -178,7 +262,8 @@ export default function AdminMessagesPage() {
           )}
 
           {allMessages.map(m => {
-            const mine = user?.user_id && m.sender_id === user.user_id;
+                        const actualUserId = user?.userId || user?.user_id || user?.id;
+            const mine = actualUserId && String(m.sender_id) === String(actualUserId);
             const isFile = m.kind === 'file' && m.attachments?.length;
             return (
               <div key={m._id} className={`mb-2 flex ${mine ? 'justify-end' : 'justify-start'}`}>
@@ -189,9 +274,32 @@ export default function AdminMessagesPage() {
                   {m.text && <div className="whitespace-pre-wrap break-words text-sm">{m.text}</div>}
                   {/* file preview đơn giản */}
                   {isFile && (
-                    <div className={`mt-1 text-xs flex items-center gap-2 ${mine ? 'text-white/90' : 'text-gray-600'}`}>
-                      <FileText size={16} />
-                      <span className="truncate">{m.attachments[0].file_name}</span>
+                    <div className={`mt-1 text-xs ${mine ? 'text-white/90' : 'text-gray-600'}`}>
+                      {/* Nếu là URL hình ảnh thì hiển thị ảnh */}
+                      {m.attachments[0]?.file_name?.startsWith('http') && 
+                       (m.attachments[0]?.file_type?.includes('image') || 
+                        m.attachments[0]?.file_name?.match(/\.(jpg|jpeg|png|gif)$/i)) ? (
+                        <div className="mb-2">
+                          <img 
+                            src={m.attachments[0].file_name} 
+                            alt="Shared image"
+                            className="max-w-48 max-h-48 rounded-lg"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                          <div className="hidden items-center gap-2">
+                            <FileText size={16} />
+                            <span className="truncate">{m.attachments[0].file_name}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <FileText size={16} />
+                          <span className="truncate">{m.attachments[0]?.file_name}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className={`text-[10px] mt-1 ${mine ? 'text-white/80' : 'text-gray-500'}`}>
@@ -203,12 +311,50 @@ export default function AdminMessagesPage() {
           })}
         </div>
 
+        {/* URL input modal */}
+        {showUrlInput && (
+          <div className="border-t bg-white p-3">
+            <div className="flex items-center gap-2">
+              <input
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                className="flex-1 bg-gray-100 px-3 py-2 rounded-full outline-none"
+                placeholder="Nhập URL hình ảnh..."
+                autoFocus
+              />
+              <button
+                onClick={onSendUrl}
+                className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600"
+                disabled={!urlInput.trim()}
+              >
+                Gửi
+              </button>
+              <button
+                onClick={() => {setShowUrlInput(false); setUrlInput('');}}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-full hover:bg-gray-400"
+              >
+                Hủy
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* input */}
         <form onSubmit={onSend} className="h-16 border-t bg-white flex items-center gap-2 px-3">
-          <label className="cursor-pointer p-2 rounded hover:bg-gray-100">
-            <input type="file" className="hidden" onChange={onAttachFile} />
-            <Paperclip size={20} />
-          </label>
+          <div className="flex gap-1">
+            <label className="cursor-pointer p-2 rounded hover:bg-gray-100" title="Gửi file">
+              <input type="file" className="hidden" onChange={onAttachFile} />
+              <Paperclip size={20} />
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowUrlInput(!showUrlInput)}
+              className="p-2 rounded hover:bg-gray-100"
+              title="Gửi URL hình ảnh"
+            >
+              <ImageIcon size={20} />
+            </button>
+          </div>
           <div className="flex-1">
             <input
               ref={inputRef}

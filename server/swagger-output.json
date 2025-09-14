@@ -99,6 +99,39 @@
         }
       }
     },
+    "/api/v1/users/hotel-owners": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/users/": {
       "get": {
         "description": "",
@@ -1340,6 +1373,18 @@
                 "type": "object",
                 "properties": {
                   "status": {
+                    "example": "any"
+                  },
+                  "signed_date": {
+                    "example": "any"
+                  },
+                  "notes": {
+                    "example": "any"
+                  },
+                  "approved_by": {
+                    "example": "any"
+                  },
+                  "approvedBy": {
                     "example": "any"
                   }
                 }
@@ -5652,6 +5697,48 @@
         }
       }
     },
+    "/api/v1/im/conversations/add-member": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "conversation_id": {
+                    "example": "any"
+                  },
+                  "user_id": {
+                    "example": "any"
+                  },
+                  "role": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/im/conversations": {
       "get": {
         "description": "",
@@ -5659,6 +5746,35 @@
           {
             "name": "authorization",
             "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/im/conversations/my": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hotel_id",
+            "in": "query",
             "schema": {
               "type": "string"
             }

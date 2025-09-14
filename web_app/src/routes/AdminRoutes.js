@@ -28,6 +28,7 @@ import BlogListPage from '../pages/admin/BlogManagement/BlogListPage';
 // import DraftBlogsPage from '../pages/admin/BlogManagement/DraftBlogsPage';
 import AdminSuggestionsPage from '../pages/admin/ChatBotAi/AdminSuggestionsPage';
 import ContractListPage from '../pages/admin/ContractManagement/ContractListPage';
+import HotelDetailPage from '../pages/admin/HotelManagement/HotelDetailPage';
 
 
 import CustomerManagement from '../pages/admin/CustomerManagement/CustomerManagement';
@@ -95,6 +96,14 @@ const AdminRoutes = () => {
                     element={
                         <HotelProvider>
                             <HotelManagementPage />
+                        </HotelProvider>
+                    }
+                />
+                <Route
+                    path="hotels/:hotelId"
+                    element={
+                        <HotelProvider>
+                            <HotelDetailPage />
                         </HotelProvider>
                     }
                 />

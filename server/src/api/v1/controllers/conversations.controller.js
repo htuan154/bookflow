@@ -11,7 +11,7 @@ exports.createDM = async (req, res, next) => {
       hotel_id: value.hotel_id,
       admin_id: value.admin_id,
       owner_id: value.owner_id,
-      created_by: req.user.user_id
+      created_by: req.user.id
     });
     res.json(conv);
   } catch (e) { next(e); }
@@ -40,7 +40,7 @@ exports.createGroupB = async (req, res, next) => {
     const conv = await convSvc.createGroupB({
       hotel_id: value.hotel_id,
       name: value.name,
-      created_by: req.user.user_id,
+      created_by: req.user.id,
       owner_id: value.owner_id,
       staff_ids: value.staff_ids || []
     });
@@ -60,5 +60,28 @@ exports.list = async (req, res, next) => {
       skip: value.skip
     });
     res.json(rows);
+  } catch (e) { next(e); }
+};
+
+exports.addMember = async (req, res, next) => {
+  try {
+    const { conversation_id, user_id, role } = req.body;
+    if (!conversation_id || !user_id || !role) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    const participantRepo = require('../repositories/participant.repo');
+    await participantRepo.addMember({ conversation_id, user_id, role });
+    res.json({ success: true });
+  } catch (e) { next(e); }
+};
+
+/** Lấy các conversation theo hotel_id mà user là thành viên */
+exports.listByHotelAndUser = async (req, res, next) => {
+  try {
+    const hotel_id = req.query.hotel_id;
+    const user_id = req.user.id; // tuỳ hệ thống
+    if (!hotel_id || !user_id) return res.status(400).json({ error: 'Missing hotel_id or user_id' });
+    const convs = await convSvc.listByHotelAndUser({ hotel_id, user_id });
+    res.json(convs);
   } catch (e) { next(e); }
 };

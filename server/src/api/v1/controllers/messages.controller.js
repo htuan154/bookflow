@@ -9,7 +9,7 @@ exports.sendText = async (req, res, next) => {
     if (error) return res.status(400).json({ error: error.message });
     const msg = await msgSvc.sendText({
       conversation_id: value.conversation_id,
-      user: req.user,
+      user: req.user.id,
       text: value.text,
       links: value.links || []
     });
@@ -23,7 +23,7 @@ exports.sendFile = async (req, res, next) => {
     if (error) return res.status(400).json({ error: error.message });
     const msg = await msgSvc.sendFile({
       conversation_id: value.conversation_id,
-      user: req.user,
+      user: req.user.id,
       text: value.text || '',
       attachments: value.attachments || []
     });

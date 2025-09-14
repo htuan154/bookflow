@@ -22,11 +22,12 @@ const imService = {
       hotel_id: payload.hotel_id,
       owner_id: payload.owner_id || me.user_id,
       admin_id: payload.admin_id || ADMIN_FALLBACK,
+      created_by: payload.created_by || ADMIN_FALLBACK, // Thêm created_by
     };
     // Fail sớm nếu thiếu trường để dễ debug
-    if (!body.hotel_id || !body.owner_id || !body.admin_id) {
+    if (!body.hotel_id || !body.owner_id || !body.admin_id || !body.created_by) {
       console.error('[createDM] missing fields', body);
-      throw new Error('Missing hotel_id/owner_id/admin_id');
+      throw new Error('Missing hotel_id/owner_id/admin_id/created_by');
     }
     const { data } = await axiosClient.post(API_ENDPOINTS.IM.CREATE_DM, body);
     return data;
@@ -39,6 +40,11 @@ const imService = {
 
   async listConversations(params) {
     const { data } = await axiosClient.get(API_ENDPOINTS.IM.LIST, { params });
+    return data?.items ?? data ?? [];
+  },
+
+  async listMyConversations(params) {
+    const { data } = await axiosClient.get(API_ENDPOINTS.IM.LIST_MY, { params });
     return data?.items ?? data ?? [];
   },
 
@@ -57,11 +63,15 @@ const imService = {
   },
 
   async sendFile(body) {
-    const { data } = await axiosClient.post(API_ENDPOINTS.IM.SEND_FILE, {
+    console.log('ImService sendFile called with:', body);
+    console.log('API endpoint:', API_ENDPOINTS.IM.SEND_FILE);
+    const payload = {
       conversation_id: body.conversation_id,
       text: body.text || '',
       attachments: body.attachments || [],
-    });
+    };
+    console.log('Final payload being sent:', payload);
+    const { data } = await axiosClient.post(API_ENDPOINTS.IM.SEND_FILE, payload);
     return data;
   },
 
