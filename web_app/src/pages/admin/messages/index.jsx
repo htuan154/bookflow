@@ -1,15 +1,16 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Paperclip, Send, Search, Image as ImageIcon, FileText, Loader2 } from 'lucide-react';
-import useIM from '../../../hooks/useIM';           // dùng IMContext (đã có) :contentReference[oaicite:2]{index=2}
-import imService from '../../../api/im.service';     // wrapper API (đã có, vừa bổ sung)
-import useAuth from '../../../hooks/useAuth';        // để lấy user hiện tại
+import { Paperclip, Send, Search, Image as ImageIcon, FileText, Loader2, RotateCcw } from 'lucide-react';
+import useIM from '../../../hooks/useIM';
+import imService from '../../../api/im.service';
+import useAuth from '../../../hooks/useAuth';
+import axiosClient from '../../../config/axiosClient';
 
 export default function AdminMessagesPage() {
   const { user } = useAuth();
-  const { startStream, stopStream, messages, sendText } = useIM(); // từ IMContext :contentReference[oaicite:3]{index=3}
+  const { startStream, messages, sendText } = useIM();
   const [conversations, setConversations] = useState([]);
-  const [active, setActive] = useState(null); // conversation đang mở
+  const [active, setActive] = useState(null);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [text, setText] = useState('');
@@ -18,58 +19,99 @@ export default function AdminMessagesPage() {
   const [urlInput, setUrlInput] = useState('');
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
+  const [historyLocal, setHistory] = useState([]);
+  const [hotelNameMap, setHotelNameMap] = useState({});
 
-  // 1) Load danh sách phòng (admin thường xem theo hotel hoặc toàn bộ)
+  // --- SEARCH UI ---
+  const [q, setQ] = useState('');
+  const [qDebounced, setQDebounced] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setQDebounced(q.trim().toLowerCase()), 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
   useEffect(() => {
     let mounted = true;
     (async () => {
       setLoadingList(true);
       try {
-        // có thể truyền ?type='dm'|'group' hoặc hotel_id nếu muốn
-        const list = await imService.listConversations({type : 'dm'});
+        const list = await imService.listConversations({ type: 'dm' });
         if (!mounted) return;
         setConversations(list);
-        if (list.length) openConversation(list[0]); // tự mở phòng đầu tiên
-      } catch (e) { console.error(e); }
-      finally { setLoadingList(false); }
+        if (list.length) openConversation(list[0]);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoadingList(false);
+      }
     })();
     return () => { mounted = false; };
   }, []);
 
-  // 2) Mở 1 phòng: load lịch sử & startStream
-  async function openConversation(conv) {
-    if (!conv?._id) return;
-    console.log('Opening conversation:', conv);
-    setActive(conv);
-    setCursor(null);
-    // lấy lịch sử trang đầu
-    const his = await imService.history({ conversation_id: conv._id, limit: 30 });
-    // vì stream sẽ push tin mới, ta set trước lịch sử:
-    // (IMContext giữ messages; ở đây ta chỉ cần reset messages hiển thị = history)
-    // Cách nhẹ nhàng: phát sự kiện giả (hoặc bạn có thể thêm API vào context). Ta tạm gán local:
-    // => để nhất quán, ta dựa vào stream: setMessages không exposed; nên hiển thị = state cục bộ + stream.
-    // -> Giải pháp: lưu historyLocal và merge với messages từ stream.
-    setHistory(his.items.reverse());
-    setCursor(his.nextCursor || null);
-
-    // mở stream realtime cho phòng mới
-    startStream(conv._id);
-    // scroll xuống cuối sau khi render
-    setTimeout(() => scrollToBottom(), 0);
+  async function ensureHotelName(hid) {
+    if (!hid || hotelNameMap[hid]) return hotelNameMap[hid];
+    try {
+      const res = await axiosClient.get(`/hotels/${hid}`);
+      const name = res?.data?.data?.name ?? res?.data?.name ?? '';
+      if (name) setHotelNameMap(prev => ({ ...prev, [hid]: name }));
+      return name;
+    } catch {
+      return '';
+    }
   }
 
-  // giữ history local để render cùng messages realtime
-  const [historyLocal, setHistory] = useState([]);
+  function getConvTitle(c) {
+    if (c?.title) return c.title;
+    if (c?.name) return c.name;
+    if (c?.type === 'dm' && (c?.subtype === 'admin_owner_dm' || c?.hotel_id)) {
+      const hid = String(c.hotel_id || '');
+      const hotelName = hotelNameMap[hid];
+      if (!hotelName && hid) ensureHotelName(hid);
+      return hotelName ? `Admin ↔ ${hotelName}` : 'Admin ↔ Owner';
+    }
+    return c?.type === 'dm' ? 'Admin ↔ Owner' : 'Nhóm';
+  }
+
+  function getConvSubtitle(c) {
+    const txt = c?.last_message?.text || '';
+    const time = c?.last_message?.created_at
+      ? new Date(c.last_message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : '';
+    return (txt ? txt.slice(0, 40) : '—') + (time ? ` · ${time}` : '');
+  }
+
+  async function openConversation(conv) {
+    if (!conv?._id) return;
+    setActive(conv);
+    setCursor(null);
+    try {
+      const his = await imService.history({ conversation_id: conv._id, limit: 40 });
+      setHistory(his.items.reverse());
+      setCursor(his.nextCursor || null);
+      startStream(conv._id);
+      setTimeout(scrollToBottom, 0);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   const allMessages = useMemo(() => {
-    // ghép history (cũ) + realtime (mới)
-    // tránh trùng bằng _id
     const map = new Map();
     [...historyLocal, ...messages].forEach(m => map.set(String(m._id), m));
     return Array.from(map.values()).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   }, [historyLocal, messages]);
 
-  useEffect(() => { scrollToBottom(); }, [allMessages.length]);
+  // Filter conversations
+  const filteredConversations = useMemo(() => {
+    if (!qDebounced) return conversations;
+    return conversations.filter(c => {
+      const title = getConvTitle(c).toLowerCase();
+      const last = (c?.last_message?.text || '').toLowerCase();
+      return title.includes(qDebounced) || last.includes(qDebounced);
+    });
+  }, [qDebounced, conversations, hotelNameMap]);
 
+  useEffect(() => { scrollToBottom(); }, [allMessages.length]);
   function scrollToBottom() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }
@@ -78,35 +120,32 @@ export default function AdminMessagesPage() {
     if (!active?._id || !cursor) return;
     setLoadingMore(true);
     try {
-      const more = await imService.history({ conversation_id: active._id, limit: 30, cursor });
-      // prepend vào historyLocal
-      setHistory(prev => [...(more.items.reverse()), ...prev]);
+      const more = await imService.history({ conversation_id: active._id, limit: 40, cursor });
+      setHistory(prev => [...more.items.reverse(), ...prev]);
       setCursor(more.nextCursor || null);
     } finally {
       setLoadingMore(false);
     }
   }
 
-  // Hàm reload tin nhắn mới nhất
   async function reloadMessages() {
     if (!active?._id) return;
     try {
-      const his = await imService.history({ conversation_id: active._id, limit: 30 });
+      const his = await imService.history({ conversation_id: active._id, limit: 40 });
       setHistory(his.items.reverse());
       setCursor(his.nextCursor || null);
-      setTimeout(() => scrollToBottom(), 100);
-    } catch (error) {
-      console.error('Error reloading messages:', error);
+      setTimeout(scrollToBottom, 50);
+    } catch (e) {
+      console.error(e);
     }
   }
 
-  // Hàm reload danh sách conversations để cập nhật last_message
   async function reloadConversations() {
     try {
-      const list = await imService.listConversations({type : 'dm'});
+      const list = await imService.listConversations({ type: 'dm' });
       setConversations(list);
-    } catch (error) {
-      console.error('Error reloading conversations:', error);
+    } catch (e) {
+      console.error(e);
     }
   }
 
@@ -117,193 +156,212 @@ export default function AdminMessagesPage() {
       await sendText({ convId: active._id, text: text.trim() });
       setText('');
       inputRef.current?.focus();
-      // Reload tin nhắn để hiển thị tin nhắn vừa gửi
       await reloadMessages();
-      // Reload danh sách conversations để cập nhật last_message
       await reloadConversations();
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
+    } catch (e) { console.error(e); }
   }
 
   async function onAttachFile(e) {
     const file = e.target.files?.[0];
     if (!file || !active?._id) return;
     try {
-      // chuyển base64
       const b64 = await fileToBase64(file);
-      console.log('File info:', { name: file.name, type: file.type, size: file.size });
-      const uploadPayload = {
+      const meta = await imService.uploadBase64({
         file_name: file.name,
         mime_type: file.type,
         file_base64: b64.replace(/^data:.+;base64,/, '')
-      };
-      console.log('Upload payload:', uploadPayload);
-      const meta = await imService.uploadBase64(uploadPayload);
-      console.log('Upload response:', meta);
-      // gửi message kiểu file theo đúng format server mong đợi
-      const payload = {
-        conversation_id: String(active._id), // đảm bảo là string
-        text: 'Đây là file gửi kèm',
+      });
+      await imService.sendFile({
+        conversation_id: String(active._id),
+        text: file.name,
         attachments: [{
           file_name: meta.file_name || file.name,
           file_type: file.type || 'application/octet-stream'
         }]
-      };
-      console.log('Sending file payload:', payload); // Debug log
-      console.log('Active conversation:', active);
-      await imService.sendFile(payload);
-      // Reload tin nhắn để hiển thị file vừa gửi
+      });
       await reloadMessages();
-      // Reload danh sách conversations để cập nhật last_message
       await reloadConversations();
-    } catch (error) {
-      console.error('Error sending file:', error);
-      console.error('Error details:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-    }
+    } catch (e) { console.error(e); }
   }
 
-  // Gửi URL/link như file attachment
   async function onSendUrl() {
     if (!urlInput.trim() || !active?._id) return;
     try {
-      const payload = {
-        conversation_id: String(active._id), // đảm bảo là string
-        text: 'Đây là file gửi kèm',
+      await imService.sendFile({
+        conversation_id: String(active._id),
+        text: urlInput.trim(),
         attachments: [{
-          file_name: urlInput,
-          file_type: urlInput.includes('.jpg') || urlInput.includes('.jpeg') ? 'image/jpeg' :
-                    urlInput.includes('.png') ? 'image/png' :
-                    urlInput.includes('.gif') ? 'image/gif' : 'image'
+          file_name: urlInput.trim(),
+          file_type: urlInput.match(/\.(png|jpg|jpeg|gif|webp)$/i) ? 'image' : 'link'
         }]
-      };
-      console.log('Sending URL payload:', payload);
-      console.log('Active conversation:', active);
-      await imService.sendFile(payload);
+      });
       setUrlInput('');
       setShowUrlInput(false);
-      // Reload tin nhắn để hiển thị URL vừa gửi
       await reloadMessages();
-      // Reload danh sách conversations để cập nhật last_message
       await reloadConversations();
-    } catch (error) {
-      console.error('Error sending URL:', error);
-      console.error('Error details:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-    }
+    } catch (e) { console.error(e); }
   }
+
+  const actualUserId = user?.userId || user?.user_id || user?.id;
+
+  // Group messages by day
+  const groupedMessages = useMemo(() => {
+    const out = [];
+    let lastDay = '';
+    for (const m of allMessages) {
+      const day = new Date(m.created_at).toLocaleDateString();
+      if (day !== lastDay) {
+        out.push({ _sep: true, day });
+        lastDay = day;
+      }
+      out.push(m);
+    }
+    return out;
+  }, [allMessages]);
 
   return (
     <div className="h-full grid grid-cols-12">
-      {/* LEFT: danh sách phòng */}
-      <aside className="col-span-4 border-r bg-white flex flex-col">
-        <div className="p-3">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100">
-            <Search size={18} className="text-gray-500" />
-            <input placeholder="Tìm kiếm" className="bg-transparent outline-none text-sm flex-1" />
+      {/* LEFT */}
+      <aside className="col-span-3 2xl:col-span-2 border-r bg-white flex flex-col">
+        <div className="p-2 pb-1.5">
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-gray-100 focus-within:ring-2 ring-orange-300">
+            <Search size={14} className="text-gray-500 shrink-0" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Tìm kiếm hội thoại..."
+              className="bg-transparent outline-none text-[13px] flex-1"
+            />
+            {q && (
+              <button
+                onClick={() => setQ('')}
+                className="text-[11px] text-gray-400 hover:text-gray-600"
+              >✕</button>
+            )}
+          </div>
+          <div className="flex items-center justify-between mt-1.5">
+            <div className="text-[10px] tracking-wide font-medium text-gray-500">
+              TẤT CẢ HỘI THOẠI ({filteredConversations.length})
+            </div>
+            <button
+              onClick={reloadConversations}
+              className="p-1 rounded hover:bg-gray-100 text-gray-500"
+              title="Làm mới"
+            >
+              <RotateCcw size={13} />
+            </button>
           </div>
         </div>
-        <div className="px-3 pb-2 text-xs text-gray-400">TẤT CẢ HỘI THOẠI</div>
+
         <div className="flex-1 overflow-y-auto">
           {loadingList ? (
-            <div className="p-4 text-sm text-gray-500">Đang tải…</div>
-          ) : conversations.length === 0 ? (
-            <div className="p-4 text-sm text-gray-500">Chưa có cuộc trò chuyện</div>
+            <div className="p-3 text-[13px] text-gray-500">Đang tải…</div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="p-3 text-[13px] text-gray-500">
+              {qDebounced ? 'Không tìm thấy hội thoại phù hợp.' : 'Chưa có cuộc trò chuyện'}
+            </div>
           ) : (
-            conversations.map(c => (
-              <button
-                key={c._id}
-                onClick={() => openConversation(c)}
-                className={`w-full text-left px-3 py-2.5 flex gap-3 items-center hover:bg-gray-50 ${
-                  active?._id === c._id ? 'bg-orange-50' : ''
-                }`}
-              >
-                <div className="h-10 w-10 rounded-full bg-orange-200 flex items-center justify-center text-white text-sm">
-                  {c.type === 'dm' ? 'DM' : 'GR'}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">
-                    {c.title || c.name || (c.type === 'dm' ? 'Admin ↔ Owner' : 'Nhóm')}
+            filteredConversations.map(c => {
+              const title = getConvTitle(c);
+              return (
+                <button
+                  key={c._id}
+                  onClick={() => openConversation(c)}
+                  className={`w-full text-left px-3 py-2 flex gap-2.5 items-start hover:bg-gray-50 transition ${
+                    active?._id === c._id ? 'bg-orange-50' : ''
+                  }`}
+                >
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white text-[10px] font-semibold">
+                    {c.type === 'dm' ? 'DM' : 'GR'}
                   </div>
-                  <div className="text-xs text-gray-500 truncate">
-                    {c.last_message?.text || '—'}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-medium truncate">{title}</div>
+                    <div className="text-[11px] text-gray-500 truncate">{getConvSubtitle(c)}</div>
                   </div>
-                </div>
-              </button>
-            ))
+                </button>
+              );
+            })
           )}
         </div>
       </aside>
 
-      {/* RIGHT: khung chat */}
-      <section className="col-span-8 flex flex-col">
-        {/* header */}
-        <div className="h-14 border-b bg-white px-4 flex items-center justify-between">
-          <div className="font-semibold">
-            {active?.title || active?.name || (active?.type === 'dm' ? 'Admin ↔ Owner' : 'Nhóm')}
+      {/* RIGHT */}
+      <section className="col-span-9 2xl:col-span-10 flex flex-col bg-[#fafafa]">
+        <div className="h-12 border-b bg-white px-4 flex items-center justify-between">
+          <div className="font-semibold text-[13px] sm:text-sm">
+            {active ? getConvTitle(active) : 'Chưa chọn cuộc trò chuyện'}
           </div>
-          <div className="text-xs text-gray-500">{active ? (active.type === 'dm' ? 'Đoạn chat' : 'Nhóm') : ''}</div>
+          {active && (
+            <div className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-600">
+              {active.type === 'dm' ? 'Direct' : 'Group'}
+            </div>
+          )}
         </div>
 
-        {/* content */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto bg-gray-50 p-4">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
+          {!active && (
+            <div className="h-full flex items-center justify-center text-gray-400 text-[13px]">
+              Chọn một hội thoại bên trái để bắt đầu.
+            </div>
+          )}
+
           {active && cursor && (
-            <div className="flex justify-center my-2">
+            <div className="flex justify-center">
               <button
                 onClick={loadMore}
-                className="text-xs px-3 py-1.5 rounded-full bg-white/80 hover:bg-white border flex items-center gap-2"
+                className="text-[11px] px-3 py-1 rounded-full bg-white hover:bg-gray-50 border flex items-center gap-2"
                 disabled={loadingMore}
               >
-                {loadingMore && <Loader2 size={14} className="animate-spin" />}
-                Xem tin cũ hơn
+                {loadingMore && <Loader2 size={12} className="animate-spin" />}
+                Tin cũ hơn
               </button>
             </div>
           )}
 
-          {allMessages.map(m => {
-                        const actualUserId = user?.userId || user?.user_id || user?.id;
+          {groupedMessages.map(m => {
+            if (m._sep) {
+              return (
+                <div
+                  key={`sep-${m.day}`}
+                  className="text-[10px] text-gray-500 uppercase tracking-wide text-center my-1.5"
+                >
+                  {m.day}
+                </div>
+              );
+            }
             const mine = actualUserId && String(m.sender_id) === String(actualUserId);
             const isFile = m.kind === 'file' && m.attachments?.length;
             return (
-              <div key={m._id} className={`mb-2 flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[70%] rounded-2xl px-3 py-2 shadow-sm ${
-                  mine ? 'bg-orange-500 text-white rounded-br-sm' : 'bg-white rounded-bl-sm'
-                }`}>
-                  {/* text */}
-                  {m.text && <div className="whitespace-pre-wrap break-words text-sm">{m.text}</div>}
-                  {/* file preview đơn giản */}
+              <div key={m._id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={`max-w-[60%] rounded-2xl px-3 py-1.5 shadow-sm text-[13px] leading-relaxed break-words ${
+                    mine ? 'bg-orange-500 text-white rounded-br-sm' : 'bg-white rounded-bl-sm'
+                  }`}
+                >
+                  {m.text && <div>{m.text}</div>}
                   {isFile && (
-                    <div className={`mt-1 text-xs ${mine ? 'text-white/90' : 'text-gray-600'}`}>
-                      {/* Nếu là URL hình ảnh thì hiển thị ảnh */}
-                      {m.attachments[0]?.file_name?.startsWith('http') && 
-                       (m.attachments[0]?.file_type?.includes('image') || 
-                        m.attachments[0]?.file_name?.match(/\.(jpg|jpeg|png|gif)$/i)) ? (
-                        <div className="mb-2">
-                          <img 
-                            src={m.attachments[0].file_name} 
-                            alt="Shared image"
-                            className="max-w-48 max-h-48 rounded-lg"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
-                            }}
+                    <div className={`mt-1.5 text-[11px] ${mine ? 'text-white/90' : 'text-gray-600'}`}>
+                      {m.attachments[0]?.file_name?.startsWith('http') &&
+                      (m.attachments[0]?.file_type?.includes('image') ||
+                        m.attachments[0]?.file_name?.match(/\.(jpg|jpeg|png|gif|webp)$/i)) ? (
+                        <div className="mb-1">
+                          <img
+                            src={m.attachments[0].file_name}
+                            alt="Shared"
+                            className="max-w-52 max-h-52 rounded-lg object-cover"
+                            onError={(e) => { e.target.style.display = 'none'; }}
                           />
-                          <div className="hidden items-center gap-2">
-                            <FileText size={16} />
-                            <span className="truncate">{m.attachments[0].file_name}</span>
-                          </div>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <FileText size={16} />
+                        <div className="flex items-center gap-1.5">
+                          <FileText size={14} />
                           <span className="truncate">{m.attachments[0]?.file_name}</span>
                         </div>
                       )}
                     </div>
                   )}
-                  <div className={`text-[10px] mt-1 ${mine ? 'text-white/80' : 'text-gray-500'}`}>
-                    {new Date(m.created_at).toLocaleString()}
+                  <div className={`text-[9px] mt-1.5 ${mine ? 'text-white/70' : 'text-gray-500'}`}>
+                    {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
               </div>
@@ -311,48 +369,42 @@ export default function AdminMessagesPage() {
           })}
         </div>
 
-        {/* URL input modal */}
-        {showUrlInput && (
-          <div className="border-t bg-white p-3">
+        {showUrlInput && active && (
+          <div className="border-t bg-white px-3 py-2">
             <div className="flex items-center gap-2">
               <input
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                className="flex-1 bg-gray-100 px-3 py-2 rounded-full outline-none"
-                placeholder="Nhập URL hình ảnh..."
+                className="flex-1 bg-gray-100 px-3 py-1.5 rounded-full outline-none text-[13px]"
+                placeholder="Dán URL hình ảnh..."
                 autoFocus
               />
               <button
                 onClick={onSendUrl}
-                className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600"
+                className="px-3 py-1.5 bg-orange-500 text-white rounded-full hover:bg-orange-600 text-[12px] disabled:opacity-50"
                 disabled={!urlInput.trim()}
-              >
-                Gửi
-              </button>
+              >Gửi</button>
               <button
-                onClick={() => {setShowUrlInput(false); setUrlInput('');}}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-full hover:bg-gray-400"
-              >
-                Hủy
-              </button>
+                onClick={() => { setShowUrlInput(false); setUrlInput(''); }}
+                className="px-3 py-1.5 bg-gray-300 text-gray-700 rounded-full hover:bg-gray-400 text-[12px]"
+              >Hủy</button>
             </div>
           </div>
         )}
 
-        {/* input */}
-        <form onSubmit={onSend} className="h-16 border-t bg-white flex items-center gap-2 px-3">
+        <form onSubmit={onSend} className="h-14 border-t bg-white flex items-center gap-2.5 px-3">
           <div className="flex gap-1">
-            <label className="cursor-pointer p-2 rounded hover:bg-gray-100" title="Gửi file">
+            <label className="cursor-pointer p-1.5 rounded hover:bg-gray-100" title="Gửi file">
               <input type="file" className="hidden" onChange={onAttachFile} />
-              <Paperclip size={20} />
+              <Paperclip size={18} />
             </label>
             <button
               type="button"
-              onClick={() => setShowUrlInput(!showUrlInput)}
-              className="p-2 rounded hover:bg-gray-100"
+              onClick={() => setShowUrlInput(s => !s)}
+              className="p-1.5 rounded hover:bg-gray-100"
               title="Gửi URL hình ảnh"
             >
-              <ImageIcon size={20} />
+              <ImageIcon size={18} />
             </button>
           </div>
           <div className="flex-1">
@@ -360,12 +412,18 @@ export default function AdminMessagesPage() {
               ref={inputRef}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              className="w-full bg-gray-100 px-3 py-2 rounded-full outline-none"
-              placeholder="Nhập tin nhắn…"
+              className="w-full bg-gray-100 px-3 py-1.5 rounded-full outline-none text-[13px]"
+              placeholder={active ? 'Nhập tin nhắn…' : 'Chọn hội thoại trước...'}
+              disabled={!active}
             />
           </div>
-          <button type="submit" className="p-2 rounded-full bg-orange-500 text-white hover:bg-orange-600">
-            <Send size={18} />
+          <button
+            type="submit"
+            disabled={!text.trim() || !active}
+            className="p-1.5 rounded-full bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50"
+            title="Gửi"
+          >
+            <Send size={16} />
           </button>
         </form>
       </section>
@@ -373,7 +431,6 @@ export default function AdminMessagesPage() {
   );
 }
 
-// helper: File -> Base64 dataURL
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();

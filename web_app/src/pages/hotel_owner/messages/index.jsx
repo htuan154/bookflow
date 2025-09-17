@@ -124,6 +124,37 @@ function OwnerMessagesPage() {
       }
     })();
   }, []);
+  const [hotelNameMap, setHotelNameMap] = useState({}); // { [hotel_id]: 'Hotel Name' }
+
+async function ensureHotelName(hid) {
+  if (!hid || hotelNameMap[hid]) return hotelNameMap[hid];
+  try {
+    // cố gắng lấy nhanh từ danh sách “my-hotels” nếu có (Owner)
+    // còn Admin thì gọi thẳng /hotels/:id
+    const res = await axiosClient.get(`/hotels/${hid}`);
+    const name = res?.data?.data?.name ?? res?.data?.name ?? '';
+    if (name) setHotelNameMap(prev => ({ ...prev, [hid]: name }));
+    return name;
+  } catch {
+    return '';
+  }
+}
+
+function getConvTitle(c) {
+  // Ưu tiên các title/name server trả về
+  if (c?.title) return c.title;
+  if (c?.name) return c.name;
+
+  // DM dành cho Admin ↔ Owner theo hotel_id
+  if (c?.type === 'dm' && (c?.subtype === 'admin_owner_dm' || c?.hotel_id)) {
+    const hid = String(c.hotel_id || '');
+    const hotelName = hotelNameMap[hid];
+    if (!hotelName && hid) ensureHotelName(hid); // nạp nền, lần sau sẽ có
+    return hotelName ? `Admin ↔ ${hotelName}` : 'Admin ↔ Owner';
+  }
+  // Mặc định
+  return c?.type === 'dm' ? 'Admin ↔ Owner' : 'Nhóm';
+}
 
   function scrollToBottom() {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -385,6 +416,19 @@ function OwnerMessagesPage() {
 
   useEffect(() => { if (active?._id) scrollToBottom(); }, [allMessages.length]);
   useEffect(() => { ensuredRef.current = false; }, [hotelId]);
+  useEffect(() => {
+  if (myHotels?.length) {
+    setHotelNameMap(prev => {
+      const m = { ...prev };
+      myHotels.forEach(h => {
+        const hid = h?.hotelId ?? h?.hotel_id ?? h?.id ?? h?._id;
+        const name = h?.name;
+        if (hid && name) m[String(hid)] = name;
+      });
+      return m;
+    });
+  }
+}, [myHotels]);
 
   if (!hasSelectedHotel || !hotelId) {
     return (
