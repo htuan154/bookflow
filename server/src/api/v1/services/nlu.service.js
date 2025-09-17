@@ -132,8 +132,11 @@ const CITY_ALIASES = {
 
 /** Nhận diện tỉnh/thành (trên chuỗi đã normalize) */
 function detectCity(normalized = '') {
+  const ns = normalized.replace(/\s/g, '');
   for (const [alias, city] of Object.entries(CITY_ALIASES)) {
-    if (normalized.includes(alias)) return city;
+    if (normalized.includes(alias)) return city;                    // có khoảng
+    const aliasNs = alias.replace(/\s/g, '');
+    if (ns.includes(aliasNs)) return city;                          // dính liền
   }
   return null;
 }
