@@ -4,7 +4,17 @@ import { API_ENDPOINTS } from '../config/apiEndpoints';
 
 export const chatSuggest = (message, opts = {}, headers = {}) =>
   axiosClient
-    .post(API_ENDPOINTS.CHATBOT.SUGGEST, { message, ...opts }, { headers })
+    .post(
+      API_ENDPOINTS.CHATBOT.SUGGEST,
+      // ép body.use_llm = true nếu caller chưa set
+      { message, use_llm: opts.use_llm ?? true, ...opts },
+      {
+        headers: {
+          'x-use-llm': headers['x-use-llm'] ?? 'true', // ép header cho chắc
+          ...headers,
+        },
+      }
+    )
     .then(r => r.data);
 
 export const chatHealth = () =>

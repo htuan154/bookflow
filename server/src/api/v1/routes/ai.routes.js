@@ -5,7 +5,7 @@ const router = express.Router();
 const H = require('../controllers/history.controller');
 const { validate } = require('../middlewares/validate.middleware');
 const { AiSuggestSchema } = require('../../../validators/ai.validator');
-const C = require('../controllers/ai.controller');
+const C = require('../controllers/ai.controller.js');
 const { authenticateOptional } = require('../middlewares/auth.middleware'); // Middleware không bắt buộc login
 
 /* 

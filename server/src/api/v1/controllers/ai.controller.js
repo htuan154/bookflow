@@ -1,8 +1,18 @@
 'use strict';
 
+/**
+ * AI Controller — gom pipeline Hybrid (SQL + NoSQL + LLM)
+ * - Nếu LLM bật (per-request hoặc .env USE_LLM=true):
+ *     → suggestHybrid() để hợp nhất RPC + NoSQL + LLM
+ * - Nếu LLM tắt:
+ *     → Rẽ SQL theo intent (hotel/promo) hoặc fallback suggest() (NoSQL)
+ */
+
 const { analyze, normalize } = require('../services/nlu.service');
 const { saveTurn } = require('../services/chatHistory.service');
+
 const {
+  // SQL search helpers / RPC
   searchHotels,
   getHotelsByAnyAmenities,
   getHotelFull,
@@ -12,10 +22,12 @@ const {
   promoCheckApplicability,
   promoUsageStats,
   listHotelCities,
-  // NoSQL/LLM fallback
-  suggest,
 
-  // Supabase RPC wrappers (trả về data trực tiếp)
+  // NoSQL/LLM compose
+  suggest,
+  suggestHybrid,
+
+  // Supabase RPC wrappers
   getTopHotels,
   getHotelsByAmenities,
   getPromotionsInMonth,
@@ -23,100 +35,53 @@ const {
   getPromotionsByCity,
 } = require('../services/chatbot.service');
 
-/** POST /api/v1/ai/suggest
- *  - Tự detect intent.
- *  - Nếu là "khách sạn/khuyến mãi" => gọi SQL (Supabase RPC).
- *  - Ngược lại => fallback NoSQL/LLM hiện có.
- */
-// async function suggestHandler(req, res, next) {
-//   try {
-//     const db = req.app.locals.db;
-//     if (!db) return res.status(503).json({ error: 'DB_NOT_READY' });
+const USE_LLM = String(process.env.USE_LLM || 'false').toLowerCase() === 'true';
 
-//     const { message = '', filters = {}, top_n, use_llm } = req.body || {};
-//     const msg = String(message || '').trim();
-//     if (!msg) return res.status(400).json({ error: 'message is required (string)' });
+async function suggestHandler(req, res, next) {
+  try {
+    const db = req.app.locals.db;
+    if (!db) return res.status(503).json({ error: 'DB_NOT_READY' });
 
-//     // NLU
-//     const nlu = analyze(msg);
-//     const msgNorm = normalize(msg); // không dấu, lower, clean
-//     const city = (filters && filters.city) || nlu.city || null;
-//     const limit = Number(top_n || nlu.top_n || 10);
+    const { message = '', filters = {}, top_n, session_id } = req.body || {};
+    const msg = String(message || '').trim();
+    if (!msg) return res.status(400).json({ error: 'message is required (string)' });
 
-//     // ===== HOTEL (SQL) =======================================================
-//     const isHotel = /(khach\s*san|^ks\b|hotel)/i.test(msgNorm);
-//     if (isHotel && city) {
-//       // tiện nghi cơ bản từ câu
-//       const amenities = [];
-//       if (/(ho boi|pool)/i.test(msgNorm)) amenities.push('pool');
-//       if (/(wifi|wi-?fi)/i.test(msgNorm)) amenities.push('wifi');
-//       if (/(bu?a?\s*sang|bua sang|breakfast)/i.test(msgNorm)) amenities.push('breakfast');
-//       if (/spa/i.test(msgNorm)) amenities.push('spa');
-//       if (/gym/i.test(msgNorm)) amenities.push('gym');
+    const nlu = analyze(msg);
+    const limit = Number(top_n || nlu.top_n || 10);
 
-//       const t0 = process.hrtime.bigint();
-//       let data;
-//       if (amenities.length) {
-//         data = await getHotelsByAmenities(city, amenities, limit);
-//         const t1 = process.hrtime.bigint();
-//         res.set('X-Source', 'sql:amenities');
-//         res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-//         return res.json({ city, limit, amenities, hotels: data, source: 'sql:amenities' });
-//       } else {
-//         data = await getTopHotels(city, limit);
-//         const t1 = process.hrtime.bigint();
-//         res.set('X-Source', 'sql:top');
-//         res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-//         return res.json({ city, limit, hotels: data, source: 'sql:top' });
-//       }
-//     }
+    // Luôn bật LLM + truyền context chung cho composer
+    const ctx = { use_llm: true, filters: typeof filters === 'object' ? filters : {} };
+    if (Number.isFinite(limit) && limit > 0 && limit <= 20) ctx.top_n = limit;
 
-//     // ===== PROMOTION (SQL) ===================================================
-//     const isPromo = /(khuyen\s*mai|voucher|ma\s*giam|promo)/i.test(msgNorm);
-//     if (isPromo) {
-//       // bắt tháng/năm đơn giản
-//       const m = msgNorm.match(/thang\s*(\d{1,2})/i);
-//       const y = msgNorm.match(/\b(20\d{2})\b/);
-//       const now = new Date();
-//       const month = m ? Number(m[1]) : now.getMonth() + 1;
-//       const year  = y ? Number(y[1]) : now.getFullYear();
+    const t0 = process.hrtime.bigint();
+    const payload = await suggestHybrid(db, { message: msg, context: ctx });
+    const t1 = process.hrtime.bigint();
+    const latency = Number(t1 - t0) / 1e6;
 
-//       const t0 = process.hrtime.bigint();
-//       let data;
-//       if (city) {
-//         data = await getPromotionsInMonthByCity(city, year, month, 20);
-//         const t1 = process.hrtime.bigint();
-//         res.set('X-Source', 'sql:promo-city');
-//         res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-//         return res.json({ city, year, month, promotions: data, source: 'sql:promo-city' });
-//       } else {
-//         data = await getPromotionsInMonth(year, month, 20);
-//         const t1 = process.hrtime.bigint();
-//         res.set('X-Source', 'sql:promo-all');
-//         res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-//         return res.json({ city: null, year, month, promotions: data, source: 'sql:promo-all' });
-//       }
-//     }
+    res.set('X-Source', payload.source || 'sql+nosql+llm');
+    res.set('X-Latency-ms', (payload.latency_ms ?? latency).toFixed(1));
 
-//     // ===== FALLBACK: NoSQL/LLM ===============================================
-//     const ctx = { filters: typeof filters === 'object' ? filters : {} };
-//     if (Number.isFinite(top_n) && top_n > 0 && top_n <= 20) ctx.top_n = top_n;
-//     if (typeof use_llm === 'boolean') ctx.use_llm = use_llm;
+    // (tuỳ chọn) lưu lịch sử hội thoại nếu bạn đang dùng saveTurn(...)
+    try {
+      await saveTurn({
+        userId: req.user?.id || 'anonymous',
+        sessionId: req.headers['x-session-id'] || session_id || 'default',
+        messageText: msg,
+        messageRaw: req.body,
+        replyPayload: payload,
+        nlu,
+        source: payload.source || 'sql+nosql+llm',
+        latencyMs: payload.latency_ms ?? latency,
+        meta: { ip: req.ip, ua: req.headers['user-agent'] }
+      });
+    } catch {}
 
-//     const t0 = process.hrtime.bigint();
-//     const data = await suggest(db, { message: msg, context: ctx });
-//     const t1 = process.hrtime.bigint();
-//     res.set('X-Source', 'nosql+llm');
-//     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-//     return res.json(data);
-//   } catch (err) {
-//     next(err);
-//   }
-// }
+    return res.json(payload);
+  } catch (e) { next(e); }
+}
 
-// ====================== HANDLERS SQL (test qua HTTP) =========================
+// ==== SQL endpoints giữ nguyên (nếu bật .env USE_LLM=true, có thể trả payload AI khi bạn truyền opts.llm=true từ route) ====
 
-/** GET /api/v1/ai/hotels/top?city=...&limit=... */
 async function topHotelsHandler(req, res, next) {
   try {
     const city = String(req.query.city || '').trim();
@@ -124,31 +89,31 @@ async function topHotelsHandler(req, res, next) {
     if (!city) return res.status(400).json({ error: 'city is required' });
 
     const t0 = process.hrtime.bigint();
-    const data = await getTopHotels(city, limit);
+    const data = await getTopHotels(city, limit, { llm: USE_LLM, context: { top_n: limit, filters: { city } } });
     const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:top');
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:top');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-    return res.json({ success: true, data, city, limit });
+    return res.json({ success: true, city, limit, data });
   } catch (e) { next(e); }
 }
 
-/** POST /api/v1/ai/hotels/by-amenities { city, amenities:[], limit } */
 async function hotelsByAmenitiesHandler(req, res, next) {
   try {
-    const { city, amenities = [], limit = 10 } = req.body || {};
-    if (!city || !Array.isArray(amenities) || amenities.length === 0) {
+    const { city = '', amenities = [], limit = 10 } = req.body || {};
+    if (!city || !Array.isArray(amenities) || amenities.length === 0)
       return res.status(400).json({ error: 'city and amenities[] are required' });
-    }
+
     const t0 = process.hrtime.bigint();
-    const data = await getHotelsByAmenities(String(city).trim(), amenities, Number(limit));
+    const data = await getHotelsByAmenities(String(city), amenities, Number(limit), {
+      llm: USE_LLM, context: { top_n: limit, filters: { city, amenities } }
+    });
     const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:amenities');
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:amenities');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-    return res.json({ success: true, data, city, amenities, limit });
+    return res.json({ success: true, city, amenities, limit, data });
   } catch (e) { next(e); }
 }
 
-/** GET /api/v1/ai/promotions/by-month?year=YYYY&month=M&limit=20 */
 async function promotionsByMonthHandler(req, res, next) {
   try {
     const year = Number(req.query.year);
@@ -157,339 +122,205 @@ async function promotionsByMonthHandler(req, res, next) {
     if (!year || !month) return res.status(400).json({ error: 'year and month are required' });
 
     const t0 = process.hrtime.bigint();
-    const data = await getPromotionsInMonth(year, month, limit);
+    const data = await getPromotionsInMonth(year, month, limit, {
+      llm: USE_LLM, context: { top_n: limit, filters: { year, month } }
+    });
     const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:promo-all');
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:promo-all');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-    return res.json({ success: true, data, year, month, limit });
+    return res.json({ success: true, year, month, limit, data });
   } catch (e) { next(e); }
 }
 
-/** GET /api/v1/ai/promotions/by-month-city?city=...&year=YYYY&month=M&limit=20 */
 async function promotionsByMonthCityHandler(req, res, next) {
   try {
     const city = String(req.query.city || '').trim();
     const year = Number(req.query.year);
     const month = Number(req.query.month);
     const limit = Number(req.query.limit || 20);
-    if (!city || !year || !month) {
-      return res.status(400).json({ error: 'city, year and month are required' });
-    }
+    if (!city || !year || !month) return res.status(400).json({ error: 'city, year and month are required' });
+
     const t0 = process.hrtime.bigint();
-    const data = await getPromotionsInMonthByCity(city, year, month, limit);
+    const data = await getPromotionsInMonthByCity(city, year, month, limit, {
+      llm: USE_LLM, context: { top_n: limit, filters: { city, year, month } }
+    });
     const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:promo-city');
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:promo-city');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-    return res.json({ success: true, data, city, year, month, limit });
+    return res.json({ success: true, city, year, month, limit, data });
   } catch (e) { next(e); }
 }
 
-/** GET /api/v1/ai/promotions/by-city?city=... */
 async function promotionsByCityHandler(req, res, next) {
   try {
     const city = String(req.query.city || '').trim();
     if (!city) return res.status(400).json({ error: 'city is required' });
 
     const t0 = process.hrtime.bigint();
-    const data = await getPromotionsByCity(city);
+    const data = await getPromotionsByCity(city, { llm: USE_LLM, context: { filters: { city } } });
     const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:promo-city-anytime');
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:promo-city-anytime');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-    return res.json({ success: true, data, city });
+    return res.json({ success: true, city, data });
   } catch (e) { next(e); }
 }
-async function suggestHandler(req, res, next) {
-  try {
-    const db = req.app.locals.db;
-    if (!db) return res.status(503).json({ error: 'DB_NOT_READY' });
 
-    const { message = '', filters = {}, top_n, use_llm, session_id } = req.body || {};
-    const msg = String(message || '').trim();
-    if (!msg) return res.status(400).json({ error: 'message is required (string)' });
-
-    // Debug auth info
-    console.log('🔍 Auth Debug:');
-    console.log('  - req.user:', req.user);
-    console.log('  - req.headers.authorization:', req.headers.authorization?.slice(0, 30) + '...');
-    console.log('  - req.headers["x-session-id"]:', req.headers['x-session-id']);
-
-    const nlu = analyze(msg);
-    const msgNorm = normalize(msg);
-    const city = (filters && filters.city) || nlu.city || null;
-    const limit = Number(top_n || nlu.top_n || 10);
-
-    // Lấy user ID từ middleware auth
-    const userId = req.user?.id || req.user?.user_id || req.user?._id || 'anonymous';
-    console.log('👤 Final userId:', userId);
-    
-    const sessionId = req.headers['x-session-id'] || session_id || null;
-    const meta = { ip: req.ip, ua: req.headers['user-agent'] };
-
-    // ===== HOTEL (SQL)
-    const isHotel = /(khach\s*san|^ks\b|hotel)/i.test(msgNorm);
-    if (isHotel && city) {
-      const amenities = [];
-      if (/(ho boi|pool)/i.test(msgNorm)) amenities.push('pool');
-      if (/(wifi|wi-?fi)/i.test(msgNorm)) amenities.push('wifi');
-      if (/(bu?a?\s*sang|bua sang|breakfast)/i.test(msgNorm)) amenities.push('breakfast');
-      if (/spa/i.test(msgNorm)) amenities.push('spa');
-      if (/gym/i.test(msgNorm)) amenities.push('gym');
-
-      const t0 = process.hrtime.bigint();
-      let data, result, source;
-      if (amenities.length) {
-        data = await getHotelsByAmenities(city, amenities, limit);
-        source = 'sql:amenities';
-        result = { city, limit, amenities, hotels: data, source };
-      } else {
-        data = await getTopHotels(city, limit);
-        source = 'sql:top';
-        result = { city, limit, hotels: data, source };
-      }
-      const t1 = process.hrtime.bigint();
-      const latency = Number(t1 - t0) / 1e6;
-      res.set('X-Source', source);
-      res.set('X-Latency-ms', latency.toFixed(1));
-
-      // LƯU LỊCH SỬ
-      saveTurn({
-        userId, sessionId,
-        messageText: msg, messageRaw: req.body,
-        replyPayload: result,
-        nlu: { ...nlu, intent: 'hotel' },
-        source, latencyMs: latency, meta
-      }).catch(() => {});
-
-      return res.json(result);
-    }
-
-    // ===== PROMOTION (SQL)
-    const isPromo = /(khuyen\s*mai|voucher|ma\s*giam|promo)/i.test(msgNorm);
-    if (isPromo) {
-      const m = msgNorm.match(/thang\s*(\d{1,2})/i);
-      const y = msgNorm.match(/\b(20\d{2})\b/);
-      const now = new Date();
-      const month = m ? Number(m[1]) : now.getMonth() + 1;
-      const year  = y ? Number(y[1]) : now.getFullYear();
-
-      const t0 = process.hrtime.bigint();
-      let data, result, source;
-      if (city) {
-        data = await getPromotionsInMonthByCity(city, year, month, 20);
-        source = 'sql:promo-city';
-        result = { city, year, month, promotions: data, source };
-      } else {
-        data = await getPromotionsInMonth(year, month, 20);
-        source = 'sql:promo-all';
-        result = { city: null, year, month, promotions: data, source };
-      }
-      const t1 = process.hrtime.bigint();
-      const latency = Number(t1 - t0) / 1e6;
-      res.set('X-Source', source);
-      res.set('X-Latency-ms', latency.toFixed(1));
-
-      saveTurn({
-        userId, sessionId,
-        messageText: msg, messageRaw: req.body,
-        replyPayload: result,
-        nlu: { ...nlu, intent: 'promotion' },
-        source, latencyMs: latency, meta
-      }).catch(() => {});
-
-      return res.json(result);
-    }
-
-    // ===== FALLBACK: NoSQL/LLM
-    const ctx = { filters: typeof filters === 'object' ? filters : {} };
-    if (Number.isFinite(top_n) && top_n > 0 && top_n <= 20) ctx.top_n = top_n;
-    if (typeof use_llm === 'boolean') ctx.use_llm = use_llm;
-
-    const t0 = process.hrtime.bigint();
-    const data = await suggest(db, { message: msg, context: ctx });
-    const t1 = process.hrtime.bigint();
-    const latency = Number(t1 - t0) / 1e6;
-    res.set('X-Source', 'nosql+llm');
-    res.set('X-Latency-ms', latency.toFixed(1));
-
-    const result = { ...data, source: 'nosql+llm' };
-
-    console.log('💾 Saving turn with userId:', userId);
-    saveTurn({
-      userId, 
-      sessionId,
-      messageText: msg, 
-      messageRaw: req.body,
-      replyPayload: result,
-      nlu: { ...nlu, intent: nlu.intent || 'general' },
-      source: 'nosql+llm', 
-      latencyMs: latency, 
-      meta
-    }).catch((err) => {
-      console.error('❌ Save turn error:', err);
-    });
-
-    return res.json(result);
-  } catch (err) {
-    next(err);
-  }
-}
-/** GET /api/v1/ai/hotels/search?city=...&q=...&limit=20 */
 async function searchHotelsHandler(req, res, next) {
   try {
+    const q = String(req.query.q || '').trim();
     const city = String(req.query.city || '').trim();
-    const q = req.query.q ? String(req.query.q).trim() : null;
-    const limit = Number(req.query.limit || 20);
-    if (!city) return res.status(400).json({ error: 'city is required' });
+    const limit = Number(req.query.limit || 10);
 
     const t0 = process.hrtime.bigint();
-    const data = await searchHotels(city, q, limit);
+    const data = await searchHotels(q, city, limit, {
+      llm: USE_LLM, context: { top_n: limit, filters: { city, q } }
+    });
     const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:search-hotels');
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:search');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-    return res.json({ success: true, city, q, limit, data });
+    return res.json({ success: true, q, city, limit, data });
   } catch (e) { next(e); }
 }
 
-/** POST /api/v1/ai/hotels/by-any-amenities { city, amenities:[], limit } */
 async function hotelsByAnyAmenitiesHandler(req, res, next) {
   try {
-    const { city, amenities = [], limit = 10 } = req.body || {};
-    if (!city || !Array.isArray(amenities) || amenities.length === 0) {
+    const { city = '', amenities = [], limit = 10 } = req.body || {};
+    if (!city || !Array.isArray(amenities) || amenities.length === 0)
       return res.status(400).json({ error: 'city and amenities[] are required' });
-    }
+
     const t0 = process.hrtime.bigint();
-    const data = await getHotelsByAnyAmenities(String(city).trim(), amenities, Number(limit));
+    const data = await getHotelsByAnyAmenities(String(city), amenities, Number(limit), {
+      llm: USE_LLM, context: { top_n: limit, filters: { city, amenities } }
+    });
     const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:any-amenities');
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:any-amenities');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
     return res.json({ success: true, city, amenities, limit, data });
   } catch (e) { next(e); }
 }
 
-/** GET /api/v1/ai/hotels/full/:id */
 async function hotelFullHandler(req, res, next) {
   try {
-    const id = String(req.params.id || '').trim();
-    if (!id) return res.status(400).json({ error: 'hotel id is required' });
+    const id = String(req.query.id || '').trim();
+    if (!id) return res.status(400).json({ error: 'id is required' });
+
     const t0 = process.hrtime.bigint();
-    const data = await getHotelFull(id);
+    const data = await getHotelFull(id, { llm: USE_LLM, context: { filters: { id } } });
     const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:hotel-full');
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:hotel-full');
+    res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
+    return res.json({ success: true, id, data });
+  } catch (e) { next(e); }
+}
+
+async function promotionsTodayHandler(req, res, next) {
+  try {
+    const t0 = process.hrtime.bigint();
+    const data = await getPromotionsValidToday(50, { llm: USE_LLM });
+    const t1 = process.hrtime.bigint();
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:promo-today');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
     return res.json({ success: true, data });
   } catch (e) { next(e); }
 }
 
-/** GET /api/v1/ai/promotions/today?limit=50 */
-async function promotionsTodayHandler(req, res, next) {
-  try {
-    const limit = Number(req.query.limit || 50);
-    const t0 = process.hrtime.bigint();
-    const data = await getPromotionsValidToday(limit);
-    const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:promo-today');
-    res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-    return res.json({ success: true, limit, data });
-  } catch (e) { next(e); }
-}
-
-/** GET /api/v1/ai/promotions/today-by-city?city=...&limit=50 */
 async function promotionsTodayByCityHandler(req, res, next) {
   try {
     const city = String(req.query.city || '').trim();
-    const limit = Number(req.query.limit || 50);
     if (!city) return res.status(400).json({ error: 'city is required' });
+
     const t0 = process.hrtime.bigint();
-    const data = await getPromotionsValidTodayByCity(city, limit);
+    const data = await getPromotionsValidTodayByCity(city, 50, { llm: USE_LLM, context: { filters: { city } } });
     const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:promo-today-city');
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:promo-today-city');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-    return res.json({ success: true, city, limit, data });
+    return res.json({ success: true, city, data });
   } catch (e) { next(e); }
 }
 
-/** GET /api/v1/ai/promotions/search?city=...&kw=...&year=YYYY&month=M&limit=50 */
 async function promotionsByKeywordCityMonthHandler(req, res, next) {
   try {
+    const q = String(req.query.q || '').trim();
     const city = String(req.query.city || '').trim();
-    const kw = req.query.kw ? String(req.query.kw).trim() : null;
-    const year = Number(req.query.year);
-    const month = Number(req.query.month);
-    const limit = Number(req.query.limit || 50);
-    if (!city || !year || !month) {
-      return res.status(400).json({ error: 'city, year, month are required' });
-    }
+    const year = req.query.year ? Number(req.query.year) : undefined;
+    const month = req.query.month ? Number(req.query.month) : undefined;
+    const limit = Number(req.query.limit || 20);
+
     const t0 = process.hrtime.bigint();
-    const data = await getPromotionsByKeywordCityMonth(city, kw, year, month, limit);
+    const data = await getPromotionsByKeywordCityMonth(q, city, year, month, limit, {
+      llm: USE_LLM, context: { top_n: limit, filters: { q, city, year, month } }
+    });
     const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:promo-keyword-city-month');
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:promo-search');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-    return res.json({ success: true, city, kw, year, month, limit, data });
+    return res.json({ success: true, q, city, year, month, limit, data });
   } catch (e) { next(e); }
 }
 
-/** GET /api/v1/ai/promotions/check?code=...&user=...&amount=...&when=ISO */
 async function promoCheckHandler(req, res, next) {
   try {
-    const code = String(req.query.code || '').trim();
-    const user = String(req.query.user || '').trim(); // user_id (uuid)
-    const amount = Number(req.query.amount);
-    const when = req.query.when ? String(req.query.when).trim() : null;
-    if (!code || !user || !Number.isFinite(amount)) {
-      return res.status(400).json({ error: 'code, user, amount are required' });
-    }
+    const { promotion_id = '', booking_date, city, user_id, amount } = req.body || {};
+    if (!promotion_id) return res.status(400).json({ error: 'promotion_id is required' });
+
     const t0 = process.hrtime.bigint();
-    const data = await promoCheckApplicability(code, user, amount, when);
+    const data = await promoCheckApplicability(
+      promotion_id,
+      user_id,
+      amount,
+      booking_date ? String(booking_date) : undefined,
+      { llm: USE_LLM, context: { filters: { city }, user_id, amount, booking_date } }
+    );
     const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:promo-check');
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:promo-check');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-    return res.json({ success: true, code, user, amount, when, data });
+    return res.json({ success: true, promotion_id, booking_date, city, data });
   } catch (e) { next(e); }
 }
 
-/** GET /api/v1/ai/promotions/stats/:promotion_id */
 async function promoStatsHandler(req, res, next) {
   try {
-    const promotionId = String(req.params.promotion_id || '').trim();
+    const promotionId = String(req.query.promotion_id || '').trim();
     if (!promotionId) return res.status(400).json({ error: 'promotion_id is required' });
+
     const t0 = process.hrtime.bigint();
-    const data = await promoUsageStats(promotionId);
+    const data = await promoUsageStats(promotionId, { llm: USE_LLM });
     const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:promo-stats');
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:promo-stats');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-    return res.json({ success: true, promotionId, data });
+    return res.json({ success: true, promotion_id: promotionId, data });
   } catch (e) { next(e); }
 }
 
-/** GET /api/v1/ai/hotel-cities */
 async function hotelCitiesHandler(req, res, next) {
   try {
     const t0 = process.hrtime.bigint();
-    const data = await listHotelCities();
+    const data = await listHotelCities({ llm: USE_LLM });
     const t1 = process.hrtime.bigint();
-    res.set('X-Source', 'sql:hotel-cities');
+    res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:hotel-cities');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
     return res.json({ success: true, data });
   } catch (e) { next(e); }
 }
 
 module.exports = {
+  // AI entry
+  suggestHandler,
+
+  // Hotel
+  topHotelsHandler,
+  hotelsByAmenitiesHandler,
   searchHotelsHandler,
   hotelsByAnyAmenitiesHandler,
   hotelFullHandler,
+  hotelCitiesHandler,
+
+  // Promotions
+  promotionsByMonthHandler,
+  promotionsByMonthCityHandler,
+  promotionsByCityHandler,
   promotionsTodayHandler,
   promotionsTodayByCityHandler,
   promotionsByKeywordCityMonthHandler,
   promoCheckHandler,
   promoStatsHandler,
-  hotelCitiesHandler,
-  // endpoint “tất cả trong một”
-  suggestHandler,
-
-  // endpoints test SQL trực tiếp
-  topHotelsHandler,
-  hotelsByAmenitiesHandler,
-  promotionsByMonthHandler,
-  promotionsByMonthCityHandler,
-  promotionsByCityHandler,
 };
