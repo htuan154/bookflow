@@ -125,23 +125,26 @@ function SimpleList({ title, items = [], nameKey = 'name' }) {
 }
 
 function AssistantReply({ message }) {
-  // 1) reply.text
-  if (message?.reply?.text) {
-    return <div className="text-base leading-relaxed whitespace-pre-wrap">{message.reply.text}</div>;
+  // Lấy payload trước, rồi mới lấy summary để tránh return sớm
+  const pRaw = pickPayload(message);
+  const p = (pRaw && typeof pRaw === 'object') ? pRaw : null;
+  const summary = (p && p.summary) || message?.reply?.text || '';
+
+  // Nếu payload không phải object hợp lệ
+  if (!p) {
+    return summary
+      ? <div className="text-base leading-relaxed whitespace-pre-wrap">{summary}</div>
+      : <div className="text-base">(payload)</div>;
   }
 
-  // 2) payload
-  const p = pickPayload(message);
-  if (!p || (typeof p !== 'object' && !p.text)) return <div className="text-base">(payload)</div>;
-
-  // 2a) Clarify/no data
+  // 2a) Clarify / no data gợi ý
   if (p.clarify_required || (Array.isArray(p.suggestions) && p.suggestions.length === 0)) {
     return (
       <div className="space-y-3">
         <div className="text-base">Hiện mình chưa có đủ dữ liệu để trả lời câu hỏi này.</div>
         <div className="text-gray-700 text-base">Bạn có thể thử:</div>
         <ul className="list-disc pl-6 text-gray-700 space-y-1 text-base">
-          <li>Nhập rõ <b>tỉnh/thành</b> (VD: "Đà Nẵng", "Đà Lạt", "Hà Nội"…)</li>
+          <li>Nhập rõ <b>tỉnh/thành</b> (VD: "Đà Nẵng", "Đà Lạt", "Hà Nội"...)</li>
           <li>Thêm ngữ cảnh: "khách sạn <i>có hồ bơi</i>", "<i>voucher</i> khách sạn <i>tháng 9</i>"…</li>
           <li>Dùng nhanh: "Top 5 khách sạn Đà Nẵng", "Voucher khách sạn Hồ Chí Minh tháng 9"…</li>
         </ul>
@@ -149,17 +152,16 @@ function AssistantReply({ message }) {
     );
   }
 
-  // 2b) Render rich
+  // Trích xuất các mảng dữ liệu
   const hotels = p.hotels || p.data?.hotels || [];
   const promos = p.promotions || p.data?.promotions || [];
   const places = p.places || p.destinations || p.diem_den || [];
-  const foods = p.dishes || p.foods || p.mon_an || p.specialties || [];
-  const tips = p.tips || p.ghi_chu || p.notes || [];
+  const foods  = p.dishes || p.foods || p.mon_an || p.specialties || [];
+  const tips   = p.tips || p.ghi_chu || p.notes || [];
 
-  // Kiểm tra nếu tất cả mảng đều rỗng
+  // Kiểm tra hoàn toàn rỗng
   const allEmpty = hotels.length === 0 && promos.length === 0 && places.length === 0 && foods.length === 0 && tips.length === 0;
-  
-  // Nếu có structure dự kiến nhưng tất cả mảng rỗng
+
   if (allEmpty && (p.hotels !== undefined || p.promotions !== undefined || p.places !== undefined || p.dishes !== undefined || p.foods !== undefined)) {
     return (
       <div className="space-y-3">
@@ -179,6 +181,7 @@ function AssistantReply({ message }) {
   if (hasAny) {
     return (
       <div className="space-y-5">
+        {summary && <div className="text-base leading-relaxed whitespace-pre-wrap">{summary}</div>}
         <HotelsList hotels={hotels} />
         <PromotionsList promotions={promos} />
         <SimpleList title="Địa danh gợi ý" items={places} />
@@ -188,7 +191,10 @@ function AssistantReply({ message }) {
     );
   }
 
-  // 2c) Không nhận diện được → in JSON đầy đủ
+  // 2c) Không nhận diện được → nếu có summary thì in summary, nếu không in JSON
+  if (summary) {
+    return <div className="text-base leading-relaxed whitespace-pre-wrap">{summary}</div>;
+  }
   try {
     return (
       <pre className="text-sm leading-relaxed whitespace-pre-wrap break-words">
@@ -254,6 +260,19 @@ export default function AdminSuggestionsPage() {
     const text = msg.trim();
     if (!text || sending) return;
 
+    // Optional: hạn chế độ dài để tránh request quá lớn
+    if (text.length > 2000) {
+      setMessages(prev => [
+        ...prev,
+        {
+          reply: { text: '❗ Câu hỏi quá dài (>' + text.length + ' ký tự). Vui lòng rút gọn.' },
+          created_at: new Date().toISOString(),
+          source: 'system'
+        }
+      ]);
+      return;
+    }
+
     let sid = activeSession;
     if (!sid) {
       sid = crypto.randomUUID();
@@ -269,37 +288,52 @@ export default function AdminSuggestionsPage() {
         { message: { text }, created_at: new Date().toISOString(), source: 'client' },
       ]);
 
-      // Kiểm tra token trước khi gửi
       const token = localStorage.getItem('accessToken');
-      console.log('🔑 Token found:', !!token, token?.slice(0, 20) + '...');
 
-      // Gọi BE
-      const body = { message: text };
-      const h = { 
-        ...headers, 
-        'X-Session-Id': sid,
-        // Đảm bảo Authorization header được gửi
-        ...(token && { Authorization: `Bearer ${token}` })
+      // Body mở rộng ép LLM + chỗ để truyền các tham số tùy chọn
+      const body = {
+        message: text,
+        use_llm: true,
+        // top_n: 8,
+        // filters: { amenities: ['pool'] },
       };
-      
-      console.log('📤 Headers sent:', h);
-      
-      const res = await chatSuggest(text, body, h);
-      console.log('📥 Response:', res);
 
-      // Push assistant tạm (render đầy đủ từ payload)
+      // Headers (ép LLM thêm 1 lần qua header để BE ưu tiên)
+      const h = {
+        ...headers,
+        'X-Session-Id': sid,
+        'x-use-llm': 'true',
+        // Có token thì gắn (ghi đè phòng khi headers cũ chưa có)
+        ...(token && { Authorization: `Bearer ${token}` }),
+      };
+
+      // Gửi
+      const res = await chatSuggest(text, body, h);
+
+      // Push assistant (res trả raw payload → để AssistantReply xử lý)
       setMessages((prev) => [
         ...prev,
-        { replyPayload: res, created_at: new Date().toISOString(), source: res?.source || 'nosql+llm' },
+        {
+          replyPayload: res,
+          created_at: new Date().toISOString(),
+          source: res?.source || 'nosql+llm'
+        },
       ]);
 
       setMsg('');
-      // Đồng bộ lại từ server (đã lưu lịch sử)
+      // Đồng bộ lại từ server (trong trường hợp BE lưu log khác)
       setTimeout(() => openSession(sid), 250);
-      // Refresh danh sách phiên
       loadSessions();
     } catch (e) {
       console.error('❌ Chat error:', e?.response?.data || e?.message);
+      setMessages(prev => [
+        ...prev,
+        {
+          reply: { text: '⚠️ Gửi thất bại: ' + (e?.response?.data?.message || e.message || 'Unknown error') },
+          created_at: new Date().toISOString(),
+          source: 'error'
+        }
+      ]);
     } finally {
       setSending(false);
     }
