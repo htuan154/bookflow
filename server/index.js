@@ -61,10 +61,15 @@ const port = process.env.PORT || 8080;
 app.use(cors({
   origin: 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Id', 'X-User-Id', 'Last-Event-ID']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Id', 'X-User-Id', 'Last-Event-ID','x-use-llm' ]
 }));
 app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ extended: true }));
+// Cho FE đọc header chẩn đoán
+app.use((req, res, next) => {
+  res.set('Access-Control-Expose-Headers', 'X-Source, X-Latency-ms');
+  next();
+});
 
 
 // --- Swagger ---

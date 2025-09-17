@@ -5088,9 +5088,6 @@
                   "top_n": {
                     "example": "any"
                   },
-                  "use_llm": {
-                    "example": "any"
-                  },
                   "session_id": {
                     "example": "any"
                   }
@@ -5338,14 +5335,14 @@
         "description": "",
         "parameters": [
           {
-            "name": "city",
+            "name": "q",
             "in": "query",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "q",
+            "name": "city",
             "in": "query",
             "schema": {
               "type": "string"
@@ -5362,9 +5359,6 @@
         "responses": {
           "200": {
             "description": "OK"
-          },
-          "400": {
-            "description": "Bad Request"
           }
         }
       }
@@ -5413,6 +5407,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5428,15 +5429,6 @@
     "/ai/promotions/today": {
       "get": {
         "description": "",
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -5450,13 +5442,6 @@
         "parameters": [
           {
             "name": "city",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
             "in": "query",
             "schema": {
               "type": "string"
@@ -5478,14 +5463,14 @@
         "description": "",
         "parameters": [
           {
-            "name": "city",
+            "name": "q",
             "in": "query",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "kw",
+            "name": "city",
             "in": "query",
             "schema": {
               "type": "string"
@@ -5516,9 +5501,6 @@
         "responses": {
           "200": {
             "description": "OK"
-          },
-          "400": {
-            "description": "Bad Request"
           }
         }
       }
@@ -5526,36 +5508,6 @@
     "/ai/promotions/check": {
       "get": {
         "description": "",
-        "parameters": [
-          {
-            "name": "code",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "user",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "amount",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "when",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -5574,6 +5526,13 @@
             "name": "promotion_id",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "promotion_id",
+            "in": "query",
             "schema": {
               "type": "string"
             }
