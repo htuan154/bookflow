@@ -116,6 +116,18 @@ const ContractTable = ({
         }
     };
 
+    // Check if all selected contracts are pending
+    const areAllSelectedPending = useMemo(() => {
+        if (selectedContracts.length === 0) return false;
+        
+        const selectedContractObjects = contracts.filter(contract => {
+            const contractId = contract.contractId || contract.contract_id || contract.id || contract._id;
+            return selectedContracts.includes(contractId);
+        });
+        
+        return selectedContractObjects.every(contract => contract.status === 'pending');
+    }, [selectedContracts, contracts]);
+
     // Handle edit contract
     const handleEditContract = (contract) => {
         setEditingContract(contract);
@@ -385,24 +397,33 @@ const ContractTable = ({
                                 </span>
                             </div>
                             <div className="flex space-x-3">
-                                <button
-                                    onClick={() => onApprove && onApprove(selectedContracts)}
-                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
-                                >
-                                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                    Duyệt 
-                                </button>
-                                <button
-                                    onClick={() => onReject && onReject(selectedContracts)}
-                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
-                                >
-                                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
-                                    Từ chối 
-                                </button>
+                                {areAllSelectedPending && (
+                                    <>
+                                        <button
+                                            onClick={() => onApprove && onApprove(selectedContracts)}
+                                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-lg text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                            Duyệt 
+                                        </button>
+                                        <button
+                                            onClick={() => onReject && onReject(selectedContracts)}
+                                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-semibold rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                            </svg>
+                                            Từ chối 
+                                        </button>
+                                    </>
+                                )}
+                                {!areAllSelectedPending && selectedContracts.length > 0 && (
+                                    <div className="text-sm text-gray-600 italic">
+                                        Chỉ có thể duyệt/từ chối khi tất cả hợp đồng được chọn đều ở trạng thái "Chờ duyệt"
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -614,48 +635,42 @@ const ContractTable = ({
                                     {showActions && (
                                         <td className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end space-x-2">
-                                                {/* Chỉ hiển thị nút Duyệt và Từ chối nếu trạng thái là 'pending' */}
-                                                {contract.status === 'pending' && (
+                                                {contract.status === 'pending' ? (
+                                                    <button
+                                                        onClick={() => onViewDetail && onViewDetail(contract)}
+                                                        className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1 transition-all duration-200 transform hover:scale-105"
+                                                    >
+                                                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                        </svg>
+                                                        Xem
+                                                    </button>
+                                                ) : (
                                                     <>
                                                         <button
-                                                            onClick={() => onApprove && onApprove([contract.contractId])}
-                                                            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 hover:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 transition-all duration-200 transform hover:scale-105"
+                                                            onClick={() => onViewDetail && onViewDetail(contract)}
+                                                            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1 transition-all duration-200 transform hover:scale-105"
                                                         >
-                                                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                                             </svg>
-                                                            Duyệt
+                                                            Xem
                                                         </button>
-                                                        <button
-                                                            onClick={() => onReject && onReject([contract.contractId])}
-                                                            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all duration-200 transform hover:scale-105"
-                                                        >
-                                                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                                            </svg>
-                                                            Từ chối
-                                                        </button>
+                                                        {contract.status === 'active' && (
+                                                            <button
+                                                                onClick={() => handleEditContract(contract)}
+                                                                className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-all duration-200 transform hover:scale-105"
+                                                            >
+                                                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                </svg>
+                                                                Sửa
+                                                            </button>
+                                                        )}
                                                     </>
                                                 )}
-                                                <button
-                                                    onClick={() => onViewDetail && onViewDetail(contract)}
-                                                    className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1 transition-all duration-200 transform hover:scale-105"
-                                                >
-                                                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                    </svg>
-                                                    Xem
-                                                </button>
-                                                <button
-                                                    onClick={() => handleEditContract(contract)}
-                                                    className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-all duration-200 transform hover:scale-105"
-                                                >
-                                                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>
-                                                    Sửa
-                                                </button>
                                             </div>
                                         </td>
                                     )}
@@ -845,11 +860,20 @@ const ContractTable = ({
                                                     onChange={(e) => setEditFormData(prev => ({ ...prev, status: e.target.value }))}
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                                                 >
-                                                    <option value="pending">Chờ duyệt</option>
-                                                    <option value="active">Đang hiệu lực</option>
-                                                    <option value="expired">Hết hạn</option>
-                                                    <option value="terminated">Đã chấm dứt</option>
-                                                    <option value="cancelled">Đã hủy</option>
+                                                    {editingContract.status === 'active' ? (
+                                                        <>
+                                                            <option value="active">Đang hiệu lực</option>
+                                                            <option value="terminated">Đã chấm dứt</option>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <option value="pending">Chờ duyệt</option>
+                                                            <option value="active">Đang hiệu lực</option>
+                                                            <option value="expired">Hết hạn</option>
+                                                            <option value="terminated">Đã chấm dứt</option>
+                                                            <option value="cancelled">Đã hủy</option>
+                                                        </>
+                                                    )}
                                                 </select>
                                             </div>
                                         </div>

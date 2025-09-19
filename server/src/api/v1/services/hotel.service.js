@@ -127,7 +127,7 @@ class HotelService {
    * Cập nhật trạng thái khách sạn (Admin)
    */
   async updateHotelStatus(hotelId, newStatus) {
-    const validStatuses = ['pending', 'approved', 'rejected'];
+    const validStatuses = ['draft', 'pending', 'approved', 'rejected', 'active', 'inactive'];
     if (!validStatuses.includes(newStatus)) {
       throw new AppError('Trạng thái không hợp lệ', 400);
     }

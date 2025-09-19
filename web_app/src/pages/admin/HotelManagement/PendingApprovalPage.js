@@ -1,9 +1,48 @@
 // src/pages/admin/HotelManagement/PendingHotelsPage.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { hotelApiService } from '../../../api/hotel.service';
 //import PendingHotelsList from '../../../components/hotel/PendingHotelsList';
 import PendingHotelsList from '../../../components/hotel/PendingHotelList';
+
 const PendingHotelsPage = () => {
+    const [statusCounts, setStatusCounts] = useState({
+        pending: 0,
+        rejected: 0,
+        approved: 0,
+        active: 0,
+        inactive: 0,
+    });
+    const [loading, setLoading] = useState(true);
+
+    const fetchHotelStats = async () => {
+        try {
+            setLoading(true);
+            const [pendingRes, rejectedRes, approvedRes, activeRes, inactiveRes] = await Promise.all([
+                hotelApiService.getHotelsByStatus('pending'),
+                hotelApiService.getHotelsByStatus('rejected'),
+                hotelApiService.getHotelsByStatus('approved'),
+                hotelApiService.getHotelsByStatus('active'),
+                hotelApiService.getHotelsByStatus('inactive'),
+            ]);
+
+            setStatusCounts({
+                pending: (pendingRes.data || []).length,
+                rejected: (rejectedRes.data || []).length,
+                approved: (approvedRes.data || []).length,
+                active: (activeRes.data || []).length,
+                inactive: (inactiveRes.data || []).length,
+            });
+        } catch (error) {
+            console.error('Error fetching hotel stats:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchHotelStats();
+    }, []);
     return (
         <>
             <Helmet>
@@ -92,7 +131,7 @@ const PendingHotelsPage = () => {
                                                     Chờ duyệt
                                                 </dt>
                                                 <dd className="text-lg font-medium text-gray-900">
-                                                    --
+                                                    {loading ? '--' : statusCounts.pending}
                                                 </dd>
                                             </dl>
                                         </div>
@@ -116,7 +155,7 @@ const PendingHotelsPage = () => {
                                                     Đã từ chối
                                                 </dt>
                                                 <dd className="text-lg font-medium text-gray-900">
-                                                    --
+                                                    {loading ? '--' : statusCounts.rejected}
                                                 </dd>
                                             </dl>
                                         </div>
@@ -137,10 +176,10 @@ const PendingHotelsPage = () => {
                                         <div className="ml-5 w-0 flex-1">
                                             <dl>
                                                 <dt className="text-sm font-medium text-gray-500 truncate">
-                                                    Tổng cần xử lý
+                                                    Tổng khách sạn
                                                 </dt>
                                                 <dd className="text-lg font-medium text-gray-900">
-                                                    --
+                                                    {loading ? '--' : (statusCounts.pending + statusCounts.rejected + statusCounts.approved + statusCounts.active + statusCounts.inactive)}
                                                 </dd>
                                             </dl>
                                         </div>
@@ -164,7 +203,7 @@ const PendingHotelsPage = () => {
                                                     Đã duyệt
                                                 </dt>
                                                 <dd className="text-lg font-medium text-gray-900">
-                                                    --
+                                                    {loading ? '--' : statusCounts.approved}
                                                 </dd>
                                             </dl>
                                         </div>
@@ -188,7 +227,7 @@ const PendingHotelsPage = () => {
                                                     Đang hoạt động
                                                 </dt>
                                                 <dd className="text-lg font-medium text-gray-900">
-                                                    --
+                                                    {loading ? '--' : statusCounts.active}
                                                 </dd>
                                             </dl>
                                         </div>
@@ -212,7 +251,7 @@ const PendingHotelsPage = () => {
                                                     Ngừng hoạt động
                                                 </dt>
                                                 <dd className="text-lg font-medium text-gray-900">
-                                                    --
+                                                    {loading ? '--' : statusCounts.inactive}
                                                 </dd>
                                             </dl>
                                         </div>
@@ -222,7 +261,7 @@ const PendingHotelsPage = () => {
                         </div>
 
                         {/* Quick Actions */}
-                        <div className="bg-white shadow rounded-lg mb-8">
+                        {/* <div className="bg-white shadow rounded-lg mb-8">
                             <div className="px-4 py-5 sm:p-6">
                                 <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                                     Thao tác nhanh
@@ -248,11 +287,11 @@ const PendingHotelsPage = () => {
                                     </button>
                                 </div>
                             </div>
-                        </div>
+                        </div> */}
 
                         {/* Main Content */}
                         <div className="space-y-6">
-                            <PendingHotelsList />
+                            <PendingHotelsList onStatsRefresh={fetchHotelStats} />
                         </div>
 
                         {/* Footer Info */}

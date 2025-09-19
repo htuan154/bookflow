@@ -291,7 +291,7 @@ const HotelDetail = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+      <div className="bg-gradient-to-r from-orange-600 to-orange-600 text-white">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -305,8 +305,8 @@ const HotelDetail = () => {
               </button>
               <div>
                 <h1 className="text-3xl font-bold">{hotel.name}</h1>
-                <p className="text-blue-100 mt-1">Chi tiết thông tin khách sạn</p>
-                <p className="text-blue-200 text-sm">ID: {hotel.hotelId}</p>
+                <p className="text-orange-100 mt-1">Chi tiết thông tin khách sạn</p>
+                <p className="text-orange-200 text-sm">ID: {hotel.hotelId}</p>
               </div>
             </div>
             <div className="text-right">
@@ -314,7 +314,7 @@ const HotelDetail = () => {
                 {[...Array(5)].map((_, i) => (
                   <svg
                     key={i}
-                    className={`w-5 h-5 ${i < Math.floor(hotel.averageRating || 0) ? 'text-yellow-400' : 'text-blue-300'}`}
+                    className={`w-5 h-5 ${i < Math.floor(hotel.averageRating || 0) ? 'text-yellow-400' : 'text-orange-300'}`}
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -323,7 +323,7 @@ const HotelDetail = () => {
                 ))}
                 <span className="ml-2 font-semibold">{hotel.averageRating || 0}/5</span>
               </div>
-              <p className="text-blue-100 text-sm mt-1">
+              <p className="text-orange-100 text-sm mt-1">
                 {hotel.totalReviews || 0} đánh giá • {hotel.starRating || 'N/A'} sao
               </p>
             </div>

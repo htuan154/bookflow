@@ -275,9 +275,9 @@ export const API_ENDPOINTS = {
         
         // Hotel Status Management
         UPDATE_HOTEL_STATUS: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/status`,
-        APPROVE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/approve`,
-        REJECT_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/reject`,
-        RESTORE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/restore`,
+        APPROVE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/status`,
+        REJECT_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/status`,
+        RESTORE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/admin/${hotelId}/status`,
 
         // Hotel Filter Endpoints for Admin
         GET_APPROVED_HOTELS: `${API_BASE_URL}/hotels/admin/status/approved`,
@@ -487,6 +487,13 @@ export const API_ENDPOINTS = {
         
         // Trả lời bình luận - sử dụng route có sẵn của blogComment
         REPLY_COMMENT: (blogId, commentId) => `${API_BASE_URL}/blogs/${blogId}/comments/${commentId}/reply`,
+    },
+
+    // --- Notification Endpoints ---
+    NOTIFICATIONS: {
+        CREATE: `${API_BASE_URL}/notification-for-contract`,
+        GET_BY_RECEIVER: (receiverId) => `${API_BASE_URL}/notification-for-contract/receiver/${receiverId}`,
+        MARK_AS_READ: (id) => `${API_BASE_URL}/notification-for-contract/${id}/read`,
     },
 
     // Common endpoints
