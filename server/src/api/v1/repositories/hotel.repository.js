@@ -25,7 +25,7 @@ const create = async (hotelData, ownerId) => {
   } = hotelData;
 
   // Đặt trạng thái mặc định là 'pending' cho khách sạn mới
-  const status = 'pending';
+  const status = 'draft';// sửa ngày 10/09 từ pending thành draft
 
   const query = `
     INSERT INTO hotels (
@@ -72,21 +72,37 @@ const findAll = async (limit = 10, offset = 0) => {
 };
 
 /**
- * Cập nhật thông tin khách sạn
+ * Cập nhật thông tin khách sạn có chỉnh sửa ngày 19/9
  * @param {string} hotelId - ID của khách sạn
  * @param {Object} hotelData - Dữ liệu cập nhật
  * @returns {Promise<Hotel|null>}
  */
 const update = async (hotelId, hotelData) => {
-  const { name, description, address, city, starRating, phoneNumber, email } = hotelData;
+  // Thêm cập nhật status nếu truyền lên
+  const {
+    name,
+    description,
+    address,
+    city,
+    starRating,
+    phoneNumber,
+    email,
+    status
+  } = hotelData;
+
+  // Xây dựng câu lệnh động: nếu có status thì cập nhật luôn
+  let setClause = `name = $2, description = $3, address = $4, city = $5, star_rating = $6, phone_number = $7, email = $8`;
+  let values = [hotelId, name, description, address, city, starRating, phoneNumber, email];
+  if (typeof status !== 'undefined') {
+    setClause += ', status = $9';
+    values.push(status);
+  }
   const query = `
     UPDATE hotels
-    SET name = $2, description = $3, address = $4, city = $5,
-        star_rating = $6, phone_number = $7, email = $8
+    SET ${setClause}
     WHERE hotel_id = $1
     RETURNING *;
   `;
-  const values = [hotelId, name, description, address, city, starRating, phoneNumber, email];
   const result = await pool.query(query, values);
   if (!result.rows[0]) return null;
   return new Hotel(result.rows[0]);

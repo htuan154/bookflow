@@ -114,10 +114,10 @@ export const API_ENDPOINTS = {
 
     // --- Room Type Image Endpoints ---
     ROOM_TYPE_IMAGES: {
-        GET_IMAGES: (roomTypeId) => `${API_BASE_URL}/roomtypes/${roomTypeId}/images`,
-        UPLOAD: (roomTypeId) => `${API_BASE_URL}/roomtypes/${roomTypeId}/images`,
-        DELETE: (roomTypeId, imageId) => `${API_BASE_URL}/roomtypes/${roomTypeId}/images/${imageId}`,
-        SET_THUMBNAIL: (roomTypeId, imageId) => `${API_BASE_URL}/roomtypes/${roomTypeId}/images/${imageId}/set-thumbnail`,
+        GET_IMAGES: (roomTypeId) => `${API_BASE_URL}/room-types/${roomTypeId}/images`,
+        UPLOAD: (roomTypeId) => `${API_BASE_URL}/room-types/${roomTypeId}/images`,
+        DELETE: (roomTypeId, imageId) => `${API_BASE_URL}/room-types/${roomTypeId}/images/${imageId}`,
+        SET_THUMBNAIL: (roomTypeId, imageId) => `${API_BASE_URL}/room-types/${roomTypeId}/images/${imageId}/set-thumbnail`,
     },
     // --- Review Endpoints ---
     REVIEWS: {
@@ -374,7 +374,7 @@ export const API_ENDPOINTS = {
     INCREMENT_VIEW: (blogId) => `${API_BASE_URL}/blogs/${blogId}/view`,
     },
 
-    // --- Hotel Owner Endpoints ---
+    // --- Hotel Owner ---
     HOTEL_OWNER: {
         // Thêm các endpoints cho hotel owner
         GET_MY_HOTELS: `${API_BASE_URL}/hotels/my-hotels`,
@@ -384,6 +384,7 @@ export const API_ENDPOINTS = {
         DELETE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
         
         // Image management
+        GET_IMAGES_BY_HOTEL_ID: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/images`,
         UPLOAD_IMAGES: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/images`,
         DELETE_IMAGE: (hotelId, imageId) => `${API_BASE_URL}/hotels/${hotelId}/images/${imageId}`,
         SET_THUMBNAIL: (hotelId, imageId) => `${API_BASE_URL}/hotels/${hotelId}/images/${imageId}/set-thumbnail`,
@@ -414,44 +415,6 @@ export const API_ENDPOINTS = {
         UPDATE: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
         DELETE: (staffId) => `${API_BASE_URL}/staff/${staffId}`, // Soft delete (remove from hotel)
         DELETE_PERMANENT: (staffId) => `${API_BASE_URL}/staff/${staffId}/permanent`, // Hard delete (admin only)
-    },
-
-    // Common endpoints
-    COMMON: {
-        GET_AMENITIES: `${API_BASE_URL}/amenities`,
-        SEARCH_HOTELS: `${API_BASE_URL}/hotels/search`,
-        GET_CITIES: `${API_BASE_URL}/hotels/cities`,
-    },
-
-    // --- Hotel Owner Endpoints ---
-    HOTEL_OWNER: {
-        // Thêm các endpoints cho hotel owner
-        GET_MY_HOTELS: `${API_BASE_URL}/hotels/my-hotels`,
-        GET_HOTEL_DETAIL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
-        CREATE_HOTEL: `${API_BASE_URL}/hotels`,
-        UPDATE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
-        DELETE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
-        
-        // Image management
-        UPLOAD_IMAGES: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/images`,
-        DELETE_IMAGE: (hotelId, imageId) => `${API_BASE_URL}/hotels/${hotelId}/images/${imageId}`,
-        SET_THUMBNAIL: (hotelId, imageId) => `${API_BASE_URL}/hotels/${hotelId}/images/${imageId}/set-thumbnail`,
-        
-        // Status & amenities
-        UPDATE_STATUS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/status`,
-        UPDATE_AMENITIES: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/amenities`,
-        SUBMIT_FOR_APPROVAL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/submit`,
-        GET_STATISTICS: (hotelId = '') => `${API_BASE_URL}/hotels${hotelId ? `/${hotelId}` : ''}/statistics`,
-    },
-
-    // --- Staff Management Endpoints (Hotel Owner) ---
-    STAFF: {
-        GET_HOTEL_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff`,
-        CREATE: `${API_BASE_URL}/staff`,
-        UPDATE: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
-        DELETE: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
-        UPDATE_STATUS: (staffId) => `${API_BASE_URL}/staff/${staffId}/status`,
-        GET_BY_ID: (staffId) => `${API_BASE_URL}/staff/${staffId}`,
     },
 
     // --- Blog Comment Endpoints ---

@@ -101,8 +101,8 @@ async function myDailyTask() {
 }
 
 function startDailyJob() {
-  //cron.schedule('0 7 * * *', myDailyTask, { timezone: 'Asia/Ho_Chi_Minh' });
-  cron.schedule('*/10 * * * * *', myDailyTask); // mỗi 10 giây để test
+  cron.schedule('0 7 * * *', myDailyTask, { timezone: 'Asia/Ho_Chi_Minh' });
+  //cron.schedule('*/10 * * * * *', myDailyTask); // mỗi 10 giây để test
 }
 
 module.exports = { startDailyJob };

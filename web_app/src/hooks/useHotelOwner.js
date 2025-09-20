@@ -65,20 +65,16 @@ export const useHotelOwner = () => {
         try {
             setLoading(true);
             setError(null);
-            
-            const formData = new FormData();
-            files.forEach(file => {
-                formData.append('images', file);
-            });
-            
-            const response = await hotelApiService.uploadHotelImages(hotelId, formData);
-            
+
+            // Truyền trực tiếp mảng images (files) vào API service
+            const response = await hotelApiService.uploadHotelImages(hotelId, files);
+
             // Cập nhật dữ liệu local với hình ảnh mới
             setHotelData(prev => ({
                 ...prev,
                 images: [...(prev?.images || []), ...(response.data?.images || [])]
             }));
-            
+
             return response.data;
         } catch (error) {
             console.error('Error uploading images:', error);
@@ -172,6 +168,24 @@ export const useHotelOwner = () => {
         }
     }, []);
 
+    // Tạo mới khách sạn
+    const createOwnerHotel = useCallback(async (hotelData) => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await hotelApiService.createHotel(hotelData);
+            // Refetch lại danh sách khách sạn sau khi tạo mới
+            await fetchOwnerHotel();
+            return response.data || response;
+        } catch (error) {
+            console.error('Error creating hotel:', error);
+            setError(error?.response?.data?.message || error.message || 'Không thể tạo khách sạn mới');
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, [fetchOwnerHotel]);
+
     // Clear error
     const clearError = useCallback(() => {
         setError(null);
@@ -240,6 +254,7 @@ export const useHotelOwner = () => {
         resetState,
         updateHotelAmenities,
         getAvailableAmenities,
+        createOwnerHotel,
         
         // Utility functions
         getStatusText,

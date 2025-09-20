@@ -3,7 +3,19 @@ import { API_ENDPOINTS } from '../config/apiEndpoints';
 import axiosClient from '../config/axiosClient';
 
 export const hotelApiService = {
-  // Existing methods...
+  /**
+   * Lấy danh sách hình ảnh theo hotelId thêm vào ngày 12/9
+   */
+    async getImagesByHotelId(hotelId) {
+      try {
+        const response = await axiosClient.get(API_ENDPOINTS.HOTEL_OWNER.GET_IMAGES_BY_HOTEL_ID(hotelId));
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching images by hotel ID:', error);
+        throw error;
+      }
+    },
+ 
 
   /**
    * Lấy tất cả hotels cho admin (existing method)
@@ -200,20 +212,28 @@ export const hotelApiService = {
   /**
    * Upload hình ảnh cho hotel
    */
-  async uploadHotelImages(hotelId, formData) {
+  async uploadHotelImages(hotelId, images) {  
     try {
+      const endpoint = API_ENDPOINTS.HOTEL_OWNER.UPLOAD_IMAGES(hotelId);
+      // Kiểm tra kiểu dữ liệu images trước khi gửi lên backend
+      console.log('DEBUG images:', images, Array.isArray(images));
+      if (!Array.isArray(images)) {
+        throw new Error('images phải là một mảng');
+      }
       const response = await axiosClient.post(
-        API_ENDPOINTS.HOTEL_OWNER.UPLOAD_IMAGES(hotelId), 
-        formData,
+        endpoint,
+        { images }, // truyền đúng format JSON
         {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            'Content-Type': 'application/json',
           }
         }
       );
       return response.data;
     } catch (error) {
       console.error('Error uploading hotel images:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
       throw error;
     }
   },
@@ -365,9 +385,6 @@ export const hotelApiService = {
       throw error;
     }
   },
-
-
-
   /**
    * Lấy thông tin chi tiết hotel theo ID
    */
@@ -535,5 +552,12 @@ export const hotelApiService = {
       console.error('❌ [HOTEL SERVICE] Error fetching complete hotel data:', error);
       throw error;
     }
-  }
+  },
+  /**
+   * Đặt hình ảnh đại diện cho khách sạn (thumbnail) ngay 18/9
+   */
+  async setThumbnail(hotelId, imageId) {
+    // PATCH endpoint giống như hình ảnh phòng
+    return axiosClient.patch(API_ENDPOINTS.HOTEL_IMAGES.SET_THUMBNAIL(hotelId, imageId));
+  },
 };

@@ -22,7 +22,7 @@ export function useRoomTypeList({
   useEffect(() => {
     if (auto && hotelId) refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hotelId, auto, params.page, params.limit, params.search, params.sortBy, params.sortOrder]);
+  }, [hotelId, auto]); // Loại bỏ các params phụ nếu không cần thiết
 
   return { list: roomTypes, loading, error, params, setParams, refresh };
 }
@@ -54,8 +54,17 @@ export function useRoomTypeEditor() {
 
 export function useRoomTypeById(roomTypeId) {
   const { roomTypes } = useRoomTypeContext();
-  return useMemo(
-    () => roomTypes.find(rt => (rt?.room_type_id ?? rt?.id) === roomTypeId) || null,
-    [roomTypes, roomTypeId]
-  );
+  return useMemo(() => {
+    // Sửa lỗi: validate roomTypeId trước khi tìm
+    if (!roomTypeId || roomTypeId === 'undefined' || roomTypeId === 'null') {
+      return null;
+    }
+    
+    // So sánh UUID string trực tiếp
+    const searchId = String(roomTypeId).toLowerCase();
+    return roomTypes.find(rt => {
+      const rtId = rt?.room_type_id ?? rt?.id;
+      return String(rtId).toLowerCase() === searchId;
+    }) || null;
+  }, [roomTypes, roomTypeId]);
 }
