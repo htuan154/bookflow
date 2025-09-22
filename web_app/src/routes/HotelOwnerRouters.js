@@ -31,6 +31,11 @@ import ContractManagement from '../pages/hotel_owner/contract_management/Contrac
 import { IMProvider } from '../context/IMContext';
 import OwnerMessagesPage from '../pages/hotel_owner/messages';
 
+// === Pricing Pages
+import PricingIndex from '../pages/hotel_owner/pricing';
+import RatesPage from '../pages/hotel_owner/pricing/RatesPage';
+import PromotionsPage from '../pages/hotel_owner/pricing/PromotionsPage';
+
 
 const HotelOwnerRoutes = () => {
   const { isAuthenticated, user } = useAuth();
@@ -82,6 +87,11 @@ const HotelOwnerRoutes = () => {
                     <OwnerMessagesPage />
                   </IMProvider>
                 } />
+
+                {/* ======================= PRICING MANAGEMENT ======================= */}
+                <Route path="pricing" element={<PricingIndex />} />
+                <Route path="pricing/rates" element={<RatesPage />} />
+                <Route path="pricing/promotions" element={<PromotionsPage />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
