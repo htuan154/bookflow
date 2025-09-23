@@ -14,6 +14,30 @@ class PromotionService {
         }
     }
 
+    async createPromotionDetails(promotionId, detailsData) {
+        try {
+            if (!promotionId) {
+                throw new Error('Promotion ID is required');
+            }
+            const response = await axiosClient.post(API_ENDPOINTS.PROMOTIONS.CREATE_DETAILS_BULK(promotionId), detailsData);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getPromotionsByHotelId(hotelId) {
+        try {
+            if (!hotelId) {
+                throw new Error('Hotel ID is required');
+            }
+            const response = await axiosClient.get(API_ENDPOINTS.PROMOTIONS.GET_BY_HOTEL_ID(hotelId));
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
     async validatePromotionCode(code, bookingInfo = {}) {
         try {
             const response = await axiosClient.post(API_ENDPOINTS.PROMOTIONS.VALIDATE_CODE, {
@@ -45,8 +69,9 @@ class PromotionService {
             return result;
             
         } catch (error) {
+            console.error('❌ Error creating promotion:', error);
             const errorResult = this.handleError(error, 'Không thể tạo khuyến mãi');
-            throw errorResult;
+            return errorResult;
         }
     }
 
@@ -84,14 +109,10 @@ class PromotionService {
         try {
             if (!promotionId) throw new Error('ID khuyến mãi là bắt buộc');
 
-            const response = await axiosClient.get(API_ENDPOINTS.PROMOTIONS.GET_BY_ID(promotionId));
-            return {
-                success: true,
-                data: response.data,
-                message: 'Lấy thông tin khuyến mãi thành công'
-            };
+            const response = await axiosClient.get(API_ENDPOINTS.PROMOTIONS.GET_DETAILS(promotionId));
+            return response.data;
         } catch (error) {
-            throw this.handleError(error, 'Không thể lấy thông tin khuyến mãi');
+            throw this.handleError(error, 'Không thể lấy chi tiết khuyến mãi');
         }
     }
 
@@ -441,6 +462,73 @@ class PromotionService {
             discount_type: detailData.discountType,
             discount_value: detailData.discountValue
         };
+    }
+
+    // --- Promotion Details Methods ---
+    
+    async createPromotionDetails(promotionId, detailsData) {
+        try {
+            const response = await axiosClient.post(`/promotions/${promotionId}/details/bulk`, detailsData);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getPromotionDetailsByPromotionId(promotionId) {
+        try {
+            if (!promotionId) {
+                throw new Error('Promotion ID is required');
+            }
+            const response = await axiosClient.get(API_ENDPOINTS.PROMOTIONS.GET_DETAILS(promotionId));
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async updatePromotionDetail(promotionId, detailId, updateData) {
+        try {
+            const response = await axiosClient.put(API_ENDPOINTS.PROMOTIONS.UPDATE_DETAIL(promotionId, detailId), updateData);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async deletePromotionDetail(promotionId, detailId) {
+        try {
+            const response = await axiosClient.delete(API_ENDPOINTS.PROMOTIONS.DELETE_DETAIL(promotionId, detailId));
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async bulkUpdatePromotionDetails(promotionId, data) {
+        try {
+            const response = await axiosClient.put(API_ENDPOINTS.PROMOTIONS.UPDATE_DETAILS_BULK(promotionId), data);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    // --- Room Types Methods ---
+    
+    async getRoomTypesByHotelId(hotelId) {
+        try {
+            if (!hotelId) {
+                throw new Error('Hotel ID is required');
+            }
+            console.log('Calling API:', `/roomtypes/hotel/${hotelId}`);
+            const response = await axiosClient.get(`/roomtypes/hotel/${hotelId}`);
+            console.log('API response:', response);
+            return response.data;
+        } catch (error) {
+            console.error('Error in getRoomTypesByHotelId:', error);
+            throw this.handleError(error);
+        }
     }
 }
 

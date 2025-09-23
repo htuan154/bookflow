@@ -11,10 +11,39 @@ class BlogCommentService {
      * @param {string} userId - ID của người bình luận.
      * @returns {Promise<BlogComment>}
      */
+    // async createComment(commentData, userId) {
+    //     const { blog_id, parent_comment_id } = commentData;
+
+    //     // --- Kiểm tra nghiệp vụ ---
+    //     const blog = await blogRepository.findById(blog_id);
+    //     if (!blog || blog.status !== 'published') {
+    //         throw new AppError('Blog not found or is not published', 404);
+    //     }
+    //     if (parent_comment_id) {
+    //         const parentComment = await blogCommentRepository.findById(parent_comment_id);
+    //         if (!parentComment || parentComment.blogId !== blog_id) {
+    //             throw new AppError('Parent comment is invalid', 400);
+    //         }
+    //     }
+
+    //     const fullCommentData = {
+    //         ...commentData,
+    //         user_id: userId,
+    //         status: 'pending', // Mặc định là chờ duyệt
+    //     };
+
+    //     const newComment = await blogCommentRepository.create(fullCommentData);
+        
+    //     // TODO: Tăng comment_count trong bảng blogs
+    //     // await blogRepository.incrementCommentCount(blog_id);
+
+    //     return newComment;
+    // }
+
     async createComment(commentData, userId) {
         const { blog_id, parent_comment_id } = commentData;
 
-        // --- Kiểm tra nghiệp vụ ---
+        // --- Kiểm tra nghiệp vụ (giữ nguyên) ---
         const blog = await blogRepository.findById(blog_id);
         if (!blog || blog.status !== 'published') {
             throw new AppError('Blog not found or is not published', 404);
@@ -29,17 +58,12 @@ class BlogCommentService {
         const fullCommentData = {
             ...commentData,
             user_id: userId,
-            status: 'pending', // Mặc định là chờ duyệt
+            status: 'pending', // Luôn luôn là PENDING
         };
 
         const newComment = await blogCommentRepository.create(fullCommentData);
-        
-        // TODO: Tăng comment_count trong bảng blogs
-        // await blogRepository.incrementCommentCount(blog_id);
-
         return newComment;
     }
-
     /**
      * Lấy các bình luận của một bài blog (đã được cấu trúc).
      * @param {string} blogId - ID của bài blog.

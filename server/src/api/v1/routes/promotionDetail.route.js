@@ -21,4 +21,36 @@ router.post(
     promotionDetailController.addDetailsToPromotion
 );
 
+// POST /api/v1/promotions/:promotionId/details/bulk -> Tạo nhiều chi tiết khuyến mãi
+router.post(
+    '/bulk',
+    authenticate,
+    authorize(['admin', 'hotel_owner']),
+    promotionDetailController.createPromotionDetailsBulk
+);
+
+// PUT /api/v1/promotions/:promotionId/details/bulk-update -> Cập nhật nhiều chi tiết khuyến mãi
+router.put(
+    '/bulk-update',
+    authenticate,
+    authorize(['admin', 'hotel_owner']),
+    promotionDetailController.updatePromotionDetailsBulk
+);
+
+// PUT /api/v1/promotions/:promotionId/details/:detailId -> Cập nhật chi tiết
+router.put(
+    '/:detailId',
+    authenticate,
+    authorize(['admin', 'hotel_owner']),
+    promotionDetailController.updatePromotionDetail
+);
+
+// DELETE /api/v1/promotions/:promotionId/details/:detailId -> Xóa chi tiết
+router.delete(
+    '/:detailId',
+    authenticate,
+    authorize(['admin', 'hotel_owner']),
+    promotionDetailController.deletePromotionDetail
+);
+
 module.exports = router;

@@ -247,6 +247,7 @@ export const API_ENDPOINTS = {
     // Public
     GET_ALL: `${API_BASE_URL}/promotions`,
     GET_BY_CODE: (code) => `${API_BASE_URL}/promotions/code/${code}`,
+    GET_BY_HOTEL_ID: (hotelId) => `${API_BASE_URL}/promotions/hotel/${hotelId}`,
     VALIDATE_CODE: `${API_BASE_URL}/promotions/validate`,
 
     // Authenticated (Admin & Hotel Owner)
@@ -255,8 +256,13 @@ export const API_ENDPOINTS = {
     DELETE: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
 
 
+    // Promotion Details
     GET_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,
     ADD_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,
+    CREATE_DETAILS_BULK: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details/bulk`,
+    UPDATE_DETAILS_BULK: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details/bulk-update`,
+    UPDATE_DETAIL: (promotionId, detailId) => `${API_BASE_URL}/promotions/${promotionId}/details/${detailId}`,
+    DELETE_DETAIL: (promotionId, detailId) => `${API_BASE_URL}/promotions/${promotionId}/details/${detailId}`,
     GET_BY_ID: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
 
     // /promotions/:promotionId/usage-history

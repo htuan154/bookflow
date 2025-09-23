@@ -47,6 +47,16 @@ const findByCode = async (code) => {
 };
 
 /**
+ * Tìm tất cả các khuyến mãi theo hotel ID.
+ * @param {string} hotelId - UUID của khách sạn.
+ * @returns {Promise<Promotion[]>}
+ */
+const findByHotelId = async (hotelId) => {
+    const result = await pool.query('SELECT * FROM promotions WHERE hotel_id = $1', [hotelId]);
+    return result.rows.map(row => new Promotion(row));
+};
+
+/**
  * Tìm tất cả các khuyến mãi (có thể lọc theo khách sạn).
  * @param {object} [filters={}] - Bộ lọc (ví dụ: { hotelId }).
  * @returns {Promise<Promotion[]>}
@@ -138,6 +148,7 @@ module.exports = {
     create,
     findById,
     findByCode,
+    findByHotelId,
     findAll,
     findAllAndFilter, // thêm hàm mới này
     update,

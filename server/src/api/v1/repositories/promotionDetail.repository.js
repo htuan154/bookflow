@@ -48,11 +48,80 @@ const deleteByPromotionId = async (promotionId, client) => {
     await client.query(query, [promotionId]);
 };
 
+/**
+ * Lấy chi tiết khuyến mãi theo ID
+ * @param {string} detailId - ID của chi tiết.
+ * @returns {Promise<PromotionDetail|null>}
+ */
+const findById = async (detailId) => {
+    const query = 'SELECT * FROM promotion_details WHERE detail_id = $1';
+    const result = await pool.query(query, [detailId]);
+    return result.rows.length > 0 ? new PromotionDetail(result.rows[0]) : null;
+};
+
+/**
+ * Cập nhật chi tiết khuyến mãi
+ * @param {string} detailId - ID của chi tiết.
+ * @param {object} updateData - Dữ liệu cập nhật.
+ * @returns {Promise<PromotionDetail>}
+ */
+const update = async (detailId, updateData) => {
+    const { discount_type, discount_value } = updateData;
+    const query = `
+        UPDATE promotion_details 
+        SET discount_type = $2, discount_value = $3
+        WHERE detail_id = $1
+        RETURNING *;
+    `;
+    const values = [detailId, discount_type, discount_value];
+    const result = await pool.query(query, values);
+    return new PromotionDetail(result.rows[0]);
+};
+
+/**
+ * Cập nhật nhiều chi tiết khuyến mãi (bulk update)
+ * @param {Array<object>} detailsData - Mảng các đối tượng cần cập nhật.
+ * @returns {Promise<PromotionDetail[]>}
+ */
+const updateMany = async (detailsData) => {
+    const updatedDetails = [];
+    
+    for (const detail of detailsData) {
+        const { detailId, discount_type, discount_value } = detail;
+        const query = `
+            UPDATE promotion_details 
+            SET discount_type = $2, discount_value = $3
+            WHERE detail_id = $1
+            RETURNING *;
+        `;
+        const values = [detailId, discount_type, discount_value];
+        const result = await pool.query(query, values);
+        if (result.rows.length > 0) {
+            updatedDetails.push(new PromotionDetail(result.rows[0]));
+        }
+    }
+    
+    return updatedDetails;
+};
+
+/**
+ * Xóa chi tiết khuyến mãi theo ID
+ * @param {string} detailId - ID của chi tiết.
+ * @returns {Promise<void>}
+ */
+const deleteById = async (detailId) => {
+    const query = 'DELETE FROM promotion_details WHERE detail_id = $1';
+    await pool.query(query, [detailId]);
+};
 
 module.exports = {
     createMany,
     findByPromotionId,
     deleteByPromotionId,
+    findById,
+    update,
+    updateMany,
+    delete: deleteById,
 };
 
 

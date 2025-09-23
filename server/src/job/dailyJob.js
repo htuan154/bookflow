@@ -17,7 +17,7 @@
 
 const cron = require('node-cron');
 // Import service
-
+const { processPendingComments } = require('../workers/moderation.worker');
 
 const dailyJobService = require('../api/v1/services/dailyJob.service');
 const notificationService = require('../api/v1/services/nofiticationForContract.service');
@@ -100,9 +100,24 @@ async function myDailyTask() {
   }
 }
 
+async function moderationTask() {
+  console.log('CRON: Đã đến giờ, khởi động moderation worker...', new Date());
+  try {
+    await processPendingComments();
+    console.log('✅ Moderation worker hoàn thành thành công!');
+  } catch (err) {
+    console.error('❌ CRON: Worker gặp lỗi:', err);
+  }
+}
+
 function startDailyJob() {
+  // Chạy daily job vào 7h sáng mỗi ngày
   cron.schedule('0 7 * * *', myDailyTask, { timezone: 'Asia/Ho_Chi_Minh' });
-  //cron.schedule('*/10 * * * * *', myDailyTask); // mỗi 10 giây để test
+  
+  // Chạy moderation worker mỗi 10 phút
+  //cron.schedule('*/10 * * * *', moderationTask, { timezone: 'Asia/Ho_Chi_Minh' });
+  
+  //cron.schedule('*/10 * * * * *', moderationTask); // mỗi 10 giây để test
 }
 
 module.exports = { startDailyJob };
