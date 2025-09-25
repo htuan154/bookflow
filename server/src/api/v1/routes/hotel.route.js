@@ -37,7 +37,7 @@ const router = express.Router();
 
 // Debug middleware để track requests
 router.use((req, res, next) => {
-  console.log(`📍 Hotel Route: ${req.method} ${req.originalUrl}`);
+  //console.log(`📍 Hotel Route: ${req.method} ${req.originalUrl}`);
   next();
 });
 

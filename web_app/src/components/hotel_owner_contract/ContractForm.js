@@ -1,13 +1,44 @@
 // src/pages/hotel_owner/contract_management/ContractForm.js
 import React, { useState, useEffect } from 'react';
 
+// Helper to get default start_date: today + 7 days
+const getDefaultStartDate = () => {
+  const today = new Date();
+  today.setDate(today.getDate() + 7);
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+// Helper to get minimum allowed start date (today + 7)
+const getMinStartDate = () => {
+  const today = new Date();
+  today.setDate(today.getDate() + 7);
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+// Helper to get minimum allowed end date (start_date + 30 days)
+const getMinEndDate = (startDate) => {
+  if (!startDate) return '';
+  const start = new Date(startDate);
+  start.setDate(start.getDate() + 30);
+  const yyyy = start.getFullYear();
+  const mm = String(start.getMonth() + 1).padStart(2, '0');
+  const dd = String(start.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 const initialState = {
   title: '',
   description: '',
   contract_type: 'Business',
   contract_value: '',
   currency: 'VND',
-  start_date: '',
+  start_date: getDefaultStartDate(), // Mặc định là hôm nay + 7
   end_date: '',
   payment_terms: '',
   terms_and_conditions: '',
@@ -24,46 +55,31 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
 
   // FIXED useEffect - xử lý dữ liệu contract đúng cách
   useEffect(() => {
-    console.log('=== CONTRACTFORM useEffect ===');
-    console.log('Contract prop:', contract);
-    
     if (contract && typeof contract === 'object') {
-      console.log('Setting form with contract data');
-      
       // Helper function để chuẩn hóa ngày
       const normalizeDate = (dateValue) => {
         if (!dateValue) return '';
-        
-        // Nếu đã là định dạng YYYY-MM-DD
         if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
           return dateValue;
         }
-        
-        // Nếu có timestamp hoặc ISO string
         if (typeof dateValue === 'string' && dateValue.includes('T')) {
           return dateValue.split('T')[0];
         }
-        
-        // Thử parse Date
         try {
           const date = new Date(dateValue);
           if (!isNaN(date.getTime())) {
             return date.toISOString().split('T')[0];
           }
-        } catch (e) {
-          console.warn('Invalid date:', dateValue);
-        }
-        
+        } catch (e) {}
         return '';
       };
-
       const formData = {
         title: contract.title || '',
         description: contract.description || '',
         contract_type: contract.contract_type || 'Business',
         contract_value: String(contract.contract_value || ''),
         currency: contract.currency || 'VND',
-        start_date: normalizeDate(contract.start_date),
+        start_date: normalizeDate(contract.start_date) || getDefaultStartDate(),
         end_date: normalizeDate(contract.end_date),
         payment_terms: contract.payment_terms || '',
         terms_and_conditions: contract.terms_and_conditions || '',
@@ -72,24 +88,82 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
         contract_file_url: contract.contract_file_url || '',
         hotel_id: contract.hotel_id || '',
       };
-      
-      console.log('Normalized form data:', formData);
       setForm(formData);
     } else {
-      console.log('No contract or invalid contract, resetting form');
-      setForm(initialState);
+      // Reset form với start_date mặc định là hôm nay + 7
+      setForm({ ...initialState, start_date: getDefaultStartDate() });
     }
   }, [contract]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'start_date' && value) {
+      // Chỉ cho chọn từ ngày hôm nay + 7 trở đi
+      const minDate = new Date(getMinStartDate());
+      const selectedDate = new Date(value);
+      minDate.setHours(0, 0, 0, 0);
+      selectedDate.setHours(0, 0, 0, 0);
+      if (selectedDate < minDate) {
+        alert(`Ngày bắt đầu phải từ ${getMinStartDate()} trở đi!`);
+        return;
+      }
+    }
+    if (name === 'end_date' && value) {
+      // Kiểm tra ngày kết thúc phải sau ngày bắt đầu ít nhất 30 ngày
+      if (form.start_date) {
+        const minEndDate = new Date(getMinEndDate(form.start_date));
+        const selectedEndDate = new Date(value);
+        minEndDate.setHours(0, 0, 0, 0);
+        selectedEndDate.setHours(0, 0, 0, 0);
+        if (selectedEndDate < minEndDate) {
+          alert(`Ngày kết thúc phải sau ngày bắt đầu ít nhất 30 ngày (từ ${getMinEndDate(form.start_date)} trở đi)!`);
+          return;
+        }
+      }
+      // Kiểm tra ngày kết thúc không được trước ngày hiện tại
+      const today = new Date();
+      const selectedEndDate = new Date(value);
+      today.setHours(0, 0, 0, 0);
+      selectedEndDate.setHours(0, 0, 0, 0);
+      if (selectedEndDate < today) {
+        alert('Ngày kết thúc không thể trước ngày hiện tại!');
+        return;
+      }
+    }
     setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Hàm lấy min cho ngày bắt đầu (hôm nay + 7)
+  const getStartDateMin = () => {
+    return getMinStartDate();
+  };
+
+  // Hàm lấy min cho ngày kết thúc
+  const getEndDateMin = () => {
+    if (form.start_date) {
+      // Nếu có ngày bắt đầu, min là start_date + 30 ngày
+      return getMinEndDate(form.start_date);
+    }
+    // Nếu chưa có ngày bắt đầu, min là ngày hiện tại + 7
+    return getMinStartDate();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    
+    // Kiểm tra ngày bắt đầu phải từ hôm nay + 7 ngày trở đi
+    const minStartDate = new Date(getMinStartDate());
+    const selectedStartDate = new Date(form.start_date);
+    minStartDate.setHours(0, 0, 0, 0);
+    selectedStartDate.setHours(0, 0, 0, 0);
+    
+    if (selectedStartDate < minStartDate) {
+      setError(`Ngày bắt đầu phải từ ${getMinStartDate()} (hôm nay + 7 ngày) trở đi. Vui lòng chọn lại!`);
+      setLoading(false);
+      return;
+    }
     
     try {
       await onSave(form);
@@ -136,11 +210,6 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
             required
           >
             <option value="Business">Business</option>
-            {/* Nếu muốn cho nhiều loại, cần backend hỗ trợ */}
-            {/* <option value="service">Hợp đồng dịch vụ</option>
-            <option value="partnership">Hợp đồng hợp tác</option>
-            <option value="booking">Hợp đồng đặt phòng</option>
-            <option value="maintenance">Hợp đồng bảo trì</option> */}
           </select>
         </div>
 
@@ -193,9 +262,13 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
               name="start_date"
               value={form.start_date}
               onChange={handleChange}
+              min={getStartDateMin()}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
               required
             />
+            <small className="text-gray-500 text-xs mt-1 block">
+              {`Ngày bắt đầu mặc định là ${getDefaultStartDate()} (hôm nay + 7 ngày). Có thể chọn từ ngày ${getMinStartDate()} trở đi.`}
+            </small>
           </div>
           <div>
             <label className="block font-semibold mb-1 text-gray-700">Ngày kết thúc *</label>
@@ -204,9 +277,16 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
               name="end_date"
               value={form.end_date}
               onChange={handleChange}
+              min={getEndDateMin()}
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
               required
             />
+            <small className="text-gray-500 text-xs mt-1 block">
+              {form.start_date 
+                ? `Ngày kết thúc phải sau ngày bắt đầu ít nhất 30 ngày (từ ${getMinEndDate(form.start_date)} trở đi).`
+                : 'Vui lòng chọn ngày bắt đầu trước.'
+              }
+            </small>
           </div>
         </div>
 
@@ -308,7 +388,6 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
     </div>
   );
 };
-
 
 export default ContractForm;
 

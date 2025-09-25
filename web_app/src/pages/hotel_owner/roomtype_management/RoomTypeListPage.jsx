@@ -4,6 +4,7 @@ import { Shield, Plus, Save, X, Pencil, Trash2, Users, Tag, Layers, Ruler, Hash 
 import { useHotelOwner } from '../../../hooks/useHotelOwner';
 import { RoomTypeContext, RoomTypeProvider } from '../../../context/RoomTypeContext';
 import { useRoomTypeList, useRoomTypeEditor } from '../../../hooks/useRoomType';
+import { useNavigate } from 'react-router-dom';
 
 const currency = (v) => (v == null ? '—' : Number(v).toLocaleString('vi-VN') + ' đ');
 
@@ -28,6 +29,7 @@ function Inner() {
 
   const { list: roomTypes } = useRoomTypeList({ hotelId, auto: !!hotelId });
   const { pending, createType, updateType, deleteType } = useRoomTypeEditor();
+  const navigate = useNavigate();
 
   const blank = {
     name: '', description: '', max_occupancy: 2, base_price: 0,
@@ -55,11 +57,85 @@ function Inner() {
   const submit = async (e) => {
     e.preventDefault();
     if (!hotelId) return;
-    const payload = { ...form, hotel_id: hotelId }; // BE snake_case
-    if (editingId) await updateType(editingId, payload);
-    else await createType(payload);
-    setOpenForm(false); setEditingId(null); setForm(blank);
-    // Provider đã tự refetch → không cần refresh thêm
+
+    const payload = {
+      hotelId: hotelId,
+      name: form.name.trim(),
+      description: form.description.trim() || null,
+      maxOccupancy: parseInt(form.max_occupancy) || 2,
+      basePrice: parseFloat(form.base_price) || 0,
+      numberOfRooms: parseInt(form.number_of_rooms) || 1,
+      bedType: form.bed_type.trim() || null,
+      areaSqm: form.area_sqm ? parseFloat(form.area_sqm) : null
+    };
+
+    // XÓA hoặc COMMENT các dòng debug sau:
+    // console.log('=== SUBMIT DEBUG ===');
+    // console.log('Hotel ID:', hotelId);
+    // console.log('Form data:', form);
+    // console.log('Payload (camelCase):', payload);
+
+    // Validate dữ liệu
+    if (!payload.name) {
+      alert('Vui lòng nhập tên loại phòng');
+      return;
+    }
+    if (payload.basePrice < 0) {
+      alert('Giá phải lớn hơn hoặc bằng 0');
+      return;
+    }
+    if (payload.maxOccupancy < 1) {
+      alert('Sức chứa phải ít nhất 1 người');
+      return;
+    }
+    if (payload.numberOfRooms < 1) {
+      alert('Số phòng phải ít nhất 1');
+      return;
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(payload.hotelId)) {
+      console.error('Invalid Hotel ID format:', payload.hotelId);
+      alert('Hotel ID không hợp lệ');
+      return;
+    }
+
+    try {
+      let result;
+      if (editingId) {
+        // console.log('Updating room type with ID:', editingId);
+        result = await updateType(editingId, payload);
+      } else {
+        // console.log('Creating new room type');
+        result = await createType(payload);
+      }
+      // console.log('Operation result:', result);
+      setOpenForm(false); 
+      setEditingId(null); 
+      setForm(blank);
+    } catch (error) {
+      // console.error('Error submitting room type:', error);
+      // console.error('Error details:', {
+      //   message: error.message,
+      //   response: error.response?.data,
+      //   status: error.response?.status
+      // });
+      
+      // Parse lỗi validation từ backend
+      let errorMessage = 'Có lỗi xảy ra';
+      if (error.response?.data) {
+        if (Array.isArray(error.response.data)) {
+          errorMessage = error.response.data.join(', ');
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        }
+      }
+      
+      alert(errorMessage);
+    }
   };
 
   const remove = async (id) => {
@@ -126,28 +202,76 @@ function Inner() {
             </div>
             <div className="md:col-span-2">
               <label className="text-xs text-gray-500">Giá cơ bản</label>
-              <input type="number" className="w-full border rounded-lg px-3 py-2" value={form.base_price}
-                     onChange={(e)=>setForm({...form, base_price: e.target.valueAsNumber})} min="0" step="0.01" required />
+              <input 
+                type="number" 
+                className="w-full border rounded-lg px-3 py-2" 
+                value={form.base_price}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  setForm({...form, base_price: isNaN(value) ? 0 : value});
+                }} 
+                min="0" 
+                step="1000" 
+                required 
+              />
             </div>
             <div>
               <label className="text-xs text-gray-500">Sức chứa</label>
-              <input type="number" className="w-full border rounded-lg px-3 py-2" value={form.max_occupancy}
-                     onChange={(e)=>setForm({...form, max_occupancy: e.target.valueAsNumber})} min="1" required />
+              <input 
+                type="number" 
+                className="w-full border rounded-lg px-3 py-2" 
+                value={form.max_occupancy}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  setForm({...form, max_occupancy: isNaN(value) ? 2 : value});
+                }} 
+                min="1" 
+                required 
+              />
             </div>
             <div>
               <label className="text-xs text-gray-500">Số phòng</label>
-              <input type="number" className="w-full border rounded-lg px-3 py-2" value={form.number_of_rooms}
-                     onChange={(e)=>setForm({...form, number_of_rooms: e.target.valueAsNumber})} min="1" required />
+              <input 
+                type="number" 
+                className="w-full border rounded-lg px-3 py-2" 
+                value={form.number_of_rooms}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  setForm({...form, number_of_rooms: isNaN(value) ? 1 : value});
+                }} 
+                min="1" 
+                required 
+              />
             </div>
             <div>
               <label className="text-xs text-gray-500">Loại giường</label>
-              <input className="w-full border rounded-lg px-3 py-2" value={form.bed_type}
-                     onChange={(e)=>setForm({...form, bed_type: e.target.value})} placeholder="Queen / King / Twin" />
+              <select
+                className="w-full border rounded-lg px-3 py-2"
+                value={form.bed_type}
+                onChange={(e) => setForm({...form, bed_type: e.target.value})}
+              >
+                <option value="">-- Chọn loại giường --</option>
+                <option value="single">Giường đơn</option>
+                <option value="double">Giường đôi</option>
+                <option value="queen">Giường Queen</option>
+                <option value="king">Giường King</option>
+                <option value="twin">Hai giường đơn</option>
+              </select>
             </div>
             <div>
               <label className="text-xs text-gray-500">Diện tích (m²)</label>
-              <input type="number" className="w-full border rounded-lg px-3 py-2" value={form.area_sqm}
-                     onChange={(e)=>setForm({...form, area_sqm: e.target.valueAsNumber})} step="0.01" min="0" />
+              <input 
+                type="number" 
+                className="w-full border rounded-lg px-3 py-2" 
+                value={form.area_sqm}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value);
+                  setForm({...form, area_sqm: isNaN(value) ? '' : value});
+                }} 
+                step="0.1" 
+                min="0" 
+                placeholder="VD: 25.5"
+              />
             </div>
             <div className="md:col-span-6">
               <label className="text-xs text-gray-500">Mô tả</label>
@@ -193,6 +317,12 @@ function Inner() {
                     onClick={() => remove(id)}
                   >
                     <Trash2 size={14} />
+                  </button>
+                  <button
+                    onClick={() => navigate(`/hotel-owner/rooms/images`)}
+                    className="px-2 py-1 text-sm rounded bg-blue-50 text-blue-600 hover:bg-blue-100"
+                  >
+                    Thêm hình ảnh
                   </button>
                 </div>
               );

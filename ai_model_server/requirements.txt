@@ -1,0 +1,7 @@
+flask
+flasgger
+transformers>=4.40.0
+torch            # CPU: pip sẽ tự lấy bản phù hợp. GPU thì cài theo hướng dẫn pytorch.org
+sentencepiece    # nếu model dùng tokenizer BPE/SentencePiece
+protobuf
+accelerate

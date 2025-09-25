@@ -2,11 +2,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PromotionForm from '../../../components/promotions/PromotionForm';
+import { useToast, ToastContainer } from '../../../components/common/Toast';
 import promotionService from '../../../api/promotions.service';
 
 const PromotionCreate = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toasts, removeToast, showSuccess, showError } = useToast();
 
   const handleSubmit = async (formData) => {
     try {
@@ -27,8 +29,15 @@ const PromotionCreate = () => {
       );
 
       if (isSuccess) {
-        alert('✅ Tạo khuyến mãi thành công!');
-        navigate('/admin/promotions');
+        showSuccess(
+          'Tạo thành công!',
+          `Khuyến mãi đã được tạo thành công và sẵn sàng sử dụng.`
+        );
+        
+        // Delay navigation để user có thể thấy thông báo
+        setTimeout(() => {
+          navigate('/admin/promotions');
+        }, 1500);
         
         return {
           success: true,
@@ -47,13 +56,22 @@ const PromotionCreate = () => {
                             serverError?.details ||
                             `HTTP ${error.response.status}: ${error.response.statusText}`;
         
-        alert(`❌ Lỗi server (${error.response.status}): ${errorMessage}`);
+        showError(
+          'Lỗi server!',
+          `${errorMessage} (${error.response.status})`
+        );
         
       } else if (error.request) {
-        alert('❌ Lỗi mạng: Không thể kết nối tới server');
+        showError(
+          'Lỗi mạng!',
+          'Không thể kết nối tới server. Vui lòng kiểm tra kết nối mạng.'
+        );
         
       } else {
-        alert(`❌ Lỗi: ${error.message}`);
+        showError(
+          'Có lỗi xảy ra!',
+          error.message || 'Lỗi không xác định'
+        );
       }
       
       throw error;
@@ -81,6 +99,9 @@ const PromotionCreate = () => {
           isSubmitting={isSubmitting}
         />
       </div>
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };

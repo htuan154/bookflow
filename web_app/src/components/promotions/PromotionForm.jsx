@@ -164,6 +164,40 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
       validationErrors.push('Trạng thái không hợp lệ');
     }
 
+    // Validation for status transitions in edit mode
+    if (initialData) {
+      const currentStatus = initialData.status;
+      const newStatus = cleanedData.status;
+      const isExpired = new Date(cleanedData.valid_until) < new Date();
+      
+      // Check if status transition is allowed
+      const isValidTransition = () => {
+        switch (currentStatus) {
+          case 'pending':
+            return ['pending', 'approved', 'rejected'].includes(newStatus);
+          case 'approved':
+            return ['approved', 'active'].includes(newStatus);
+          case 'rejected':
+            return newStatus === 'rejected';
+          case 'active':
+            return ['active', 'inactive'].includes(newStatus);
+          case 'inactive':
+            // Can only activate if not expired
+            return newStatus === 'inactive' || (newStatus === 'active' && !isExpired);
+          default:
+            return true;
+        }
+      };
+
+      if (!isValidTransition()) {
+        if (currentStatus === 'inactive' && newStatus === 'active' && isExpired) {
+          validationErrors.push('Không thể kích hoạt khuyến mãi đã hết hạn');
+        } else {
+          validationErrors.push(`Không thể chuyển từ trạng thái "${getStatusLabel(currentStatus)}" sang "${getStatusLabel(newStatus)}"`);
+        }
+      }
+    }
+
     const allowedPromotionTypes = ['general', 'room_specific'];
     if (!allowedPromotionTypes.includes(cleanedData.promotion_type)) {
       validationErrors.push('Loại khuyến mãi không hợp lệ');
@@ -260,10 +294,60 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
     }
   };
 
+  // Tính toán giá trị giảm tối thiểu
+  const calculateMinDiscountAmount = () => {
+    const discountValue = parseFloat(formData.discountValue) || 0;
+    const minBookingPrice = parseFloat(formData.minBookingPrice) || 0;
+    return Math.round((discountValue / 100) * minBookingPrice);
+  };
+
+  // Lấy ngày tối thiểu (3 ngày từ hôm nay do thời gian duyệt 1-2 ngày)
+  const getMinDate = () => {
+    const minDate = new Date();
+    minDate.setDate(minDate.getDate() + 3); // Hôm nay + 3 ngày
+    return minDate.toISOString().slice(0, 16);
+  };
+
+  // Lấy ngày kết thúc tối thiểu (1 tháng sau ngày bắt đầu)
+  const getMinEndDate = () => {
+    if (!formData.validFrom) return '';
+    const startDate = new Date(formData.validFrom);
+    const minEndDate = new Date(startDate);
+    minEndDate.setMonth(minEndDate.getMonth() + 1); // Thêm 1 tháng
+    minEndDate.setDate(minEndDate.getDate() + 1); // Thêm 1 ngày
+    return minEndDate.toISOString().slice(0, 16);
+  };
+
   // Input change handlers
   const handleCodeChange = (e) => {
     const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    updateFormData({ code: value });
+    
+    // Validation cho code - không tạo promotion khi đang edit
+    if (!initialData) {
+      // Kiểm tra tiếng Việt (ký tự có dấu)
+      const vietnameseRegex = /[àáãạảăắằẳẵặâấầẩẫậèéẹẻẽêềếểễệđìíĩỉịòóõọỏôốồổỗộơớờở ỡợùúũụủưứừửữựỳýỵỷỹ]/i;
+      if (vietnameseRegex.test(e.target.value)) {
+        // Set error thông qua updateFormData để có thể access được
+        updateFormData({ 
+          code: value,
+          _codeError: 'Mã khuyến mãi không được chứa tiếng Việt có dấu'
+        });
+        return;
+      } else if (value.length > 0 && value.length < 5) {
+        updateFormData({ 
+          code: value,
+          _codeError: 'Mã khuyến mãi phải có tối thiểu 5 ký tự'
+        });
+        return;
+      } else {
+        updateFormData({ 
+          code: value,
+          _codeError: ''
+        });
+      }
+    } else {
+      updateFormData({ code: value });
+    }
   };
 
   // FIXED: Enhanced discount change handler
@@ -299,17 +383,154 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
     const value = Number(e.target.value) || 0;
     const maxValues = {
       minBookingPrice: 99999999.99,
-      usageLimit: 2147483647
+      usageLimit: 2147483647,
+      max_discount_amount: 99999999.99
     };
+    
+    // Validation cho max_discount_amount
+    if (field === 'max_discount_amount') {
+      const minDiscountAmount = calculateMinDiscountAmount();
+      if (minDiscountAmount > 0 && value < minDiscountAmount) {
+        console.warn(`Giá trị giảm tối đa không được nhỏ hơn ${minDiscountAmount.toLocaleString('vi-VN')} VND`);
+      }
+    }
+    
     updateFormData({ 
       [field]: Math.min(Math.max(0, value), maxValues[field] || Number.MAX_SAFE_INTEGER)
     });
+  };
+
+  // Validation cho tên chương trình
+  const handleNameChange = (e) => {
+    const value = e.target.value;
+    
+    if (value.length > 0 && value.length < 5) {
+      updateFormData({ 
+        name: value,
+        _nameError: 'Tên khuyến mãi phải có tối thiểu 5 ký tự'
+      });
+      return;
+    } else {
+      updateFormData({ 
+        name: value,
+        _nameError: ''
+      });
+    }
+  };
+
+  // Validation cho thời gian
+  const handleDateChange = (field) => (e) => {
+    const value = e.target.value;
+    
+    if (field === 'validFrom') {
+      const selectedDate = new Date(value);
+      const minDate = new Date();
+      minDate.setDate(minDate.getDate() + 2); // Cần 2 ngày cho thời gian duyệt
+      
+      if (selectedDate < minDate) {
+        console.warn('Thời gian bắt đầu phải từ 3 ngày kể từ hôm nay (thời gian duyệt 1-2 ngày)');
+      }
+      
+      // Tự động cập nhật valid_until khi valid_from thay đổi
+      if (value && (!formData.validUntil || new Date(formData.validUntil) <= new Date(value))) {
+        const startDate = new Date(value);
+        const suggestedEndDate = new Date(startDate);
+        suggestedEndDate.setMonth(suggestedEndDate.getMonth() + 1); // Thêm 1 tháng
+        suggestedEndDate.setDate(suggestedEndDate.getDate() + 1); // Thêm 1 ngày
+        
+        updateFormData({ 
+          [field]: value,
+          validUntil: suggestedEndDate.toISOString().slice(0, 16)
+        });
+        return;
+      }
+    } else if (field === 'validUntil') {
+      if (formData.validFrom) {
+        const startDate = new Date(formData.validFrom);
+        const endDate = new Date(value);
+        const minEndDate = new Date(startDate);
+        minEndDate.setMonth(minEndDate.getMonth() + 1); // Thêm 1 tháng
+        
+        if (endDate < minEndDate) {
+          console.warn('Thời gian kết thúc phải tối thiểu 1 tháng sau ngày bắt đầu');
+        }
+      }
+    }
+    
+    updateFormData({ [field]: value });
   };
 
   // Helper function to check if discount value is valid for submission
   const isDiscountValueValid = () => {
     const value = Number(formData.discountValue);
     return !isNaN(value) && isFinite(value) && value > 0;
+  };
+
+  // Helper function to check if field should be disabled in edit mode
+  const isFieldDisabled = (fieldName) => {
+    if (!initialData) return false; // Create mode - no restrictions
+    
+    const disabledFields = ['code', 'name', 'validFrom', 'validUntil'];
+    return disabledFields.includes(fieldName);
+  };
+
+  // Helper function to get available status options based on current status
+  const getAvailableStatuses = () => {
+    if (!initialData) return ['pending']; // New promotions are always pending
+    
+    const currentStatus = formData.status || initialData.status;
+    const currentValidUntil = new Date(formData.validUntil || initialData.validUntil || initialData.valid_until);
+    const now = new Date();
+    const isExpired = currentValidUntil < now;
+    
+    switch (currentStatus) {
+      case 'pending':
+        return ['pending', 'approved', 'rejected'];
+      case 'approved':
+        // Approved promotions cannot be manually changed to active
+        // They will auto-activate when the valid_from date arrives
+        return ['approved'];
+      case 'rejected':
+        return ['rejected'];
+      case 'active':
+        return ['active', 'inactive'];
+      case 'inactive':
+        // Can only return to active if not expired
+        return isExpired ? ['inactive'] : ['inactive', 'active'];
+      default:
+        return [currentStatus];
+    }
+  };
+
+  // Helper function to get status label
+  const getStatusLabel = (status) => {
+    const labels = {
+      pending: 'Chờ duyệt',
+      approved: 'Đã duyệt',
+      rejected: 'Bị từ chối',
+      active: 'Đang hoạt động',
+      inactive: 'Không hoạt động'
+    };
+    return labels[status] || status;
+  };
+
+  // Handle status change with validation
+  const handleStatusChange = (e) => {
+    const newStatus = e.target.value;
+    const currentStatus = formData.status || (initialData?.status);
+    
+    // Check if trying to activate an expired promotion
+    if (initialData && currentStatus === 'inactive' && newStatus === 'active') {
+      const validUntil = new Date(formData.validUntil || initialData.validUntil || initialData.valid_until);
+      const now = new Date();
+      
+      if (validUntil < now) {
+        alert('⚠️ Không thể kích hoạt khuyến mãi đã hết hạn!\n\nThời gian kết thúc: ' + validUntil.toLocaleString('vi-VN'));
+        return; // Don't update status
+      }
+    }
+    
+    updateFormData({ status: newStatus });
   };
 
   return (
@@ -350,17 +571,29 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Mã khuyến mãi *
+            {isFieldDisabled('code') && (
+              <span className="text-amber-600 text-xs ml-2">(Không thể chỉnh sửa)</span>
+            )}
           </label>
           <input
             type="text"
             value={formData.code || ''}
             onChange={handleCodeChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              isFieldDisabled('code') ? 'bg-gray-100 cursor-not-allowed' : ''
+            }`}
             placeholder="VD: SUMMER2024"
-            // disabled={isSubmitting}
+            disabled={isFieldDisabled('code')}
             maxLength={50}
+            minLength={!initialData ? 5 : undefined}
             required
           />
+          {!initialData && (
+            <p className="text-xs text-gray-500 mt-1">Tối thiểu 5 ký tự, không có tiếng Việt có dấu</p>
+          )}
+          {isFieldDisabled('code') && (
+            <p className="text-xs text-amber-600 mt-1">Mã khuyến mãi không thể thay đổi sau khi tạo</p>
+          )}
           {errors.code && <p className="text-red-500 text-sm mt-1">{errors.code}</p>}
         </div>
 
@@ -368,17 +601,29 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Tên chương trình *
+            {isFieldDisabled('name') && (
+              <span className="text-amber-600 text-xs ml-2">(Không thể chỉnh sửa)</span>
+            )}
           </label>
           <input
             type="text"
             value={formData.name || ''}
-            onChange={(e) => updateFormData({ name: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={handleNameChange}
+            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              isFieldDisabled('name') ? 'bg-gray-100 cursor-not-allowed' : ''
+            }`}
             placeholder="VD: Giảm giá mùa hè 2024"
-            // disabled={isSubmitting}
+            disabled={isFieldDisabled('name')}
             maxLength={255}
+            minLength={!initialData ? 5 : undefined}
             required
           />
+          {!initialData && (
+            <p className="text-xs text-gray-500 mt-1">Tối thiểu 5 ký tự</p>
+          )}
+          {isFieldDisabled('name') && (
+            <p className="text-xs text-amber-600 mt-1">Tên chương trình không thể thay đổi sau khi tạo</p>
+          )}
           {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
         </div>
 
@@ -402,16 +647,35 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Loại khuyến mãi *
           </label>
-          <select
-            value={formData.promotionType || 'general'}
-            onChange={(e) => updateFormData({ promotionType: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={initialData} // Disable when editing existing promotion
-            required
-          >
-            <option value="general">Khuyến mãi chung</option>
-            <option value="room_specific">Theo phòng</option>
-          </select>
+          {!initialData ? (
+            // Khi tạo mới - chỉ có general
+            <div>
+              <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600">
+                Khuyến mãi chung
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                💡 Hiện tại chỉ hỗ trợ khuyến mãi chung khi tạo mới
+              </p>
+              {/* Hidden input to maintain form data */}
+              <input
+                type="hidden"
+                value="general"
+                onChange={(e) => updateFormData({ promotionType: e.target.value })}
+              />
+            </div>
+          ) : (
+            // Khi edit - hiển thị nhưng disable
+            <select
+              value={formData.promotionType || 'general'}
+              onChange={(e) => updateFormData({ promotionType: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-100 cursor-not-allowed"
+              disabled={true}
+              required
+            >
+              <option value="general">Khuyến mãi chung</option>
+              <option value="room_specific">Theo phòng</option>
+            </select>
+          )}
           {initialData && (
             <p className="text-xs text-gray-500 mt-1">
               💡 Loại khuyến mãi không thể thay đổi khi chỉnh sửa
@@ -424,12 +688,12 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Giá trị giảm giá *
-            <span className="text-xs text-gray-500 ml-1">(Tối thiểu: 0.01, Tối đa: 999.99)</span>
+            <span className="text-xs text-gray-500 ml-1">(Tối thiểu: 0.01, Tối đa: 20%)</span>
           </label>
           <input
             type="number"
             min="0.01"
-            max="999.99"
+            max="20"
             step="0.01"
             value={formData.discountValue || ''}
             onChange={handleDiscountChange}
@@ -438,10 +702,12 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
                 ? 'border-red-300 bg-red-50' 
                 : 'border-gray-300'
             }`}
-            placeholder="Nhập giá trị giảm giá (tối thiểu 0.01)"
+            placeholder="Nhập giá trị giảm giá (tối thiểu 0.01, tối đa 20)"
             // disabled={isSubmitting}
             required
           />
+          {/* Logic validation giống nhau cho cả create và edit */}
+          <p className="text-xs text-gray-500 mt-1">Tối đa 20%</p>
           {formData.discountValue && !isDiscountValueValid() && (
             <p className="text-red-500 text-sm mt-1">Giá trị giảm giá phải lớn hơn 0</p>
           )}
@@ -451,27 +717,33 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
           {/* Max Discount Amount */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Số tiền giảm tối đa
-              <span className="text-xs text-gray-500 ml-1">(VNĐ, tùy chọn)</span>
+              Số tiền giảm tối đa *
+              <span className="text-xs text-gray-500 ml-1">(VNĐ)</span>
             </label>
             <input
               type="number"
-              min="0"
+              min={calculateMinDiscountAmount()}
               max="99999999.99"
               step="0.01"
               value={formData.max_discount_amount || ''}
               onChange={handleNumberChange('max_discount_amount')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="0 (Không giới hạn)"
+              placeholder="VD: 500000"
+              required
               // disabled={isSubmitting}
             />
+            {calculateMinDiscountAmount() > 0 && (
+              <p className="text-xs text-blue-600 mt-1">
+                Tối thiểu: {calculateMinDiscountAmount().toLocaleString('vi-VN')} VND
+              </p>
+            )}
             {errors.max_discount_amount && <p className="text-red-500 text-sm mt-1">{errors.max_discount_amount}</p>}
           </div>
 
         {/* Min Booking Price */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Giá trị đặt chỗ tối thiểu
+            Giá trị đặt chỗ tối thiểu *
             <span className="text-xs text-gray-500 ml-1">(VNĐ)</span>
           </label>
           <input
@@ -482,25 +754,28 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             value={formData.minBookingPrice || ''}
             onChange={handleNumberChange('minBookingPrice')}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="0 (Không giới hạn)"
+            placeholder="VD: 1000000"
+            required
             // disabled={isSubmitting}
           />
+          {errors.minBookingPrice && <p className="text-red-500 text-sm mt-1">{errors.minBookingPrice}</p>}
         </div>
 
         {/* Usage Limit */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Giới hạn sử dụng (lần)
+            Giới hạn sử dụng (lần) *
           </label>
           <input
             type="number"
-            min="0"
+            min="1"
             max="2147483647"
             step="1"
             value={formData.usageLimit || ''}
             onChange={handleNumberChange('usageLimit')}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="0 (Không giới hạn)"
+            placeholder="VD: 100"
+            required
             // disabled={isSubmitting}
           />
           {errors.usageLimit && <p className="text-red-500 text-sm mt-1">{errors.usageLimit}</p>}
@@ -510,16 +785,29 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Thời gian bắt đầu *
+            {isFieldDisabled('validFrom') && (
+              <span className="text-amber-600 text-xs ml-2">(Không thể chỉnh sửa)</span>
+            )}
           </label>
           <input
             type="datetime-local"
             value={formData.validFrom || ''}
-            onChange={(e) => updateFormData({ validFrom: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            // disabled={isSubmitting}
-            min={new Date().toISOString().slice(0, 16)}
+            onChange={handleDateChange('validFrom')}
+            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              isFieldDisabled('validFrom') ? 'bg-gray-100 cursor-not-allowed' : ''
+            }`}
+            disabled={isFieldDisabled('validFrom')}
+            min={!initialData ? getMinDate() : new Date().toISOString().slice(0, 16)}
             required
           />
+          {!initialData && (
+            <p className="text-xs text-gray-500 mt-1">
+              Phải chọn từ 3 ngày kể từ hôm nay (thời gian duyệt 1-2 ngày)
+            </p>
+          )}
+          {isFieldDisabled('validFrom') && (
+            <p className="text-xs text-amber-600 mt-1">Thời gian bắt đầu không thể thay đổi sau khi tạo</p>
+          )}
           {errors.validFrom && <p className="text-red-500 text-sm mt-1">{errors.validFrom}</p>}
         </div>
 
@@ -527,16 +815,29 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Thời gian kết thúc *
+            {isFieldDisabled('validUntil') && (
+              <span className="text-amber-600 text-xs ml-2">(Không thể chỉnh sửa)</span>
+            )}
           </label>
           <input
             type="datetime-local"
             value={formData.validUntil || ''}
-            onChange={(e) => updateFormData({ validUntil: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            // disabled={isSubmitting}
-            min={formData.validFrom || new Date().toISOString().slice(0, 16)}
+            onChange={handleDateChange('validUntil')}
+            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              isFieldDisabled('validUntil') ? 'bg-gray-100 cursor-not-allowed' : ''
+            }`}
+            disabled={isFieldDisabled('validUntil')}
+            min={!initialData ? getMinEndDate() : (formData.validFrom || new Date().toISOString().slice(0, 16))}
             required
           />
+          {!initialData && (
+            <p className="text-xs text-gray-500 mt-1">
+              Phải chọn ít nhất 1 tháng sau thời gian bắt đầu
+            </p>
+          )}
+          {isFieldDisabled('validUntil') && (
+            <p className="text-xs text-amber-600 mt-1">Thời gian kết thúc không thể thay đổi sau khi tạo</p>
+          )}
           {errors.validUntil && <p className="text-red-500 text-sm mt-1">{errors.validUntil}</p>}
         </div>
 
@@ -546,18 +847,34 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             Trạng thái *
           </label>
           <select
-            value={formData.status || 'active'}
-            onChange={(e) => updateFormData({ status: e.target.value })}
+            value={formData.status || (!initialData ? 'pending' : formData.status)}
+            onChange={handleStatusChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            // disabled={isSubmitting}
             required
           >
-            <option value="pending">Chờ duyệt</option>
-            <option value="approved">Đã duyệt</option>
-            <option value="rejected">Bị từ chối</option>
-            <option value="active">Đang hoạt động</option>
-            <option value="inactive">Ngừng hoạt động</option>
+            {getAvailableStatuses().map(status => (
+              <option key={status} value={status}>
+                {getStatusLabel(status)}
+              </option>
+            ))}
           </select>
+          {initialData && (
+            <div className="mt-2 text-xs text-gray-600">
+              <p>📋 <strong>Quy tắc chuyển trạng thái:</strong></p>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>Chờ duyệt → Đã duyệt/Bị từ chối</li>
+                <li>Đã duyệt → Tự động chuyển "Đang hoạt động" khi đến ngày bắt đầu</li>
+                <li>Đang hoạt động → Không hoạt động</li>
+                <li>Không hoạt động → Đang hoạt động (nếu chưa hết hạn)</li>
+              </ul>
+              {(formData.status === 'approved') && (
+                <p className="mt-2 text-blue-600">
+                  💡 Khuyến mãi đã được duyệt sẽ tự động kích hoạt vào ngày {new Date(formData.validFrom).toLocaleDateString('vi-VN')}
+                </p>
+              )}
+            </div>
+          )}
+          {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status}</p>}
         </div>
       </div>
 
@@ -599,7 +916,10 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
               !formData.validFrom || 
               !formData.validUntil || 
               !formData.discountValue ||
-              !isDiscountValueValid();
+              !isDiscountValueValid() ||
+              formData._codeError ||
+              formData._nameError ||
+              formData._descriptionError;
             
             console.log('🔲 Nút submit disabled:', isDisabled, {
               isSubmitting,
@@ -608,7 +928,10 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
               hasValidFrom: !!formData.validFrom,
               hasValidUntil: !!formData.validUntil,
               hasDiscountValue: !!formData.discountValue,
-              isDiscountValueValid: isDiscountValueValid()
+              isDiscountValueValid: isDiscountValueValid(),
+              codeError: formData._codeError,
+              nameError: formData._nameError,
+              descriptionError: formData._descriptionError
             });
             
             return isDisabled;

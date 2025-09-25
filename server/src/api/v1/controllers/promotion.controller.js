@@ -123,6 +123,20 @@ class PromotionController {
             next(error);
         }
     }
+
+    /**
+     * Lấy tất cả các khuyến mãi theo hotel ID.
+     * GET /api/v1/promotions/hotel/:hotelId
+     */
+    async getPromotionsByHotelId(req, res, next) {
+        try {
+            const { hotelId } = req.params;
+            const promotions = await PromotionService.getPromotionsByHotelId(hotelId);
+            successResponse(res, promotions, 'Promotions retrieved successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new PromotionController();

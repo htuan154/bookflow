@@ -1,9 +1,12 @@
 // src/components/Contract/ContractDetail.js
-import { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ContractContext } from '../../context/ContractContext';
 import { contractServices } from '../../api/contract.service';
 import useAuth from '../../hooks/useAuth';
+import { notificationService } from '../../api/notification.service';
+import RejectContractModal from '../modal/RejectContractModal';
+import ApprovalContractModal from '../modal/ApprovalContractModal';
 
 const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onError, isPage = false }) => {
   const {
@@ -23,6 +26,10 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
   const [localContract, setLocalContract] = useState(null);
   const [localLoading, setLocalLoading] = useState(false);
   const [localError, setLocalError] = useState(null);
+  
+  // Modal states
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
 
   // Ưu tiên sử dụng contract prop, sau đó mới là selectedContract từ context
   const displayContract = localContract || contract || selectedContract;
@@ -257,7 +264,11 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
   };
 
   // Approve contract sử dụng API thật
-  const handleApprove = async () => {
+  const handleApprove = () => {
+    setShowApprovalModal(true);
+  };
+
+  const handleApproveConfirm = async (note = '') => {
     try {
       console.log('🔄 Approving contract via REAL API');
       console.log('Full contract object:', displayContract);
@@ -331,6 +342,54 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
         return updatedContract;
       });
 
+      // Gửi thông báo cho hotel owner
+      try {
+        const hotelOwnerId = displayContract?.user_id || displayContract?.userId;
+        const hotelName = displayContract?.hotel?.name || displayContract?.hotelName || 'N/A';
+        const oldStatus = displayContract?.status || 'pending';
+        
+        console.log('=== CONTRACT NOTIFICATION DEBUG ===');
+        console.log('displayContract:', displayContract);
+        console.log('actualContractId:', actualContractId);
+        console.log('userId (sender):', userId);
+        console.log('hotelOwnerId (receiver):', hotelOwnerId);
+        console.log('hotelName:', hotelName);
+        console.log('oldStatus:', oldStatus);
+        
+        if (hotelOwnerId) {
+          let message = `Trạng thái hợp đồng của khách sạn: ${hotelName}, đã chuyển trạng thái: ${oldStatus} sang trạng thái: active`;
+          
+          // Thêm ghi chú vào message nếu có
+          if (note && note.trim()) {
+            message += `. Ghi chú: ${note.trim()}`;
+          }
+          
+          const hotelId = displayContract?.hotel_id || displayContract?.hotelId;
+          console.log('hotelId from contract (approve):', hotelId);
+          
+          const notificationData = {
+            contract_id: actualContractId,
+            senderId: userId,
+            receiverId: hotelOwnerId,
+            title: 'Thay đổi trạng thái của hợp đồng',
+            message: message,
+            notification_type: 'Change Status Contract',
+            hotelId: hotelId
+          };
+          
+          console.log('Contract notification data:', notificationData);
+          
+          await notificationService.sendHotelStatusChangeNotification(notificationData);
+          
+          console.log('✅ Notification sent successfully for contract approval');
+        } else {
+          console.warn('⚠️ Could not send notification: hotel owner ID not found');
+        }
+      } catch (notificationError) {
+        console.error('❌ Error sending notification:', notificationError);
+        // Không throw error vì notification không phải critical
+      }
+
       if (onApprovalSuccess) {
         onApprovalSuccess('Phê duyệt hợp đồng thành công!');
       }
@@ -355,7 +414,12 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
   };
 
   // Reject contract sử dụng API thật
-  const handleReject = async () => {
+  const handleReject = () => {
+    setShowRejectModal(true);
+  };
+
+  const handleRejectConfirm = async (reason) => {
+
     try {
       console.log('🔄 Rejecting contract via REAL API');
       console.log('Full contract object:', displayContract);
@@ -397,7 +461,7 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
       // SỬ DỤNG contractServices THẬT với actualContractId
       const result = await contractServices.rejectContract(actualContractId, {
         approvedBy: userId, // Sử dụng approvedBy thay vì approved_by
-        notes: 'Đã từ chối'
+        notes: reason.trim() // Sử dụng lý do từ user
       });
 
       console.log('✅ Rejection successful:', result);
@@ -406,9 +470,58 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
       setLocalContract(prev => ({
         ...prev,
         status: 'cancelled',
-        approved_by: 'admin',
+        approved_by: userId,
         approved_at: new Date().toISOString()
       }));
+
+      // Gửi thông báo cho hotel owner
+      try {
+        const hotelOwnerId = displayContract?.user_id || displayContract?.userId;
+        const hotelName = displayContract?.hotel?.name || displayContract?.hotelName || 'N/A';
+        const oldStatus = displayContract?.status || 'pending';
+        
+        console.log('=== CONTRACT REJECT NOTIFICATION DEBUG ===');
+        console.log('displayContract:', displayContract);
+        console.log('actualContractId:', actualContractId);
+        console.log('userId (sender):', userId);
+        console.log('hotelOwnerId (receiver):', hotelOwnerId);
+        console.log('hotelName:', hotelName);
+        console.log('oldStatus:', oldStatus);
+        console.log('reason:', reason);
+        
+        if (hotelOwnerId) {
+          let message = `Trạng thái hợp đồng của khách sạn: ${hotelName}, đã chuyển trạng thái: ${oldStatus} sang trạng thái: cancelled`;
+          
+          // Thêm lý do từ chối vào message
+          if (reason && reason.trim()) {
+            message += `. Lý do từ chối: ${reason.trim()}`;
+          }
+          
+          const hotelId = displayContract?.hotel_id || displayContract?.hotelId;
+          console.log('hotelId from contract (reject):', hotelId);
+          
+          const notificationData = {
+            contract_id: actualContractId,
+            senderId: userId,
+            receiverId: hotelOwnerId,
+            title: 'Thay đổi trạng thái của hợp đồng',
+            message: message,
+            notification_type: 'Change Status Contract',
+            hotelId: hotelId
+          };
+          
+          console.log('Contract reject notification data:', notificationData);
+          
+          await notificationService.sendHotelStatusChangeNotification(notificationData);
+          
+          console.log('✅ Notification sent successfully for contract rejection');
+        } else {
+          console.warn('⚠️ Could not send notification: hotel owner ID not found');
+        }
+      } catch (notificationError) {
+        console.error('❌ Error sending notification:', notificationError);
+        // Không throw error vì notification không phải critical
+      }
 
       if (onApprovalSuccess) {
         onApprovalSuccess('Từ chối hợp đồng thành công!');
@@ -1091,7 +1204,7 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
-                            <span>✅ Phê duyệt (API)</span>
+                            <span>Phê duyệt</span>
                           </div>
                         </button>
 
@@ -1103,7 +1216,7 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
-                            <span>❌ Từ chối (API)</span>
+                            <span>Từ chối</span>
                           </div>
                         </button>
                       </div>
@@ -1141,11 +1254,28 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
-        <ContractContent />
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl max-w-6xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
+          <ContractContent />
+        </div>
       </div>
-    </div>
+
+      {/* Modals */}
+      <RejectContractModal
+        isOpen={showRejectModal}
+        onClose={() => setShowRejectModal(false)}
+        onConfirm={handleRejectConfirm}
+        contractNumber={displayContract?.contract_number || displayContract?.contractNumber || 'N/A'}
+      />
+
+      <ApprovalContractModal
+        isOpen={showApprovalModal}
+        onClose={() => setShowApprovalModal(false)}
+        onConfirm={handleApproveConfirm}
+        contractNumber={displayContract?.contract_number || displayContract?.contractNumber || 'N/A'}
+      />
+    </>
   );
 };
 

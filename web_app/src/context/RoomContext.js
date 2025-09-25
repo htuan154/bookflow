@@ -36,6 +36,7 @@ export const RoomProvider = ({ children }) => {
 
   const getByRoomType = useCallback(async (roomTypeId, params = {}) => {
     if (!roomTypeId) return [];
+    if (error) return []; // Nếu đang có lỗi, không gọi lại API
     setLoading(true); setError(null);
     try {
       const res = await roomService.getByRoomType(roomTypeId, params);
@@ -44,9 +45,9 @@ export const RoomProvider = ({ children }) => {
       return list;
     } catch (e) {
       setError(e);
-      throw e;
+      return [];
     } finally { setLoading(false); }
-  }, []);
+  }, [error]);
 
   const create = useCallback(async (payload) => {
     const res = await roomService.create(payload);

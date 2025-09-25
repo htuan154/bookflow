@@ -1,6 +1,6 @@
 // src/hooks/useRoomTypeImage.js
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { useRoomTypeImageContext } from '../contexts/RoomTypeImageContext';
+import { useRoomTypeImageContext } from '../context/RoomTypeImageContext';
 
 /**
  * Hook gốc: trả về toàn bộ context images.

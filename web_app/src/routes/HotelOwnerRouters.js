@@ -19,14 +19,22 @@ import AddStaff from '../pages/hotel_owner/staff/AddStaff';
 import RoomTypeListPage from '../pages/hotel_owner/roomtype_management/RoomTypeListPage';
 import RoomsByTypePage from '../pages/hotel_owner/roomtype_management/RoomsByTypePage';
 import RoomStatusPage from '../pages/hotel_owner/roomtype_management/RoomStatusPage';
+import RoomTypeImagesPage from '../pages/hotel_owner/roomtype_management/RoomTypeImagesPage';
 
 // === Quản lý phòng: Providers (điều chỉnh path nếu bạn lưu khác)
 import { RoomTypeProvider } from '../context/RoomTypeContext';
 import { RoomProvider } from '../context/RoomContext';
 import { HotelOwnerContractProvider } from '../context/HotelOwnerContractContext';
+import { RoomTypeImageProvider } from '../context/RoomTypeImageContext';
+import { HotelAmenityProvider } from '../context/HotelAmenityContext';
 import ContractManagement from '../pages/hotel_owner/contract_management/ContractManagement';
 import { IMProvider } from '../context/IMContext';
 import OwnerMessagesPage from '../pages/hotel_owner/messages';
+
+// === Pricing Pages
+import PricingIndex from '../pages/hotel_owner/pricing';
+import RatesPage from '../pages/hotel_owner/pricing/RatesPage';
+import PromotionsPage from '../pages/hotel_owner/pricing/PromotionsPage';
 
 
 const HotelOwnerRoutes = () => {
@@ -34,83 +42,63 @@ const HotelOwnerRoutes = () => {
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (user?.roleId !== USER_ROLES.HOTEL_OWNER) return <Navigate to="/unauthorized" replace />;
-
+  // có chỉnh sửa ngày 19/09
   return (
-    <Routes>
-      <Route element={<HotelOwnerLayout />}>
-        {/* Dashboard */}
-        <Route index element={<HotelOwnerWelcomePage />} />
-        <Route path="dashboard" element={<HotelOwnerWelcomePage />} />
+    <RoomTypeProvider>
+      <RoomProvider>
+        <RoomTypeImageProvider>
+          <HotelAmenityProvider>
+            <Routes>
+              <Route element={<HotelOwnerLayout />}>
+                {/* Dashboard */}
+                <Route index element={<HotelOwnerWelcomePage />} />
+                <Route path="dashboard" element={<HotelOwnerWelcomePage />} />
 
-        {/* Hotel management */}
-        <Route path="hotel" element={<Navigate to="/hotel-owner/hotel/info" replace />} />
-        <Route path="hotel/info" element={<HotelInfo />} />
-        <Route path="hotel/images" element={<HotelImages />} />
-        <Route path="hotel/amenities" element={<HotelAmenities />} />
-        <Route path="hotel/settings" element={<div>Cài đặt chung</div>} />
+                {/* Hotel management */}
+                <Route path="hotel" element={<Navigate to="/hotel-owner/hotel/info" replace />} />
+                <Route path="hotel/info" element={<HotelInfo />} />
+                <Route path="hotel/images" element={<HotelImages />} />
+                <Route path="hotel/amenities" element={<HotelAmenities />} />
+                <Route path="hotel/settings" element={<div>Cài đặt chung</div>} />
 
-        {/* Staff */}
-        <Route path="staff" element={<Navigate to="/hotel-owner/staff/list" replace />} />
-        <Route path="staff/list" element={<StaffList />} />
-        <Route path="staff/add" element={<AddStaff />} />
+                {/* Staff */}
+                <Route path="staff" element={<Navigate to="/hotel-owner/staff/list" replace />} />
+                <Route path="staff/list" element={<StaffList />} />
+                <Route path="staff/add" element={<AddStaff />} />
 
-        {/* ======================= QUẢN LÝ PHÒNG ======================= */}
-        {/* Loại phòng – cần RoomTypeProvider */}
-        <Route
-          path="rooms/types"
-          element={
-            <RoomTypeProvider>
-              <RoomTypeListPage />
-            </RoomTypeProvider>
-          }
-        />
+                {/* ======================= QUẢN LÝ PHÒNG ======================= */}
+                <Route path="rooms/types" element={<RoomTypeListPage />} />
+                <Route path="rooms/list" element={<RoomsByTypePage />} />
+                <Route path="rooms/status" element={<RoomStatusPage />} />
+                <Route path="rooms/images" element={<RoomTypeImagesPage />} />
+                <Route path="rooms" element={<Navigate to="/hotel-owner/rooms/types" replace />} />
 
-        {/* Danh sách phòng theo loại – cần cả 2 provider */}
-        <Route
-          path="rooms/list"
-          element={
-            <RoomTypeProvider>
-              <RoomProvider>
-                <RoomsByTypePage />
-              </RoomProvider>
-            </RoomTypeProvider>
-          }
-        />
+   
+                {/* Quản lý hợp đồng khách sạn */}
+                <Route path="contracts" element={
+                  <HotelOwnerContractProvider>
+                    <ContractManagement />
+                  </HotelOwnerContractProvider>
+                } />
 
-        {/* Trạng thái phòng theo khách sạn – cần RoomProvider */}
-        <Route
-          path="rooms/status"
-          element={
-            <RoomProvider>
-              <RoomStatusPage />
-            </RoomProvider>
-          }
-        />
+                {/* Messages */}
+                <Route path="messages" element={
+                  <IMProvider>
+                    <OwnerMessagesPage />
+                  </IMProvider>
+                } />
 
-        {/* Alias /rooms -> /rooms/types */}
-        <Route path="rooms" element={<Navigate to="/hotel-owner/rooms/types" replace />} />
-        {/* ============================================================ */}
-        <Route
-          path="messages"
-          element={
-            <IMProvider>
-              <OwnerMessagesPage />
-            </IMProvider>
-          }
-        />
-        {/* Quản lý hợp đồng khách sạn */}
-        <Route
-          path="contracts"
-          element={
-            <HotelOwnerContractProvider>
-              <ContractManagement />
-            </HotelOwnerContractProvider>
-          }
-        />
-      </Route>
-
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+                {/* ======================= PRICING MANAGEMENT ======================= */}
+                <Route path="pricing" element={<PricingIndex />} />
+                <Route path="pricing/rates" element={<RatesPage />} />
+                <Route path="pricing/promotions" element={<PromotionsPage />} />
+              </Route>
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </HotelAmenityProvider>
+        </RoomTypeImageProvider>
+      </RoomProvider>
+    </RoomTypeProvider>
   );
 };
 
