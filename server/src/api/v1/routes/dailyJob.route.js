@@ -22,4 +22,10 @@ router.post('/update-pending-contracts-to-draft', dailyJobController.updatePendi
 // Lấy danh sách hợp đồng pending quá N ngày
 router.get('/pending-contracts-over-days/:days', dailyJobController.getPendingContractsOverDays);
 
+// POST cập nhật trạng thái khuyến mãi theo ngày
+router.post('/update-promotion-status-by-date', dailyJobController.updatePromotionStatusByDate);
+
+// POST duyệt promotion tự động
+router.post('/auto-approve-promotions', dailyJobController.autoApprovePromotions);
+
 module.exports = router;

@@ -105,6 +105,25 @@ const getPendingContractsOverDays = async (req, res, next) => {
   }
 };
 
+// POST /api/v1/dailyjob/update-promotion-status-by-date
+const updatePromotionStatusByDate = async (req, res, next) => {
+  try {
+    const result = await dailyJobService.updatePromotionStatusByDate();
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const autoApprovePromotions = async (req, res, next) => {
+  try {
+    const result = await dailyJobService.autoApprovePromotions();
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   updateHotelStatus,
   updateExpiredContracts,
@@ -114,5 +133,7 @@ module.exports = {
   contractsExpiringIn3Days,
   contractsExpiringIn1Day,
   updatePendingContractsToDraft,
-  getPendingContractsOverDays
+  getPendingContractsOverDays,
+  updatePromotionStatusByDate,
+  autoApprovePromotions
 };

@@ -397,7 +397,7 @@ const findAvailableRoomsByCity = async (city, checkInDate, checkOutDate, ward = 
           AND b.check_out_date >= $1
           AND b.booking_status IN ('pending', 'confirmed')
     WHERE h.city = $3
-      AND h.status = 'approved'
+      AND h.status = 'active'
   `;
   
   let values = [checkInDate, checkOutDate, city];

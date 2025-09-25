@@ -6258,6 +6258,26 @@
           }
         }
       }
+    },
+    "/api/v1/dailyjob/update-promotion-status-by-date": {
+      "post": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/dailyjob/auto-approve-promotions": {
+      "post": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {

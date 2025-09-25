@@ -36,8 +36,12 @@ async function myDailyTask() {
     const hotelResult = await dailyJobService.updateHotelStatusByContract();
     console.log('- Kết quả cập nhật trạng thái khách sạn:', hotelResult);
 
+    // 3. Cập nhật trạng thái khuyến mãi theo ngày
+    console.log('- Đang cập nhật trạng thái khuyến mãi theo ngày...');
+    const promotionResult = await dailyJobService.updatePromotionStatusByDate();
+    console.log('- Kết quả cập nhật trạng thái khuyến mãi:', promotionResult);
 
-    // 3. Tìm hợp đồng sắp hết hạn và gửi thông báo
+    // 4. Tìm hợp đồng sắp hết hạn và gửi thông báo
     const expiringConfigs = [
       { days: 90, contracts: await dailyJobService.findContractsExpiringIn90Days() },
       { days: 60, contracts: await dailyJobService.findContractsExpiringIn60Days() },
@@ -94,6 +98,11 @@ async function myDailyTask() {
     const pendingToDraftResult = await dailyJobService.updatePendingContractsToDraft(7);
     console.log('- Kết quả cập nhật hợp đồng pending thành draft:', pendingToDraftResult);
 
+    // 6. Duyệt promotion tự động (approved/rejected)
+    console.log('- Đang duyệt tự động các khuyến mãi pending...');
+    const autoApproveResult = await dailyJobService.autoApprovePromotions();
+    console.log('- Kết quả duyệt tự động khuyến mãi:', autoApproveResult);
+
     console.log('✅ Daily job hoàn thành thành công!');
   } catch (err) {
     console.error('❌ Lỗi khi chạy daily job:', err);
@@ -117,7 +126,7 @@ function startDailyJob() {
   // Chạy moderation worker mỗi 10 phút
   //cron.schedule('*/10 * * * *', moderationTask, { timezone: 'Asia/Ho_Chi_Minh' });
   
-  //cron.schedule('*/10 * * * * *', moderationTask); // mỗi 10 giây để test
+  //cron.schedule('*/10 * * * * *', myDailyTask); // mỗi 10 giây để test
 }
 
 module.exports = { startDailyJob };

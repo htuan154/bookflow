@@ -6,6 +6,9 @@ import PromotionService from '../../../api/promotions.service';
 import CreatePromotionModal from '../../../components/promotions/CreatePromotionModal';
 import PromotionDetailModal from '../../../components/promotions/PromotionDetailModal';
 import EditPromotionDetailModal from '../../../components/promotions/EditPromotionDetailModal';
+import EditPromotionModal from '../../../components/promotions/EditPromotionModal';
+import DeleteConfirmationDialog from '../../../components/common/DeleteConfirmationDialog';
+import { useToast, ToastContainer } from '../../../components/common/Toast';
 
 const PromotionsPage = () => {
   const [hotels, setHotels] = useState([]);
@@ -22,9 +25,16 @@ const PromotionsPage = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showCreateDetailModal, setShowCreateDetailModal] = useState(false);
   const [showEditDetailModal, setShowEditDetailModal] = useState(false);
+  const [showEditPromotionModal, setShowEditPromotionModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedPromotionForDetails, setSelectedPromotionForDetails] = useState(null);
+  const [selectedPromotionForEdit, setSelectedPromotionForEdit] = useState(null);
+  const [selectedPromotionForDelete, setSelectedPromotionForDelete] = useState(null);
   const [promotionDetails, setPromotionDetails] = useState([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const { toasts, removeToast, showSuccess, showError } = useToast();
 
   // Load promotions by hotel ID
   const loadPromotionsByHotel = async (hotelId) => {
@@ -168,6 +178,85 @@ const PromotionsPage = () => {
     } finally {
       setLoadingDetails(false);
     }
+  };
+
+  // Handle edit promotion
+  const handleEditPromotion = (promotion) => {
+    console.log('Editing promotion:', promotion);
+    
+    // Kiểm tra nếu là room_specific thì không cho phép sửa
+    const isRoomSpecific = promotion.promotionType === 'room_specific' || 
+                           promotion.promotion_type === 'room_specific';
+    
+    if (isRoomSpecific) {
+      showError(
+        'Không thể chỉnh sửa!',
+        'Khuyến mãi loại "Theo phòng" không thể chỉnh sửa trực tiếp. Vui lòng sử dụng chức năng "Xem chi tiết" để quản lý.'
+      );
+      return;
+    }
+    
+    setSelectedPromotionForEdit(promotion);
+    setShowEditPromotionModal(true);
+  };
+
+  // Handle edit promotion success
+  const handleEditPromotionSuccess = (updatedData) => {
+    console.log('Promotion updated:', updatedData);
+    // Reload promotions for the current hotel
+    if (selectedHotel) {
+      loadPromotionsByHotel(selectedHotel.hotelId);
+    }
+  };
+
+  // Handle delete promotion request
+  const handleDeletePromotion = (promotion) => {
+    console.log('Preparing to delete promotion:', promotion);
+    setSelectedPromotionForDelete(promotion);
+    setShowDeleteModal(true);
+  };
+
+  // Handle confirm delete
+  const handleConfirmDelete = async () => {
+    if (!selectedPromotionForDelete) return;
+
+    setIsDeleting(true);
+    try {
+      console.log('🗑️ Starting delete process for promotion:', selectedPromotionForDelete.promotionId);
+      
+      const result = await PromotionService.deletePromotionWithDetails(selectedPromotionForDelete.promotionId);
+      
+      console.log('✅ Delete result:', result);
+      
+      showSuccess('Xóa thành công!', 
+        result.deletedDetailsCount > 0 
+          ? `Đã xóa khuyến mãi và ${result.deletedDetailsCount} chi tiết liên quan.`
+          : 'Đã xóa khuyến mãi thành công.'
+      );
+
+      // Reload promotions list
+      if (selectedHotel) {
+        loadPromotionsByHotel(selectedHotel.hotelId);
+      }
+
+      // Close modal
+      setShowDeleteModal(false);
+      setSelectedPromotionForDelete(null);
+      
+    } catch (error) {
+      console.error('❌ Error deleting promotion:', error);
+      const errorMessage = error.message || error.details?.message || 'Có lỗi xảy ra khi xóa khuyến mãi';
+      showError('Xóa thất bại!', errorMessage);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Handle close delete modal
+  const handleCloseDeleteModal = () => {
+    if (isDeleting) return; // Prevent closing while deleting
+    setShowDeleteModal(false);
+    setSelectedPromotionForDelete(null);
   };
 
   return (
@@ -518,12 +607,23 @@ const PromotionsPage = () => {
                           </button>
                         )}
                         <button 
-                          className="text-blue-600 hover:text-blue-900"
-                          title="Chỉnh sửa"
+                          onClick={() => handleEditPromotion(promotion)}
+                          disabled={promotion.promotionType === 'room_specific' || promotion.promotion_type === 'room_specific'}
+                          className={`${
+                            promotion.promotionType === 'room_specific' || promotion.promotion_type === 'room_specific'
+                              ? 'text-gray-400 cursor-not-allowed'
+                              : 'text-blue-600 hover:text-blue-900'
+                          }`}
+                          title={
+                            promotion.promotionType === 'room_specific' || promotion.promotion_type === 'room_specific'
+                              ? 'Không thể chỉnh sửa khuyến mãi loại "Theo phòng"'
+                              : 'Chỉnh sửa'
+                          }
                         >
                           <Edit2 size={16} />
                         </button>
                         <button 
+                          onClick={() => handleDeletePromotion(promotion)}
                           className="text-red-600 hover:text-red-900"
                           title="Xóa"
                         >
@@ -760,6 +860,35 @@ const PromotionsPage = () => {
           }}
         />
       )}
+
+      {/* Edit Promotion Modal */}
+      {showEditPromotionModal && selectedPromotionForEdit && (
+        <EditPromotionModal
+          isOpen={showEditPromotionModal}
+          onClose={() => setShowEditPromotionModal(false)}
+          promotion={selectedPromotionForEdit}
+          onSuccess={handleEditPromotionSuccess}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={showDeleteModal}
+        onClose={handleCloseDeleteModal}
+        onConfirm={handleConfirmDelete}
+        title="Xóa khuyến mãi"
+        message="Bạn có chắc chắn muốn xóa khuyến mãi này không?"
+        itemName={selectedPromotionForDelete ? `${selectedPromotionForDelete.name} (${selectedPromotionForDelete.code})` : ''}
+        isDeleting={isDeleting}
+        warnings={[
+          'Tất cả chi tiết khuyến mãi (promotion_details) sẽ bị xóa vĩnh viễn',
+          'Các booking đã sử dụng khuyến mãi này sẽ không bị ảnh hưởng',
+          'Dữ liệu thống kê về khuyến mãi này sẽ bị mất'
+        ]}
+      />
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };

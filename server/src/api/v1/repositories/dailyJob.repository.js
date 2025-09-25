@@ -102,6 +102,44 @@ const getPendingContractsOverDays = async (days) => {
   return result.rows;
 };
 
+// Cập nhật trạng thái promotions theo ngày (inactive nếu hết hạn, active nếu đã đến ngày bắt đầu)
+const updatePromotionStatusByDate = async () => {
+  const query = `
+    UPDATE promotions
+    SET status = CASE
+        WHEN valid_until < NOW() THEN 'inactive'
+        WHEN status = 'approved' AND valid_from <= NOW() THEN 'active'
+        ELSE status
+    END
+    WHERE (status IN ('approved', 'active') AND valid_until < NOW())
+       OR (status = 'approved' AND valid_from <= NOW());
+  `;
+  const result = await pool.query(query);
+  return { rowCount: result.rowCount };
+};
+
+const autoApprovePromotions = async () => {
+  const query = `
+    UPDATE promotions
+    SET status = CASE
+        WHEN 
+            LENGTH(name) >= 5
+            AND LENGTH(code) >= 5
+            AND discount_value <= 20
+            AND min_booking_price > 0
+            AND max_discount_amount >= (discount_value / 100) * min_booking_price
+            AND valid_from < valid_until
+            AND usage_limit > 0
+            AND status = 'pending'
+        THEN 'approved'
+        ELSE 'rejected'
+    END
+    WHERE status = 'pending';
+  `;
+  const result = await pool.query(query);
+  return { rowCount: result.rowCount };
+};
+
 module.exports = {
   doJob,
   updateHotelStatusByContract,
@@ -112,5 +150,7 @@ module.exports = {
   findContractsExpiringIn3Days,
   findContractsExpiringIn1Day,
   updatePendingContractsToDraft,
-  getPendingContractsOverDays
+  getPendingContractsOverDays,
+  updatePromotionStatusByDate,
+  autoApprovePromotions
 };

@@ -255,7 +255,6 @@ export const API_ENDPOINTS = {
     UPDATE: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
     DELETE: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}`,
 
-
     // Promotion Details
     GET_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,
     ADD_DETAILS: (promotionId) => `${API_BASE_URL}/promotions/${promotionId}/details`,

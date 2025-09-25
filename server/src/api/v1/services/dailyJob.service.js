@@ -48,6 +48,23 @@ const getPendingContractsOverDays = async (days) => {
   return await dailyJobRepo.getPendingContractsOverDays(days);
 };
 
+// Cập nhật trạng thái promotions theo ngày (inactive nếu hết hạn, active nếu đã đến ngày bắt đầu)
+const updatePromotionStatusByDate = async () => {
+  const result = await dailyJobRepo.updatePromotionStatusByDate();
+  return {
+    message: `Đã cập nhật trạng thái cho ${result.rowCount} khuyến mãi.`,
+    updatedCount: result.rowCount
+  };
+};
+
+const autoApprovePromotions = async () => {
+  const result = await dailyJobRepo.autoApprovePromotions();
+  return {
+    message: `Đã duyệt tự động ${result.rowCount} khuyến mãi (approved hoặc rejected).`,
+    updatedCount: result.rowCount
+  };
+};
+
 module.exports = {
   updateHotelStatusByContract,
   updateExpiredContracts,
@@ -57,5 +74,7 @@ module.exports = {
   findContractsExpiringIn3Days,
   findContractsExpiringIn1Day,
   updatePendingContractsToDraft,
-  getPendingContractsOverDays
+  getPendingContractsOverDays,
+  updatePromotionStatusByDate,
+  autoApprovePromotions
 };
