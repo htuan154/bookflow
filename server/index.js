@@ -17,6 +17,8 @@ const imConversations = require('./src/api/v1/routes/conversations.route');
 const imMessages      = require('./src/api/v1/routes/messages.route');
 const imUploads       = require('./src/api/v1/routes/uploads.route');
 const imStream        = require('./src/api/v1/routes/stream.route');
+const notificationForContractRoutes = require('./src/api/v1/routes/nofiticationForContract.route');
+
 // Swagger
 const swaggerUi = require('swagger-ui-express');
 const swaggerFile = require('./swagger-output.json');
@@ -51,6 +53,8 @@ const blogLikeRoutes = require('./src/api/v1/routes/blogLike.route');
 const blogRoutes = require('./src/api/v1/routes/blog.route');
 const chatRoutes = require('./src/api/v1/routes/chat.route');
 const roleRoutes = require('./src/api/v1/routes/role.route');
+
+const dailyJobRoutes = require('./src/api/v1/routes/dailyJob.route');
 const provincesRoutes = require('./src/api/v1/routes/provinces.routes');
 
 // --- App ---
@@ -112,6 +116,12 @@ app.use('/api/v1/im', imConversations);
 app.use('/api/v1/im', imMessages);
 app.use('/api/v1/im', imUploads);
 app.use('/api/v1/im', imStream);
+
+// --- Thông Báo (Mongo) ---
+app.use('/api/v1/notification-for-contract', notificationForContractRoutes);
+
+// DailyJob API
+app.use('/api/v1/dailyjob', dailyJobRoutes);
 // --- 404 chung ---
 app.use((req, res) => {
   res.status(404).json({ success: false, code: 404, message: 'Not found' });
@@ -137,6 +147,10 @@ if (process.env.NODE_ENV !== 'test') {
       } catch (pgErr) {
         console.error('⚠️  Postgres connect failed:', pgErr.message);
       }
+
+        // Khởi động job định kỳ
+      const { startDailyJob } = require('./src/job/dailyJob');
+      startDailyJob();
 
       // 3) Listen
       app.listen(port, () => {

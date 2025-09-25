@@ -16,6 +16,9 @@ const router = express.Router();
 // GET /api/v1/promotions -> Lấy danh sách các khuyến mãi công khai
 router.get('/', promotionController.getAllPromotions);
 
+// GET /api/v1/promotions/hotel/:hotelId -> Lấy khuyến mãi theo hotel ID
+router.get('/hotel/:hotelId', promotionController.getPromotionsByHotelId);
+
 // GET /api/v1/promotions/code/:code -> Lấy khuyến mãi theo code
 router.get('/code/:code', promotionController.getPromotionByCode);
 

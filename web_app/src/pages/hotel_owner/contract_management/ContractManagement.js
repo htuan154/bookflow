@@ -1,5 +1,5 @@
 // src/pages/hotel_owner/contract_management/ContractManagement.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { contractServices } from '../../../api/contract.service';
 import { hotelApiService } from '../../../api/hotel.service';
 import { useHotel } from '../../../context/HotelContext';
@@ -18,6 +18,10 @@ const ContractManagement = () => {
   const [showDetail, setShowDetail] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingContract, setEditingContract] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const contractsPerPage = 5; // Số hợp đồng mỗi trang
+  const [renewModal, setRenewModal] = useState({ open: false, contract: null });
+  const [renewMessage, setRenewMessage] = useState('');
 
   // Hàm chuẩn hóa ngày
   const toISODate = (dateStr) => {
@@ -93,6 +97,18 @@ const ContractManagement = () => {
   useEffect(() => {
     fetchAllContracts();
   }, [currentHotel?.hotel_id]);
+
+  // Tính toán danh sách hợp đồng hiển thị theo trang
+  const totalPages = Math.ceil(contracts.length / contractsPerPage);
+  const paginatedContracts = useMemo(() => {
+    const startIdx = (currentPage - 1) * contractsPerPage;
+    return contracts.slice(startIdx, startIdx + contractsPerPage);
+  }, [contracts, currentPage, contractsPerPage]);
+
+  // Reset về trang đầu khi danh sách thay đổi
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [contracts.length]);
 
   // Xử lý xem chi tiết
   const handleViewDetail = (contract) => {
@@ -333,16 +349,82 @@ const ContractManagement = () => {
     setError('');
   };
 
+  // Kiểm tra hợp đồng sắp hết hạn hoặc đã hết hạn
+  const getContractExpiryStatus = (contract) => {
+    if (!contract?.end_date) return null;
+    const endDate = new Date(contract.end_date);
+    const now = new Date();
+    const diffMonths = (endDate.getFullYear() - now.getFullYear()) * 12 + (endDate.getMonth() - now.getMonth());
+    if (endDate < now) return 'expired';
+    if (diffMonths <= 3 && diffMonths >= 0) return 'expiring';
+    return null;
+  };
+
+  // Hiển thị thông báo hết hạn/sắp hết hạn
+  const contractExpiryWarning = useMemo(() => {
+    if (!contracts || contracts.length === 0) return null;
+    const expiring = contracts.filter(c => getContractExpiryStatus(c) === 'expiring');
+    const expired = contracts.filter(c => getContractExpiryStatus(c) === 'expired');
+    if (expired.length > 0) {
+      return {
+        type: 'expired',
+        contracts: expired,
+        message: 'Hợp đồng đã hết hạn. Khách sạn sẽ không hoạt động. Vui lòng tiến hành gia hạn để tiếp tục hoạt động.'
+      };
+    }
+    if (expiring.length > 0) {
+      return {
+        type: 'expiring',
+        contracts: expiring,
+        message: 'Hợp đồng sẽ hết hạn trong vòng 3 tháng. Vui lòng chuẩn bị gia hạn để khách sạn không bị gián đoạn hoạt động.'
+      };
+    }
+    return null;
+  }, [contracts]);
+
+  // Handler mở modal gia hạn
+  const handleRenewContract = (contract) => {
+    setRenewModal({ open: true, contract });
+    setRenewMessage('');
+  };
+
+  // Handler xác nhận gia hạn
+  const handleRenewConfirm = async () => {
+    if (!renewModal.contract) return;
+    try {
+      setLoading(true);
+      // Ví dụ: Gia hạn thêm 1 năm từ ngày hết hạn cũ
+      const oldEndDate = new Date(renewModal.contract.end_date);
+      const newEndDate = new Date(oldEndDate.setFullYear(oldEndDate.getFullYear() + 1));
+      await contractServices.renewContract(renewModal.contract.contract_id || renewModal.contract.contractId, {
+        new_end_date: newEndDate.toISOString().slice(0, 10)
+      });
+      setRenewMessage('Gia hạn hợp đồng thành công!');
+      await fetchAllContracts();
+      setRenewModal({ open: false, contract: null });
+    } catch (err) {
+      setRenewMessage('Lỗi khi gia hạn hợp đồng: ' + (err.message || 'Không xác định'));
+      setRenewModal({ open: false, contract: null });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRenewCancel = () => {
+    setRenewModal({ open: false, contract: null });
+    setRenewMessage('');
+  };
+
   return (
-    <div className="contract-management-page max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+    <div className="contract-management-page w-full px-0 pt-0 pb-0 bg-transparent">
       {/* Hiển thị error */}
       {error && (
         <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
           {error}
         </div>
       )}
-      
-      <div className="flex items-center justify-between mb-6">
+
+      <div className="flex items-center justify-between mb-6 px-8 pt-8">
         <h2 className="text-2xl font-bold text-blue-700">Quản lý hợp đồng khách sạn</h2>
         <button
           className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded shadow disabled:opacity-50"
@@ -374,9 +456,9 @@ const ContractManagement = () => {
       )}
 
       {/* Bảng hợp đồng */}
-      <div className="bg-gray-50 p-4 rounded-lg shadow mb-6">
+      <div className="bg-white p-6 rounded-xl shadow-lg w-full mx-0">
         <HotelOwnerContractTable
-          contracts={contracts.map(contract => ({
+          contracts={paginatedContracts.map(contract => ({
             ...contract,
             permissions: getHotelOwnerPermissions(contract.status)
           }))}
@@ -387,7 +469,79 @@ const ContractManagement = () => {
           onDelete={handleDeleteContract}
           onSendForApproval={handleSendForApproval}
         />
+        {/* Phân trang */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center mt-4 gap-2">
+            <button
+              className="px-2 py-1 rounded border bg-gray-100 hover:bg-gray-200"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            >
+              &lt; Trước
+            </button>
+            <span className="mx-2 text-sm">
+              Trang {currentPage} / {totalPages}
+            </span>
+            <button
+              className="px-2 py-1 rounded border bg-gray-100 hover:bg-gray-200"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            >
+              Sau &gt;
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Thông báo hết hạn/sắp hết hạn hợp đồng */}
+      {contractExpiryWarning && (
+        <div className={`mb-4 p-3 rounded border ${contractExpiryWarning.type === 'expired' ? 'bg-red-100 border-red-400 text-red-700' : 'bg-yellow-100 border-yellow-400 text-yellow-800'}`}>
+          <div className="font-semibold mb-2">
+            {contractExpiryWarning.type === 'expired' ? 'Hợp đồng đã hết hạn!' : 'Hợp đồng sắp hết hạn!'}
+          </div>
+          <div>{contractExpiryWarning.message}</div>
+          <ul className="mt-2 text-sm">
+            {contractExpiryWarning.contracts.map(c => (
+              <li key={c.contract_id || c.contractId}>
+                <span className="font-bold">{c.title}</span> - Hết hạn: {c.end_date}
+                {contractExpiryWarning.type === 'expired' && (
+                  <button
+                    className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs"
+                    onClick={() => handleRenewContract(c)}
+                  >
+                    Gia hạn hợp đồng
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Modal gia hạn hợp đồng */}
+      {renewModal.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4 text-blue-700">Gia hạn hợp đồng</h3>
+            <div className="mb-2">Bạn muốn gia hạn hợp đồng <span className="font-bold">{renewModal.contract?.title}</span> thêm 1 năm?</div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+                onClick={handleRenewCancel}
+              >
+                Hủy
+              </button>
+              <button
+                className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                onClick={handleRenewConfirm}
+              >
+                Xác nhận gia hạn
+              </button>
+            </div>
+            {renewMessage && <div className="mt-2 text-green-700">{renewMessage}</div>}
+          </div>
+        </div>
+      )}
 
       {/* Modal chi tiết hợp đồng */}
       {showDetail && (

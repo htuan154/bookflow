@@ -1,5 +1,5 @@
 // src/hooks/useRoom.js
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRoomContext } from '../context/RoomContext';
 
 /**
@@ -7,7 +7,7 @@ import { useRoomContext } from '../context/RoomContext';
  * options: { auto?: boolean, params?: object }
  */
 export function useRoomsOfType(roomTypeId, { auto = true, params = {} } = {}) {
-  const { roomsByType, getByRoomType, loading, error } = useRoomContext();
+  const { getByRoomType, loading, error } = useRoomContext();
   const [list, setList] = useState([]);
 
   const load = useCallback(async () => {
@@ -17,13 +17,11 @@ export function useRoomsOfType(roomTypeId, { auto = true, params = {} } = {}) {
     return data;
   }, [roomTypeId, params, getByRoomType]);
 
-  // tự load khi roomTypeId đổi
-  useEffect(() => { if (auto) load(); }, [auto, load]);
-
-  // đồng bộ với cache trong context
+  // Sửa lại dependency cho useEffect, chỉ phụ thuộc vào roomTypeId, auto, params
   useEffect(() => {
-    setList(roomsByType?.[roomTypeId] || (roomTypeId ? [] : []));
-  }, [roomsByType, roomTypeId]);
+    if (auto) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, roomTypeId, JSON.stringify(params)]);
 
   return { list, loading, error, refresh: load };
 }
@@ -62,3 +60,11 @@ export function useRoomEditor({ roomTypeId, hotelId } = {}) {
 
   return { pending, createRoom, updateRoom, deleteRoom, changeStatus };
 }
+
+/**
+ * Export mặc định: trả về toàn bộ context phòng.
+ */
+export default function useRoom() {
+  return useRoomContext();
+}
+

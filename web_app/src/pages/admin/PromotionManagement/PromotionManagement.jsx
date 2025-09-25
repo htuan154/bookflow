@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
 import promotionService from '../../../api/promotions.service';
+import { useToast, ToastContainer } from '../../../components/common/Toast';
 import {
   PromotionList,
   PromotionFilters,
@@ -20,6 +21,8 @@ const PromotionManagement = () => {
     createPromotion,
     updatePromotion
   } = usePromotions({ autoFetch: true });
+
+  const { toasts, removeToast, showSuccess, showError } = useToast();
 
   const [modalState, setModalState] = useState({
     isOpen: false,
@@ -53,8 +56,17 @@ const PromotionManagement = () => {
         // Gọi API xoá khuyến mãi
         await promotionService.deletePromotion(promotion.promotionId);
         await fetchPromotions(); // Refresh after delete
+        
+        showSuccess(
+          'Xóa thành công!',
+          `Khuyến mãi "${promotion.name}" đã được xóa.`
+        );
       } catch (error) {
         console.error('Delete error:', error);
+        showError(
+          'Xóa thất bại!',
+          'Có lỗi xảy ra khi xóa khuyến mãi. Vui lòng thử lại.'
+        );
       }
     }
   };
@@ -67,12 +79,18 @@ const PromotionManagement = () => {
         console.log('➕ Tạo khuyến mãi mới');
         const result = await createPromotion(formData);
         console.log('✅ Kết quả tạo mới:', result);
-        alert('✅ Tạo khuyến mãi thành công!');
+        showSuccess(
+          'Tạo thành công!',
+          'Khuyến mãi mới đã được tạo và sẵn sàng sử dụng.'
+        );
       } else if (modalState.type === 'edit' && modalState.data?.promotionId) {
         console.log('✏️ Cập nhật khuyến mãi với ID:', modalState.data.promotionId);
         const result = await updatePromotion(modalState.data.promotionId, formData);
         console.log('✅ Kết quả cập nhật:', result);
-        alert('✅ Cập nhật khuyến mãi thành công!');
+        showSuccess(
+          'Cập nhật thành công!',
+          'Thông tin khuyến mãi đã được cập nhật.'
+        );
       }
       
       closeModal();
@@ -80,7 +98,10 @@ const PromotionManagement = () => {
       return { success: true };
     } catch (error) {
       console.error('❌ Lỗi trong handleFormSubmit:', error);
-      alert('❌ Lỗi: ' + (error?.message || 'Không xác định'));
+      showError(
+        'Có lỗi xảy ra!',
+        error?.message || 'Lỗi không xác định khi xử lý form.'
+      );
       return { success: false, error: error.message };
     }
   };
@@ -230,6 +251,9 @@ const PromotionManagement = () => {
       >
         {renderModalContent()}
       </PromotionModal>
+
+      {/* Toast Container */}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   );
 };

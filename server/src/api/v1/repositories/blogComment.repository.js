@@ -188,6 +188,17 @@ const countByBlogId = async (blogId) => {
     return parseInt(result.rows[0].count, 10) || 0;
 };
 
+/**
+ * Tìm tất cả các bình luận đang ở trạng thái 'pending'.
+ * @returns {Promise<BlogComment[]>}
+ */
+const findPendingComments = async () => {
+    // Thêm LIMIT để mỗi lần chỉ xử lý 50 cái, tránh quá tải server
+    const query = 'SELECT * FROM blog_comments WHERE status = \'pending\' ORDER BY created_at ASC LIMIT 50';
+    const result = await pool.query(query);
+    return result.rows.map(row => new BlogComment(row));
+};
+
 module.exports = {
     create,
     findByBlogId,
@@ -198,5 +209,6 @@ module.exports = {
     replyToComment,
     findCommentsWithUserByBlogId,
     getById,
-    countByBlogId
+    countByBlogId,
+    findPendingComments
 };

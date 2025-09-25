@@ -16,6 +16,15 @@ const PromotionView = () => {
   }, [id, getPromotionDetails]);
 
   const handleEdit = () => {
+    // Kiểm tra nếu là room_specific thì không cho phép sửa
+    const isRoomSpecific = currentPromotion.promotionType === 'room_specific' || 
+                           currentPromotion.promotion_type === 'room_specific';
+    
+    if (isRoomSpecific) {
+      alert('⚠️ Không thể chỉnh sửa khuyến mãi loại "Theo phòng". Vui lòng sử dụng chức năng quản lý chi tiết khuyến mãi.');
+      return;
+    }
+    
     navigate(`/admin/promotions/edit/${id}`);
   };
 
@@ -50,9 +59,17 @@ const PromotionView = () => {
         <div className="flex space-x-2">
           <button
             onClick={handleEdit}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            disabled={currentPromotion.promotionType === 'room_specific' || currentPromotion.promotion_type === 'room_specific'}
+            className={`px-4 py-2 text-white rounded-lg transition-colors ${
+              currentPromotion.promotionType === 'room_specific' || currentPromotion.promotion_type === 'room_specific'
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
           >
-            Chỉnh sửa
+            {currentPromotion.promotionType === 'room_specific' || currentPromotion.promotion_type === 'room_specific'
+              ? 'Không thể chỉnh sửa'
+              : 'Chỉnh sửa'
+            }
           </button>
           <button
             onClick={handleBack}

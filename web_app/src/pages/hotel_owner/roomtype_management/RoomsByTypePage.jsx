@@ -3,6 +3,7 @@ import { Shield, Plus, Save, X, Pencil, Trash2, DoorClosed } from 'lucide-react'
 import { useHotelOwner } from '../../../hooks/useHotelOwner';
 import { useRoomTypeList } from '../../../hooks/useRoomType';
 import { useRoomsOfType, useRoomEditor } from '../../../hooks/useRoom';
+import { useRoomContext } from '../../../context/RoomContext';
 
 /** Helpers: đọc id/số phòng/tầng an toàn dù API đặt tên khác nhau */
 const getRoomId = (r) => r?.room_id ?? r?.roomId ?? r?.roomID ?? r?.id ?? r?._id ?? null;
@@ -25,17 +26,30 @@ export default function RoomsByTypePage() {
   const hotels = Array.isArray(hotelData) ? hotelData : (hotelData ? [hotelData] : []);
   const [hotel, setHotel] = useState(null);
 
-  useEffect(() => { fetchOwnerHotel(); }, [fetchOwnerHotel]);
-  useEffect(() => { if (hotels.length && !hotel) setHotel(hotels[0]); }, [hotels, hotel]);
+  // Chỉ gọi fetchOwnerHotel 1 lần khi mount
+  useEffect(() => { 
+    fetchOwnerHotel(); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Chỉ setHotel khi hotelData thay đổi, KHÔNG setRT trong useEffect này
+  useEffect(() => { 
+    if (hotels.length && !hotel) setHotel(hotels[0]); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotels]);
 
   const hotelId = useMemo(
     () => hotel?.hotel_id || hotel?.hotelId || hotel?.id || '',
     [hotel]
   );
 
+  // Chỉ setRT khi roomTypes thay đổi, KHÔNG setRT về null khi hotel thay đổi
   const { list: roomTypes } = useRoomTypeList({ hotelId, auto: !!hotelId });
   const [rt, setRT] = useState(null);
-  useEffect(() => { if (roomTypes.length && !rt) setRT(roomTypes[0]); }, [roomTypes, rt]);
+  useEffect(() => { 
+    if (roomTypes.length && !rt) setRT(roomTypes[0]); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomTypes]);
 
   const roomTypeId = useMemo(() => rt?.room_type_id || rt?.id || '', [rt]);
 
@@ -70,12 +84,19 @@ export default function RoomsByTypePage() {
 
   const openEdit = (r) => {
     const rid = getRoomId(r);
-    setEditingId(rid);               // quan trọng: phải set id để nút chuyển thành "Lưu"
+    setEditingId(rid);
     setShowForm(true);
+    
+    // Sửa lỗi: đảm bảo floor_number là số hợp lệ, không phải NaN
+    const floorNum = getFloorNumber(r);
+    const validFloor = (floorNum === null || floorNum === undefined || floorNum === '') 
+      ? '' 
+      : (isNaN(Number(floorNum)) ? '' : Number(floorNum));
+      
     setForm({
       room_type_id: roomTypeId,
       room_number: getRoomNumber(r),
-      floor_number: getFloorNumber(r),
+      floor_number: validFloor,
       status: r?.status || 'available',
     });
   };
@@ -90,31 +111,37 @@ export default function RoomsByTypePage() {
     e.preventDefault();
     if (pending) return;
 
-    // Gửi cả snake_case & camelCase để backend nhận được dù dùng key nào
+    // Validate UUID cho roomTypeId
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(roomTypeId)) {
+      alert('Room Type ID không hợp lệ');
+      return;
+    }
+
+    // Sửa lỗi: Gửi camelCase để khớp với backend
+    const floorNumber = form.floor_number === '' ? null : 
+      (isNaN(Number(form.floor_number)) ? null : Number(form.floor_number));
+
     const payload = {
-      room_type_id: roomTypeId,
-      // số phòng
-      room_number: form.room_number,
+      roomTypeId: roomTypeId,
       roomNumber: form.room_number,
-      room_no: form.room_number,
-      number: form.room_number,
-      // tầng
-      floor_number: form.floor_number ?? null,
-      floorNumber: form.floor_number ?? null,
-      floor: form.floor_number ?? null,
-      level: form.floor_number ?? null,
-      // trạng thái
+      floorNumber: floorNumber,
       status: form.status,
     };
 
-    if (editingId) {
-      await updateRoom(editingId, payload);
-    } else {
-      await createRoom(payload);
+    try {
+      // Nếu dùng useRoomEditor, pending đã được quản lý tự động
+      if (editingId) {
+        await updateRoom(editingId, payload);
+      } else {
+        await createRoom(payload);
+      }
+      await refresh();
+      cancelForm();
+    } catch (error) {
+      alert('Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
     }
-
-    await refresh();
-    cancelForm();
+    // Không cần finally nếu dùng useRoomEditor, vì hook đã tự reset pending
   };
 
   const remove = async (id, label) => {
@@ -122,6 +149,8 @@ export default function RoomsByTypePage() {
     await deleteRoom(id);
     await refresh();
   };
+
+  const { error: roomError } = useRoomContext();
 
   return (
     <div className="space-y-6">
@@ -143,7 +172,7 @@ export default function RoomsByTypePage() {
                   x => String(x.hotel_id || x.hotelId || x.id) === String(e.target.value)
                 );
                 setHotel(h || null);
-                setRT(null);
+                // Không gọi setRT ở đây để tránh vòng lặp
                 cancelForm();
               }}
             >
@@ -168,7 +197,7 @@ export default function RoomsByTypePage() {
                   x => String(x.room_type_id || x.id) === String(e.target.value)
                 );
                 setRT(t || null);
-                cancelForm();
+                // Không gọi cancelForm ở đây nếu không cần thiết
               }}
             >
               {roomTypes.map(t => {
@@ -220,14 +249,18 @@ export default function RoomsByTypePage() {
                 type="number"
                 className="w-full border rounded-lg px-3 py-2"
                 value={form.floor_number}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    floor_number: Number.isNaN(e.target.valueAsNumber)
-                      ? ''
-                      : e.target.valueAsNumber,
-                  })
-                }
+                onChange={(e) => {
+                  // Sửa lỗi NaN: kiểm tra giá trị hợp lệ trước khi set
+                  const value = e.target.value;
+                  if (value === '') {
+                    setForm({ ...form, floor_number: '' });
+                  } else {
+                    const numValue = parseInt(value);
+                    if (!isNaN(numValue)) {
+                      setForm({ ...form, floor_number: numValue });
+                    }
+                  }
+                }}
                 placeholder="VD: 5"
               />
             </div>
@@ -306,6 +339,13 @@ export default function RoomsByTypePage() {
           )}
         </div>
       </div>
+
+      {roomError && (
+        <div className="text-red-600 font-semibold mb-4">
+          Không thể kết nối tới server hoặc lấy dữ liệu phòng. Vui lòng kiểm tra lại kết nối hoặc liên hệ admin.
+        </div>
+      )}
     </div>
   );
 }
+  

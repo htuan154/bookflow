@@ -143,7 +143,7 @@ import React, { useState, useEffect } from 'react';
 import { hotelApiService } from '../../api/hotel.service';
 import HotelDataTable from './HotelDataTable';
 
-const PendingHotelsList = () => {
+const PendingHotelsList = ({ onStatsRefresh }) => {
     const [hotels, setHotels] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -151,7 +151,7 @@ const PendingHotelsList = () => {
     const [statusFilter, setStatusFilter] = useState('pending');
     const [filteredHotels, setFilteredHotels] = useState([]);
 
-    useEffect(() => {
+    const fetchData = () => {
         setLoading(true);
         Promise.all([
             hotelApiService.getHotelsByStatus('pending'),
@@ -173,6 +173,19 @@ const PendingHotelsList = () => {
             setError('Không thể tải danh sách khách sạn');
             setLoading(false);
         });
+    };
+
+    const handleDataRefresh = () => {
+        // Refresh data của component này
+        fetchData();
+        // Refresh stats của component cha
+        if (onStatsRefresh) {
+            onStatsRefresh();
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
     }, []);
 
     useEffect(() => {
@@ -297,6 +310,7 @@ const PendingHotelsList = () => {
                     hotels={filteredHotels}
                     showActions={true}
                     status={statusFilter}
+                    onDataRefresh={handleDataRefresh}
                 />
             </div>
         </div>
