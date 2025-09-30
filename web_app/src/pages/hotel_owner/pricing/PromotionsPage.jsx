@@ -182,20 +182,11 @@ const PromotionsPage = () => {
 
   // Handle edit promotion
   const handleEditPromotion = (promotion) => {
-    console.log('Editing promotion:', promotion);
+    console.log('🔍 Editing promotion:', promotion);
+    console.log('🔍 promotionType:', promotion.promotionType);
+    console.log('🔍 promotion_type:', promotion.promotion_type);
     
-    // Kiểm tra nếu là room_specific thì không cho phép sửa
-    const isRoomSpecific = promotion.promotionType === 'room_specific' || 
-                           promotion.promotion_type === 'room_specific';
-    
-    if (isRoomSpecific) {
-      showError(
-        'Không thể chỉnh sửa!',
-        'Khuyến mãi loại "Theo phòng" không thể chỉnh sửa trực tiếp. Vui lòng sử dụng chức năng "Xem chi tiết" để quản lý.'
-      );
-      return;
-    }
-    
+    // Tất cả các loại khuyến mãi đều có thể edit
     setSelectedPromotionForEdit(promotion);
     setShowEditPromotionModal(true);
   };
@@ -608,17 +599,9 @@ const PromotionsPage = () => {
                         )}
                         <button 
                           onClick={() => handleEditPromotion(promotion)}
-                          disabled={promotion.promotionType === 'room_specific' || promotion.promotion_type === 'room_specific'}
-                          className={`${
-                            promotion.promotionType === 'room_specific' || promotion.promotion_type === 'room_specific'
-                              ? 'text-gray-400 cursor-not-allowed'
-                              : 'text-blue-600 hover:text-blue-900'
-                          }`}
-                          title={
-                            promotion.promotionType === 'room_specific' || promotion.promotion_type === 'room_specific'
-                              ? 'Không thể chỉnh sửa khuyến mãi loại "Theo phòng"'
-                              : 'Chỉnh sửa'
-                          }
+                          disabled={false}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Chỉnh sửa"
                         >
                           <Edit2 size={16} />
                         </button>
