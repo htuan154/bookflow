@@ -33,19 +33,50 @@ export const hotelApiService = {
   },
 
   /**
-   * NEW - Lấy danh sách hotels đã duyệt
+   * NEW - Lấy danh sách hotels đã duyệt và đang hoạt động
    */
   async getApprovedHotels(filters = {}) {
     try {
-      const response = await axiosClient.get(API_ENDPOINTS.ADMIN.GET_APPROVED_HOTELS, {
-        params: {
-          ...filters,
-           // Đảm bảo chỉ lấy hotels đã duyệt
-        }
-      });
-      return response.data;
+      console.log('🔄 Fetching approved and active hotels separately...');
+      
+      // Gọi 2 API riêng biệt vì server không hỗ trợ multiple status
+      const [approvedResponse, activeResponse] = await Promise.all([
+        axiosClient.get(API_ENDPOINTS.ADMIN.GET_ALL_HOTELS, {
+          params: { ...filters, status: 'approved' }
+        }),
+        axiosClient.get(API_ENDPOINTS.ADMIN.GET_ALL_HOTELS, {
+          params: { ...filters, status: 'active' }
+        })
+      ]);
+
+      console.log('✅ Approved hotels response:', approvedResponse.data);
+      console.log('✅ Active hotels response:', activeResponse.data);
+
+      // Merge kết quả từ 2 API calls
+      const approvedHotels = Array.isArray(approvedResponse.data?.data) ? approvedResponse.data.data : 
+                            Array.isArray(approvedResponse.data?.hotels) ? approvedResponse.data.hotels :
+                            Array.isArray(approvedResponse.data) ? approvedResponse.data : [];
+      
+      const activeHotels = Array.isArray(activeResponse.data?.data) ? activeResponse.data.data : 
+                          Array.isArray(activeResponse.data?.hotels) ? activeResponse.data.hotels :
+                          Array.isArray(activeResponse.data) ? activeResponse.data : [];
+
+      // Combine và remove duplicates dựa trên hotel_id
+      const combinedHotels = [...approvedHotels, ...activeHotels];
+      const uniqueHotels = combinedHotels.filter((hotel, index, self) => 
+        index === self.findIndex(h => (h.hotel_id || h.hotelId) === (hotel.hotel_id || hotel.hotelId))
+      );
+
+      console.log('✅ Combined unique hotels:', uniqueHotels.length);
+
+      // Trả về format giống như API gốc
+      return {
+        data: uniqueHotels,
+        totalCount: uniqueHotels.length,
+        total: uniqueHotels.length
+      };
     } catch (error) {
-      console.error('Error fetching approved hotels:', error);
+      console.error('Error fetching approved and active hotels:', error);
       throw error;
     }
   },
