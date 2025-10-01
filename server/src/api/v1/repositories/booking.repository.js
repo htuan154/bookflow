@@ -70,6 +70,16 @@ const findByHotelId = async (hotelId) => {
 };
 
 /**
+ * Tìm tất cả các đơn đặt phòng của một khách sạn (hotel_id).
+ * @param {string} hotelId - ID của khách sạn.
+ * @returns {Promise<Booking[]>}
+ */
+const findBookingsByHotelId = async (hotelId) => {
+    const result = await pool.query('SELECT * FROM bookings WHERE hotel_id = $1 ORDER BY booked_at DESC', [hotelId]);
+    return result.rows.map(row => new Booking(row));
+};
+
+/**
  * Cập nhật trạng thái của một đơn đặt phòng.
  * @param {string} bookingId - ID của đơn đặt phòng.
  * @param {string} status - Trạng thái mới.
@@ -95,4 +105,5 @@ module.exports = {
     findByUserId,
     findByHotelId,
     updateStatus,
+    findBookingsByHotelId,
 };

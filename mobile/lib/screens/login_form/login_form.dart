@@ -6,6 +6,8 @@ import 'package:client_khachhang/services/user_service.dart';
 import 'package:client_khachhang/models/navbar.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }

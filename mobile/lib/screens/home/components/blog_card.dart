@@ -11,7 +11,7 @@ class BlogCard extends StatelessWidget {
   final BlogCustom blog;
   final VoidCallback? onTap;
 
-  const BlogCard({Key? key, required this.blog, this.onTap}) : super(key: key);
+  const BlogCard({super.key, required this.blog, this.onTap});
 
   @override
   Widget build(BuildContext context) {

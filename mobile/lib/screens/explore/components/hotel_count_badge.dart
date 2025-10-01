@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class HotelCountBadge extends StatelessWidget {
   final int hotelCount;
 
-  const HotelCountBadge({Key? key, required this.hotelCount}) : super(key: key);
+  const HotelCountBadge({super.key, required this.hotelCount});
 
   @override
   Widget build(BuildContext context) {

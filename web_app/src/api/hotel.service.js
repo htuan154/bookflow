@@ -4,6 +4,18 @@ import axiosClient from '../config/axiosClient';
 
 export const hotelApiService = {
   /**
+   * Lấy tất cả booking theo hotelId
+   */
+  async getBookingsByHotelId(hotelId) {
+    try {
+      const response = await axiosClient.get(API_ENDPOINTS.BOOKINGS.GET_BY_HOTEL(hotelId));
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching bookings by hotel ID:', error);
+      throw error;
+    }
+  },
+  /**
    * Lấy danh sách hình ảnh theo hotelId thêm vào ngày 12/9
    */
     async getImagesByHotelId(hotelId) {

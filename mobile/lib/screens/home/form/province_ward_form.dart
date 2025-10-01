@@ -8,7 +8,7 @@ import '../../../classes/hotel_model.dart'; // Thêm import này
 // Widget chọn tỉnh/phường giống main.dart demo
 class ProvinceWardForm extends StatefulWidget {
   final VoidCallback? onLoadCompleted; // Thêm callback
-  const ProvinceWardForm({Key? key, this.onLoadCompleted}) : super(key: key);
+  const ProvinceWardForm({super.key, this.onLoadCompleted});
 
   @override
   State<ProvinceWardForm> createState() => _ProvinceWardFormState();
