@@ -187,7 +187,7 @@ class LocationDialog {
                     Row(
                       children: [
                         Expanded(
-                          child: Container(
+                          child: SizedBox(
                             height: 50,
                             child: OutlinedButton(
                               onPressed: () {
@@ -215,7 +215,7 @@ class LocationDialog {
                         SizedBox(width: 12),
                         Expanded(
                           flex: 2,
-                          child: Container(
+                          child: SizedBox(
                             height: 50,
                             child: ElevatedButton(
                               onPressed: () {

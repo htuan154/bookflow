@@ -7,6 +7,23 @@ const roomTypeRepository = require('../repositories/roomType.repository');
 const { AppError } = require('../../../utils/errors');
 
 class BookingService {
+    /**
+     * Lấy tất cả các booking của một user
+     * @param {string} userId
+     * @returns {Promise<Booking[]>}
+     */
+    async findUserBookings(userId) {
+        return await bookingRepository.findByUserId(userId);
+    }
+
+    /**
+     * Lấy tất cả các booking của một khách sạn
+     * @param {string} hotelId
+     * @returns {Promise<Booking[]>}
+     */
+    async findBookingsByHotelId(hotelId) {
+        return await bookingRepository.findBookingsByHotelId(hotelId);
+    }
         /**
      * Khách hàng tạo một đơn đặt phòng mới.
      * @param {object} bookingData - Dữ liệu đặt phòng từ client.

@@ -4,7 +4,7 @@ import '../../../services/hotel_service.dart';
 
 class ReviewDetailScreen extends StatefulWidget {
   final Review review;
-  const ReviewDetailScreen({Key? key, required this.review}) : super(key: key);
+  const ReviewDetailScreen({super.key, required this.review});
 
   @override
   State<ReviewDetailScreen> createState() => _ReviewDetailScreenState();
@@ -52,7 +52,7 @@ class _ReviewDetailScreenState extends State<ReviewDetailScreen> {
           children: [
             // Hình ảnh review
             if (isLoading)
-              Container(
+              SizedBox(
                 height: 220,
                 child: Center(child: CircularProgressIndicator(color: Colors.orange)),
               )

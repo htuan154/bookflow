@@ -4,6 +4,42 @@ const BookingService = require('../services/booking.service');
 const { successResponse } = require('../../../utils/response');
 
 class BookingController {
+
+    /**
+     * Lấy tất cả các booking của một user
+     * GET /api/v1/bookings/user/:userId
+     */
+    async getUserBookings(req, res, next) {
+        try {
+            const { userId } = req.params;
+            // Cho phép admin hoặc chính user xem
+            if (req.user.role !== 'admin' && req.user.id !== userId) {
+                return res.status(403).json({ message: 'Forbidden' });
+            }
+            const bookings = await BookingService.findUserBookings(userId);
+            successResponse(res, bookings);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * Lấy tất cả các booking của một khách sạn
+     * GET /api/v1/bookings/hotel/:hotelId
+     */
+    async getBookingsByHotelId(req, res, next) {
+        try {
+            const { hotelId } = req.params;
+            // Chỉ cho phép chủ khách sạn hoặc admin xem
+            if (req.user.role !== 'admin' && req.user.role !== 'hotel_owner') {
+                return res.status(403).json({ message: 'Forbidden' });
+            }
+            const bookings = await BookingService.findBookingsByHotelId(hotelId);
+            successResponse(res, bookings);
+        } catch (error) {
+            next(error);
+        }
+    }
     /**
      * Khách hàng tạo một đơn đặt phòng mới.
      * POST /api/v1/bookings

@@ -17,6 +17,8 @@ import 'components/location_dialog.dart';
 // import 'path/to/your/geocoding_service.dart';
 
 class ExploreScreen extends StatefulWidget {
+  const ExploreScreen({super.key});
+
   @override
   _ExploreScreenState createState() => _ExploreScreenState();
 }
@@ -484,8 +486,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 ),
               );
             },
-            child: Text('Confirm'),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: Text('Confirm'),
           ),
         ],
       ),
@@ -668,10 +670,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 _mapController.camera.zoom + 1,
               );
             },
-            child: Icon(Icons.add),
             backgroundColor: Colors.white,
             foregroundColor: Colors.black,
             heroTag: "zoom_in",
+            child: Icon(Icons.add),
           ),
 
           SizedBox(height: 8),
@@ -685,10 +687,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 _mapController.camera.zoom - 1,
               );
             },
-            child: Icon(Icons.remove),
             backgroundColor: Colors.white,
             foregroundColor: Colors.black,
             heroTag: "zoom_out",
+            child: Icon(Icons.remove),
           ),
 
           SizedBox(height: 8),
@@ -696,9 +698,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
           // My location - chỉ yêu cầu GPS khi người dùng nhấn
           FloatingActionButton(
             onPressed: _getCurrentLocation,
-            child: Icon(Icons.my_location),
             backgroundColor: Colors.orange,
             heroTag: "my_location",
+            child: Icon(Icons.my_location),
           ),
         ],
       ),

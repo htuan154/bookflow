@@ -1,4 +1,3 @@
-// src/hooks/useHotelOwner.js
 import { useState, useCallback } from 'react';
 import { hotelApiService } from '../api/hotel.service';
 
@@ -9,6 +8,22 @@ export const useHotelOwner = () => {
     const [hotelData, setHotelData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    // Lấy danh sách booking theo hotelId
+    const fetchBookingsByHotelId = useCallback(async (hotelId) => {
+        if (!hotelId) return [];
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await hotelApiService.getBookingsByHotelId(hotelId);
+            return response;
+        } catch (error) {
+            setError(error?.response?.data?.message || error.message || 'Không thể tải danh sách booking');
+            return [];
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     // Lấy thông tin khách sạn của owner
     const fetchOwnerHotel = useCallback(async (filters = {}) => {
@@ -255,7 +270,7 @@ export const useHotelOwner = () => {
         updateHotelAmenities,
         getAvailableAmenities,
         createOwnerHotel,
-        
+        fetchBookingsByHotelId,
         // Utility functions
         getStatusText,
         getStatusColor
