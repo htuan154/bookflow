@@ -11,7 +11,7 @@ import '../../../services/user_service.dart';
 class BlogDetailScreen extends StatefulWidget {
   final String blogSlug; // Đổi từ blogId thành blogSlug
 
-  const BlogDetailScreen({Key? key, required this.blogSlug}) : super(key: key);
+  const BlogDetailScreen({super.key, required this.blogSlug});
 
   @override
   State<BlogDetailScreen> createState() => _BlogDetailScreenState();

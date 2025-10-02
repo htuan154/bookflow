@@ -8,12 +8,12 @@ class SelectedLocationInfo extends StatelessWidget {
   final VoidCallback onSearchNearby;
 
   const SelectedLocationInfo({
-    Key? key,
+    super.key,
     required this.selectedLocation,
     required this.selectedAddress,
     required this.onClose,
     required this.onSearchNearby,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -54,11 +54,11 @@ class SelectedLocationInfo extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   onPressed: onSearchNearby,
-                  child: Text('Tìm khách sạn gần đây'),
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     textStyle: TextStyle(fontSize: 12),
                   ),
+                  child: Text('Tìm khách sạn gần đây'),
                 ),
               ),
             ],

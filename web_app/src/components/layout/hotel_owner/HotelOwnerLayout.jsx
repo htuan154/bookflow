@@ -97,11 +97,7 @@ const HotelOwnerLayout = () => {
         { 
             name: 'Hỗ trợ khách hàng', 
             icon: <MessageSquare size={20} />, 
-            path: '/hotel-owner/support',
-            subItems: [
-                { name: 'Chat với khách', path: '/hotel-owner/support/chat' },
-                { name: 'Yêu cầu hỗ trợ', path: '/hotel-owner/support/requests' }
-            ]
+            path: '/hotel-owner/support'
         },
         { 
             name: 'Tin nhắn', 

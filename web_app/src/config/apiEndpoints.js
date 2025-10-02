@@ -2,6 +2,11 @@
 
 const API_BASE_URL = 'http://localhost:8080/api/v1';
 const CHATBOT_BASE = 'http://localhost:8080';
+
+export const CHAT_API_ENDPOINTS = {
+    GET_CHAT_HISTORY: (bookingId) => `${API_BASE_URL}/chats/booking/${bookingId}`,
+    SEND_MESSAGE: `${API_BASE_URL}/chats`,
+};
 export const API_ENDPOINTS = {
     IM: {
         CREATE_DM: `${API_BASE_URL}/im/conversations/dm`,
@@ -159,6 +164,7 @@ export const API_ENDPOINTS = {
         GET_DETAILS: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}`,
         UPDATE_STATUS: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/status`,
         GET_HISTORY: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/history`,
+        GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/bookings/hotel/${hotelId}`,
     },
 
     // --- Booking Detail Endpoints ---
