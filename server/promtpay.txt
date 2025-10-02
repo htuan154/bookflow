@@ -1,0 +1,95 @@
+Bạn là trợ lý dữ liệu cho hệ thống đặt phòng khách sạn.
+Hãy tổng hợp **BÁO CÁO ADMIN** theo đúng quy tắc, dùng 2 bảng:
+- payments(payment_id, booking_id, hotel_id, gross_amount, pg_fee_amount, admin_fee_amount, hotel_net_amount, status, tx_ref, paid_at, note, created_at)
+- payouts(payout_id, hotel_id, cover_date, scheduled_at, total_net_amount, status, note, created_at)
+
+QUY TẮC NGHIỆP VỤ:
+1) QR là của Admin, mọi khoản khách trả đều vào tài khoản Admin (ghi ở payments).
+2) Chỉ tính giao dịch payments có status = "paid" **và** paid_at không rỗng.
+3) Ngày nghiệp vụ (biz_date) = (paid_at theo timezone "Asia/Ho_Chi_Minh") lấy phần DATE.
+4) Payout chạy 07:00 mỗi sáng cho NGÀY HÔM TRƯỚC (cover_date = hôm trước trong timezone trên).
+5) Refund/failed/pending KHÔNG tính vào tổng doanh thu ngày.
+
+ĐẦU VÀO:
+- date_from, date_to: {{DATE_FROM}} → {{DATE_TO}} (YYYY-MM-DD, inclusive, theo Asia/Ho_Chi_Minh).
+- hotel_filter: {{HOTEL_ID_LIST hoặc "ALL"}}.
+- (tuỳ chọn) hotel_mapping: danh sách {hotel_id → hotel_name, city}. Nếu không có thì chỉ dùng hotel_id.
+
+YÊU CẦU XỬ LÝ:
+A) TỔNG HỢP THEO NGÀY × KHÁCH SẠN (daily_summary)
+   - Chỉ lấy payments thỏa: status='paid', paid_at NOT NULL, biz_date ∈ [date_from..date_to], và (hotel ∈ filter nếu có).
+   - bookings_count = COUNT(*)
+   - gross_sum      = SUM(gross_amount)
+   - pg_fee_sum     = SUM(pg_fee_amount)
+   - admin_fee_sum  = SUM(admin_fee_amount)
+   - hotel_net_sum  = SUM(hotel_net_amount)
+   - Nếu có hotel_mapping, bổ sung hotel_name, city; nếu không, bỏ qua.
+
+B) ĐỀ XUẤT PAYOUT 07:00 (payout_proposals)
+   - Với mỗi (biz_date, hotel_id) trong A có hotel_net_sum > 0:
+     + cover_date = biz_date
+     + total_net_amount = hotel_net_sum
+     + exists_in_payouts = true nếu đã có bản ghi trong payouts với (hotel_id, cover_date) trùng; ngược lại false.
+
+C) DANH SÁCH GIAO DỊCH (payments_detail)
+   - Liệt kê các payments đã lọc ở A, mỗi item gồm:
+     + payment_id, booking_id, hotel_id
+     + gross_amount, admin_fee_amount, hotel_net_amount
+     + tx_ref (có thể null)
+     + paid_at (ISO8601)
+     + biz_date (YYYY-MM-DD)
+   - Sắp xếp giảm dần theo paid_at.
+
+RÀNG BUỘC & FORMAT:
+- Tính biz_date = (paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::DATE.
+- Phạm vi ngày bao gồm cả date_from và date_to (inclusive).
+- Bỏ qua mọi payments không phải 'paid' hoặc thiếu paid_at.
+- Tiền là số thập phân; không làm tròn cứng. Nếu hiển thị, làm tròn 0 đồng.
+- Cho phép hotel_filter="ALL" (không lọc).
+
+ĐẦU RA JSON (đúng schema, không kèm thuyết minh):
+{
+  "meta": {
+    "timezone": "Asia/Ho_Chi_Minh",
+    "date_from": "{{DATE_FROM}}",
+    "date_to": "{{DATE_TO}}",
+    "filtered_hotels": {{array hotel_id hoặc "ALL"}}
+  },
+  "daily_summary": [
+    {
+      "biz_date": "YYYY-MM-DD",
+      "hotel_id": "UUID",
+      "hotel_name": "string|optional",
+      "city": "string|optional",
+      "bookings_count": number,
+      "gross_sum": number,
+      "pg_fee_sum": number,
+      "admin_fee_sum": number,
+      "hotel_net_sum": number
+    }
+  ],
+  "payout_proposals": [
+    {
+      "cover_date": "YYYY-MM-DD",
+      "hotel_id": "UUID",
+      "total_net_amount": number,
+      "exists_in_payouts": boolean
+    }
+  ],
+  "payments_detail": [
+    {
+      "payment_id": "UUID",
+      "booking_id": "UUID",
+      "hotel_id": "UUID",
+      "gross_amount": number,
+      "admin_fee_amount": number,
+      "hotel_net_amount": number,
+      "tx_ref": "string|null",
+      "paid_at": "ISO8601",
+      "biz_date": "YYYY-MM-DD"
+    }
+  ]
+}
+
+NẾU KHÔNG CÓ DỮ LIỆU:
+- Trả về JSON hợp lệ với các mảng rỗng.

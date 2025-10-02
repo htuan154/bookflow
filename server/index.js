@@ -56,6 +56,7 @@ const roleRoutes = require('./src/api/v1/routes/role.route');
 
 const dailyJobRoutes = require('./src/api/v1/routes/dailyJob.route');
 const provincesRoutes = require('./src/api/v1/routes/provinces.routes');
+const reportsRoutes = require('./src/api/v1/routes/reports.route');
 
 // --- App ---
 const app = express();
@@ -122,6 +123,10 @@ app.use('/api/v1/notification-for-contract', notificationForContractRoutes);
 
 // DailyJob API
 app.use('/api/v1/dailyjob', dailyJobRoutes);
+
+// Reports API
+app.use('/api/v1', reportsRoutes);
+
 // --- 404 chung ---
 app.use((req, res) => {
   res.status(404).json({ success: false, code: 404, message: 'Not found' });
