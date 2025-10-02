@@ -44,7 +44,7 @@ def check_comment():
       - in: body
         name: body
         description: Nội dung bình luận cần được phân loại.
-        required: true
+        required: true                                                                                                     
         schema:
           type: object
           required:
