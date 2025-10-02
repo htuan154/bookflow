@@ -1,4 +1,10 @@
-Bạn là trợ lý dữ liệu cho hệ thống đặt phòng khách sạn.
+Bạn là trợ lý dữ liệu cho hệ thống đặt phòng khách sạn BOOKFLOW.
+Hệ thống hiện tại bao gồm:
+- **Backend API** (Node.js + PostgreSQL) - ✅ HOÀN THÀNH
+- **Frontend Web Admin & Hotel Owner** (React.js) - ✅ HOÀN THÀNH  
+- **Mobile App cho Khách hàng** (Flutter) - 🚧 ĐANG PHÁT TRIỂN
+
+=== PHẦN 1: BÁO CÁO ADMIN (HIỆN TẠI) ===
 Hãy tổng hợp **BÁO CÁO ADMIN** theo đúng quy tắc, dùng 2 bảng:
 - payments(payment_id, booking_id, hotel_id, gross_amount, pg_fee_amount, admin_fee_amount, hotel_net_amount, status, tx_ref, paid_at, note, created_at)
 - payouts(payout_id, hotel_id, cover_date, scheduled_at, total_net_amount, status, note, created_at)
@@ -93,3 +99,160 @@ RÀNG BUỘC & FORMAT:
 
 NẾU KHÔNG CÓ DỮ LIỆU:
 - Trả về JSON hợp lệ với các mảng rỗng.
+
+=== PHẦN 2: HƯỚNG PHÁT TRIỂN MOBILE PAYMENT ===
+
+🎯 **MỤC TIÊU**: Phát triển Mobile App (Flutter) cho khách hàng đặt phòng và thanh toán
+
+📱 **KIẾN TRÚC MOBILE PAYMENT**:
+
+A) **MOBILE APP FEATURES**:
+   - 🏨 Tìm kiếm & đặt phòng khách sạn
+   - 💳 Thanh toán trực tuyến (VNPay, MoMo, ZaloPay)
+   - 📱 Quét QR code thanh toán tại khách sạn
+   - 🎫 Quản lý booking & check-in/out
+   - 📊 Lịch sử giao dịch cá nhân
+   - 🔔 Push notification cho booking status
+
+B) **PAYMENT FLOW MOBILE**:
+   ```
+   1. Customer đặt phòng qua Mobile App
+   2. Chọn phương thức thanh toán:
+      - Online: VNPay/MoMo/ZaloPay → API
+      - Offline: QR Code tại khách sạn
+   3. Backend tạo payment record (status="pending")
+   4. Payment gateway xử lý → webhook callback
+   5. Update payment status → Push notification
+   6. Hotel Owner nhận thông báo đặt phòng mới
+   ```
+
+C) **DATABASE EXTENSIONS** (Cần thêm):
+   ```sql
+   -- Bảng thiết bị mobile & push notifications
+   CREATE TABLE mobile_devices (
+     device_id UUID PRIMARY KEY,
+     user_id UUID REFERENCES users(user_id),
+     device_token VARCHAR(500), -- FCM token
+     platform ENUM('ios', 'android'),
+     app_version VARCHAR(20),
+     created_at TIMESTAMP DEFAULT NOW(),
+     last_active TIMESTAMP
+   );
+
+   -- Bảng QR codes cho thanh toán offline
+   CREATE TABLE payment_qr_codes (
+     qr_id UUID PRIMARY KEY,
+     booking_id UUID REFERENCES bookings(booking_id),
+     qr_data TEXT, -- JSON chứa thông tin thanh toán
+     expires_at TIMESTAMP,
+     status ENUM('active', 'used', 'expired'),
+     created_at TIMESTAMP DEFAULT NOW()
+   );
+
+   -- Lịch sử push notifications
+   CREATE TABLE push_notifications (
+     notification_id UUID PRIMARY KEY,
+     user_id UUID REFERENCES users(user_id),
+     title VARCHAR(200),
+     body TEXT,
+     data JSON, -- Custom payload
+     sent_at TIMESTAMP DEFAULT NOW(),
+     read_at TIMESTAMP
+   );
+   ```
+
+D) **API ENDPOINTS CẦN THÊM**:
+   ```
+   // Mobile Authentication
+   POST /api/v1/mobile/auth/login
+   POST /api/v1/mobile/auth/register
+   POST /api/v1/mobile/auth/refresh-token
+
+   // Mobile Bookings
+   GET  /api/v1/mobile/hotels/search
+   POST /api/v1/mobile/bookings
+   GET  /api/v1/mobile/bookings/my-bookings
+   
+   // Mobile Payments
+   POST /api/v1/mobile/payments/create-payment
+   POST /api/v1/mobile/payments/qr-generate
+   POST /api/v1/mobile/payments/qr-verify
+   GET  /api/v1/mobile/payments/history
+
+   // Push Notifications
+   POST /api/v1/mobile/notifications/register-device
+   GET  /api/v1/mobile/notifications/list
+   PUT  /api/v1/mobile/notifications/:id/mark-read
+   ```
+
+E) **MOBILE PAYMENT METHODS**:
+   ```javascript
+   const PAYMENT_METHODS = {
+     VNPAY: {
+       name: "VNPay",
+       type: "online",
+       logo: "vnpay_logo.png",
+       supported_banks: ["VCB", "TCB", "MB", "ACB"]
+     },
+     MOMO: {
+       name: "MoMo eWallet", 
+       type: "online",
+       logo: "momo_logo.png"
+     },
+     ZALOPAY: {
+       name: "ZaloPay",
+       type: "online", 
+       logo: "zalopay_logo.png"
+     },
+     QR_CODE: {
+       name: "QR Code tại khách sạn",
+       type: "offline",
+       description: "Quét mã QR để thanh toán tại lễ tân"
+     }
+   };
+   ```
+
+F) **FLUTTER PROJECT STRUCTURE**:
+   ```
+   mobile/
+   ├── lib/
+   │   ├── main.dart
+   │   ├── screens/
+   │   │   ├── auth/
+   │   │   ├── booking/
+   │   │   ├── payment/
+   │   │   └── profile/
+   │   ├── services/
+   │   │   ├── api_service.dart
+   │   │   ├── payment_service.dart
+   │   │   └── notification_service.dart
+   │   ├── models/
+   │   └── widgets/
+   ├── android/
+   ├── ios/
+   └── pubspec.yaml
+   ```
+
+G) **TECH STACK MOBILE**:
+   - **Frontend**: Flutter (Dart)
+   - **State Management**: Provider/Bloc
+   - **HTTP Client**: Dio
+   - **Local Storage**: SharedPreferences/Hive
+   - **Push Notifications**: Firebase Cloud Messaging (FCM)
+   - **QR Code**: qr_flutter + qr_code_scanner
+   - **Payment SDK**: VNPay, MoMo, ZaloPay native SDKs
+
+🚀 **ROADMAP PHÁT TRIỂN**:
+   - **Phase 1**: Authentication & Hotel Search (Mobile UI)
+   - **Phase 2**: Booking Flow & Online Payment Integration  
+   - **Phase 3**: QR Code Payment & Offline Booking
+   - **Phase 4**: Push Notifications & Real-time Updates
+   - **Phase 5**: Advanced Features (Reviews, Loyalty, etc.)
+
+📋 **NEXT STEPS**:
+   1. Setup Flutter project với architecture pattern
+   2. Implement Authentication screens & API integration
+   3. Design Hotel search & booking flow UI
+   4. Integrate payment gateways (VNPay/MoMo/ZaloPay)
+   5. Setup Firebase FCM cho push notifications
+   6. Testing trên iOS & Android devices

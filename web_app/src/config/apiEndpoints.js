@@ -476,4 +476,16 @@ export const API_ENDPOINTS = {
         SEARCH_HOTELS: `${API_BASE_URL}/hotels/search`,
         GET_CITIES: `${API_BASE_URL}/hotels/cities`,
     },
+    // --- Reports Endpoints ---
+    REPORTS: {
+        // Admin reports
+        ADMIN_SUMMARY: (params = '') => `${API_BASE_URL}/admin/reports/summary${params ? `?${params}` : ''}`,
+        ADMIN_PAYMENTS: (params = '') => `${API_BASE_URL}/admin/reports/payments${params ? `?${params}` : ''}`,
+        ADMIN_PAYOUTS: (params = '') => `${API_BASE_URL}/admin/reports/payouts${params ? `?${params}` : ''}`,
+
+        // Hotel Owner reports
+        OWNER_PAYMENTS: (params = '') => `${API_BASE_URL}/owner/reports/payments${params ? `?${params}` : ''}`,
+        OWNER_PAYOUTS: (params = '') => `${API_BASE_URL}/owner/reports/payouts${params ? `?${params}` : ''}`,
+    },
+
 };

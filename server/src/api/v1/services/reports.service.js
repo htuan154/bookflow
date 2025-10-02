@@ -184,16 +184,13 @@ class ReportsService {
     this._validatePayoutData(payoutData);
     
     // Check if payout already exists for this hotel and date
-    const existingPayouts = await reportsRepository.getAdminPayoutsOverview({
+    const existing = await reportsRepository.getAdminPayoutsOverview({
       dateFrom: payoutData.cover_date,
       dateTo: payoutData.cover_date,
       hotelIds: [payoutData.hotel_id]
     });
-    
-    if (existingPayouts.data.length > 0) {
-      throw new Error('Payout already exists for this hotel and date');
-    }
-    
+    if (existing.length > 0) throw new Error('Payout already exists for this hotel and date');
+
     return await reportsRepository.createPayout(payoutData);
   }
   
@@ -263,7 +260,7 @@ class ReportsService {
     }
     
     const from = new Date(dateFrom);
-    const to = new Date(dateFrom);
+    const to = new Date(dateTo);
     
     if (isNaN(from.getTime()) || isNaN(to.getTime())) {
       throw new Error('Invalid date format. Use YYYY-MM-DD');

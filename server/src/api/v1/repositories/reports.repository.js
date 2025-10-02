@@ -4,6 +4,7 @@ const pool = require('../../../config/db');
 const AdminDailyRevenueByHotelItem = require('../../../models/admin_daily_revenue_by_hotel.model');
 const AdminPaymentListItem = require('../../../models/admin_payment_list.model');
 const AdminPayoutOverviewItem = require('../../../models/admin_payouts_overview.model');
+const HotelOwnerPaymentListItem = require('../../../models/hotel_owner_payment_list.model');
 const Payment = require('../../../models/payment.model');
 const Payout = require('../../../models/payout.model');
 
@@ -211,7 +212,7 @@ class ReportsRepository {
     sql += ` ORDER BY paid_at DESC`;
     
     const { rows } = await pool.query(sql, params);
-    return rows.map(row => new AdminPaymentListItem(row));
+    return rows.map(row => new HotelOwnerPaymentListItem(row));
   }
   
   /**
