@@ -24,19 +24,50 @@ const roomTypeService = {
   },
 
   async getById(roomTypeId) {
-    const res = await axiosClient.get(API_ENDPOINTS.ROOM_TYPES.GET_BY_ID(roomTypeId));
-    const arr = toArray(res);
-    return arr[0] ?? (res?.data ?? res);
+    // Sửa lỗi: UUID không cần parse thành integer
+    if (!roomTypeId || roomTypeId === 'undefined' || roomTypeId === 'null') {
+      console.warn('Invalid roomTypeId:', roomTypeId);
+      return null;
+    }
+    
+    // Validate UUID format (optional)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(roomTypeId)) {
+      console.warn('roomTypeId is not a valid UUID:', roomTypeId);
+      return null;
+    }
+    
+    try {
+      const res = await axiosClient.get(API_ENDPOINTS.ROOM_TYPES.GET_BY_ID(roomTypeId));
+      const arr = toArray(res);
+      return arr[0] ?? (res?.data ?? res);
+    } catch (error) {
+      console.error('Error fetching room type by ID:', error);
+      throw error;
+    }
   },
 
   async create(payload) {
-    const res = await axiosClient.post(API_ENDPOINTS.ROOM_TYPES.CREATE, payload);
-    return res?.data ?? res;
+    try {
+      const res = await axiosClient.post(API_ENDPOINTS.ROOM_TYPES.CREATE, payload);
+      return res?.data ?? res;
+    } catch (error) {
+      throw error;
+    }
   },
 
   async update(roomTypeId, payload) {
-    const res = await axiosClient.put(API_ENDPOINTS.ROOM_TYPES.UPDATE(roomTypeId), payload);
-    return res?.data ?? res;
+    try {
+      // Sửa lỗi: UUID không cần validate như integer
+      if (!roomTypeId || roomTypeId === 'undefined' || roomTypeId === 'null') {
+        throw new Error('Invalid room type ID for update');
+      }
+      
+      const res = await axiosClient.put(API_ENDPOINTS.ROOM_TYPES.UPDATE(roomTypeId), payload);
+      return res?.data ?? res;
+    } catch (error) {
+      throw error;
+    }
   },
 
   async remove(roomTypeId) {
@@ -44,5 +75,6 @@ const roomTypeService = {
     return res?.data ?? res;
   },
 };
+
 
 export default roomTypeService;

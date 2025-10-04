@@ -168,6 +168,18 @@ class PromotionService {
     async getAllAndFilterPromotions(filters) {
         return await promotionRepository.findAllAndFilter(filters);
     }
+
+    /**
+     * Lấy tất cả các khuyến mãi theo hotel ID.
+     * @param {string} hotelId - UUID của khách sạn.
+     * @returns {Promise<Promotion[]>}
+     */
+    async getPromotionsByHotelId(hotelId) {
+        if (!hotelId || hotelId.trim() === '') {
+            throw new AppError('Hotel ID is required', 400);
+        }
+        return await promotionRepository.findByHotelId(hotelId);
+    }
 }
 
 module.exports = new PromotionService();

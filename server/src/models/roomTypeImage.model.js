@@ -1,4 +1,3 @@
-
 class RoomTypeImage {
     constructor({ image_id, room_type_id, image_url, caption, is_thumbnail, uploaded_at }) {
         this.imageId = image_id;
@@ -16,6 +15,7 @@ class RoomTypeImage {
             imageUrl: this.imageUrl,
             caption: this.caption,
             isThumbnail: this.isThumbnail,
+            uploadedAt: this.uploadedAt, // Thêm trường này để FE nhận được ngày tải lên
         };
     }
 }

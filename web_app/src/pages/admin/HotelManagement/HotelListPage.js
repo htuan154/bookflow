@@ -44,6 +44,17 @@ const HotelListPage = () => {
     setCurrentTab(newTab);
   };
 
+  const handleDataRefresh = () => {
+    // Refresh data dựa trên tab hiện tại
+    if (currentTab === 'all') {
+      fetchAllHotels();
+    } else if (currentTab === 'approved') {
+      fetchApprovedHotels();
+    } else if (currentTab === 'pending-rejected') {
+      fetchPendingRejectedHotels();
+    }
+  };
+
   const getCurrentHotels = () => {
     switch (currentTab) {
       case 'all':
@@ -133,6 +144,7 @@ const HotelListPage = () => {
             hotels={currentHotels} 
             showActions={true}
             currentTab={currentTab}
+            onDataRefresh={handleDataRefresh}
           />
         ) : (
           <Box 

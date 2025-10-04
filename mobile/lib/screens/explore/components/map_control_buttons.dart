@@ -7,10 +7,10 @@ class MapControlButtons extends StatelessWidget {
   final LatLng currentLocation;
 
   const MapControlButtons({
-    Key? key,
+    super.key,
     required this.mapController,
     required this.currentLocation,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -26,10 +26,10 @@ class MapControlButtons extends StatelessWidget {
               mapController.camera.zoom + 1,
             );
           },
-          child: Icon(Icons.add),
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
           heroTag: "zoom_in",
+          child: Icon(Icons.add),
         ),
 
         SizedBox(height: 8),
@@ -43,10 +43,10 @@ class MapControlButtons extends StatelessWidget {
               mapController.camera.zoom - 1,
             );
           },
-          child: Icon(Icons.remove),
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
           heroTag: "zoom_out",
+          child: Icon(Icons.remove),
         ),
 
         SizedBox(height: 8),
@@ -56,9 +56,9 @@ class MapControlButtons extends StatelessWidget {
           onPressed: () {
             mapController.move(currentLocation, 15.0);
           },
-          child: Icon(Icons.my_location),
           backgroundColor: Colors.orange,
           heroTag: "my_location",
+          child: Icon(Icons.my_location),
         ),
       ],
     );

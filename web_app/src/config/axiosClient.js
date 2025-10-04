@@ -17,12 +17,12 @@ axiosClient.interceptors.request.use(
         }
         
         // Debug: Log request data
-        console.log('Axios Request:', {
-            method: config.method,
-            url: config.url,
-            data: config.data,
-            headers: config.headers
-        });
+        // console.log('Axios Request:', {
+        //     method: config.method,
+        //     url: config.url,
+        //     data: config.data,
+        //     headers: config.headers
+        // });
         
         return config;
     },

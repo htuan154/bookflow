@@ -1,4 +1,3 @@
-// src/hooks/useHotelOwner.js
 import { useState, useCallback } from 'react';
 import { hotelApiService } from '../api/hotel.service';
 
@@ -9,6 +8,22 @@ export const useHotelOwner = () => {
     const [hotelData, setHotelData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+
+    // Lấy danh sách booking theo hotelId
+    const fetchBookingsByHotelId = useCallback(async (hotelId) => {
+        if (!hotelId) return [];
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await hotelApiService.getBookingsByHotelId(hotelId);
+            return response;
+        } catch (error) {
+            setError(error?.response?.data?.message || error.message || 'Không thể tải danh sách booking');
+            return [];
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     // Lấy thông tin khách sạn của owner
     const fetchOwnerHotel = useCallback(async (filters = {}) => {
@@ -65,20 +80,16 @@ export const useHotelOwner = () => {
         try {
             setLoading(true);
             setError(null);
-            
-            const formData = new FormData();
-            files.forEach(file => {
-                formData.append('images', file);
-            });
-            
-            const response = await hotelApiService.uploadHotelImages(hotelId, formData);
-            
+
+            // Truyền trực tiếp mảng images (files) vào API service
+            const response = await hotelApiService.uploadHotelImages(hotelId, files);
+
             // Cập nhật dữ liệu local với hình ảnh mới
             setHotelData(prev => ({
                 ...prev,
                 images: [...(prev?.images || []), ...(response.data?.images || [])]
             }));
-            
+
             return response.data;
         } catch (error) {
             console.error('Error uploading images:', error);
@@ -172,6 +183,24 @@ export const useHotelOwner = () => {
         }
     }, []);
 
+    // Tạo mới khách sạn
+    const createOwnerHotel = useCallback(async (hotelData) => {
+        try {
+            setLoading(true);
+            setError(null);
+            const response = await hotelApiService.createHotel(hotelData);
+            // Refetch lại danh sách khách sạn sau khi tạo mới
+            await fetchOwnerHotel();
+            return response.data || response;
+        } catch (error) {
+            console.error('Error creating hotel:', error);
+            setError(error?.response?.data?.message || error.message || 'Không thể tạo khách sạn mới');
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, [fetchOwnerHotel]);
+
     // Clear error
     const clearError = useCallback(() => {
         setError(null);
@@ -240,7 +269,8 @@ export const useHotelOwner = () => {
         resetState,
         updateHotelAmenities,
         getAvailableAmenities,
-        
+        createOwnerHotel,
+        fetchBookingsByHotelId,
         // Utility functions
         getStatusText,
         getStatusColor

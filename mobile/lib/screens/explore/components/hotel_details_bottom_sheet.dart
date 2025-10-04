@@ -9,12 +9,12 @@ class HotelDetailsBottomSheet extends StatelessWidget {
   final void Function(Hotel) onBookHotel;
 
   const HotelDetailsBottomSheet({
-    Key? key,
+    super.key,
     required this.hotel,
     required this.currentLocation,
     required this.onGetDirections,
     required this.onBookHotel,
-  }) : super(key: key);
+  });
 
   Color _getHotelCategoryColor(String category) {
     switch (category) {

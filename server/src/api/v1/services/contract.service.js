@@ -151,7 +151,6 @@ class ContractService {
         if (!contract) {
             throw new AppError('Contract not found', 404);
         }
-
         console.log('📥 [CONTRACT SERVICE] Update contract status:', { contractId, updateData });
 
         const { status, signed_date, adminId, notes, approved_by, approvedBy } = updateData;
@@ -164,7 +163,11 @@ class ContractService {
         const finalUpdateData = {
             status: status,
             approved_by: adminId || approved_by || approvedBy,
+
         };
+        if (notes !== undefined) {
+            updateData.notes = notes;
+        }
 
         // Xử lý signed_date: ưu tiên từ request, nếu không có thì giữ nguyên
         if (signed_date) {

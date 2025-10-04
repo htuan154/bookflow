@@ -51,9 +51,8 @@ const HotelOwnerLayout = () => {
             icon: <DollarSign size={20} />, 
             path: '/hotel-owner/pricing',
             subItems: [
-                { name: 'Bảng giá theo mùa', path: '/hotel-owner/pricing/seasonal' },
-                { name: 'Khuyến mãi', path: '/hotel-owner/pricing/promotions' },
-                { name: 'Tạo mã giảm giá', path: '/hotel-owner/pricing/create-promotion' }
+                { name: 'Giá', path: '/hotel-owner/pricing/rates' },
+                { name: 'Khuyến Mãi', path: '/hotel-owner/pricing/promotions' }
             ]
         },
 
@@ -98,11 +97,7 @@ const HotelOwnerLayout = () => {
         { 
             name: 'Hỗ trợ khách hàng', 
             icon: <MessageSquare size={20} />, 
-            path: '/hotel-owner/support',
-            subItems: [
-                { name: 'Chat với khách', path: '/hotel-owner/support/chat' },
-                { name: 'Yêu cầu hỗ trợ', path: '/hotel-owner/support/requests' }
-            ]
+            path: '/hotel-owner/support'
         },
         { 
             name: 'Tin nhắn', 

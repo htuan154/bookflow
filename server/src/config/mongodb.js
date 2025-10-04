@@ -80,6 +80,12 @@ async function ensureChatIndexes(db) {
   // messages
   await db.collection('messages').createIndex({ conversation_id: 1, created_at: -1 });
   await db.collection('messages').createIndex({ sender_id: 1, created_at: -1 });
+
+  await db.collection('notificationForContract').createIndex({ receiver_id: 1, created_at: -1 });
+  await db.collection('notificationForContract').createIndex({ contract_id: 1 });
+  await db.collection('notificationForContract').createIndex({ hotel_id: 1 });
+  await db.collection('notificationForContract').createIndex({ is_read: 1 });
+  await db.collection('notificationForContract').createIndex({ notification_type: 1, receiver_id: 1 });
 }
 
 // BUCKET CHO FILE ĐÍNH KÈM (GridFS)

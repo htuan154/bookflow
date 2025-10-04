@@ -14,27 +14,36 @@ function unwrap(res) {
   return [];
 }
 
-// toVM: GIỮ nguyên snake_case + THÊM camelCase (UI cũ & mới đều chạy)
+// toVM: Xử lý cả snake_case (DB) và camelCase (API response)
 function toVM(row) {
   if (!row) return null;
-  const id = row.room_type_id ?? row.roomTypeId ?? row.id ?? null;
-  const hotelId = row.hotel_id ?? row.hotelId ?? null;
+  
+  // Ưu tiên camelCase từ API response, fallback về snake_case từ DB
+  const id = row.roomTypeId ?? row.room_type_id ?? row.id ?? null;
+  const hotelId = row.hotelId ?? row.hotel_id ?? null;
 
   return {
-    ...row, // giữ nguyên dữ liệu gốc (snake_case)
+    ...row, // giữ nguyên dữ liệu gốc
 
-    // alias camelCase
+    // Chuẩn hóa thành camelCase
     id,
     roomTypeId: id,
+    room_type_id: id, // backup cho UI cũ
     hotelId,
+    hotel_id: hotelId, // backup cho UI cũ
     name: row.name ?? '',
     description: row.description ?? '',
-    maxOccupancy: row.max_occupancy ?? row.maxOccupancy ?? null,
-    basePrice: row.base_price ?? row.basePrice ?? null,
-    numberOfRooms: row.number_of_rooms ?? row.numberOfRooms ?? null,
-    bedType: row.bed_type ?? row.bedType ?? '',
-    areaSqm: row.area_sqm ?? row.areaSqm ?? null,
-    createdAt: row.created_at ?? row.createdAt ?? null,
+    maxOccupancy: row.maxOccupancy ?? row.max_occupancy ?? null,
+    max_occupancy: row.maxOccupancy ?? row.max_occupancy ?? null, // backup
+    basePrice: row.basePrice ?? row.base_price ?? null,
+    base_price: row.basePrice ?? row.base_price ?? null, // backup
+    numberOfRooms: row.numberOfRooms ?? row.number_of_rooms ?? null,
+    number_of_rooms: row.numberOfRooms ?? row.number_of_rooms ?? null, // backup
+    bedType: row.bedType ?? row.bed_type ?? '',
+    bed_type: row.bedType ?? row.bed_type ?? '', // backup
+    areaSqm: row.areaSqm ?? row.area_sqm ?? null,
+    area_sqm: row.areaSqm ?? row.area_sqm ?? null, // backup
+    createdAt: row.createdAt ?? row.created_at ?? null,
   };
 }
 
@@ -82,22 +91,54 @@ export const RoomTypeProvider = ({ children }) => {
   }, []);
 
   const getById = useCallback(async (id) => {
-    const res = await roomTypeService.getById(id);
-    const [first] = unwrap(res).map(toVM).filter(Boolean);
-    return first ?? toVM(res?.data ?? res);
+    // Sửa lỗi: validate id trước khi gọi service
+    if (!id || id === 'undefined' || id === 'null') {
+      console.warn('Invalid room type ID:', id);
+      return null;
+    }
+    
+    try {
+      const res = await roomTypeService.getById(id);
+      if (!res) return null;
+      
+      const [first] = unwrap(res).map(toVM).filter(Boolean);
+      return first ?? toVM(res?.data ?? res);
+    } catch (error) {
+      console.error('Error in getById:', error);
+      setError(error);
+      return null;
+    }
   }, []);
 
   // Mutations: xong tự refetch theo currentHotelId
   const create = useCallback(async (payload) => {
-    const res = await roomTypeService.create(payload);
-    if (currentHotelId) await getByHotel(currentHotelId);
-    return res?.data ?? res;
+    try {
+      setError(null);
+      const res = await roomTypeService.create(payload);
+      if (currentHotelId) {
+        await getByHotel(currentHotelId);
+      }
+      return res?.data ?? res;
+    } catch (error) {
+      console.error('Error in create room type:', error);
+      setError(error);
+      throw error;
+    }
   }, [currentHotelId, getByHotel]);
 
   const update = useCallback(async (id, payload) => {
-    const res = await roomTypeService.update(id, payload);
-    if (currentHotelId) await getByHotel(currentHotelId);
-    return res?.data ?? res;
+    try {
+      setError(null);
+      const res = await roomTypeService.update(id, payload);
+      if (currentHotelId) {
+        await getByHotel(currentHotelId);
+      }
+      return res?.data ?? res;
+    } catch (error) {
+      console.error('Error in update room type:', error);
+      setError(error);
+      throw error;
+    }
   }, [currentHotelId, getByHotel]);
 
   const remove = useCallback(async (id) => {

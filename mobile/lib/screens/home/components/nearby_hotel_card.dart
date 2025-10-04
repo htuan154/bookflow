@@ -162,7 +162,7 @@ class NearbyHotelCard extends StatelessWidget {
   final VoidCallback? onFavoritePressed;
 
   const NearbyHotelCard({
-    Key? key,
+    super.key,
     required this.name,
     required this.price,
     required this.discount,
@@ -171,7 +171,7 @@ class NearbyHotelCard extends StatelessWidget {
     required this.imageUrl,
     this.onTap,
     this.onFavoritePressed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

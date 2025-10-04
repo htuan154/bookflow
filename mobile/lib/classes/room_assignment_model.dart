@@ -109,7 +109,7 @@ class RoomAssignment {
 
   // Lấy thông tin tóm tắt assignment
   String get assignmentSummary {
-    return 'Room ${roomNumber} assigned${hasAssignedBy ? ' by $assignedByName' : ''}';
+    return 'Room $roomNumber assigned${hasAssignedBy ? ' by $assignedByName' : ''}';
   }
 
   // Tính thời gian đã assign (relative time)

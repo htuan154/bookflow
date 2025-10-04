@@ -1,61 +1,144 @@
 // src/components/hotel/HotelDataTable.js
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useHotelStatus from '../../hooks/useHotelStatus';
 import { toast } from 'react-toastify';
 import { FaEye, FaCheck, FaTimes, FaUndo, FaStar, FaMapMarkerAlt, FaEnvelope, FaPhone } from 'react-icons/fa';
+import RejectModal from '../modal/RejectModal';
+import ApprovalModal from '../modal/ApprovalModal';
+import RestoreModal from '../modal/RestoreModal';
 
-const HotelDataTable = ({ hotels, showActions = false, status }) => {
+const HotelDataTable = ({ hotels, showActions = false, status, onDataRefresh }) => {
+    const navigate = useNavigate();
     const { approveHotel, rejectHotel, restoreHotel, loading } = useHotelStatus();
     const [processingId, setProcessingId] = useState(null);
+    const [rejectModalOpen, setRejectModalOpen] = useState(false);
+    const [approvalModalOpen, setApprovalModalOpen] = useState(false);
+    const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+    const [selectedHotel, setSelectedHotel] = useState(null);
 
-    const handleApprove = async (hotelId) => {
-        if (window.confirm('Bạn có chắc chắn muốn duyệt khách sạn này?')) {
-            setProcessingId(hotelId);
-            try {
-                await approveHotel(hotelId);
-                toast.success('Đã duyệt khách sạn thành công!');
-            } catch (error) {
-                toast.error('Có lỗi xảy ra khi duyệt khách sạn');
-            } finally {
-                setProcessingId(null);
+    const handleApprove = (hotel) => {
+        setSelectedHotel(hotel);
+        setApprovalModalOpen(true);
+    };
+
+    const handleApproveConfirm = async () => {
+        if (!selectedHotel) return;
+
+        console.log('handleApproveConfirm called with hotel:', selectedHotel);
+        setProcessingId(selectedHotel.hotelId);
+        try {
+            console.log('Calling approveHotel...');
+            const hotelData = {
+                name: selectedHotel.name,
+                ownerId: selectedHotel.ownerId || selectedHotel.owner_id || selectedHotel.ownerID,
+                oldStatus: selectedHotel.status || 'pending'
+            };
+            console.log('Hotel data being passed:', hotelData);
+            console.log('Full hotel object:', selectedHotel);
+            await approveHotel(selectedHotel.hotelId, hotelData);
+            console.log('approveHotel completed successfully');
+            toast.success('Đã duyệt khách sạn thành công!');
+            // Refresh data thay vì reload page
+            if (onDataRefresh) {
+                onDataRefresh();
             }
+        } catch (error) {
+            console.error('Error in approveHotel:', error);
+            toast.error('Có lỗi xảy ra khi duyệt khách sạn');
+            throw error; // Re-throw để modal có thể handle
+        } finally {
+            setProcessingId(null);
         }
     };
 
-    const handleReject = async (hotelId) => {
-        const reason = window.prompt('Vui lòng nhập lý do từ chối:');
-        if (reason) {
-            setProcessingId(hotelId);
-            try {
-                await rejectHotel(hotelId, reason);
-                toast.success('Đã từ chối khách sạn thành công!');
-            } catch (error) {
-                toast.error('Có lỗi xảy ra khi từ chối khách sạn');
-            } finally {
-                setProcessingId(null);
+    const handleApprovalModalClose = () => {
+        setApprovalModalOpen(false);
+        setSelectedHotel(null);
+    };
+
+    const handleReject = (hotel) => {
+        setSelectedHotel(hotel);
+        setRejectModalOpen(true);
+    };
+
+    const handleRejectConfirm = async (reason) => {
+        if (!selectedHotel) return;
+        
+        setProcessingId(selectedHotel.hotelId);
+        try {
+            const hotelData = {
+                name: selectedHotel.name,
+                ownerId: selectedHotel.ownerId || selectedHotel.owner_id || selectedHotel.ownerID,
+                oldStatus: selectedHotel.status || 'pending'
+            };
+            console.log('Hotel data being passed (reject):', hotelData);
+            await rejectHotel(selectedHotel.hotelId, reason, hotelData);
+            toast.success('Đã từ chối khách sạn thành công!');
+            // Refresh data thay vì reload page
+            if (onDataRefresh) {
+                onDataRefresh();
             }
+        } catch (error) {
+            toast.error('Có lỗi xảy ra khi từ chối khách sạn');
+            throw error; // Re-throw để modal có thể handle
+        } finally {
+            setProcessingId(null);
         }
     };
 
-    const handleRestore = async (hotelId) => {
-        if (window.confirm('Bạn có chắc chắn muốn khôi phục khách sạn này?')) {
-            setProcessingId(hotelId);
-            try {
-                await restoreHotel(hotelId);
-                toast.success('Đã khôi phục khách sạn thành công!');
-            } catch (error) {
-                toast.error('Có lỗi xảy ra khi khôi phục khách sạn');
-            } finally {
-                setProcessingId(null);
+    const handleRejectModalClose = () => {
+        setRejectModalOpen(false);
+        setSelectedHotel(null);
+    };
+
+    const handleRestore = (hotel) => {
+        setSelectedHotel(hotel);
+        setRestoreModalOpen(true);
+    };
+
+    const handleRestoreConfirm = async (note = '') => {
+        if (!selectedHotel) return;
+
+        setProcessingId(selectedHotel.hotelId);
+        try {
+            const hotelData = {
+                name: selectedHotel.name,
+                ownerId: selectedHotel.ownerId || selectedHotel.owner_id || selectedHotel.ownerID,
+                oldStatus: selectedHotel.status || 'rejected',
+                note: note.trim()
+            };
+            console.log('Hotel data being passed (restore):', hotelData);
+            await restoreHotel(selectedHotel.hotelId, hotelData);
+            toast.success('Đã khôi phục khách sạn thành công!');
+            // Refresh data thay vì reload page
+            if (onDataRefresh) {
+                onDataRefresh();
             }
+        } catch (error) {
+            toast.error('Có lỗi xảy ra khi khôi phục khách sạn');
+            throw error; // Re-throw để modal có thể handle
+        } finally {
+            setProcessingId(null);
         }
+    };
+
+    const handleRestoreModalClose = () => {
+        setRestoreModalOpen(false);
+        setSelectedHotel(null);
+    };
+
+    const handleViewHotelDetail = (hotelId) => {
+        navigate(`/admin/hotels/${hotelId}`);
     };
 
     const getStatusBadge = (hotelStatus) => {
         const statusConfig = {
             'approved': { color: 'bg-green-100 text-green-800', text: 'Đã duyệt' },
             'pending': { color: 'bg-yellow-100 text-yellow-800', text: 'Chờ duyệt' },
-            'rejected': { color: 'bg-red-100 text-red-800', text: 'Đã từ chối' }
+            'rejected': { color: 'bg-red-100 text-red-800', text: 'Đã từ chối' },
+            'active': { color: 'bg-blue-100 text-blue-800', text: 'Đang hoạt động' },
+            'inactive': { color: 'bg-gray-100 text-gray-800', text: 'Ngừng hoạt động' }
         };
 
         const config = statusConfig[hotelStatus] || statusConfig['pending'];
@@ -199,6 +282,7 @@ const HotelDataTable = ({ hotels, showActions = false, status }) => {
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <div className="flex space-x-2">
                                         <button
+                                            onClick={() => handleViewHotelDetail(hotel.hotelId)}
                                             className="text-blue-600 hover:text-blue-900 p-1"
                                             title="Xem chi tiết"
                                         >
@@ -207,24 +291,24 @@ const HotelDataTable = ({ hotels, showActions = false, status }) => {
                                         {hotel.status === 'pending' && (
                                             <>
                                                 <button
-                                                    onClick={() => handleApprove(hotel.hotel_id)}
-                                                    disabled={loading || processingId === hotel.hotel_id}
+                                                    onClick={() => handleApprove(hotel)}
+                                                    disabled={loading || processingId === hotel.hotelId}
                                                     className="text-green-600 hover:text-green-900 p-1 disabled:opacity-50"
                                                     title="Duyệt"
                                                 >
-                                                    {processingId === hotel.hotel_id ? (
+                                                    {processingId === hotel.hotelId ? (
                                                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
                                                     ) : (
                                                         <FaCheck />
                                                     )}
                                                 </button>
                                                 <button
-                                                    onClick={() => handleReject(hotel.hotel_id)}
-                                                    disabled={loading || processingId === hotel.hotel_id}
+                                                    onClick={() => handleReject(hotel)}
+                                                    disabled={loading || processingId === hotel.hotelId}
                                                     className="text-red-600 hover:text-red-900 p-1 disabled:opacity-50"
                                                     title="Từ chối"
                                                 >
-                                                    {processingId === hotel.hotel_id ? (
+                                                    {processingId === hotel.hotelId ? (
                                                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
                                                     ) : (
                                                         <FaTimes />
@@ -234,12 +318,12 @@ const HotelDataTable = ({ hotels, showActions = false, status }) => {
                                         )}
                                         {hotel.status === 'rejected' && (
                                             <button
-                                                onClick={() => handleRestore(hotel.hotel_id)}
-                                                disabled={loading || processingId === hotel.hotel_id}
+                                                onClick={() => handleRestore(hotel)}
+                                                disabled={loading || processingId === hotel.hotelId}
                                                 className="text-yellow-600 hover:text-yellow-900 p-1 disabled:opacity-50"
                                                 title="Khôi phục"
                                             >
-                                                {processingId === hotel.hotel_id ? (
+                                                {processingId === hotel.hotelId ? (
                                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
                                                 ) : (
                                                     <FaUndo />
@@ -253,6 +337,30 @@ const HotelDataTable = ({ hotels, showActions = false, status }) => {
                     ))}
                 </tbody>
             </table>
+
+            {/* Reject Modal */}
+            <RejectModal
+                isOpen={rejectModalOpen}
+                onClose={handleRejectModalClose}
+                onConfirm={handleRejectConfirm}
+                hotelName={selectedHotel?.name || ''}
+            />
+
+            {/* Approval Modal */}
+            <ApprovalModal
+                isOpen={approvalModalOpen}
+                onClose={handleApprovalModalClose}
+                onConfirm={handleApproveConfirm}
+                hotelName={selectedHotel?.name || ''}
+            />
+
+            {/* Restore Modal */}
+            <RestoreModal
+                isOpen={restoreModalOpen}
+                onClose={handleRestoreModalClose}
+                onConfirm={handleRestoreConfirm}
+                hotelName={selectedHotel?.name || ''}
+            />
         </div>
     );
 };
