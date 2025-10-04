@@ -4,6 +4,8 @@ import '../../classes/user_model.dart';
 import '../../services/user_service.dart';
 
 class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
   @override
   _ProfileScreenState createState() => _ProfileScreenState();
 }

@@ -23,6 +23,19 @@ router.get(
     bookingController.getBookingDetails
 );
 
+// GET /api/v1/bookings/user/:userId
+router.get(
+    '/user/:userId',
+    bookingController.getUserBookings
+);
+
+// GET /api/v1/bookings/hotel/:hotelId
+router.get(
+    '/hotel/:hotelId',
+    authorize(['hotel_owner', 'admin']),
+    bookingController.getBookingsByHotelId
+);
+
 // PATCH /api/v1/bookings/:bookingId/status
 router.patch(
     '/:bookingId/status',

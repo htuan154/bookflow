@@ -2,15 +2,16 @@
 .DS_Store
 .idea/
 .vscode/
+*.log
 
 # -- Server (Node.js) --
-server/node_modules
+server/node_modules/
 server/.env
 server/logs/
 server/*.log
 
 # -- Web App (React) --
-web_app/node_modules
+web_app/node_modules/
 web_app/.env
 web_app/build/
 web_app/coverage/
@@ -23,10 +24,19 @@ mobile_app/build/
 mobile_app/pubspec.lock
 mobile_app/*.iml
 
-
+# -- Python (AI Model Server) --
+.venv/
 venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-ai_model_server/model/pytorch_model.bin
+# Ignore model weights (too large for GitHub)
 ai_model_server/model/*.bin
+ai_model_server/model/pytorch_model.bin
+ai_model_server/model/*.pt
+ai_model_server/model/*.pth
+
+# Optional: ignore Jupyter checkpoints
+.ipynb_checkpoints/

@@ -8,7 +8,7 @@ import '../../services/user_service.dart';
 class EditProfileScreen extends StatefulWidget {
   final User? user;
 
-  const EditProfileScreen({Key? key, this.user}) : super(key: key);
+  const EditProfileScreen({super.key, this.user});
 
   @override
   _EditProfileScreenState createState() => _EditProfileScreenState();

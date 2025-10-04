@@ -1,7 +1,7 @@
 const axios = require('axios');
 
-// Địa chỉ của server AI Python
-const AI_MODEL_API_URL = 'http://localhost:5000/check-comment';
+// Địa chỉ của server AI Python (có thể override bằng biến môi trường)
+const AI_MODEL_API_URL = process.env.AI_MODEL_API_URL || 'http://localhost:5000/check-comment';
 
 class AiModerationService {
     async classifyComment(content) {

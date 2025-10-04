@@ -8,12 +8,12 @@ class BlogCommentTree extends StatelessWidget {
   final int depth;
 
   const BlogCommentTree({
-    Key? key,
+    super.key,
     required this.comment,
     this.onReply,
     this.onDelete,
     this.depth = 0,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

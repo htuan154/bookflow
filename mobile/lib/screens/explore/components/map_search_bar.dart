@@ -7,12 +7,12 @@ class MapSearchBar extends StatelessWidget {
   final Map<String, String> mapStyles;
 
   const MapSearchBar({
-    Key? key,
+    super.key,
     required this.onSearch,
     required this.selectedMapStyle,
     required this.onMapStyleChanged,
     required this.mapStyles,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -172,6 +172,37 @@ Truy cập: `http://localhost:8080/api-docs` để xem API documentation đầy 
 3. **Railway/Heroku** (Backend)
 4. **VPS/Cloud Server**
 
+### Docker Compose (Backend + Frontend + AI Model + MongoDB)
+
+The stack is wired via `docker-compose.yml`:
+
+- backend (Node.js) listens on port 8080
+- frontend (React) is served on port 3000
+- ai-model (Flask + Transformers) on port 5000
+- mongo (MongoDB) on port 27017
+
+Quick start:
+
+```powershell
+# Windows PowerShell
+docker-compose build; docker-compose up -d
+
+# View logs
+docker-compose logs -f backend
+docker-compose logs -f ai-model
+```
+
+Verify:
+
+- API Docs: http://localhost:8080/api-docs
+- AI endpoint (via backend): backend posts to the AI at `AI_MODEL_API_URL`
+- AI direct test: `POST http://localhost:5000/check-comment` with `{ "text": "sample" }`
+
+Environment:
+
+- `server/.env` is mounted; in containers we override `MONGO_URI` to talk to the `mongo` service
+- `AI_MODEL_API_URL` defaults to `http://ai-model:5000/check-comment` inside Docker
+
 ### Environment Branches
 - `main` - Production
 - `develop` - Development

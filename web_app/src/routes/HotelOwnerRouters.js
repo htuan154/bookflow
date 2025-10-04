@@ -36,7 +36,14 @@ import PricingIndex from '../pages/hotel_owner/pricing';
 import RatesPage from '../pages/hotel_owner/pricing/RatesPage';
 import PromotionsPage from '../pages/hotel_owner/pricing/PromotionsPage';
 
+// === Support Pages
+import CustomerSupportPage from '../pages/hotel_owner/support/CustomerSupportPage';
 
+import OwnerReportsPage from '../pages/hotel_owner/reports/OwnerReportsPage';
+import RevenuePage from '../pages/hotel_owner/reports/RevenuePage';
+import OccupancyPage from '../pages/hotel_owner/reports/OccupancyPage';
+import PromotionEffectivenessPage from '../pages/hotel_owner/reports/PromotionEffectivenessPage';
+import ReportsSummaryPage from '../pages/hotel_owner/reports/ReportsSummaryPage';
 const HotelOwnerRoutes = () => {
   const { isAuthenticated, user } = useAuth();
 
@@ -53,7 +60,12 @@ const HotelOwnerRoutes = () => {
                 {/* Dashboard */}
                 <Route index element={<HotelOwnerWelcomePage />} />
                 <Route path="dashboard" element={<HotelOwnerWelcomePage />} />
-
+                {/* Reports (Báo cáo & Thống kê) */}
+                <Route path="reports" element={<OwnerReportsPage />} />
+                <Route path="reports/summary" element={<ReportsSummaryPage />} />
+                <Route path="reports/revenue" element={<RevenuePage />} />
+                <Route path="reports/occupancy" element={<OccupancyPage />} />
+                <Route path="reports/promotions" element={<PromotionEffectivenessPage />} />
                 {/* Hotel management */}
                 <Route path="hotel" element={<Navigate to="/hotel-owner/hotel/info" replace />} />
                 <Route path="hotel/info" element={<HotelInfo />} />
@@ -92,6 +104,9 @@ const HotelOwnerRoutes = () => {
                 <Route path="pricing" element={<PricingIndex />} />
                 <Route path="pricing/rates" element={<RatesPage />} />
                 <Route path="pricing/promotions" element={<PromotionsPage />} />
+
+                {/* ======================= CUSTOMER SUPPORT ======================= */}
+                <Route path="support" element={<CustomerSupportPage />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
