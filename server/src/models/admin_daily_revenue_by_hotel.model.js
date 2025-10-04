@@ -6,7 +6,7 @@ class AdminDailyRevenueByHotelItem {
     this.hotelName = row.hotel_name;
     this.hotelCity = row.hotel_city;
     this.bookingsCount = Number(row.bookings_count || 0);
-    this.grossSum = row.gross_sum;
+    this.finalSum = row.final_sum;
     this.pgFeeSum = row.pg_fee_sum;
     this.adminFeeSum = row.admin_fee_sum;
     this.hotelNetSum = row.hotel_net_sum;

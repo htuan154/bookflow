@@ -43,7 +43,8 @@ class ReportsRepository {
   async getPaymentsDetail({ dateFrom, dateTo, hotelIds = null }) {
     let sql = `
       SELECT payment_id, booking_id, hotel_id,
-             gross_amount, admin_fee_amount, hotel_net_amount,
+             base_amount, surcharge_amount, discount_amount, final_amount,
+             pg_fee_amount, admin_fee_amount, hotel_net_amount,
              tx_ref, paid_at,
              (paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS biz_date
       FROM payments
@@ -65,7 +66,11 @@ class ReportsRepository {
       payment_id: row.payment_id,
       booking_id: row.booking_id,
       hotel_id: row.hotel_id,
-      gross_amount: row.gross_amount,
+      base_amount: row.base_amount,
+      surcharge_amount: row.surcharge_amount,
+      discount_amount: row.discount_amount,
+      final_amount: row.final_amount,
+      pg_fee_amount: row.pg_fee_amount,
       admin_fee_amount: row.admin_fee_amount,
       hotel_net_amount: row.hotel_net_amount,
       tx_ref: row.tx_ref,
@@ -257,15 +262,17 @@ class ReportsRepository {
   async createPayment(paymentData) {
     const sql = `
       INSERT INTO payments (
-        booking_id, hotel_id, gross_amount, pg_fee_amount, 
-        admin_fee_amount, status, tx_ref, paid_at, note
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        booking_id, hotel_id, base_amount, surcharge_amount, discount_amount,
+        pg_fee_amount, admin_fee_amount, status, tx_ref, paid_at, note
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `;
     const values = [
       paymentData.booking_id,
       paymentData.hotel_id,
-      paymentData.gross_amount,
+      paymentData.base_amount,
+      paymentData.surcharge_amount || 0,
+      paymentData.discount_amount || 0,
       paymentData.pg_fee_amount || 0,
       paymentData.admin_fee_amount || 0,
       paymentData.status || 'paid',

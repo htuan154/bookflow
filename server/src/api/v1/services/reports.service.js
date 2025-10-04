@@ -160,19 +160,12 @@ class ReportsService {
   async createPayment(paymentData) {
     // Validate payment data
     this._validatePaymentData(paymentData);
-    
-    // Calculate hotel_net_amount if not provided
-    if (!paymentData.hotel_net_amount) {
-      paymentData.hotel_net_amount = paymentData.gross_amount - 
-        (paymentData.pg_fee_amount || 0) - 
-        (paymentData.admin_fee_amount || 0);
-    }
-    
+    // Không cần tính final_amount và hotel_net_amount, DB sẽ tự động tính bằng GENERATED ALWAYS AS
     // Set default paid_at if not provided
     if (!paymentData.paid_at && paymentData.status === 'paid') {
       paymentData.paid_at = new Date();
     }
-    
+
     return await reportsRepository.createPayment(paymentData);
   }
   
@@ -278,7 +271,7 @@ class ReportsService {
       hotel_name: item.hotelName,
       city: item.hotelCity,
       bookings_count: item.bookingsCount,
-      gross_sum: item.grossSum,
+      final_sum: item.finalSum,
       pg_fee_sum: item.pgFeeSum,
       admin_fee_sum: item.adminFeeSum,
       hotel_net_sum: item.hotelNetSum
@@ -324,15 +317,27 @@ class ReportsService {
   }
   
   _validatePaymentData(data) {
-    const required = ['booking_id', 'hotel_id', 'gross_amount'];
+    const required = ['booking_id', 'hotel_id', 'base_amount'];
     for (const field of required) {
       if (!data[field]) {
         throw new Error(`${field} is required`);
       }
     }
     
-    if (data.gross_amount < 0) {
-      throw new Error('gross_amount must be non-negative');
+    if (data.base_amount < 0) {
+      throw new Error('base_amount must be non-negative');
+    }
+    if (data.surcharge_amount && data.surcharge_amount < 0) {
+      throw new Error('surcharge_amount cannot be negative');
+    }
+    if (data.discount_amount && data.discount_amount < 0) {
+      throw new Error('discount_amount cannot be negative');
+    }
+    if (data.pg_fee_amount && data.pg_fee_amount < 0) {
+      throw new Error('pg_fee_amount cannot be negative');
+    }
+    if (data.admin_fee_amount && data.admin_fee_amount < 0) {
+      throw new Error('admin_fee_amount cannot be negative');
     }
   }
   

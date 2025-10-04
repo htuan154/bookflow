@@ -4,7 +4,10 @@ class Payment {
     payment_id,
     booking_id,
     hotel_id,
-    gross_amount,
+    base_amount,
+    surcharge_amount,
+    discount_amount,
+    final_amount,
     pg_fee_amount,
     admin_fee_amount,
     hotel_net_amount,
@@ -17,9 +20,12 @@ class Payment {
     this.paymentId = payment_id;
     this.bookingId = booking_id;
     this.hotelId = hotel_id;
-    this.grossAmount = gross_amount;
-    this.pgFeeAmount = pg_fee_amount;
-    this.adminFeeAmount = admin_fee_amount;
+    this.baseAmount = base_amount;
+    this.surchargeAmount = surcharge_amount || 0;
+    this.discountAmount = discount_amount || 0;
+    this.finalAmount = final_amount;
+    this.pgFeeAmount = pg_fee_amount || 0;
+    this.adminFeeAmount = admin_fee_amount || 0;
     this.hotelNetAmount = hotel_net_amount;
     this.status = status;
     this.txRef = tx_ref || null;
@@ -35,7 +41,10 @@ class Payment {
       paymentId: this.paymentId,
       bookingId: this.bookingId,
       hotelId: this.hotelId,
-      grossAmount: this.grossAmount,
+      baseAmount: this.baseAmount,
+      surchargeAmount: this.surchargeAmount,
+      discountAmount: this.discountAmount,
+      finalAmount: this.finalAmount,
       pgFeeAmount: this.pgFeeAmount,
       adminFeeAmount: this.adminFeeAmount,
       hotelNetAmount: this.hotelNetAmount,
@@ -52,7 +61,10 @@ class Payment {
       payment_id: this.paymentId,
       booking_id: this.bookingId,
       hotel_id: this.hotelId,
-      gross_amount: this.grossAmount,
+      base_amount: this.baseAmount,
+      surcharge_amount: this.surchargeAmount,
+      discount_amount: this.discountAmount,
+      final_amount: this.finalAmount,
       pg_fee_amount: this.pgFeeAmount,
       admin_fee_amount: this.adminFeeAmount,
       hotel_net_amount: this.hotelNetAmount,
