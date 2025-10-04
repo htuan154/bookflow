@@ -16,9 +16,12 @@ class HotelOwnerPaymentListItem {
     this.hotelName = row.hotel_name;
     this.hotelCity = row.hotel_city;
 
-    this.grossAmount = row.gross_amount;
-    this.pgFeeAmount = row.pg_fee_amount;
-    this.adminFeeAmount = row.admin_fee_amount;
+    this.baseAmount = row.base_amount;
+    this.surchargeAmount = row.surcharge_amount || 0;
+    this.discountAmount = row.discount_amount || 0;
+    this.finalAmount = row.final_amount;
+    this.pgFeeAmount = row.pg_fee_amount || 0;
+    this.adminFeeAmount = row.admin_fee_amount || 0;
     this.hotelNetAmount = row.hotel_net_amount;
     this.txRef = row.tx_ref || null;
   }
