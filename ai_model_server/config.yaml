@@ -1,0 +1,24 @@
+labels: ["SẠCH","CHỬI BỚI","KÍCH ĐỘNG","SPAM"]
+
+thresholds:
+  "SẠCH": 0.65
+  "CHỬI BỚI": 0.55
+  "KÍCH ĐỘNG": 0.55
+  "SPAM": 0.55
+
+abstain_floor: 0.45
+temperature: 1.4
+
+features:
+  use_phone_feature: true
+  use_url_feature: true
+  use_profanity_feature: true
+  use_imperative_feature: true
+
+# Bật 1 trong 2 mục dưới nếu cần
+# remap:
+#   "SẠCH": "CHỬI BỚI"
+#   "CHỬI BỚI": "SẠCH"
+
+# Khi phát hiện từ tục tĩu, ép nhãn về CHỬI BỚI (công tắc an toàn)
+# force_if_profanity: "CHỬI BỚI"
