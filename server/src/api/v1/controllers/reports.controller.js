@@ -131,3 +131,35 @@ exports.getOwnerPayouts = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Tạo payout mới cho Admin
+ * POST /api/v1/admin/reports/payouts
+ */
+exports.createAdminPayout = async (req, res, next) => {
+  try {
+    const { hotel_id, cover_date, note } = req.body;
+    
+    // Validate required fields
+    if (!hotel_id || !cover_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'hotel_id and cover_date are required'
+      });
+    }
+    
+    const result = await reportsService.createPayout({
+      hotel_id,
+      cover_date,
+      note
+    });
+    
+    res.status(201).json({
+      success: true,
+      data: result,
+      message: 'Payout created successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};

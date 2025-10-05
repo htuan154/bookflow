@@ -5,7 +5,8 @@ const {
   getAdminPayments,
   getAdminPayouts,
   getOwnerPayments,
-  getOwnerPayouts
+  getOwnerPayouts,
+  createAdminPayout
 } = require('../controllers/reports.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
 const { requireAdmin, requireAdminOrOwner } = require('../middlewares/admin.middleware');
@@ -71,6 +72,17 @@ router.get('/admin/reports/payments', authenticate, requireAdmin, getAdminPaymen
  *       - bearerAuth: []
  */
 router.get('/admin/reports/payouts', authenticate, requireAdmin, getAdminPayouts);
+
+/**
+ * @swagger
+ * /api/v1/admin/reports/payouts:
+ *   post:
+ *     summary: Tạo payout mới cho Admin
+ *     tags: [Admin Reports]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/admin/reports/payouts', authenticate, requireAdmin, createAdminPayout);
 
 // =========================================
 // HOTEL OWNER REPORTS (cần authentication)

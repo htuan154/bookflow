@@ -482,10 +482,33 @@ export const API_ENDPOINTS = {
         ADMIN_SUMMARY: (params = '') => `${API_BASE_URL}/admin/reports/summary${params ? `?${params}` : ''}`,
         ADMIN_PAYMENTS: (params = '') => `${API_BASE_URL}/admin/reports/payments${params ? `?${params}` : ''}`,
         ADMIN_PAYOUTS: (params = '') => `${API_BASE_URL}/admin/reports/payouts${params ? `?${params}` : ''}`,
+        ADMIN_CREATE_PAYOUT: `${API_BASE_URL}/admin/reports/payouts`,
 
         // Hotel Owner reports
         OWNER_PAYMENTS: (params = '') => `${API_BASE_URL}/owner/reports/payments${params ? `?${params}` : ''}`,
         OWNER_PAYOUTS: (params = '') => `${API_BASE_URL}/owner/reports/payouts${params ? `?${params}` : ''}`,
+    },
+
+    // --- Bank Accounts Endpoints ---
+    BANK_ACCOUNTS: {
+        // Public
+        POPULAR_BANKS: `${API_BASE_URL}/bank-accounts/popular-banks`,
+
+        // Authenticated
+        CREATE: `${API_BASE_URL}/bank-accounts`,
+        GET_USER_ACCOUNTS: `${API_BASE_URL}/bank-accounts`,
+        GET_DEFAULT: `${API_BASE_URL}/bank-accounts/default`,
+        GET_BY_ID: (id) => `${API_BASE_URL}/bank-accounts/${id}`,
+        UPDATE: (id) => `${API_BASE_URL}/bank-accounts/${id}`,
+        SET_DEFAULT: (id) => `${API_BASE_URL}/bank-accounts/${id}/set-default`,
+        DELETE: (id) => `${API_BASE_URL}/bank-accounts/${id}`,
+        
+        // Hotel accounts
+        GET_HOTEL_ACCOUNTS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/bank-accounts`,
+        
+        // Admin
+        ADMIN_STATISTICS: `${API_BASE_URL}/admin/bank-accounts/statistics`,
+        ADMIN_HARD_DELETE: (id) => `${API_BASE_URL}/admin/bank-accounts/${id}/hard-delete`,
     },
 
 };

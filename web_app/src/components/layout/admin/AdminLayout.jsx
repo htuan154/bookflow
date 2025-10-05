@@ -5,7 +5,7 @@ import useAuth from '../../../hooks/useAuth';
 
 import {
     LayoutDashboard, FileText, Briefcase, Users, Ticket, MessageSquare,
-    MapPin, BarChart2, Bell, FileSignature, BadgePercent,
+    MapPin, BarChart2, Bell, FileSignature, BadgePercent, CreditCard,
 } from 'lucide-react';
 
 const AdminLayout = () => {
@@ -48,6 +48,7 @@ const AdminLayout = () => {
         { name: 'Quản lý bình luận', icon: <MessageSquare size={20} />, path: '/admin/comments' },
         { name: 'Gợi ý địa danh', icon: <MapPin size={20} />, path: '/admin/suggestions' },
         { name: 'Báo cáo thống kê', icon: <BarChart2 size={20} />, path: '/admin/reports' },
+        { name: 'Quản lý tài khoản NH', icon: <CreditCard size={20} />, path: '/admin/bank-accounts' },
         
     ];
 

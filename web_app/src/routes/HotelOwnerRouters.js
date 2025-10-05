@@ -27,6 +27,7 @@ import { RoomProvider } from '../context/RoomContext';
 import { HotelOwnerContractProvider } from '../context/HotelOwnerContractContext';
 import { RoomTypeImageProvider } from '../context/RoomTypeImageContext';
 import { HotelAmenityProvider } from '../context/HotelAmenityContext';
+import { BankAccountProvider } from '../context/BankAccountContext';
 import ContractManagement from '../pages/hotel_owner/contract_management/ContractManagement';
 import { IMProvider } from '../context/IMContext';
 import OwnerMessagesPage from '../pages/hotel_owner/messages';
@@ -44,6 +45,9 @@ import RevenuePage from '../pages/hotel_owner/reports/RevenuePage';
 import OccupancyPage from '../pages/hotel_owner/reports/OccupancyPage';
 import PromotionEffectivenessPage from '../pages/hotel_owner/reports/PromotionEffectivenessPage';
 import ReportsSummaryPage from '../pages/hotel_owner/reports/ReportsSummaryPage';
+
+// Bank Accounts
+import { HotelBankAccountsPage } from '../pages/hotel_owner/bank_accounts';
 const HotelOwnerRoutes = () => {
   const { isAuthenticated, user } = useAuth();
 
@@ -55,7 +59,8 @@ const HotelOwnerRoutes = () => {
       <RoomProvider>
         <RoomTypeImageProvider>
           <HotelAmenityProvider>
-            <Routes>
+            <BankAccountProvider>
+              <Routes>
               <Route element={<HotelOwnerLayout />}>
                 {/* Dashboard */}
                 <Route index element={<HotelOwnerWelcomePage />} />
@@ -66,6 +71,11 @@ const HotelOwnerRoutes = () => {
                 <Route path="reports/revenue" element={<RevenuePage />} />
                 <Route path="reports/occupancy" element={<OccupancyPage />} />
                 <Route path="reports/promotions" element={<PromotionEffectivenessPage />} />
+
+                {/* Bank Accounts & Financial Management */}
+                <Route path="financial" element={<HotelBankAccountsPage />} />
+                <Route path="bank-accounts" element={<HotelBankAccountsPage />} />
+
                 {/* Hotel management */}
                 <Route path="hotel" element={<Navigate to="/hotel-owner/hotel/info" replace />} />
                 <Route path="hotel/info" element={<HotelInfo />} />
@@ -110,6 +120,7 @@ const HotelOwnerRoutes = () => {
               </Route>
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
+            </BankAccountProvider>
           </HotelAmenityProvider>
         </RoomTypeImageProvider>
       </RoomProvider>

@@ -53,6 +53,7 @@ import {
     PromotionAnalytics
 } from '../pages/admin/PromotionManagement';
 import AdminReportsPage from '../pages/admin/Reports/AdminReportsPage';
+import AdminBankAccountsPage from '../pages/admin/BankAccounts/AdminBankAccountsPage';
 const AdminRoutes = () => {
     const { isAuthenticated, user } = useAuth();
 
@@ -80,6 +81,8 @@ const AdminRoutes = () => {
                     }
                 />
                 <Route path="reports" element={<AdminReportsPage />} /> 
+                <Route path="bank-accounts" element={<AdminBankAccountsPage />} /> 
+                
                 {/* Customer Management - BỔ SUNG */}
                 <Route
                     path="customers"

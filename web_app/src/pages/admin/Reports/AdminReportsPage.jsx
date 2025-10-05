@@ -53,9 +53,9 @@ function FilterBar() {
 
   const handleHotelChange = (value) => {
     if (value === 'ALL') {
-      update('hotels', 'ALL');
+      update('hotel_filter', 'ALL');
     } else {
-      update('hotels', value);
+      update('hotel_filter', value);
     }
   };
 
@@ -90,7 +90,7 @@ function FilterBar() {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">🏨 Khách sạn</label>
           <select
-            value={filters.hotels || 'ALL'}
+            value={filters.hotel_filter || 'ALL'}
             onChange={e => handleHotelChange(e.target.value)}
             disabled={loadingHotels}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-100"
@@ -144,12 +144,12 @@ function KPICards() {
     let gross=0, pg=0, admin=0, net=0, bookings=0;
     const hotels = new Set();
     for (const r of summary.daily_summary) {
-      gross += Number(r.gross_sum || 0);
-      pg    += Number(r.pg_fee_sum || 0);
-      admin += Number(r.admin_fee_sum || 0);
-      net   += Number(r.hotel_net_sum || 0);
-      bookings += Number(r.bookings_count || 0);
-      if (r.hotel_id) hotels.add(r.hotel_id);
+      gross += Number(r.finalSum || 0);  // Backend model sử dụng finalSum
+      pg    += Number(r.pgFeeSum || 0);  // Backend model sử dụng pgFeeSum
+      admin += Number(r.adminFeeSum || 0);  // Backend model sử dụng adminFeeSum
+      net   += Number(r.hotelNetSum || 0);  // Backend model sử dụng hotelNetSum
+      bookings += Number(r.bookingsCount || 0);  // Backend model sử dụng bookingsCount
+      if (r.hotelId) hotels.add(r.hotelId);  // Backend model sử dụng hotelId
     }
     return { gross, pg, admin, net, bookings, hotels: hotels.size };
   }, [summary]);
@@ -290,11 +290,11 @@ function SummaryTable() {
   const endIndex = startIndex + itemsPerPage;
   const currentRows = rows.slice(startIndex, endIndex);
   
-  const mapKey = (r,i) => `${r.biz_date_vn}-${r.hotel_id}-${i}`;
+  const mapKey = (r,i) => `${r.bizDateVn}-${r.hotelId}-${i}`;
 
   const handleCreate = async (r) => {
     try {
-      await createPayout({ hotel_id: r.hotel_id, cover_date: r.biz_date_vn });
+      await createPayout({ hotel_id: r.hotelId, cover_date: r.bizDateVn });
       // fetchSummary() đã được gọi trong context sau khi tạo payout
     } catch (error) {
       console.error('Error creating payout:', error);
@@ -342,29 +342,29 @@ function SummaryTable() {
           <tbody className="bg-white divide-y divide-gray-200">
             {currentRows.map((r,i) => (
               <tr key={mapKey(r,i)} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{r.biz_date_vn}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{r.bizDateVn}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{r.hotel_name}</div>
-                  <div className="text-xs text-gray-500">ID: {r.hotel_id?.slice(0, 8)}...</div>
+                  <div className="text-sm font-medium text-gray-900">{r.hotelName}</div>
+                  <div className="text-xs text-gray-500">ID: {r.hotelId?.slice(0, 8)}...</div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.hotel_city}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">{r.bookings_count}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.hotelCity}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">{r.bookingsCount}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
-                  {Number(r.gross_sum||0).toLocaleString('vi-VN')} ₫
+                  {Number(r.finalSum||0).toLocaleString('vi-VN')} ₫
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                  {Number(r.pg_fee_sum||0).toLocaleString('vi-VN')} ₫
+                  {Number(r.pgFeeSum||0).toLocaleString('vi-VN')} ₫
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                  {Number(r.admin_fee_sum||0).toLocaleString('vi-VN')} ₫
+                  {Number(r.adminFeeSum||0).toLocaleString('vi-VN')} ₫
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                   <span className="font-bold text-green-600">
-                    {Number(r.hotel_net_sum||0).toLocaleString('vi-VN')} ₫
+                    {Number(r.hotelNetSum||0).toLocaleString('vi-VN')} ₫
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
-                  {(Number(r.hotel_net_sum||0) > 0) ? (
+                  {(Number(r.hotelNetSum||0) > 0) ? (
                     (r.exists_in_payouts)
                       ? <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           ✅ Đã thanh toán

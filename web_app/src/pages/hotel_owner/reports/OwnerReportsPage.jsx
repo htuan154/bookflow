@@ -142,10 +142,10 @@ function OwnerKPICards() {
     const rows = payments?.rows || [];
     let gross=0, pg=0, admin=0, net=0, count=0;
     for (const r of rows) {
-      gross += Number(r.gross_amount || 0);
-      pg    += Number(r.pg_fee_amount || 0);
-      admin += Number(r.admin_fee_amount || 0);
-      net   += Number(r.hotel_net_amount || 0);
+      gross += Number(r.finalAmount || 0);  // Backend model sử dụng finalAmount
+      pg    += Number(r.pgFeeAmount || 0);  // Backend model sử dụng pgFeeAmount
+      admin += Number(r.adminFeeAmount || 0);  // Backend model sử dụng adminFeeAmount
+      net   += Number(r.hotelNetAmount || 0);  // Backend model sử dụng hotelNetAmount
       count += 1;
     }
     return { gross, pg, admin, net, count };
@@ -326,30 +326,30 @@ function OwnerPaymentsTable() {
           <tbody className="bg-white divide-y divide-gray-200">
             {currentRows.map((r, i) => (
               <tr key={`${r.payment_id}-${i}`} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{r.biz_date_vn}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{r.bizDateVn}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{r.hotel_name}</div>
-                  <div className="text-xs text-gray-500">ID: {r.payment_id?.slice(0, 8)}...</div>
+                  <div className="text-sm font-medium text-gray-900">{r.hotelName}</div>
+                  <div className="text-xs text-gray-500">ID: {r.paymentId?.slice(0, 8)}...</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
-                  {Number(r.gross_amount||0).toLocaleString('vi-VN')} ₫
+                  {Number(r.finalAmount||0).toLocaleString('vi-VN')} ₫
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                  {Number(r.pg_fee_amount||0).toLocaleString('vi-VN')} ₫
+                  {Number(r.pgFeeAmount||0).toLocaleString('vi-VN')} ₫
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                  {Number(r.admin_fee_amount||0).toLocaleString('vi-VN')} ₫
+                  {Number(r.adminFeeAmount||0).toLocaleString('vi-VN')} ₫
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                   <span className="font-bold text-green-600">
-                    {Number(r.hotel_net_amount||0).toLocaleString('vi-VN')} ₫
+                    {Number(r.hotelNetAmount||0).toLocaleString('vi-VN')} ₫
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {r.booking_id?.slice(0, 8)}...
+                  {r.bookingId?.slice(0, 8)}...
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {r.guest_id?.slice(0, 8)}...
+                  {r.guestId?.slice(0, 8)}...
                 </td>
               </tr>
             ))}
