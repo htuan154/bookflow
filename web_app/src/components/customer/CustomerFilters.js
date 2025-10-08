@@ -23,15 +23,11 @@ const CustomerFilters = ({ filters, onFilterChange }) => {
     const handleReset = () => {
         const resetFilters = {
             search: '',
-            status: 'all',
             role: 'hotel_owner',
-            dateFrom: '',
-            dateTo: '',
-            sortBy: 'createdAt',
-            sortOrder: 'desc'
+            page: 1 // Reset về trang đầu
         };
         setLocalFilters(resetFilters);
-        onFilterChange(resetFilters);
+        onFilterChange(resetFilters); // Trigger local filtering với empty search
     };
 
     const toggleAdvanced = () => {
@@ -49,9 +45,9 @@ const CustomerFilters = ({ filters, onFilterChange }) => {
     const getActiveFiltersCount = () => {
         let count = 0;
         if (localFilters.search) count++;
-        if (localFilters.status !== 'all') count++;
-        if (localFilters.dateFrom) count++;
-        if (localFilters.dateTo) count++;
+        // Bỏ status filter
+        // if (localFilters.dateFrom) count++;
+        // if (localFilters.dateTo) count++;
         return count;
     };
 
@@ -84,44 +80,46 @@ const CustomerFilters = ({ filters, onFilterChange }) => {
 
             {/* Basic Filters */}
             <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    {/* Search Input */}
-                    <div className="lg:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            <Search className="w-4 h-4 inline mr-1" />
-                            Tìm kiếm
-                        </label>
-                        <div className="relative">
-                            <input 
-                                type="text"
-                                name="search"
-                                value={localFilters.search || ''}
-                                onChange={handleChange}
-                                placeholder="Nhập tên, email hoặc username..."
-                                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                            />
-                            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        </div>
-                    </div>
-
-                    {/* Status Filter */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    {/* Search Input - Chỉ tìm theo email */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            <Users className="w-4 h-4 inline mr-1" />
-                            Trạng thái
+                            <Search className="w-4 h-4 inline mr-1" />
+                            Tìm kiếm theo email
                         </label>
-                        <div className="relative">
-                            <select 
-                                name="status"
-                                value={localFilters.status || 'all'}
-                                onChange={handleChange}
-                                className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-3 py-2.5 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <input 
+                                    type="email"
+                                    name="search"
+                                    value={localFilters.search || ''}
+                                    onChange={(e) => {
+                                        const { name, value } = e.target;
+                                        const newFilters = {
+                                            ...localFilters,
+                                            [name]: value,
+                                            role: 'hotel_owner'
+                                        };
+                                        setLocalFilters(newFilters);
+                                        // Không gọi onFilterChange ngay, chờ user nhấn nút
+                                    }}
+                                    placeholder="Nhập email của chủ khách sạn..."
+                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') {
+                                            onFilterChange(localFilters);
+                                        }
+                                    }}
+                                />
+                                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => onFilterChange(localFilters)}
+                                className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors font-medium"
                             >
-                                <option value="all">Tất cả trạng thái</option>
-                                <option value="active">Đang hoạt động</option>
-                                <option value="inactive">Tạm khóa</option>
-                            </select>
-                            <ChevronDown className="absolute right-2 top-3 h-4 w-4 text-gray-400 pointer-events-none" />
+                                <Search className="w-4 h-4" />
+                            </button>
                         </div>
                     </div>
 
@@ -140,33 +138,16 @@ const CustomerFilters = ({ filters, onFilterChange }) => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-between">
-                    <div className="flex space-x-3">
-                        <button 
-                            type="button"
-                            onClick={handleReset}
-                            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                        >
-                            <RotateCcw className="w-4 h-4 mr-2" />
-                            Đặt lại
-                        </button>
-                        
-                        <button 
-                            type="button"
-                            onClick={toggleAdvanced}
-                            className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors ${
-                                isAdvanced 
-                                    ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                            }`}
-                        >
-                            <Settings className="w-4 h-4 mr-2" />
-                            Nâng cao
-                            {isAdvanced ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
-                        </button>
-                    </div>
-
-                    {/* Filter Summary */}
+                <div className="flex items-center justify-between mt-4">
+                    <button
+                        type="button"
+                        onClick={handleReset}
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                    >
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Đặt lại
+                    </button>
+                    
                     <div className="text-sm text-gray-600">
                         <span className="inline-flex items-center">
                             <Filter className="w-4 h-4 mr-1" />
@@ -174,147 +155,8 @@ const CustomerFilters = ({ filters, onFilterChange }) => {
                         </span>
                     </div>
                 </div>
+
             </div>
-
-            {/* Advanced Filters */}
-            {isAdvanced && (
-                <div className="border-t border-gray-100 bg-gray-50">
-                    <div className="p-6">
-                        <div className="flex items-center mb-4">
-                            <Settings className="w-5 h-5 text-gray-600 mr-2" />
-                            <h4 className="text-lg font-medium text-gray-900">Bộ lọc nâng cao</h4>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                            {/* Date From */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    <Calendar className="w-4 h-4 inline mr-1" />
-                                    Từ ngày
-                                </label>
-                                <input 
-                                    type="date"
-                                    name="dateFrom"
-                                    value={localFilters.dateFrom || ''}
-                                    onChange={handleChange}
-                                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                />
-                            </div>
-
-                            {/* Date To */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    <Calendar className="w-4 h-4 inline mr-1" />
-                                    Đến ngày
-                                </label>
-                                <input 
-                                    type="date"
-                                    name="dateTo"
-                                    value={localFilters.dateTo || ''}
-                                    onChange={handleChange}
-                                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                />
-                            </div>
-
-                            {/* Sort By */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    <SortAsc className="w-4 h-4 inline mr-1" />
-                                    Sắp xếp theo
-                                </label>
-                                <div className="relative">
-                                    <select 
-                                        name="sortBy"
-                                        value={localFilters.sortBy || 'createdAt'}
-                                        onChange={handleChange}
-                                        className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-3 py-2.5 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                    >
-                                        <option value="createdAt">Ngày tạo</option>
-                                        <option value="fullName">Tên đầy đủ</option>
-                                        <option value="email">Email</option>
-                                        <option value="status">Trạng thái</option>
-                                    </select>
-                                    <ChevronDown className="absolute right-2 top-3 h-4 w-4 text-gray-400 pointer-events-none" />
-                                </div>
-                            </div>
-
-                            {/* Sort Order */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    <SortDesc className="w-4 h-4 inline mr-1" />
-                                    Thứ tự
-                                </label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <button
-                                        type="button"
-                                        className={`flex items-center justify-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                                            localFilters.sortOrder === 'desc'
-                                                ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                                                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                                        }`}
-                                        onClick={() => handleChange({ target: { name: 'sortOrder', value: 'desc' } })}
-                                    >
-                                        <SortDesc className="w-4 h-4 mr-1" />
-                                        Giảm
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`flex items-center justify-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                                            localFilters.sortOrder === 'asc'
-                                                ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                                                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                                        }`}
-                                        onClick={() => handleChange({ target: { name: 'sortOrder', value: 'asc' } })}
-                                    >
-                                        <SortAsc className="w-4 h-4 mr-1" />
-                                        Tăng
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Filter Summary Tags */}
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                            <div className="flex items-center mb-3">
-                                <Filter className="w-4 h-4 text-gray-600 mr-2" />
-                                <span className="text-sm font-medium text-gray-900">Tóm tắt bộ lọc:</span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                {localFilters.search && (
-                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                        <Search className="w-3 h-3 mr-1" />
-                                        "{localFilters.search}"
-                                    </span>
-                                )}
-                                {localFilters.status && localFilters.status !== 'all' && (
-                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        {getStatusIcon(localFilters.status)}
-                                        <span className="ml-1">
-                                            {localFilters.status === 'active' ? 'Hoạt động' : 'Tạm khóa'}
-                                        </span>
-                                    </span>
-                                )}
-                                {localFilters.dateFrom && (
-                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                        <Calendar className="w-3 h-3 mr-1" />
-                                        Từ {new Date(localFilters.dateFrom).toLocaleDateString('vi-VN')}
-                                    </span>
-                                )}
-                                {localFilters.dateTo && (
-                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                        <Calendar className="w-3 h-3 mr-1" />
-                                        Đến {new Date(localFilters.dateTo).toLocaleDateString('vi-VN')}
-                                    </span>
-                                )}
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                    <Hotel className="w-3 h-3 mr-1" />
-                                    Chủ khách sạn
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Status Indicator */}
             <div className="bg-blue-50 px-6 py-3 border-t border-gray-100">

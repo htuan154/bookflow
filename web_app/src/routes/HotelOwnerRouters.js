@@ -9,6 +9,7 @@ import HotelOwnerWelcomePage from '../pages/hotel_owner/HotelOwnerWelcomePage';
 import NotFoundPage from '../pages/shared/NotFoundPage';
 
 import HotelInfo from '../pages/hotel_owner/hotel_management/HotelInfo';
+import HotelDetailPage from '../pages/hotel_owner/hotel_management/HotelDetailPage';
 import HotelImages from '../pages/hotel_owner/hotel_management/HotelImages';
 import HotelAmenities from '../pages/hotel_owner/hotel_management/HotelAmenities';
 
@@ -79,6 +80,7 @@ const HotelOwnerRoutes = () => {
                 {/* Hotel management */}
                 <Route path="hotel" element={<Navigate to="/hotel-owner/hotel/info" replace />} />
                 <Route path="hotel/info" element={<HotelInfo />} />
+                <Route path="hotel/:hotelId" element={<HotelDetailPage />} />
                 <Route path="hotel/images" element={<HotelImages />} />
                 <Route path="hotel/amenities" element={<HotelAmenities />} />
                 <Route path="hotel/settings" element={<div>Cài đặt chung</div>} />

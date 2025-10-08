@@ -19,6 +19,7 @@ import useRoom from '../../../hooks/useRoom';
 import { useRoomTypeContext } from '../../../context/RoomTypeContext';
 import { useRoomContext } from '../../../context/RoomContext';
 import { useRoomTypeImageContext } from '../../../context/RoomTypeImageContext';
+import { ActionButtonsGroup } from '../../../components/common/ActionButton';
 
 
 // helper: lấy id khách sạn/amenity an toàn
@@ -73,6 +74,7 @@ const HotelInfo = () => {
   const [showDraftLimitModal, setShowDraftLimitModal] = useState(false);
   const [contractStatus, setContractStatus] = useState(null); // null | 'pending' | 'approved' | 'rejected'
   const [note, setNote] = useState('');
+
   const draftHotels = useMemo(() => hotels.filter(h => h.status === 'draft'), [hotels]);
 
   // gọi 1 lần khi mount (guard StrictMode)
@@ -340,6 +342,26 @@ const HotelInfo = () => {
   const handleAddRoomStatus = () => navigate('/hotel-owner/rooms/status');
   const handleAddRoomImages = () => navigate('/hotel-owner/rooms/images');
 
+  // Handler cho action buttons trong bảng
+  const handleViewHotelDetail = (hotel) => {
+    const hotelId = getId(hotel);
+    navigate(`/hotel-owner/hotel/${hotelId}`, { 
+      state: { hotel: hotel }
+    });
+  };
+
+  const handleEditHotel = (hotel) => {
+    // TODO: Implement edit functionality
+    console.log('Edit hotel:', hotel);
+  };
+
+  const handleDeleteHotel = (hotel) => {
+    // TODO: Implement delete functionality
+    console.log('Delete hotel:', hotel);
+  };
+
+
+
   // Fetch dữ liệu từ context khi selectedHotel thay đổi hoặc khi quay lại trang
   useEffect(() => {
     fetchOwnerHotel();
@@ -413,6 +435,112 @@ const HotelInfo = () => {
           >
             Đăng ký khách sạn mới
           </button>
+        )}
+      </div>
+
+      {/* Bảng danh sách khách sạn */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Danh sách khách sạn của tôi</h2>
+          <p className="text-sm text-gray-600 mt-1">Quản lý tất cả khách sạn đã đăng ký</p>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Khách sạn
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Địa chỉ
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Liên hệ
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Trạng thái
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Thao tác
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {paginatedHotels.map((hotel, index) => (
+                <tr key={getId(hotel) || index} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-10 w-10">
+                        <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                          <Building2 className="h-5 w-5 text-blue-600" />
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">{hotel.name}</div>
+                        <div className="text-sm text-gray-500">{hotel.category || 'Chưa phân loại'}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{hotel.address}</div>
+                    <div className="text-sm text-gray-500">{hotel.city}, {hotel.country}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{hotel.phone || 'Chưa có'}</div>
+                    <div className="text-sm text-gray-500">{hotel.email || 'Chưa có'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      hotel.status === 'approved' ? 'bg-green-100 text-green-800' :
+                      hotel.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      hotel.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {hotel.status === 'approved' ? 'Đã duyệt' :
+                       hotel.status === 'pending' ? 'Chờ duyệt' :
+                       hotel.status === 'rejected' ? 'Bị từ chối' :
+                       'Nháp'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <ActionButtonsGroup
+                      onView={() => handleViewHotelDetail(hotel)}
+                      onEdit={() => handleEditHotel(hotel)}
+                      onDelete={() => handleDeleteHotel(hotel)}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Trang {currentPage} / {totalPages} (Tổng: {hotels.length} khách sạn)
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                >
+                  Trước
+                </button>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                >
+                  Sau
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
