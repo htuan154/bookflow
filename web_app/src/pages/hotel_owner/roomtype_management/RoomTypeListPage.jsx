@@ -167,8 +167,22 @@ function Inner() {
 
   const remove = async (id) => {
     if (!window.confirm('Xóa loại phòng này?')) return;
-    await deleteType(id);
-    // Provider đã tự refetch
+    try {
+      await deleteType(id);
+      // Provider đã tự refetch
+    } catch (error) {
+      let errorMessage = 'Có lỗi xảy ra';
+      if (error.response?.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      alert(errorMessage);
+    }
   };
 
   return (

@@ -63,6 +63,8 @@ const HotelDetailPage = () => {
   const [amenities, setAmenities] = useState([]);
   const [roomTypes, setRoomTypes] = useState([]);
   const [rooms, setRooms] = useState([]);
+  // Thêm state lưu thumbnail cho từng loại phòng
+  const [roomTypeThumbnails, setRoomTypeThumbnails] = useState({});
 
   // Fetch hotel data from API - UPDATED to use hotelApiService like ContractDetail
   const fetchHotelFromAPI = async (id) => {
@@ -144,6 +146,27 @@ const HotelDetailPage = () => {
         const roomTypesArray = Array.isArray(roomTypeData) ? roomTypeData : (roomTypeData?.data || []);
         setRoomTypes(roomTypesArray);
         console.log('🛏️ Set room types:', roomTypesArray.length, 'items');
+
+        // Fetch thumbnail cho từng loại phòng
+        const thumbnailPromises = roomTypesArray.map(async (roomType) => {
+          const roomTypeId = roomType.roomTypeId || roomType.id || roomType.room_type_id;
+          if (!roomTypeId) return [null, null];
+          try {
+            const res = await fetch(`http://localhost:8080/api/v1/room-types/${roomTypeId}/thumbnail`);
+            if (!res.ok) throw new Error('Thumbnail not found');
+            const result = await res.json();
+            const data = result.data || {};
+            return [roomTypeId, data.imageUrl || data.image_url || data.url || null];
+          } catch (err) {
+            return [roomTypeId, null];
+          }
+        });
+        const thumbnailResults = await Promise.all(thumbnailPromises);
+        const thumbnailsObj = {};
+        thumbnailResults.forEach(([roomTypeId, url]) => {
+          if (roomTypeId) thumbnailsObj[roomTypeId] = url;
+        });
+        setRoomTypeThumbnails(thumbnailsObj);
       } catch (err) {
         console.warn('Failed to fetch room types:', err);
         setRoomTypes([]);
@@ -744,10 +767,13 @@ const HotelDetailPage = () => {
                   const roomTypeImages = imagesByType[roomType.id] || 
                                         imagesByType[roomType.room_type_id] || 
                                         imagesByType[roomType.roomTypeId] || [];
-                  
-                  // Find thumbnail image first, if not found use first available image
-                  const thumbnailImage = roomTypeImages.find(img => img.isThumbnail === true || img.is_thumbnail === true) || 
-                                        roomTypeImages[0];
+
+                  // Lấy thumbnail từ state roomTypeThumbnails nếu có
+                  const roomTypeId = roomType.roomTypeId || roomType.id || roomType.room_type_id;
+                  let thumbnailUrl = roomTypeThumbnails[roomTypeId];
+                  if (!thumbnailUrl && roomTypeImages.length > 0) {
+                    thumbnailUrl = roomTypeImages[0].imageUrl || roomTypeImages[0].image_url || roomTypeImages[0].url;
+                  }
 
                   return (
                     <div key={roomType.id || roomType.room_type_id || index} className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -771,12 +797,15 @@ const HotelDetailPage = () => {
                       <div className="px-6 py-6">
                         <div className="flex gap-6">
                           {/* Thumbnail image */}
-                          {thumbnailImage ? (
+                          {thumbnailUrl ? (
                             <div className="w-80 h-60 flex-shrink-0">
                               <img
-                                src={thumbnailImage.imageUrl}
+                                src={thumbnailUrl}
                                 alt={roomType.name}
                                 className="w-full h-full object-cover rounded-lg"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
                               />
                             </div>
                           ) : (
@@ -809,7 +838,7 @@ const HotelDetailPage = () => {
                                 </div>
                                 <div>
                                   <span className="text-gray-600">Số phòng</span>
-                                  <div className="font-semibold">{roomsOfType.length} phòng</div>
+                                  <div className="font-semibold">{roomType.numberOfRooms || 0} phòng</div>
                                 </div>
                               </div>
                             </div>

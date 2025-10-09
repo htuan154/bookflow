@@ -20,10 +20,10 @@ import { useRoomTypeContext } from '../../../context/RoomTypeContext';
 import { useRoomContext } from '../../../context/RoomContext';
 import { useRoomTypeImageContext } from '../../../context/RoomTypeImageContext';
 import { ActionButtonsGroup } from '../../../components/common/ActionButton';
-
+import EditHotelModal from '../../../components/hotel/EditHotelModal';
 
 // helper: lấy id khách sạn/amenity an toàn
-const getId = (obj) => obj?.hotel_id ?? obj?.id ?? obj?.hotelId ?? obj?._id ?? null;
+const getId = (obj) => obj?.hotelId ?? obj?.hotel_id ?? obj?.id ?? obj?._id ?? null;
 const getAmenityId = (a) =>
   (typeof a === 'object'
     ? a.amenity_id ?? null
@@ -70,8 +70,12 @@ const HotelInfo = () => {
   const [images, setImages] = useState([]);
   const [justUpdated, setJustUpdated] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [hotelToEdit, setHotelToEdit] = useState(null);
   const [amenities, setAmenities] = useState([]);
   const [showDraftLimitModal, setShowDraftLimitModal] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [hotelToSubmit, setHotelToSubmit] = useState(null);
   const [contractStatus, setContractStatus] = useState(null); // null | 'pending' | 'approved' | 'rejected'
   const [note, setNote] = useState('');
 
@@ -249,21 +253,60 @@ const HotelInfo = () => {
     security: <Shield size={16} />,
   };
 
+  // Hàm mở modal xác nhận nộp khách sạn
+  const handleOpenSubmitModal = async (hotel) => {
+    setHotelToSubmit(hotel);
+    setSelectedHotel(hotel); // Đặt selectedHotel để tính toán trạng thái hoàn thiện
+    setShowSubmitModal(true);
+    
+    // Fetch data ngay lập tức để đảm bảo trạng thái được tính toán đúng
+    const hotelId = getId(hotel);
+    if (hotelId) {
+      try {
+        // Fetch tất cả data cần thiết
+        const [roomTypesData, roomsData, amenitiesData, imagesData] = await Promise.all([
+          fetchRoomTypes(hotelId).catch(() => []),
+          fetchRooms(hotelId).catch(() => []),
+          getByHotel(hotelId).catch(() => []), // amenities
+          hotelApiService.getImagesByHotelId(hotelId).then(res => {
+            const arr = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : Array.isArray(res?.images) ? res.images : [];
+            return arr;
+          }).catch(() => []),
+        ]);
+        
+        // Set images immediately
+        setImages(imagesData);
+        setAmenities(amenitiesData);
+        
+        // Fetch room type images if we have room types
+        if (roomTypesData && roomTypesData.length > 0) {
+          await Promise.all(
+            roomTypesData.map(rt => {
+              const rtId = rt.room_type_id || rt.id;
+              return rtId ? getImages(rtId).catch(console.error) : Promise.resolve();
+            })
+          );
+        }
+      } catch (error) {
+        console.error('Error fetching hotel data for submit modal:', error);
+      }
+    }
+  };
+
   // Hàm chuyển trạng thái khách sạn sang pending
   const handleSubmitHotel = async () => {
-    const id = getId(selectedHotel);
+    const hotel = hotelToSubmit || selectedHotel;
+    const id = getId(hotel);
     if (!id) return;
-
-    if (!window.confirm('Bạn có chắc chắn muốn gửi khách sạn này để admin duyệt? Sau khi gửi sẽ không thể chỉnh sửa.')) {
-      return;
-    }
 
     try {
       // Gửi toàn bộ thông tin khách sạn kèm status: 'pending'
-      await updateOwnerHotel(id, { ...selectedHotel, status: 'pending' });
+      await updateOwnerHotel(id, { ...hotel, status: 'pending' });
       setJustUpdated(true);
       await fetchOwnerHotel(); // Đảm bảo refetch hoàn tất
       setIsEditing(false);
+      setShowSubmitModal(false);
+      setHotelToSubmit(null);
       alert('Đã gửi khách sạn cho admin duyệt thành công!');
     } catch (e) {
       console.error('Error submitting hotel:', e);
@@ -303,8 +346,17 @@ const HotelInfo = () => {
     const isRoomListDone = Array.isArray(rooms) && rooms.length > 0;
     const isRoomStatusDone = Array.isArray(rooms) && rooms.length > 0 &&
       rooms.some(r => r.status && ['available', 'occupied', 'maintenance', 'out_of_order', 'cleaning'].includes(r.status));
-    const isRoomImagesDone = Object.keys(imagesByType).length > 0 &&
-      Object.values(imagesByType).some(arr => Array.isArray(arr) && arr.length > 0);
+
+    // Sửa logic: chỉ 'Đã đủ' nếu tất cả loại phòng của khách sạn đều có ít nhất 1 hình ảnh
+    let isRoomImagesDone = false;
+    if (Array.isArray(roomTypes) && roomTypes.length > 0) {
+      isRoomImagesDone = roomTypes.every(rt => {
+        const rtId = rt.room_type_id || rt.id;
+        const imgs = imagesByType[rtId];
+        return Array.isArray(imgs) && imgs.length > 0;
+      });
+    }
+
     const allDone = isInfoDone && isImagesDone && isAmenitiesDone && isRoomTypeDone && isRoomListDone && isRoomStatusDone && isRoomImagesDone;
     setCompletionStatus({
       isInfoDone,
@@ -351,13 +403,55 @@ const HotelInfo = () => {
   };
 
   const handleEditHotel = (hotel) => {
-    // TODO: Implement edit functionality
-    console.log('Edit hotel:', hotel);
+    setHotelToEdit(hotel);
+    setShowEditModal(true);
+  };
+  // Xử lý lưu thông tin khách sạn sau khi chỉnh sửa
+  const handleEditHotelSubmit = async (data) => {
+    // Lấy ID từ hotelToEdit để cập nhật
+    const hotelId = getId(hotelToEdit);
+    console.log('Debug - hotelToEdit:', hotelToEdit);
+    console.log('Debug - hotelId:', hotelId);
+    console.log('Debug - data:', data);
+    
+    if (!hotelId) {
+      alert('Không tìm thấy ID khách sạn!');
+      return;
+    }
+    try {
+      // Gọi API cập nhật với hotelId và dữ liệu mới
+      await updateOwnerHotel(hotelId, data);
+      alert('Cập nhật khách sạn thành công!');
+      setShowEditModal(false);
+      setHotelToEdit(null);
+      // Refresh lại danh sách khách sạn
+      fetchOwnerHotel();
+    } catch (error) {
+      console.error('Error updating hotel:', error);
+      alert('Lỗi cập nhật khách sạn: ' + (error.message || 'Unknown error'));
+    }
   };
 
-  const handleDeleteHotel = (hotel) => {
-    // TODO: Implement delete functionality
-    console.log('Delete hotel:', hotel);
+  const handleEditHotelClose = () => {
+    setShowEditModal(false);
+    setHotelToEdit(null);
+  };
+
+  const handleDeleteHotel = async (hotel) => {
+    if (!hotel) return;
+    const hotelId = getId(hotel);
+    if (!hotelId) return alert('Không tìm thấy ID khách sạn!');
+    if (!window.confirm('Bạn có chắc chắn muốn xóa khách sạn này?')) return;
+    try {
+      await hotelApiService.deleteHotel(hotelId);
+      alert('Đã xóa khách sạn thành công!');
+      fetchOwnerHotel(); // Refresh list
+    } catch (error) {
+      let errorMessage = 'Xóa khách sạn thất bại!';
+      if (error.response?.data?.error) errorMessage = error.response.data.error;
+      else if (error.response?.data?.message) errorMessage = error.response.data.message;
+      alert(errorMessage);
+    }
   };
 
 
@@ -396,13 +490,46 @@ const HotelInfo = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const hotelsPerPage = 5; // Số khách sạn mỗi trang
+  const [selectedStatus, setSelectedStatus] = useState('all'); // Trạng thái filter
 
-  // Tính toán danh sách khách sạn hiển thị theo trang
-  const totalPages = Math.ceil(hotels.length / hotelsPerPage);
+  // Thống kê số lượng khách sạn theo trạng thái
+  const statusCounts = useMemo(() => {
+    const counts = {
+      all: hotels.length,
+      draft: 0,
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      active: 0,
+      inactive: 0
+    };
+    
+    hotels.forEach(hotel => {
+      if (hotel.status && counts.hasOwnProperty(hotel.status)) {
+        counts[hotel.status]++;
+      }
+    });
+    
+    return counts;
+  }, [hotels]);
+
+  // Lọc khách sạn theo trạng thái đã chọn
+  const filteredHotels = useMemo(() => {
+    if (selectedStatus === 'all') return hotels;
+    return hotels.filter(hotel => hotel.status === selectedStatus);
+  }, [hotels, selectedStatus]);
+
+  // Tính toán danh sách khách sạn hiển thị theo trang (sau khi lọc)
+  const totalPages = Math.ceil(filteredHotels.length / hotelsPerPage);
   const paginatedHotels = useMemo(() => {
     const startIdx = (currentPage - 1) * hotelsPerPage;
-    return hotels.slice(startIdx, startIdx + hotelsPerPage);
-  }, [hotels, currentPage, hotelsPerPage]);
+    return filteredHotels.slice(startIdx, startIdx + hotelsPerPage);
+  }, [filteredHotels, currentPage, hotelsPerPage]);
+
+  // Reset trang về 1 khi thay đổi filter
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedStatus]);
 
   if (loading) {
     return (
@@ -441,8 +568,104 @@ const HotelInfo = () => {
       {/* Bảng danh sách khách sạn */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Danh sách khách sạn của tôi</h2>
-          <p className="text-sm text-gray-600 mt-1">Quản lý tất cả khách sạn đã đăng ký</p>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Danh sách khách sạn của tôi</h2>
+              <p className="text-sm text-gray-600 mt-1">Quản lý tất cả khách sạn đã đăng ký</p>
+            </div>
+            
+            {/* Filter theo trạng thái */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedStatus('all')}
+                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                  selectedStatus === 'all'
+                    ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                    : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                Tất cả ({statusCounts.all})
+              </button>
+              
+              {statusCounts.draft > 0 && (
+                <button
+                  onClick={() => setSelectedStatus('draft')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    selectedStatus === 'draft'
+                      ? 'bg-gray-100 text-gray-800 border border-gray-300'
+                      : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  Nháp ({statusCounts.draft})
+                </button>
+              )}
+              
+              {statusCounts.pending > 0 && (
+                <button
+                  onClick={() => setSelectedStatus('pending')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    selectedStatus === 'pending'
+                      ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                      : 'bg-yellow-50 text-yellow-600 border border-yellow-200 hover:bg-yellow-100'
+                  }`}
+                >
+                  Chờ duyệt ({statusCounts.pending})
+                </button>
+              )}
+              
+              {statusCounts.approved > 0 && (
+                <button
+                  onClick={() => setSelectedStatus('approved')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    selectedStatus === 'approved'
+                      ? 'bg-green-100 text-green-800 border border-green-200'
+                      : 'bg-green-50 text-green-600 border border-green-200 hover:bg-green-100'
+                  }`}
+                >
+                  Đã duyệt ({statusCounts.approved})
+                </button>
+              )}
+              
+              {statusCounts.active > 0 && (
+                <button
+                  onClick={() => setSelectedStatus('active')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    selectedStatus === 'active'
+                      ? 'bg-green-100 text-green-800 border border-green-200'
+                      : 'bg-green-50 text-green-600 border border-green-200 hover:bg-green-100'
+                  }`}
+                >
+                  Đang hoạt động ({statusCounts.active})
+                </button>
+              )}
+              
+              {statusCounts.rejected > 0 && (
+                <button
+                  onClick={() => setSelectedStatus('rejected')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    selectedStatus === 'rejected'
+                      ? 'bg-red-100 text-red-800 border border-red-200'
+                      : 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
+                  }`}
+                >
+                  Bị từ chối ({statusCounts.rejected})
+                </button>
+              )}
+              
+              {statusCounts.inactive > 0 && (
+                <button
+                  onClick={() => setSelectedStatus('inactive')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    selectedStatus === 'inactive'
+                      ? 'bg-gray-100 text-gray-800 border border-gray-300'
+                      : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  Ngừng hoạt động ({statusCounts.inactive})
+                </button>
+              )}
+            </div>
+          </div>
         </div>
         
         <div className="overflow-x-auto">
@@ -510,11 +733,23 @@ const HotelInfo = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <ActionButtonsGroup
-                      onView={() => handleViewHotelDetail(hotel)}
-                      onEdit={() => handleEditHotel(hotel)}
-                      onDelete={() => handleDeleteHotel(hotel)}
-                    />
+                    <div className="flex gap-2 items-center">
+                      <ActionButtonsGroup
+                        onView={() => handleViewHotelDetail(hotel)}
+                        onEdit={() => handleEditHotel(hotel)}
+                        onDelete={() => handleDeleteHotel(hotel)}
+                      />
+                      {/* Nút Nộp cho khách sạn draft */}
+                      {hotel.status === 'draft' && (
+                        <button
+                          className="bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600 text-xs font-semibold"
+                          title="Nộp khách sạn để admin duyệt"
+                          onClick={() => handleOpenSubmitModal(hotel)}
+                        >
+                          Nộp
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -527,7 +762,12 @@ const HotelInfo = () => {
           <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-700">
-                Trang {currentPage} / {totalPages} (Tổng: {hotels.length} khách sạn)
+                Trang {currentPage} / {totalPages} 
+                {selectedStatus === 'all' ? (
+                  <span> (Tổng: {hotels.length} khách sạn)</span>
+                ) : (
+                  <span> (Hiển thị: {filteredHotels.length} / {hotels.length} khách sạn)</span>
+                )}
               </div>
               <div className="flex space-x-2">
                 <button
@@ -545,6 +785,27 @@ const HotelInfo = () => {
                   Sau
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Thông báo khi không có dữ liệu sau khi lọc */}
+        {filteredHotels.length === 0 && selectedStatus !== 'all' && (
+          <div className="px-6 py-8 text-center">
+            <div className="text-gray-500">
+              <Building2 size={48} className="mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium">Không có khách sạn nào</p>
+              <p className="text-sm">
+                Không tìm thấy khách sạn nào có trạng thái "{
+                  selectedStatus === 'draft' ? 'Nháp' :
+                  selectedStatus === 'pending' ? 'Chờ duyệt' :
+                  selectedStatus === 'approved' ? 'Đã duyệt' :
+                  selectedStatus === 'active' ? 'Đang hoạt động' :
+                  selectedStatus === 'rejected' ? 'Bị từ chối' :
+                  selectedStatus === 'inactive' ? 'Ngừng hoạt động' :
+                  selectedStatus
+                }"
+              </p>
             </div>
           </div>
         )}
@@ -569,6 +830,203 @@ const HotelInfo = () => {
         </div>
       )}
 
+      {/* Modal xác nhận nộp khách sạn */}
+      {showSubmitModal && hotelToSubmit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-xl shadow-2xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+              <Building2 className="mr-3 text-blue-600" />
+              Trạng thái hoàn thiện - {hotelToSubmit.name}
+            </h2>
+            
+            <div className="mb-6">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-yellow-800 font-medium">
+                  ⚠️ Sau khi nộp, bạn sẽ không thể chỉnh sửa thông tin khách sạn cho đến khi admin duyệt.
+                </p>
+              </div>
+            </div>
+
+            {/* Bảng trạng thái hoàn thiện */}
+            <div className="bg-white rounded-lg border border-gray-200 mb-6">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Kiểm tra trạng thái hoàn thiện</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mục</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mô tả</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">Thông tin khách sạn</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">Tên, địa chỉ, thành phố...</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {isInfoDone ? 
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            ✅ Đã đủ
+                          </span> : 
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                            ❌ Thiếu
+                          </span>
+                        }
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">Hình ảnh khách sạn</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">Ít nhất 1 ảnh khách sạn</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {isImagesDone ? 
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            ✅ Đã đủ
+                          </span> : 
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                            ❌ Thiếu
+                          </span>
+                        }
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">Tiện nghi</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">Chọn các tiện nghi có sẵn</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {isAmenitiesDone ? 
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            ✅ Đã đủ
+                          </span> : 
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                            ❌ Thiếu
+                          </span>
+                        }
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">Loại phòng</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">Thêm ít nhất 1 loại phòng</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {isRoomTypeDone ? 
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            ✅ Đã đủ
+                          </span> : 
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                            ❌ Thiếu
+                          </span>
+                        }
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">Danh sách phòng</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">Thêm phòng cụ thể</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {isRoomListDone ? 
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            ✅ Đã đủ
+                          </span> : 
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                            ❌ Thiếu
+                          </span>
+                        }
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">Trạng thái phòng</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">Cập nhật trạng thái phòng</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {isRoomStatusDone ? 
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            ✅ Đã đủ
+                          </span> : 
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                            ❌ Thiếu
+                          </span>
+                        }
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">Hình ảnh phòng</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">Thêm ảnh cho phòng</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {isRoomImagesLoading ? 
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                            🔄 Đang tải...
+                          </span> :
+                          isRoomImagesDone ? 
+                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                              ✅ Đã đủ
+                            </span> : 
+                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                              ❌ Thiếu
+                            </span>
+                        }
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Tổng kết */}
+            <div className="mb-6">
+              <div className={`rounded-lg p-4 ${allDone ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                <div className="flex items-center">
+                  {allDone ? (
+                    <>
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                          <span className="text-green-600 font-bold">✓</span>
+                        </div>
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="text-sm font-medium text-green-800">Sẵn sàng nộp!</h3>
+                        <p className="text-sm text-green-700">Tất cả thông tin đã đầy đủ, bạn có thể nộp khách sạn để admin duyệt.</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                          <span className="text-red-600 font-bold">!</span>
+                        </div>
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="text-sm font-medium text-red-800">Chưa đầy đủ thông tin</h3>
+                        <p className="text-sm text-red-700">Một số mục còn thiếu. Bạn vẫn có thể nộp nhưng admin có thể yêu cầu bổ sung.</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowSubmitModal(false);
+                  setHotelToSubmit(null);
+                }}
+                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSubmitHotel}
+                className={`px-6 py-2 bg-yellow-500 text-white rounded-lg font-medium flex items-center ${!allDone ? 'opacity-50 cursor-not-allowed' : 'hover:bg-yellow-600'}`}
+                disabled={!allDone}
+                title={!allDone ? 'Vui lòng hoàn thiện tất cả mục trước khi nộp' : ''}
+              >
+                <Save size={16} className="mr-2" />
+                Xác nhận nộp
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <CreateHotelModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -588,519 +1046,531 @@ const HotelInfo = () => {
         }}
       />
 
-      {/* Chọn khách sạn (nếu >1) */}
-      {hotels.length > 1 && (
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Chọn khách sạn</h3>
-          <div className="flex flex-wrap gap-2">
-            {paginatedHotels.map((hotel, idx) => {
-              const hid = getId(hotel) ?? hotel.hotelId ?? hotel.slug ?? `h-${idx}`;
-              return (
-                <button
-                  key={hid}
-                  onClick={() => handleHotelSelect(hotel)}
-                  className={`px-4 py-2 rounded-lg border transition-colors ${
-                    (getId(selectedHotel) ?? selectedHotel?.hotelId) === (getId(hotel) ?? hotel.hotelId)
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <Building2 size={16} className="mr-2" />
-                    <span>{hotel.name}</span>
-                    <span
-                      className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                        hotel.status === 'approved'
-                          ? 'bg-green-100 text-green-800'
-                          : hotel.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
+      <EditHotelModal
+        isOpen={showEditModal}
+        onClose={handleEditHotelClose}
+        onSubmit={handleEditHotelSubmit}
+        initialData={hotelToEdit}
+      />
+
+      {/* Hidden sections - now that everything is integrated in one page */}
+      {false && (
+        <>
+          {/* Chọn khách sạn (nếu >1) */}
+          {hotels.length > 1 && (
+            <div className="bg-white rounded-lg shadow p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Chọn khách sạn</h3>
+              <div className="flex flex-wrap gap-2">
+                {paginatedHotels.map((hotel, idx) => {
+                  const hid = getId(hotel) ?? hotel.hotelId ?? hotel.slug ?? `h-${idx}`;
+                  return (
+                    <button
+                      key={hid}
+                      onClick={() => handleHotelSelect(hotel)}
+                      className={`px-4 py-2 rounded-lg border transition-colors ${
+                        (getId(selectedHotel) ?? selectedHotel?.hotelId) === (getId(hotel) ?? hotel.hotelId)
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                       }`}
                     >
-                      {hotel.status === 'approved' && 'Đã duyệt'}
-                      {hotel.status === 'pending' && 'Chờ duyệt'}
-                      {hotel.status === 'rejected' && 'Từ chối'}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          {/* Phân trang */}
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center mt-4 gap-2">
-              <button
-                className="px-2 py-1 rounded border bg-gray-100 hover:bg-gray-200"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              >
-                &lt; Trước
-              </button>
-              <span className="mx-2 text-sm">
-                Trang {currentPage} / {totalPages}
-              </span>
-              <button
-                className="px-2 py-1 rounded border bg-gray-100 hover:bg-gray-200"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              >
-                Sau &gt;
-              </button>
+                      <div className="flex items-center">
+                        <Building2 size={16} className="mr-2" />
+                        <span>{hotel.name}</span>
+                        <span
+                          className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                            hotel.status === 'approved'
+                              ? 'bg-green-100 text-green-800'
+                              : hotel.status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {hotel.status === 'approved' && 'Đã duyệt'}
+                          {hotel.status === 'pending' && 'Chờ duyệt'}
+                          {hotel.status === 'rejected' && 'Từ chối'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Phân trang */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center mt-4 gap-2">
+                  <button
+                    className="px-2 py-1 rounded border bg-gray-100 hover:bg-gray-200"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  >
+                    &lt; Trước
+                  </button>
+                  <span className="mx-2 text-sm">
+                    Trang {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    className="px-2 py-1 rounded border bg-gray-100 hover:bg-gray-200"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  >
+                    Sau &gt;
+                  </button>
+                </div>
+              )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center">
-            <Building2 size={24} className="text-blue-600 mr-3" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {selectedHotel?.name || 'Thông tin khách sạn'}
-              </h1>
-            </div>
-          </div>
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3">
-            {/* Chỉ hiển thị nút khi status là draft */}
-            {selectedHotel?.status === 'draft' && (
-              <>
-                {!isEditing ? (
+          {/* Header */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center">
+                <Building2 size={24} className="text-blue-600 mr-3" />
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    {selectedHotel?.name || 'Thông tin khách sạn'}
+                  </h1>
+                </div>
+              </div>
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3">
+                {/* Chỉ hiển thị nút khi status là draft */}
+                {selectedHotel?.status === 'draft' && (
                   <>
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <Edit size={16} className="mr-2" />
-                      Chỉnh sửa
-                    </button>
-                    <button
-                      onClick={handleSubmitHotel}
-                      disabled={!allDone && !isDataLoading}
-                      className={`flex items-center bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors ${
-                        (!allDone && !isDataLoading) ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                      title={(!allDone && !isDataLoading) ? 'Vui lòng bổ sung đầy đủ các mục trước khi nộp' : 'Nộp khách sạn để admin duyệt'}
-                    >
-                      <Save size={16} className="mr-2" />
-                      {isDataLoading ? 'Đang tải...' : 'Nộp'}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={handleCancel}
-                      className="flex items-center bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
-                    >
-                      <X size={16} className="mr-2" />
-                      Hủy
-                    </button>
-                    <button
-                      onClick={handleSave}
-                      className="flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                      <Save size={16} className="mr-2" />
-                      Lưu
-                    </button>
+                    {!isEditing ? (
+                      <>
+                        <button
+                          onClick={() => setIsEditing(true)}
+                          className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Edit size={16} className="mr-2" />
+                          Chỉnh sửa
+                        </button>
+                        <button
+                          onClick={() => handleOpenSubmitModal(selectedHotel)}
+                          disabled={!selectedHotel}
+                          className={`flex items-center bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors ${
+                            !selectedHotel ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                          title="Nộp khách sạn để admin duyệt"
+                        >
+                          <Save size={16} className="mr-2" />
+                          {isDataLoading ? 'Đang tải...' : 'Nộp'}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={handleCancel}
+                          className="flex items-center bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+                        >
+                          <X size={16} className="mr-2" />
+                          Hủy
+                        </button>
+                        <button
+                          onClick={handleSave}
+                          className="flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                          <Save size={16} className="mr-2" />
+                          Lưu
+                        </button>
+                      </>
+                    )}
                   </>
                 )}
-              </>
-            )}
-            {/* Khi trạng thái là pending thì disable/tắt nút */}
-            {selectedHotel?.status === 'pending' && (
-              <span className="text-sm text-gray-500 italic">
-                Khách sạn đang chờ duyệt, không thể chỉnh sửa hoặc nộp lại
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Status Badge */}
-        <div className="mb-6">
-          <span
-            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-              selectedHotel?.status === 'approved'
-                ? 'bg-green-100 text-green-800'
-                : selectedHotel?.status === 'pending'
-                ? 'bg-yellow-100 text-yellow-800'
-                : 'bg-red-100 text-red-800'
-            }`}
-          >
-            {selectedHotel?.status === 'approved' && '✅ Đã duyệt'}
-            {selectedHotel?.status === 'pending' && '⏳ Chờ duyệt'}
-            {selectedHotel?.status === 'rejected' && '❌ Từ chối'}
-            {!selectedHotel?.status && '⏳ Chờ duyệt'}
-          </span>
-        </div>
-
-        {/* Basic Information */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Tên khách sạn</label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={editData.name || ''}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nhập tên khách sạn"
-              />
-            ) : (
-              <p className="text-lg font-semibold text-gray-900">{selectedHotel?.name || 'Chưa có tên'}</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Hạng sao</label>
-            <div className="flex items-center">
-              {selectedHotel?.starRating ? (
-                <>
-                  {[...Array(parseInt(selectedHotel.starRating))].map((_, i) => (
-                    <Star key={`star-${i}`} size={16} className="text-yellow-400 fill-current" />
-                  ))}
-                  {isEditing && (
-                    <p className="text-xs text-gray-500 mt-1">Hạng sao do admin đánh giá, không thể tự chỉnh sửa</p>
-                  )}
-                </>
-              ) : (
-                <span className="text-gray-500">Chưa có đánh giá</span>
-              )}
-            </div>
-          </div>
-          <div className="lg:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Mô tả</label>
-            {isEditing ? (
-              <textarea
-                rows={4}
-                value={editData.description || ''}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nhập mô tả về khách sạn..."
-              />
-            ) : (
-              <p className="text-gray-700">{selectedHotel?.description || 'Chưa có mô tả'}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Contact Information */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-            <Phone size={20} className="mr-2 text-blue-600" />
-            Thông tin liên hệ
-          </h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <MapPin size={16} className="inline mr-1" /> Địa chỉ
-              </label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={editData.address || ''}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập địa chỉ"
-                />
-              ) : (
-                <p className="text-gray-700">{selectedHotel?.address || 'Chưa có địa chỉ'}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Thành phố</label>
-              {isEditing ? (
-                <input
-                  type="text"
-                  value={editData.city || ''}
-                  onChange={(e) => handleInputChange('city', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập thành phố"
-                />
-              ) : (
-                <p className="text-gray-700">{selectedHotel?.city || 'Chưa có thành phố'}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Phone size={16} className="inline mr-1" /> Số điện thoại
-              </label>
-              {isEditing ? (
-                <input
-                  type="tel"
-                  value={editData.phoneNumber || ''}
-                  onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập số điện thoại"
-                />
-              ) : (
-                <p className="text-gray-700">{selectedHotel?.phoneNumber || 'Chưa có số điện thoại'}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Mail size={16} className="inline mr-1" /> Email
-              </label>
-              {isEditing ? (
-                <input
-                  type="email"
-                  value={editData.email || ''}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Nhập email"
-                />
-              ) : (
-                <p className="text-gray-700">{selectedHotel?.email || 'Chưa có email'}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Globe size={16} className="inline mr-1" /> Website
-              </label>
-              {isEditing ? (
-                <input
-                  type="url"
-                  value={editData.website || ''}
-                  onChange={(e) => handleInputChange('website', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://example.com"
-                />
-              ) : (
-                <p className="text-gray-700">
-                  {selectedHotel?.website ? (
-                    <a
-                      href={selectedHotel.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
-                    >
-                      {selectedHotel.website}
-                    </a>
-                  ) : 'Chưa có website'}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Clock size={16} className="inline mr-1" /> Thời gian nhận/trả phòng
-              </label>
-              {isEditing ? (
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="time"
-                    value={editData.check_in_time || '14:00'}
-                    onChange={(e) => handleInputChange('check_in_time', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <span className="text-gray-500">đến</span>
-                  <input
-                    type="time"
-                    value={editData.check_out_time || '12:00'}
-                    onChange={(e) => handleInputChange('check_out_time', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <span className="text-gray-500">đến</span>
-                </div>
-              ) : (
-                <p className="text-gray-700">
-                  Nhận phòng: {selectedHotel?.check_in_time || '14:00'} - Trả phòng: {selectedHotel?.check_out_time || '12:00'}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Amenities (hiển thị) */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">Tiện nghi</h2>
-          {Array.isArray(amenitiesDetails) && amenitiesDetails.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {amenitiesDetails.map(a => (
-                <div key={a.amenity_id} className="flex items-center p-4 bg-blue-50 border border-blue-100 rounded-lg shadow-sm">
-                  {a.icon_url ? (
-                    <img src={a.icon_url} alt={a.name} className="w-8 h-8 rounded mr-3" />
-                  ) : (
-                    <Shield size={32} className="text-blue-300 mr-3" />
-                  )}
-                  <div className="font-semibold text-blue-900">{a.name}</div>
-                  {a.description && <div className="text-sm text-blue-700">{a.description}</div>}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-gray-500">Chưa có thông tin tiện nghi</div>
-          )}
-        </div>
-
-        {/* Images Gallery */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Hình ảnh khách sạn</h2>
-          {isEditing && (
-            <div className="mb-4">
-              <label className="flex items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
-                <div className="flex flex-col items-center">
-                  <Camera size={24} className="text-gray-400" />
-                  <span className="mt-2 text-sm text-gray-500">Thêm hình ảnh</span>
-                </div>
-                <input
-                  type="file"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  multiple
-                  accept="image/*"
-                />
-              </label>
-            </div>
-          )}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {images.map((image, index) => (
-              <div key={image.id ?? image._id ?? image.imageId ?? image.url ?? `img-${index}`} className="relative group">
-                <img
-                  src={image.image_url || image.imageUrl || image.url}
-                  alt={image.caption || `Hotel image ${index + 1}`}
-                  className="w-full h-32 object-cover rounded-lg"
-                />
-                {isEditing && (
-                  <button
-                    onClick={() => removeImage(index, image.id ?? image._id ?? image.imageId)}
-                    className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Trash2 size={12} />
-                  </button>
+                {/* Khi trạng thái là pending thì disable/tắt nút */}
+                {selectedHotel?.status === 'pending' && (
+                  <span className="text-sm text-gray-500 italic">
+                    Khách sạn đang chờ duyệt, không thể chỉnh sửa hoặc nộp lại
+                  </span>
                 )}
               </div>
-            ))}
-          </div>
-          {images.length === 0 && (
-            <div className="text-center py-8">
-              <Camera size={48} className="mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-500">Chưa có hình ảnh nào</p>
             </div>
-          )}
-        </div>
 
-        {/* Bảng trạng thái hoàn thiện các mục */}
-        <div className="bg-white rounded-lg shadow p-6 mb-4">
-          <h2 className="text-lg font-semibold mb-4">Trạng thái hoàn thiện khách sạn</h2>
-          <table className="w-full text-left mb-2">
-            <thead>
-              <tr>
-                <th className="py-2">Mục</th>
-                <th className="py-2">Trạng thái</th>
-                <th className="py-2">Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  Thông tin khách sạn
-                  <div className="text-xs text-gray-500">Tên, địa chỉ, thành phố...</div>
-                </td>
-                <td>{isInfoDone ? <span className="text-green-600">Đã đủ</span> : <span className="text-red-600">Thiếu</span>}</td>
-                <td>
-                  {!isInfoDone && (
-                    <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddInfo}>
-                      Bổ sung
-                    </button>
+            {/* Status Badge */}
+            <div className="mb-6">
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                  selectedHotel?.status === 'approved'
+                    ? 'bg-green-100 text-green-800'
+                    : selectedHotel?.status === 'pending'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-red-100 text-red-800'
+                }`}
+              >
+                {selectedHotel?.status === 'approved' && '✅ Đã duyệt'}
+                {selectedHotel?.status === 'pending' && '⏳ Chờ duyệt'}
+                {selectedHotel?.status === 'rejected' && '❌ Từ chối'}
+                {!selectedHotel?.status && '⏳ Chờ duyệt'}
+              </span>
+            </div>
+
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tên khách sạn</label>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editData.name || ''}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nhập tên khách sạn"
+                  />
+                ) : (
+                  <p className="text-lg font-semibold text-gray-900">{selectedHotel?.name || 'Chưa có tên'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Hạng sao</label>
+                <div className="flex items-center">
+                  {selectedHotel?.starRating ? (
+                    <>
+                      {[...Array(parseInt(selectedHotel.starRating))].map((_, i) => (
+                        <Star key={`star-${i}`} size={16} className="text-yellow-400 fill-current" />
+                      ))}
+                      {isEditing && (
+                        <p className="text-xs text-gray-500 mt-1">Hạng sao do admin đánh giá, không thể tự chỉnh sửa</p>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-gray-500">Chưa có đánh giá</span>
                   )}
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  Hình ảnh khách sạn
-                  <div className="text-xs text-gray-500">Ít nhất 1 ảnh khách sạn</div>
-                </td>
-                <td>{isImagesDone ? <span className="text-green-600">Đã đủ</span> : <span className="text-red-600">Thiếu</span>}</td>
-                <td>
-                  {!isImagesDone && (
-                    <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddImages}>
-                      Bổ sung
-                    </button>
+                </div>
+              </div>
+              <div className="lg:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mô tả</label>
+                {isEditing ? (
+                  <textarea
+                    rows={4}
+                    value={editData.description || ''}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nhập mô tả về khách sạn..."
+                  />
+                ) : (
+                  <p className="text-gray-700">{selectedHotel?.description || 'Chưa có mô tả'}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <Phone size={20} className="mr-2 text-blue-600" />
+                Thông tin liên hệ
+              </h2>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <MapPin size={16} className="inline mr-1" /> Địa chỉ
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editData.address || ''}
+                      onChange={(e) => handleInputChange('address', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Nhập địa chỉ"
+                    />
+                  ) : (
+                    <p className="text-gray-700">{selectedHotel?.address || 'Chưa có địa chỉ'}</p>
                   )}
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  Tiện nghi
-                  <div className="text-xs text-gray-500">Chọn các tiện nghi có sẵn</div>
-                </td>
-                <td>{isAmenitiesDone ? <span className="text-green-600">Đã đủ</span> : <span className="text-red-600">Thiếu</span>}</td>
-                <td>
-                  {!isAmenitiesDone && (
-                    <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddAmenities}>
-                      Bổ sung
-                    </button>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Thành phố</label>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editData.city || ''}
+                      onChange={(e) => handleInputChange('city', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Nhập thành phố"
+                    />
+                  ) : (
+                    <p className="text-gray-700">{selectedHotel?.city || 'Chưa có thành phố'}</p>
                   )}
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  Loại phòng
-                  <div className="text-xs text-gray-500">Thêm ít nhất 1 loại phòng</div>
-                </td>
-                <td>{isRoomTypeDone ? <span className="text-green-600">Đã đủ</span> : <span className="text-red-600">Thiếu</span>}</td>
-                <td>
-                  {!isRoomTypeDone && (
-                    <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddRoomType}>
-                      Bổ sung
-                    </button>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Phone size={16} className="inline mr-1" /> Số điện thoại
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="tel"
+                      value={editData.phoneNumber || ''}
+                      onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Nhập số điện thoại"
+                    />
+                  ) : (
+                    <p className="text-gray-700">{selectedHotel?.phoneNumber || 'Chưa có số điện thoại'}</p>
                   )}
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  Danh sách phòng
-                  <div className="text-xs text-gray-500">Thêm phòng cụ thể</div>
-                </td>
-                <td>{isRoomListDone ? <span className="text-green-600">Đã đủ</span> : <span className="text-red-600">Thiếu</span>}</td>
-                <td>
-                  {!isRoomListDone && (
-                    <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddRoomList}>
-                      Bổ sung
-                    </button>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Mail size={16} className="inline mr-1" /> Email
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="email"
+                      value={editData.email || ''}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Nhập email"
+                    />
+                  ) : (
+                    <p className="text-gray-700">{selectedHotel?.email || 'Chưa có email'}</p>
                   )}
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  Trạng thái phòng
-                  <div className="text-xs text-gray-500">Cập nhật trạng thái phòng</div>
-                </td>
-                <td>{isRoomStatusDone ? <span className="text-green-600">Đã đủ</span> : <span className="text-red-600">Thiếu</span>}</td>
-                <td>
-                  {!isRoomStatusDone && (
-                    <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddRoomStatus}>
-                      Bổ sung
-                    </button>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Globe size={16} className="inline mr-1" /> Website
+                  </label>
+                  {isEditing ? (
+                    <input
+                      type="url"
+                      value={editData.website || ''}
+                      onChange={(e) => handleInputChange('website', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="https://example.com"
+                    />
+                  ) : (
+                    <p className="text-gray-700">
+                      {selectedHotel?.website ? (
+                        <a
+                          href={selectedHotel.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          {selectedHotel.website}
+                        </a>
+                      ) : 'Chưa có website'}
+                    </p>
                   )}
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  Hình ảnh phòng
-                  <div className="text-xs text-gray-500">Thêm ảnh cho phòng</div>
-                </td>
-                <td>
-                  {isRoomImagesLoading
-                    ? <span className="text-gray-500">Đang tải...</span>
-                    : isRoomImagesDone
-                      ? <span className="text-green-600">Đã đủ</span>
-                      : <span className="text-red-600">Thiếu</span>
-                  }
-                </td>
-                <td>
-                  {!isRoomImagesDone && !isRoomImagesLoading && (
-                    <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddRoomImages}>
-                      Bổ sung
-                    </button>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Clock size={16} className="inline mr-1" /> Thời gian nhận/trả phòng
+                  </label>
+                  {isEditing ? (
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="time"
+                        value={editData.check_in_time || '14:00'}
+                        onChange={(e) => handleInputChange('check_in_time', e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-500">đến</span>
+                      <input
+                        type="time"
+                        value={editData.check_out_time || '12:00'}
+                        onChange={(e) => handleInputChange('check_out_time', e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-500">đến</span>
+                    </div>
+                  ) : (
+                    <p className="text-gray-700">
+                      Nhận phòng: {selectedHotel?.check_in_time || '14:00'} - Trả phòng: {selectedHotel?.check_out_time || '12:00'}
+                    </p>
                   )}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          
-        </div>
-      </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Amenities (hiển thị) */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold mb-4">Tiện nghi</h2>
+              {Array.isArray(amenitiesDetails) && amenitiesDetails.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {amenitiesDetails.map(a => (
+                    <div key={a.amenity_id} className="flex items-center p-4 bg-blue-50 border border-blue-100 rounded-lg shadow-sm">
+                      {a.icon_url ? (
+                        <img src={a.icon_url} alt={a.name} className="w-8 h-8 rounded mr-3" />
+                      ) : (
+                        <Shield size={32} className="text-blue-300 mr-3" />
+                      )}
+                      <div className="font-semibold text-blue-900">{a.name}</div>
+                      {a.description && <div className="text-sm text-blue-700">{a.description}</div>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-gray-500">Chưa có thông tin tiện nghi</div>
+              )}
+            </div>
+
+            {/* Images Gallery */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Hình ảnh khách sạn</h2>
+              {isEditing && (
+                <div className="mb-4">
+                  <label className="flex items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
+                    <div className="flex flex-col items-center">
+                      <Camera size={24} className="text-gray-400" />
+                      <span className="mt-2 text-sm text-gray-500">Thêm hình ảnh</span>
+                    </div>
+                    <input
+                      type="file"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      multiple
+                      accept="image/*"
+                    />
+                  </label>
+                </div>
+              )}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {images.map((image, index) => (
+                  <div key={image.id ?? image._id ?? image.imageId ?? image.url ?? `img-${index}`} className="relative group">
+                    <img
+                      src={image.image_url || image.imageUrl || image.url}
+                      alt={image.caption || `Hotel image ${index + 1}`}
+                      className="w-full h-32 object-cover rounded-lg"
+                    />
+                    {isEditing && (
+                      <button
+                        onClick={() => removeImage(index, image.id ?? image._id ?? image.imageId)}
+                        className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {images.length === 0 && (
+                <div className="text-center py-8">
+                  <Camera size={48} className="mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-500">Chưa có hình ảnh nào</p>
+                </div>
+              )}
+            </div>
+
+            {/* Bảng trạng thái hoàn thiện các mục */}
+            <div className="bg-white rounded-lg shadow p-6 mb-4">
+              <h2 className="text-lg font-semibold mb-4">Trạng thái hoàn thiện khách sạn</h2>
+              <table className="w-full text-left mb-2">
+                <thead>
+                  <tr>
+                    <th className="py-2">Mục</th>
+                    <th className="py-2">Trạng thái</th>
+                    <th className="py-2">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      Thông tin khách sạn
+                      <div className="text-xs text-gray-500">Tên, địa chỉ, thành phố...</div>
+                    </td>
+                    <td>{isInfoDone ? <span className="text-green-600">Đã đủ</span> : <span className="text-red-600">Thiếu</span>}</td>
+                    <td>
+                      {!isInfoDone && (
+                        <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddInfo}>
+                          Bổ sung
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Hình ảnh khách sạn
+                      <div className="text-xs text-gray-500">Ít nhất 1 ảnh khách sạn</div>
+                    </td>
+                    <td>{isImagesDone ? <span className="text-green-600">Đã đủ</span> : <span className="text-red-600">Thiếu</span>}</td>
+                    <td>
+                      {!isImagesDone && (
+                        <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddImages}>
+                          Bổ sung
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Tiện nghi
+                      <div className="text-xs text-gray-500">Chọn các tiện nghi có sẵn</div>
+                    </td>
+                    <td>{isAmenitiesDone ? <span className="text-green-600">Đã đủ</span> : <span className="text-red-600">Thiếu</span>}</td>
+                    <td>
+                      {!isAmenitiesDone && (
+                        <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddAmenities}>
+                          Bổ sung
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Loại phòng
+                      <div className="text-xs text-gray-500">Thêm ít nhất 1 loại phòng</div>
+                    </td>
+                    <td>{isRoomTypeDone ? <span className="text-green-600">Đã đủ</span> : <span className="text-red-600">Thiếu</span>}</td>
+                    <td>
+                      {!isRoomTypeDone && (
+                        <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddRoomType}>
+                          Bổ sung
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Danh sách phòng
+                      <div className="text-xs text-gray-500">Thêm phòng cụ thể</div>
+                    </td>
+                    <td>{isRoomListDone ? <span className="text-green-600">Đã đủ</span> : <span className="text-red-600">Thiếu</span>}</td>
+                    <td>
+                      {!isRoomListDone && (
+                        <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddRoomList}>
+                          Bổ sung
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Trạng thái phòng
+                      <div className="text-xs text-gray-500">Cập nhật trạng thái phòng</div>
+                    </td>
+                    <td>{isRoomStatusDone ? <span className="text-green-600">Đã đủ</span> : <span className="text-red-600">Thiếu</span>}</td>
+                    <td>
+                      {!isRoomStatusDone && (
+                        <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddRoomStatus}>
+                          Bổ sung
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      Hình ảnh phòng
+                      <div className="text-xs text-gray-500">Thêm ảnh cho phòng</div>
+                    </td>
+                    <td>
+                      {isRoomImagesLoading
+                        ? <span className="text-gray-500">Đang tải...</span>
+                        : isRoomImagesDone
+                          ? <span className="text-green-600">Đã đủ</span>
+                          : <span className="text-red-600">Thiếu</span>
+                      }
+                    </td>
+                    <td>
+                      {!isRoomImagesDone && !isRoomImagesLoading && (
+                        <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddRoomImages}>
+                          Bổ sung
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -1108,4 +1578,3 @@ const HotelInfo = () => {
 
 
 export default HotelInfo;
-

@@ -1,17 +1,33 @@
 import React, { useState, useEffect } from 'react';
 
-const CreateHotelModal = ({ isOpen, onClose, onSubmit }) => {
+const EditHotelModal = ({ isOpen, onClose, onSubmit, initialData }) => {
+  // Hàm tách phường ra khỏi địa chỉ nếu có dạng "Phường..., địa chỉ chi tiết"
+  function parseAddress(address) {
+    if (!address) return { ward: '', address: '' };
+    const parts = address.split(',');
+    if (parts.length > 1) {
+      return {
+        ward: parts[0].trim(),
+        address: parts.slice(1).join(',').trim(),
+      };
+    }
+    return { ward: '', address: address.trim() };
+  }
+
+  // Tách địa chỉ ban đầu
+  const parsed = parseAddress(initialData?.address);
+  
   const [form, setForm] = useState({
-    name: '',
-    description: 'Mô tả khách sạn sẽ được cập nhật sau',
-    address: '', // chỉ nhập địa chỉ chi tiết, phường sẽ chọn riêng
-    ward: '', // phường
-    city: '', // thành phố
-    phoneNumber: '',
-    email: '',
-    checkInTime: '14:00',
-    checkOutTime: '12:00',
-    starRating: 1,
+    name: initialData?.name || '',
+    description: initialData?.description || 'Mô tả khách sạn sẽ được cập nhật sau',
+    address: parsed.address,
+    ward: initialData?.ward || parsed.ward,
+    city: initialData?.city || '',
+    phoneNumber: initialData?.phoneNumber || '',
+    email: initialData?.email || '',
+    checkInTime: initialData?.checkInTime || '14:00',
+    checkOutTime: initialData?.checkOutTime || '12:00',
+    starRating: initialData?.starRating || 1,
   });
 
   const [provinces, setProvinces] = useState([]);
@@ -77,14 +93,55 @@ const CreateHotelModal = ({ isOpen, onClose, onSubmit }) => {
     if (form.city) {
       setLoadingWards(true);
       const selected = provinces.find(p => p.province === form.city);
-      setWards(selected ? selected.wards.map(w => w.name) : []);
+      const wardList = selected ? selected.wards.map(w => w.name) : [];
+      setWards(wardList);
       setLoadingWards(false);
-      setForm(prev => ({ ...prev, ward: '' })); // reset ward khi đổi city
+      // Chỉ reset ward nếu ward hiện tại không có trong danh sách phường mới
+      setForm(prev => ({
+        ...prev,
+        ward: wardList.includes(prev.ward) ? prev.ward : ''
+      }));
     } else {
       setWards([]);
       setForm(prev => ({ ...prev, ward: '' }));
     }
   }, [form.city, provinces]);
+
+  useEffect(() => {
+    // Khi có initialData và provinces đã load, tự động fill form
+    if (initialData && provinces.length > 0) {
+      const parsed = parseAddress(initialData.address);
+      const wardValue = initialData.ward || parsed.ward;
+      
+      // Cập nhật form với dữ liệu ban đầu
+      setForm({
+        name: initialData.name || '',
+        description: initialData.description || 'Mô tả khách sạn sẽ được cập nhật sau',
+        address: parsed.address,
+        ward: wardValue,
+        city: initialData.city || '',
+        phoneNumber: initialData.phoneNumber || '',
+        email: initialData.email || '',
+        checkInTime: initialData.checkInTime || '14:00',
+        checkOutTime: initialData.checkOutTime || '12:00',
+        starRating: initialData.starRating || 1,
+      });
+
+      // Nếu có city, load danh sách phường
+      if (initialData.city) {
+        const selected = provinces.find(p => p.province === initialData.city);
+        if (selected) {
+          const wardList = selected.wards.map(w => w.name);
+          setWards(wardList);
+          // Chỉ set ward nếu nó có trong danh sách
+          if (wardList.includes(wardValue)) {
+            setForm(prev => ({ ...prev, ward: wardValue }));
+          }
+        }
+      }
+    }
+    // eslint-disable-next-line
+  }, [initialData, provinces]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -113,7 +170,7 @@ const CreateHotelModal = ({ isOpen, onClose, onSubmit }) => {
         >
           ×
         </button>
-        <h2 className="text-xl font-bold mb-4">Đăng ký khách sạn mới</h2>
+        <h2 className="text-xl font-bold mb-4">Chỉnh sửa thông tin khách sạn</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input name="name" value={form.name} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Tên khách sạn" required minLength={3} maxLength={100} />
           <textarea name="description" value={form.description} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Mô tả khách sạn (tối thiểu 10 ký tự)" rows={3} required minLength={10} maxLength={1000} />
@@ -203,11 +260,11 @@ const CreateHotelModal = ({ isOpen, onClose, onSubmit }) => {
               <input name="checkOutTime" value={form.checkOutTime} onChange={handleChange} className="w-full border rounded px-3 py-2" type="time" />
             </div>
           </div>
-          <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-semibold">Tạo khách sạn</button>
+          <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-semibold">Lưu thông tin</button>
         </form>
       </div>
     </div>
   );
 };
 
-export default CreateHotelModal;
+export default EditHotelModal;
