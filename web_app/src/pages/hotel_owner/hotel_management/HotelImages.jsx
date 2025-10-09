@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Trash2, Eye, Star, Plus, X, ChevronDown, ImageIcon } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Camera, Trash2, Eye, Star, Plus, X, ChevronDown, ImageIcon, ArrowLeft } from 'lucide-react';
 import { useHotelOwner } from '../../../hooks/useHotelOwner';
 import useAuth from '../../../hooks/useAuth';
 import { hotelApiService } from '../../../api/hotel.service';
 
 const HotelImages = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
     const [urlInput, setUrlInput] = useState('');
     const [captionInput, setCaptionInput] = useState('');
     const { user } = useAuth();
@@ -18,6 +21,11 @@ const HotelImages = () => {
         clearError
     } = useHotelOwner();
 
+    // Check if hotel is locked from detail page
+    const lockedHotel = location.state?.hotel;
+    const isLocked = location.state?.lockHotel;
+    const returnTo = location.state?.returnTo;
+
     const [selectedHotel, setSelectedHotel] = useState(null);
     const [hotelImages, setHotelImages] = useState([]);
     const [uploadLoading, setUploadLoading] = useState(false);
@@ -28,11 +36,22 @@ const HotelImages = () => {
 
     // Load hotel data khi component mount
     useEffect(() => {
+        // If hotel is locked, don't fetch API, use the locked hotel
+        if (isLocked && lockedHotel) {
+            setSelectedHotel(lockedHotel);
+            return; // Exit early, don't fetch
+        }
+        
+        // Only fetch if not locked
         fetchOwnerHotel();
-    }, [fetchOwnerHotel]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    // Set default hotel when hotelData is available
+    // Set default hotel when hotelData is available (only if not locked)
     useEffect(() => {
+        // Skip if hotel is already locked
+        if (isLocked && lockedHotel) return;
+        
         if (hotelData && Array.isArray(hotelData) && hotelData.length > 0) {
             // If no hotel is selected, select the first one by default
             if (!selectedHotel) {
@@ -40,7 +59,7 @@ const HotelImages = () => {
                 setSelectedHotel(firstHotel);
             }
         }
-    }, [hotelData]);
+    }, [hotelData, selectedHotel, isLocked, lockedHotel]);
 
     // Fetch images when selectedHotel changes
     useEffect(() => {
@@ -180,7 +199,8 @@ const HotelImages = () => {
         );
     }
 
-    if (!hotelData || !Array.isArray(hotelData) || hotelData.length === 0) {
+    // Skip loading check if hotel is locked
+    if (!isLocked && (!hotelData || !Array.isArray(hotelData) || hotelData.length === 0)) {
         return (
             <div className="bg-white rounded-lg shadow p-6">
                 <div className="text-center py-12">
@@ -215,8 +235,24 @@ const HotelImages = () => {
         <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center">
+                    {isLocked && (
+                        <button
+                            onClick={() => {
+                              // Use returnTo if available, otherwise construct URL from locked hotel
+                              const getHotelId = () => lockedHotel?.hotel_id || lockedHotel?.id || lockedHotel?.hotelId;
+                              const targetUrl = returnTo || `/hotel-owner/hotel/${getHotelId()}`;
+                              console.log('🔙 Navigating back to:', targetUrl);
+                              navigate(targetUrl);
+                            }}
+                            className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors mr-3"
+                        >
+                            <ArrowLeft className="h-5 w-5" />
+                        </button>
+                    )}
                     <Camera size={24} className="text-blue-600 mr-3" />
-                    <h1 className="text-2xl font-bold text-gray-900">Hình ảnh khách sạn</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">
+                        {isLocked ? `Hình ảnh - ${lockedHotel?.name}` : 'Hình ảnh khách sạn'}
+                    </h1>
                 </div>
                 {selectedHotel && (
                     <div className="flex items-center space-x-4">
@@ -234,8 +270,8 @@ const HotelImages = () => {
                     </div>
                 )}
             </div>
-            {/* Hotel Selection */}
-            {hotelData.length > 1 && (
+            {/* Hotel Selection - Only show if not locked */}
+            {!isLocked && hotelData && hotelData.length > 1 && (
                 <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                         Chọn khách sạn:
@@ -272,9 +308,14 @@ const HotelImages = () => {
                             <h3 className="font-semibold text-gray-900 mb-2">{selectedHotel.name}</h3>
                             <p className="text-gray-600">{selectedHotel.address}, {selectedHotel.city}</p>
                         </div>
-                        {hotelData.length === 1 && (
+                        {!isLocked && hotelData && hotelData.length === 1 && (
                             <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
                                 Khách sạn duy nhất
+                            </span>
+                        )}
+                        {isLocked && (
+                            <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                Đang chỉnh sửa
                             </span>
                         )}
                     </div>

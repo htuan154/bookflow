@@ -1,10 +1,10 @@
 // src/pages/hotel_owner/roomtype_management/RoomTypeListPage.jsx
 import React, { useEffect, useMemo, useState, useContext } from 'react';
-import { Shield, Plus, Save, X, Pencil, Trash2, Users, Tag, Layers, Ruler, Hash } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Shield, Plus, Save, X, Pencil, Trash2, Users, Tag, Layers, Ruler, Hash, ArrowLeft, Bed, Camera } from 'lucide-react';
 import { useHotelOwner } from '../../../hooks/useHotelOwner';
 import { RoomTypeContext, RoomTypeProvider } from '../../../context/RoomTypeContext';
 import { useRoomTypeList, useRoomTypeEditor } from '../../../hooks/useRoomType';
-import { useNavigate } from 'react-router-dom';
 
 const currency = (v) => (v == null ? '—' : Number(v).toLocaleString('vi-VN') + ' đ');
 
@@ -19,17 +19,44 @@ export default function RoomTypeListPage() {
 }
 
 function Inner() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { hotelData, fetchOwnerHotel } = useHotelOwner();
-  const hotels = Array.isArray(hotelData) ? hotelData : (hotelData ? [hotelData] : []);
+  
+  // Check if hotel is locked from detail page
+  const lockedHotel = location.state?.hotel;
+  const isLocked = location.state?.lockHotel;
+  const returnTo = location.state?.returnTo;
+  
+  // Use locked hotel if available, otherwise use hotelData
+  const hotels = isLocked && lockedHotel 
+    ? [lockedHotel]
+    : Array.isArray(hotelData) ? hotelData : (hotelData ? [hotelData] : []);
   const [hotel, setHotel] = useState(null);
 
-  useEffect(() => { fetchOwnerHotel(); }, [fetchOwnerHotel]);
+  useEffect(() => { 
+    console.log('RoomTypeListPage - Navigation state:', location.state);
+    
+    // First priority: hotel from navigation state (returning from image page)
+    if (location.state?.hotel) {
+      console.log('RoomTypeListPage - Using hotel from navigation state:', location.state.hotel);
+      setHotel(location.state.hotel);
+    }
+    // Second priority: If hotel is locked, don't fetch API, use the locked hotel
+    else if (isLocked && lockedHotel) {
+      console.log('RoomTypeListPage - Using locked hotel:', lockedHotel);
+      setHotel(lockedHotel);
+    } else {
+      console.log('RoomTypeListPage - Fetching owner hotel');
+      fetchOwnerHotel(); 
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const hotelId = useMemo(() => hotel?.hotel_id || hotel?.hotelId || hotel?.id || '', [hotel]);
 
   const { list: roomTypes } = useRoomTypeList({ hotelId, auto: !!hotelId });
   const { pending, createType, updateType, deleteType } = useRoomTypeEditor();
-  const navigate = useNavigate();
 
   const blank = {
     name: '', description: '', max_occupancy: 2, base_price: 0,
@@ -149,29 +176,59 @@ function Inner() {
       {/* Header + chọn khách sạn */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center">
+          {isLocked && (
+            <button
+              onClick={() => {
+                // Use returnTo if available, otherwise construct URL from locked hotel
+                const getHotelId = () => lockedHotel?.hotel_id || lockedHotel?.id || lockedHotel?.hotelId;
+                const targetUrl = returnTo || `/hotel-owner/hotel/${getHotelId()}`;
+                console.log('🔙 Navigating back to:', targetUrl, {
+                  hasOriginalState: !!location.state,
+                  returnTo
+                });
+                
+                // If we have original state from navigation, use it to preserve the chain
+                if (location.state) {
+                  navigate(targetUrl, {
+                    state: location.state
+                  });
+                } else {
+                  navigate(targetUrl);
+                }
+              }}
+              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors mr-3"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          )}
           <Shield className="text-blue-600 mr-3" size={24} />
-          <h1 className="text-2xl font-bold">Quản lý loại phòng</h1>
+          <h1 className="text-2xl font-bold">
+            {isLocked ? `Loại phòng - ${lockedHotel?.name}` : 'Quản lý loại phòng'}
+          </h1>
         </div>
 
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Chọn khách sạn:</label>
-          <select
-            className="w-full md:w-[520px] border rounded-lg px-3 py-2"
-            value={hotelId}
-            onChange={(e) => {
-              const value = e.target.value;
-              const h = hotels.find(x => (x.hotel_id || x.hotelId || x.id) === value) || null;
-              setHotel(h);
-              setOpenForm(false); setEditingId(null);
-            }}
-          >
-            <option value="">— Vui lòng chọn khách sạn —</option>
-            {hotels.map(h => {
-              const id = h.hotel_id || h.hotelId || h.id;
-              return <option key={id} value={id}>{h.name} - {h.address}</option>;
-            })}
-          </select>
-        </div>
+        {/* Hotel Selection - Only show if not locked */}
+        {!isLocked && (
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Chọn khách sạn:</label>
+            <select
+              className="w-full md:w-[520px] border rounded-lg px-3 py-2"
+              value={hotelId}
+              onChange={(e) => {
+                const value = e.target.value;
+                const h = hotels.find(x => (x.hotel_id || x.hotelId || x.id) === value) || null;
+                setHotel(h);
+                setOpenForm(false); setEditingId(null);
+              }}
+            >
+              <option value="">— Vui lòng chọn khách sạn —</option>
+              {hotels.map(h => {
+                const id = h.hotel_id || h.hotelId || h.id;
+                return <option key={id} value={id}>{h.name} - {h.address}</option>;
+              })}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Danh sách + Form */}
@@ -306,6 +363,21 @@ function Inner() {
                       <Ruler size={14} className="inline mx-1" /> {(t.area_sqm ?? t.areaSqm) || '—'} m²
                     </div>
                   </div>
+                  {/* <button
+                    className="px-2 py-1 text-sm rounded bg-purple-50 text-purple-600 hover:bg-purple-100"
+                    onClick={() => navigate(`/hotel-owner/rooms/types/${t.id}/detail`, {
+                      state: {
+                        hotel: hotel,
+                        hotelId: hotelId,
+                        roomType: t,
+                        lockHotel: isLocked,
+                        returnTo: isLocked ? returnTo : `/hotel-owner/rooms/types`
+                      }
+                    })}
+                    title="Xem chi tiết"
+                  >
+                    Xem chi tiết
+                  </button> */}
                   <button
                     className="px-2 py-1 text-sm rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
                     onClick={() => openEdit(t)}
@@ -319,10 +391,42 @@ function Inner() {
                     <Trash2 size={14} />
                   </button>
                   <button
-                    onClick={() => navigate(`/hotel-owner/rooms/images`)}
+                    onClick={() => navigate(`/hotel-owner/rooms/images`, {
+                      state: {
+                        hotel: hotel,
+                        roomType: t,
+                        roomTypeId: t.room_type_id || t.id,
+                        lockHotel: true,
+                        lockRoomType: true,
+                        returnTo: `/hotel-owner/rooms/types`,
+                        // Truyền thêm original state để preserve navigation chain từ HotelDetailPage
+                        originalReturnTo: returnTo,
+                        originalState: location.state
+                      }
+                    })}
                     className="px-2 py-1 text-sm rounded bg-blue-50 text-blue-600 hover:bg-blue-100"
+                    title="Thêm hình ảnh cho loại phòng"
                   >
-                    Thêm hình ảnh
+                    <Camera size={14} />
+                  </button>
+                  <button
+                    onClick={() => navigate('/hotel-owner/rooms/list', {
+                      state: {
+                        hotel: hotel,
+                        roomType: t,
+                        roomTypeId: t.room_type_id || t.id,
+                        lockHotel: true,
+                        lockRoomType: true,
+                        returnTo: `/hotel-owner/rooms/types`,
+                        // Truyền thêm original state để preserve navigation chain từ HotelDetailPage
+                        originalReturnTo: returnTo,
+                        originalState: location.state
+                      }
+                    })}
+                    className="px-2 py-1 text-sm rounded bg-green-50 text-green-600 hover:bg-green-100"
+                    title="Thêm phòng cho loại phòng"
+                  >
+                    <Bed size={14} />
                   </button>
                 </div>
               );

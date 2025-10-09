@@ -487,20 +487,26 @@ const HotelInfo = () => {
                     <div className="text-sm text-gray-500">{hotel.city}, {hotel.country}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{hotel.phone || 'Chưa có'}</div>
+                    <div className="text-sm text-gray-900">{hotel.phoneNumber || 'Chưa có'}</div>
                     <div className="text-sm text-gray-500">{hotel.email || 'Chưa có'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      hotel.status === 'approved' ? 'bg-green-100 text-green-800' :
-                      hotel.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                      hotel.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'
+                 hotel.status === 'approved' ? 'bg-green-100 text-green-800' :
+                 hotel.status === 'active' ? 'bg-green-100 text-green-800' :
+                 hotel.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                 hotel.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                 hotel.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
+                 hotel.status === 'draft' ? 'bg-gray-100 text-gray-800' :
+                 'bg-gray-100 text-gray-800'
                     }`}>
-                      {hotel.status === 'approved' ? 'Đã duyệt' :
-                       hotel.status === 'pending' ? 'Chờ duyệt' :
-                       hotel.status === 'rejected' ? 'Bị từ chối' :
-                       'Nháp'}
+                 {hotel.status === 'approved' ? 'Đã duyệt' :
+                  hotel.status === 'active' ? 'Đang hoạt động' :
+                  hotel.status === 'pending' ? 'Chờ duyệt' :
+                  hotel.status === 'rejected' ? 'Bị từ chối' :
+                  hotel.status === 'inactive' ? 'Ngừng hoạt động' :
+                  hotel.status === 'draft' ? 'Nháp' :
+                  'Không xác định'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

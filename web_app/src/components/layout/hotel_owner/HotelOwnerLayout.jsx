@@ -25,10 +25,7 @@ const HotelOwnerLayout = () => {
             icon: <Building2 size={20} />, 
             path: '/hotel-owner/hotel',
             subItems: [
-                { name: 'Thông tin khách sạn', path: '/hotel-owner/hotel/info' },
-                { name: 'Hình ảnh khách sạn', path: '/hotel-owner/hotel/images' },
-                { name: 'Tiện nghi', path: '/hotel-owner/hotel/amenities' },
-                { name: 'Cài đặt chung', path: '/hotel-owner/hotel/settings' }
+                { name: 'Thông tin khách sạn', path: '/hotel-owner/hotel/info' }
             ]
         },
 
@@ -38,10 +35,7 @@ const HotelOwnerLayout = () => {
             icon: <Bed size={20} />, 
             path: '/hotel-owner/rooms',
             subItems: [
-                { name: 'Loại phòng', path: '/hotel-owner/rooms/types' },
-                { name: 'Danh sách phòng', path: '/hotel-owner/rooms/list' },
-                { name: 'Trạng thái phòng', path: '/hotel-owner/rooms/status' },
-                { name: 'Hình ảnh phòng', path: '/hotel-owner/rooms/images' }
+                { name: 'Trạng thái phòng', path: '/hotel-owner/rooms/status' }
             ]
         },
 

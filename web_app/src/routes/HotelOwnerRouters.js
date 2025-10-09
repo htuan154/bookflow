@@ -18,6 +18,7 @@ import AddStaff from '../pages/hotel_owner/staff/AddStaff';
 
 // === Quản lý phòng: Pages
 import RoomTypeListPage from '../pages/hotel_owner/roomtype_management/RoomTypeListPage';
+import RoomTypeDetailPage from '../pages/hotel_owner/roomtype_management/RoomTypeDetailPage';
 import RoomsByTypePage from '../pages/hotel_owner/roomtype_management/RoomsByTypePage';
 import RoomStatusPage from '../pages/hotel_owner/roomtype_management/RoomStatusPage';
 import RoomTypeImagesPage from '../pages/hotel_owner/roomtype_management/RoomTypeImagesPage';
@@ -92,6 +93,7 @@ const HotelOwnerRoutes = () => {
 
                 {/* ======================= QUẢN LÝ PHÒNG ======================= */}
                 <Route path="rooms/types" element={<RoomTypeListPage />} />
+                <Route path="rooms/types/:roomTypeId/detail" element={<RoomTypeDetailPage />} />
                 <Route path="rooms/list" element={<RoomsByTypePage />} />
                 <Route path="rooms/status" element={<RoomStatusPage />} />
                 <Route path="rooms/images" element={<RoomTypeImagesPage />} />
