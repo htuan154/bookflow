@@ -19,3 +19,21 @@ ai_model_server/model/
 
 # Optional: ignore Jupyter checkpoints
 .ipynb_checkpoints/
+
+# -- Environment Files --
+.env
+.env.*
+!.env.example
+server/.env
+web_app/.env
+ai_model_server/.env
+
+# -- Node.js --
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+package-lock.json
+
+# -- Logs --
+*.log
+logs/
