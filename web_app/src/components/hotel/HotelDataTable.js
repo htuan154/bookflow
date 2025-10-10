@@ -17,6 +17,16 @@ const HotelDataTable = ({ hotels, showActions = false, status, onDataRefresh }) 
     const [restoreModalOpen, setRestoreModalOpen] = useState(false);
     const [selectedHotel, setSelectedHotel] = useState(null);
 
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
+    // Filter hotels by status if status prop is provided
+    const filteredHotels = status ? hotels.filter(h => h.status === status) : hotels;
+    const totalItems = filteredHotels.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const paginatedHotels = filteredHotels.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
     const handleApprove = (hotel) => {
         setSelectedHotel(hotel);
         setApprovalModalOpen(true);
@@ -224,8 +234,9 @@ const HotelDataTable = ({ hotels, showActions = false, status, onDataRefresh }) 
                     </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                    {hotels.map((hotel) => (
+                    {paginatedHotels.map((hotel) => (
                         <tr key={hotel.hotelId} className="hover:bg-gray-50">
+                            {/* ...existing code for table row... */}
                             <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0 h-12 w-12">
@@ -337,6 +348,29 @@ const HotelDataTable = ({ hotels, showActions = false, status, onDataRefresh }) 
                     ))}
                 </tbody>
             </table>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex justify-center items-center mt-4 space-x-2">
+                    <button
+                        className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                    >
+                        Trước
+                    </button>
+                    <span className="px-2 text-sm text-gray-600">
+                        Trang {currentPage} / {totalPages}
+                    </span>
+                    <button
+                        className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                    >
+                        Sau
+                    </button>
+                </div>
+            )}
 
             {/* Reject Modal */}
             <RejectModal

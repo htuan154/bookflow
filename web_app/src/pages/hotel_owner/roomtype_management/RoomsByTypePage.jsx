@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Shield, Plus, Save, X, Pencil, Trash2, DoorClosed } from 'lucide-react';
+import { Shield, Plus, Save, X, Pencil, Trash2, DoorClosed, ArrowLeft } from 'lucide-react';
 import { useHotelOwner } from '../../../hooks/useHotelOwner';
 import { useRoomTypeList } from '../../../hooks/useRoomType';
 import { useRoomsOfType, useRoomEditor } from '../../../hooks/useRoom';
 import { useRoomContext } from '../../../context/RoomContext';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 /** Helpers: đọc id/số phòng/tầng an toàn dù API đặt tên khác nhau */
 const getRoomId = (r) => r?.room_id ?? r?.roomId ?? r?.roomID ?? r?.id ?? r?._id ?? null;
@@ -21,10 +22,16 @@ const STATUSES = [
 ];
 
 export default function RoomsByTypePage() {
+  // ====== Navigation state ======
+  const location = useLocation();
+  const navigate = useNavigate();
+  const stateFromNav = location.state || {};
+  const { hotel: hotelFromNav, roomType: roomTypeFromNav, lockHotel = false, lockRoomType = false, returnTo } = stateFromNav;
+
   // ====== Chọn KS / Loại phòng ======
   const { hotelData, fetchOwnerHotel } = useHotelOwner();
   const hotels = Array.isArray(hotelData) ? hotelData : (hotelData ? [hotelData] : []);
-  const [hotel, setHotel] = useState(null);
+  const [hotel, setHotel] = useState(hotelFromNav || null);
 
   // Chỉ gọi fetchOwnerHotel 1 lần khi mount
   useEffect(() => { 
@@ -34,7 +41,7 @@ export default function RoomsByTypePage() {
 
   // Chỉ setHotel khi hotelData thay đổi, KHÔNG setRT trong useEffect này
   useEffect(() => { 
-    if (hotels.length && !hotel) setHotel(hotels[0]); 
+    if (hotels.length && !hotel && !hotelFromNav) setHotel(hotels[0]); 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotels]);
 
@@ -45,9 +52,9 @@ export default function RoomsByTypePage() {
 
   // Chỉ setRT khi roomTypes thay đổi, KHÔNG setRT về null khi hotel thay đổi
   const { list: roomTypes } = useRoomTypeList({ hotelId, auto: !!hotelId });
-  const [rt, setRT] = useState(null);
+  const [rt, setRT] = useState(roomTypeFromNav || null);
   useEffect(() => { 
-    if (roomTypes.length && !rt) setRT(roomTypes[0]); 
+    if (roomTypes.length && !rt && !roomTypeFromNav) setRT(roomTypes[0]); 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomTypes]);
 
@@ -152,22 +159,91 @@ export default function RoomsByTypePage() {
 
   const { error: roomError } = useRoomContext();
 
+  const handleBack = () => {
+    console.log('🔄 RoomsByTypePage - handleBack:', { 
+      returnTo, 
+      hotelFromNav: hotelFromNav?.name,
+      hotel: hotel?.name,
+      stateFromNav,
+      originalReturnTo: stateFromNav.originalReturnTo,
+      originalState: stateFromNav.originalState
+    });
+
+    if (returnTo) {
+      // If we have original state from detail page, restore it
+      if (stateFromNav.originalState) {
+        navigate(returnTo, {
+          state: stateFromNav.originalState
+        });
+      } else {
+        // Sử dụng hotel hiện tại (có thể được update) thay vì hotelFromNav
+        const currentHotel = hotel || hotelFromNav;
+        
+        navigate(returnTo, { 
+          state: { 
+            hotel: currentHotel,
+            hotelId: currentHotel?.hotel_id || currentHotel?.hotelId || currentHotel?.id,
+            roomType: roomTypeFromNav,
+            lockHotel: lockHotel 
+          } 
+        });
+      }
+    } else {
+      navigate('/hotel-owner/rooms/types');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header + chọn KS/Loại phòng */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center">
-          <Shield className="text-blue-600 mr-3" size={24} />
-          <h1 className="text-2xl font-bold">Phòng theo loại phòng</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            {returnTo && (
+              <button
+                onClick={handleBack}
+                className="p-2 hover:bg-gray-100 rounded-lg mr-3 transition-colors"
+                title="Quay lại trang chi tiết loại phòng"
+              >
+                <ArrowLeft className="text-gray-600" size={20} />
+              </button>
+            )}
+            <Shield className="text-blue-600 mr-3" size={24} />
+            <h1 className="text-2xl font-bold">Phòng theo loại phòng</h1>
+          </div>
+          {returnTo && (
+            <button
+              onClick={handleBack}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              ← Quay lại {roomTypeFromNav?.name || 'trang chi tiết'}
+            </button>
+          )}
         </div>
+
+        {/* Hiển thị thông báo khi được điều hướng từ trang khác */}
+        {(lockHotel || lockRoomType) && (
+          <div className="mt-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded">
+            <p className="text-sm text-blue-700">
+              <strong>Đang quản lý phòng cho:</strong> {hotelFromNav?.name} - {roomTypeFromNav?.name}
+              {lockHotel && lockRoomType && (
+                <span className="block mt-1">
+                  Không thể thay đổi khách sạn và loại phòng. {returnTo && "Click 'Quay lại' để trở về trang chi tiết."}
+                </span>
+              )}
+            </p>
+          </div>
+        )}
 
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Chọn khách sạn:</label>
             <select
-              className="w-full border rounded-lg px-3 py-2"
+              className={`w-full border rounded-lg px-3 py-2 ${lockHotel ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               value={String(hotelId)}
+              disabled={lockHotel}
               onChange={(e) => {
+                if (lockHotel) return;
                 const h = hotels.find(
                   x => String(x.hotel_id || x.hotelId || x.id) === String(e.target.value)
                 );
@@ -190,9 +266,11 @@ export default function RoomsByTypePage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Chọn loại phòng:</label>
             <select
-              className="w-full border rounded-lg px-3 py-2"
+              className={`w-full border rounded-lg px-3 py-2 ${lockRoomType ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               value={String(roomTypeId || '')}
+              disabled={lockRoomType}
               onChange={(e) => {
+                if (lockRoomType) return;
                 const t = roomTypes.find(
                   x => String(x.room_type_id || x.id) === String(e.target.value)
                 );

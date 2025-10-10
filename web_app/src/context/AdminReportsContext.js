@@ -14,7 +14,7 @@ export function AdminReportsProvider({ children }) {
   const [filters, setFilters] = useState({
     date_from: yesterdayISO(),
     date_to: todayISO(),
-    hotels: 'ALL',       // 'ALL' | 'uuid,uuid'
+    hotel_filter: 'ALL',       // Đổi tên từ 'hotels' thành 'hotel_filter' để khớp backend
     page: 1,
     page_size: 20,
   });

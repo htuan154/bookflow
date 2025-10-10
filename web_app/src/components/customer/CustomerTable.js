@@ -1,5 +1,6 @@
 // src/components/customer/CustomerTable.js
 import React, { useState } from 'react';
+import ActionButton from '../common/ActionButton';
 
 const CustomerTable = ({ 
     customers, 
@@ -303,47 +304,10 @@ const CustomerTable = ({
                                 
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center space-x-2">
-                                        <button 
-                                            onClick={() => onView(customer)}
-                                            className="inline-flex items-center px-2 py-1 border border-gray-300 rounded-md text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                                            title="Xem chi tiết"
-                                        >
-                                            <span className="mr-1">👁️</span>
-                                            Xem
-                                        </button>
-                                        
-                                        <button 
-                                            onClick={() => onEdit(customer)}
-                                            className="inline-flex items-center px-2 py-1 border border-yellow-300 rounded-md text-xs font-medium text-yellow-700 bg-yellow-50 hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors"
-                                            title="Chỉnh sửa thông tin"
-                                        >
-                                            <span className="mr-1">✏️</span>
-                                            Sửa
-                                        </button>
-                                        
-                                        <button 
-                                            onClick={() => onToggleStatus(customer.userId, customer.status)}
-                                            className={`inline-flex items-center px-2 py-1 border rounded-md text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
-                                                customer.status === 'active' 
-                                                    ? 'border-red-300 text-red-700 bg-red-50 hover:bg-red-100 focus:ring-red-500' 
-                                                    : 'border-green-300 text-green-700 bg-green-50 hover:bg-green-100 focus:ring-green-500'
-                                            }`}
-                                            title={customer.status === 'active' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
-                                        >
-                                            <span className="mr-1">
-                                                {customer.status === 'active' ? '🔒' : '🔓'}
-                                            </span>
-                                            {customer.status === 'active' ? 'Khóa' : 'Mở'}
-                                        </button>
-                                        
-                                        <button 
-                                            onClick={() => onDelete(customer.userId)}
-                                            className="inline-flex items-center px-2 py-1 border border-red-300 rounded-md text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
-                                            title="Xóa tài khoản"
-                                        >
-                                            <span className="mr-1">🗑️</span>
-                                            Xóa
-                                        </button>
+                                        <div className="flex items-center space-x-2">
+                                            <ActionButton type="view" onClick={() => onView(customer)} title="Xem" disabled={false} />
+                                            <ActionButton type="edit" onClick={() => onEdit(customer)} title="Sửa" disabled={false} />
+                                        </div>
                                     </div>
                                 </td>
                             </tr>

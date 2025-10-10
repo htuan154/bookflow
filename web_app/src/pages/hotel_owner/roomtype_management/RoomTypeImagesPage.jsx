@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Image as ImageIcon, 
   Trash2, 
@@ -14,7 +14,8 @@ import {
   Check,
   X,
   AlertTriangle,
-  Plus
+  Plus,
+  ArrowLeft
 } from 'lucide-react';
 import roomTypeService from '../../../api/roomType.service';
 import { hotelApiService } from '../../../api/hotel.service';
@@ -26,9 +27,20 @@ import { RoomProvider } from '../../../context/RoomContext';
 import { RoomTypeImageProvider } from '../../../context/RoomTypeImageContext';
 
 function InnerRoomTypeImagesPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Check if hotel and room type are locked from previous page
+  const lockedHotel = location.state?.hotel;
+  const lockedRoomType = location.state?.roomType;
+  const lockHotel = location.state?.lockHotel || location.state?.lockSelection;
+  const lockRoomType = location.state?.lockRoomType || location.state?.lockSelection;
+  const returnTo = location.state?.returnTo;
+  const returnWithHotel = location.state?.returnWithHotel;
+  
   // Lấy dữ liệu khách sạn và loại phòng
   const { hotelData, fetchOwnerHotel } = useHotelOwner();
-  const hotels = Array.isArray(hotelData) ? hotelData : (hotelData ? [hotelData] : []);
+  const hotels = lockHotel && lockedHotel ? [lockedHotel] : (Array.isArray(hotelData) ? hotelData : (hotelData ? [hotelData] : []));
   const [hotel, setHotel] = useState(null);
   const hotelId = hotel?.hotel_id || hotel?.hotelId || hotel?.id || '';
   const { list: roomTypes } = useRoomTypeList({ hotelId, auto: !!hotelId });
@@ -234,20 +246,30 @@ function InnerRoomTypeImagesPage() {
     }
   }, [roomType, hotels]);
 
-  // Thêm useEffect để gọi fetchOwnerHotel khi component mount
+  // Initialize data on mount
   React.useEffect(() => {
+    // If hotel and room type are locked, use them directly
+    if ((lockHotel || lockRoomType) && lockedHotel && lockedRoomType) {
+      console.log('🔒 Using locked hotel and room type:', { lockedHotel, lockedRoomType });
+      setHotel(lockedHotel);
+      setRoomType(lockedRoomType);
+      // Don't fetch hotel data when locked
+      return;
+    }
+    
+    // Otherwise fetch hotel data normally
     fetchOwnerHotel && fetchOwnerHotel();
-  }, [fetchOwnerHotel]);
+  }, [lockHotel, lockRoomType, lockedHotel, lockedRoomType, fetchOwnerHotel]);
 
   const { roomTypeId: paramRoomTypeId } = useParams();
 
-  // Khi mount, tự động chọn loại phòng theo param nếu có
+  // Auto-select room type from URL params (only if not locked)
   useEffect(() => {
-    if (paramRoomTypeId && roomTypes.length > 0) {
+    if (!lockRoomType && paramRoomTypeId && roomTypes.length > 0) {
       const rt = roomTypes.find(x => (x.room_type_id || x.id) === paramRoomTypeId);
       if (rt) setRoomType(rt);
     }
-  }, [paramRoomTypeId, roomTypes]);
+  }, [paramRoomTypeId, roomTypes, lockRoomType]);
 
   return (
     <div className="w-full max-w-none bg-gray-50 p-6 min-h-screen">
@@ -263,9 +285,46 @@ function InnerRoomTypeImagesPage() {
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Quản lý hình ảnh loại phòng</h1>
-            <p className="text-gray-600 mt-1">Quản lý và tổ chức hình ảnh cho loại phòng của bạn</p>
+          <div className="flex items-center">
+            {returnTo && (
+              <button
+                onClick={() => {
+                  // Use returnTo if available, otherwise construct URL from locked data
+                  const targetUrl = returnTo || `/hotel-owner/rooms/types`;
+                  console.log('🔙 Navigating back to:', targetUrl, {
+                    originalReturnTo: location.state?.originalReturnTo,
+                    originalState: location.state?.originalState
+                  });
+                  
+                  // If we have original state from detail page, restore it
+                  if (location.state?.originalState) {
+                    navigate(targetUrl, {
+                      state: location.state.originalState
+                    });
+                  } else if (returnWithHotel) {
+                    // Navigate back with hotel data to preserve selection
+                    navigate(targetUrl, {
+                      state: {
+                        hotel: returnWithHotel,
+                        lockHotel: true,
+                        autoSelect: true
+                      }
+                    });
+                  } else {
+                    navigate(targetUrl);
+                  }
+                }}
+                className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors mr-3"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+            )}
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {(lockHotel || lockRoomType) ? `Hình ảnh - ${lockedRoomType?.name} (${lockedHotel?.name})` : 'Quản lý hình ảnh loại phòng'}
+              </h1>
+              <p className="text-gray-600 mt-1">Quản lý và tổ chức hình ảnh cho loại phòng của bạn</p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {/* View toggle */}
@@ -311,8 +370,9 @@ function InnerRoomTypeImagesPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Chọn khách sạn:</label>
             <select
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${lockHotel ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               value={hotelId}
+              disabled={lockHotel}
               onChange={e => {
                 const h = hotels.find(x => (x.hotel_id || x.hotelId || x.id) === e.target.value) || null;
                 setHotel(h);
@@ -329,13 +389,13 @@ function InnerRoomTypeImagesPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Chọn loại phòng:</label>
             <select
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${lockRoomType ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               value={roomTypeId}
+              disabled={lockRoomType || !hotelId}
               onChange={e => {
                 const rt = roomTypes.find(x => (x.room_type_id || x.id) === e.target.value) || null;
                 setRoomType(rt); // KHÔNG reset hotel ở đây!
               }}
-              disabled={!hotelId}
             >
               <option value="">— Chọn loại phòng —</option>
               {roomTypes.map(rt => {
@@ -345,6 +405,20 @@ function InnerRoomTypeImagesPage() {
             </select>
           </div>
         </div>
+
+        {/* Lock state notification */}
+        {(lockHotel || lockRoomType) && (
+          <div className="mt-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded">
+            <p className="text-sm text-blue-700">
+              <strong>Đang quản lý hình ảnh cho:</strong> {lockedHotel?.name} - {lockedRoomType?.name}
+              {lockHotel && lockRoomType && (
+                <span className="block mt-1">
+                  Không thể thay đổi khách sạn và loại phòng. {returnTo && "Click 'Quay lại' để trở về trang trước."}
+                </span>
+              )}
+            </p>
+          </div>
+        )}
 
         {/* Selected Room Type Info */}
         {roomType && (
