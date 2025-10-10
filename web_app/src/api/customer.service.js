@@ -111,7 +111,7 @@ const customerService = {
     updateCustomer: async (customerId, customerData) => {
         console.log('customerService.updateCustomer called with:', { customerId, customerData });
         try {
-            const response = await axiosClient.put(`/users/${customerId}`, customerData);
+            const response = await axiosClient.patch(`/users/${customerId}`, customerData);
             console.log('updateCustomer response:', response.data);
             return response.data;
         } catch (error) {

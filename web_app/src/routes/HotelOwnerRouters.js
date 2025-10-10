@@ -9,6 +9,7 @@ import HotelOwnerWelcomePage from '../pages/hotel_owner/HotelOwnerWelcomePage';
 import NotFoundPage from '../pages/shared/NotFoundPage';
 
 import HotelInfo from '../pages/hotel_owner/hotel_management/HotelInfo';
+import HotelDetailPage from '../pages/hotel_owner/hotel_management/HotelDetailPage';
 import HotelImages from '../pages/hotel_owner/hotel_management/HotelImages';
 import HotelAmenities from '../pages/hotel_owner/hotel_management/HotelAmenities';
 
@@ -17,8 +18,9 @@ import AddStaff from '../pages/hotel_owner/staff/AddStaff';
 
 // === Quản lý phòng: Pages
 import RoomTypeListPage from '../pages/hotel_owner/roomtype_management/RoomTypeListPage';
+import RoomTypeDetailPage from '../pages/hotel_owner/roomtype_management/RoomTypeDetailPage';
 import RoomsByTypePage from '../pages/hotel_owner/roomtype_management/RoomsByTypePage';
-import RoomStatusPage from '../pages/hotel_owner/roomtype_management/RoomStatusPage';
+import RoomManagementPage from '../pages/hotel_owner/roomtype_management/RoomManagementPage';
 import RoomTypeImagesPage from '../pages/hotel_owner/roomtype_management/RoomTypeImagesPage';
 
 // === Quản lý phòng: Providers (điều chỉnh path nếu bạn lưu khác)
@@ -27,6 +29,7 @@ import { RoomProvider } from '../context/RoomContext';
 import { HotelOwnerContractProvider } from '../context/HotelOwnerContractContext';
 import { RoomTypeImageProvider } from '../context/RoomTypeImageContext';
 import { HotelAmenityProvider } from '../context/HotelAmenityContext';
+import { BankAccountProvider } from '../context/BankAccountContext';
 import ContractManagement from '../pages/hotel_owner/contract_management/ContractManagement';
 import { IMProvider } from '../context/IMContext';
 import OwnerMessagesPage from '../pages/hotel_owner/messages';
@@ -44,6 +47,9 @@ import RevenuePage from '../pages/hotel_owner/reports/RevenuePage';
 import OccupancyPage from '../pages/hotel_owner/reports/OccupancyPage';
 import PromotionEffectivenessPage from '../pages/hotel_owner/reports/PromotionEffectivenessPage';
 import ReportsSummaryPage from '../pages/hotel_owner/reports/ReportsSummaryPage';
+
+// Bank Accounts
+import { HotelBankAccountsPage } from '../pages/hotel_owner/bank_accounts';
 const HotelOwnerRoutes = () => {
   const { isAuthenticated, user } = useAuth();
 
@@ -55,7 +61,8 @@ const HotelOwnerRoutes = () => {
       <RoomProvider>
         <RoomTypeImageProvider>
           <HotelAmenityProvider>
-            <Routes>
+            <BankAccountProvider>
+              <Routes>
               <Route element={<HotelOwnerLayout />}>
                 {/* Dashboard */}
                 <Route index element={<HotelOwnerWelcomePage />} />
@@ -66,9 +73,15 @@ const HotelOwnerRoutes = () => {
                 <Route path="reports/revenue" element={<RevenuePage />} />
                 <Route path="reports/occupancy" element={<OccupancyPage />} />
                 <Route path="reports/promotions" element={<PromotionEffectivenessPage />} />
+
+                {/* Bank Accounts & Financial Management */}
+                <Route path="financial" element={<HotelBankAccountsPage />} />
+                <Route path="bank-accounts" element={<HotelBankAccountsPage />} />
+
                 {/* Hotel management */}
                 <Route path="hotel" element={<Navigate to="/hotel-owner/hotel/info" replace />} />
                 <Route path="hotel/info" element={<HotelInfo />} />
+                <Route path="hotel/:hotelId" element={<HotelDetailPage />} />
                 <Route path="hotel/images" element={<HotelImages />} />
                 <Route path="hotel/amenities" element={<HotelAmenities />} />
                 <Route path="hotel/settings" element={<div>Cài đặt chung</div>} />
@@ -80,8 +93,9 @@ const HotelOwnerRoutes = () => {
 
                 {/* ======================= QUẢN LÝ PHÒNG ======================= */}
                 <Route path="rooms/types" element={<RoomTypeListPage />} />
+                <Route path="rooms/types/:roomTypeId/detail" element={<RoomTypeDetailPage />} />
                 <Route path="rooms/list" element={<RoomsByTypePage />} />
-                <Route path="rooms/status" element={<RoomStatusPage />} />
+                <Route path="rooms/management" element={<RoomManagementPage />} />
                 <Route path="rooms/images" element={<RoomTypeImagesPage />} />
                 <Route path="rooms" element={<Navigate to="/hotel-owner/rooms/types" replace />} />
 
@@ -110,6 +124,7 @@ const HotelOwnerRoutes = () => {
               </Route>
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
+            </BankAccountProvider>
           </HotelAmenityProvider>
         </RoomTypeImageProvider>
       </RoomProvider>

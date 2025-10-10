@@ -25,7 +25,7 @@ class RoomService {
       }
 
       // Validate room status
-      const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order'];
+      const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order', 'cleaning'];
       if (roomData.status && !validStatuses.includes(roomData.status)) {
         throw new Error('Invalid room status');
       }
@@ -140,7 +140,7 @@ class RoomService {
         throw new Error('Status is required');
       }
 
-      const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order'];
+      const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order', 'cleaning'];
       if (!validStatuses.includes(status)) {
         throw new Error('Invalid room status');
       }
@@ -179,7 +179,7 @@ class RoomService {
 
       // Validate room status
       if (updateData.status) {
-        const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order'];
+        const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order', 'cleaning'];
         if (!validStatuses.includes(updateData.status)) {
           throw new Error('Invalid room status');
         }
@@ -198,7 +198,7 @@ class RoomService {
         throw new Error('Room ID and status are required');
       }
 
-      const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order'];
+      const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order', 'cleaning'];
       if (!validStatuses.includes(status)) {
         throw new Error('Invalid room status');
       }

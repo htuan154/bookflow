@@ -2,7 +2,7 @@
 import { 
     Building2, Home, Bed, BedDouble, DollarSign, BadgePercent, 
     Users2, Calendar, MessageSquare, Star, FileText, BarChart3,
-    Bell, Settings, User, LogOut, Camera, Wrench
+    Bell, Settings, User, LogOut, Camera, Wrench, CreditCard
 } from "lucide-react";
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import useAuth from '../../../hooks/useAuth';
@@ -25,10 +25,7 @@ const HotelOwnerLayout = () => {
             icon: <Building2 size={20} />, 
             path: '/hotel-owner/hotel',
             subItems: [
-                { name: 'Thông tin khách sạn', path: '/hotel-owner/hotel/info' },
-                { name: 'Hình ảnh khách sạn', path: '/hotel-owner/hotel/images' },
-                { name: 'Tiện nghi', path: '/hotel-owner/hotel/amenities' },
-                { name: 'Cài đặt chung', path: '/hotel-owner/hotel/settings' }
+                { name: 'Thông tin khách sạn', path: '/hotel-owner/hotel/info' }
             ]
         },
 
@@ -36,13 +33,10 @@ const HotelOwnerLayout = () => {
         { 
             name: 'Quản lý phòng', 
             icon: <Bed size={20} />, 
-            path: '/hotel-owner/rooms',
-            subItems: [
-                { name: 'Loại phòng', path: '/hotel-owner/rooms/types' },
-                { name: 'Danh sách phòng', path: '/hotel-owner/rooms/list' },
-                { name: 'Trạng thái phòng', path: '/hotel-owner/rooms/status' },
-                { name: 'Hình ảnh phòng', path: '/hotel-owner/rooms/images' }
-            ]
+            path: '/hotel-owner/rooms/management',
+            // subItems: [
+            //     { name: 'Sắp Xếp Phòng', path: '/hotel-owner/rooms/management' }
+            // ]
         },
 
         // Quản lý giá và khuyến mãi
@@ -54,6 +48,13 @@ const HotelOwnerLayout = () => {
                 { name: 'Giá', path: '/hotel-owner/pricing/rates' },
                 { name: 'Khuyến Mãi', path: '/hotel-owner/pricing/promotions' }
             ]
+        },
+
+        // Tài chính & Ngân hàng (Updated - single page)
+        { 
+            name: 'Tài khoản ngân hàng', 
+            icon: <CreditCard size={20} />, 
+            path: '/hotel-owner/bank-accounts'
         },
 
         // Quản lý đặt phòng
@@ -228,13 +229,13 @@ const HotelOwnerLayout = () => {
                     {navLinks.slice(1, 3).map(renderMenuItem)}
                     
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Kinh doanh</p>
-                    {navLinks.slice(3, 5).map(renderMenuItem)}
+                    {navLinks.slice(3, 6).map(renderMenuItem)}
                     
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Nhân sự & Khách hàng</p>
-                    {navLinks.slice(5, 9).map(renderMenuItem)}
+                    {navLinks.slice(6, 10).map(renderMenuItem)}
                     
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Báo cáo & Hợp đồng</p>
-                    {navLinks.slice(9).map(renderMenuItem)}
+                    {navLinks.slice(10).map(renderMenuItem)}
                 </nav>
 
                 {/* User Info & Logout */}

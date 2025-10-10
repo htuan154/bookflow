@@ -13,6 +13,7 @@ export function OwnerReportsProvider({ children }) {
   const [filters, setFilters] = useState({
     date_from: weekAgoISO(),
     date_to: todayISO(),
+    hotel_id: null, // Thêm filter theo khách sạn
     page: 1,
     page_size: 20,
   });

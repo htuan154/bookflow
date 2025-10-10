@@ -1,17 +1,90 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const CreateHotelModal = ({ isOpen, onClose, onSubmit }) => {
   const [form, setForm] = useState({
     name: '',
-    description: '',
-    address: '',
-    city: '',
+    description: 'Mô tả khách sạn sẽ được cập nhật sau',
+    address: '', // chỉ nhập địa chỉ chi tiết, phường sẽ chọn riêng
+    ward: '', // phường
+    city: '', // thành phố
     phoneNumber: '',
     email: '',
     checkInTime: '14:00',
     checkOutTime: '12:00',
     starRating: 1,
   });
+
+  const [provinces, setProvinces] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [loadingProvinces, setLoadingProvinces] = useState(true);
+  const [loadingWards, setLoadingWards] = useState(false);
+  const [provinceFilter, setProvinceFilter] = useState("");
+  const [wardFilter, setWardFilter] = useState("");
+  // Hàm bỏ dấu tiếng Việt
+  function removeVietnameseDiacritics(str) {
+    str = str.normalize("NFD").replace(/\u0300-\u036f/g, "");
+    const vietnamese =
+      "àáạảãâầấậẩẫăằắặẳẵ" +
+      "èéẹẻẽêềếệểễ" +
+      "ìíịỉĩ" +
+      "òóọỏõôồốộổỗơờớợởỡ" +
+      "ùúụủũưừứựửữ" +
+      "ỳýỵỷỹ" +
+      "đ" +
+      "ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴ" +
+      "ÈÉẸẺẼÊỀẾỆỂỄ" +
+      "ÌÍỊỈĨ" +
+      "ÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỬ" +
+      "ÙÚỤỦŨƯỪỨỰỬỮ" +
+      "ỲÝỴỶỸ" +
+      "Đ";
+    const without =
+      "aaaaaaaaaaaaaaaaa" +
+      "eeeeeeeeeee" +
+      "iiiii" +
+      "ooooooooooooooooo" +
+      "uuuuuuuuuuu" +
+      "yyyyy" +
+      "d" +
+      "AAAAAAAAAAAAAAAAA" +
+      "EEEEEEEEEEE" +
+      "IIIII" +
+      "OOOOOOOOOOOOOOOOO" +
+      "UUUUUUUUUUU" +
+      "YYYYY" +
+      "D";
+    let result = str;
+    for (let i = 0; i < vietnamese.length; i++) {
+      result = result.replaceAll(vietnamese[i], without[i]);
+    }
+    return result;
+  }
+
+  useEffect(() => {
+    // Lấy danh sách tỉnh/thành phố từ API
+    fetch('https://vietnamlabs.com/api/vietnamprovince')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setProvinces(data.data);
+        }
+      })
+      .finally(() => setLoadingProvinces(false));
+  }, []);
+
+  useEffect(() => {
+    // Khi chọn thành phố, cập nhật danh sách phường
+    if (form.city) {
+      setLoadingWards(true);
+      const selected = provinces.find(p => p.province === form.city);
+      setWards(selected ? selected.wards.map(w => w.name) : []);
+      setLoadingWards(false);
+      setForm(prev => ({ ...prev, ward: '' })); // reset ward khi đổi city
+    } else {
+      setWards([]);
+      setForm(prev => ({ ...prev, ward: '' }));
+    }
+  }, [form.city, provinces]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -20,14 +93,20 @@ const CreateHotelModal = ({ isOpen, onClose, onSubmit }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(form);
+    // address gửi về là "phường, địa chỉ chi tiết"
+    const submitData = {
+      ...form,
+      address: form.ward ? `${form.ward}, ${form.address}` : form.address,
+      city: form.city,
+    };
+    onSubmit(submitData);
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 relative">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 relative">
         <button
           className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
           onClick={onClose}
@@ -36,12 +115,82 @@ const CreateHotelModal = ({ isOpen, onClose, onSubmit }) => {
         </button>
         <h2 className="text-xl font-bold mb-4">Đăng ký khách sạn mới</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input name="name" value={form.name} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Tên khách sạn" required />
-          <textarea name="description" value={form.description} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Mô tả" rows={2} />
-          <input name="address" value={form.address} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Địa chỉ" required />
-          <input name="city" value={form.city} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Thành phố" required />
-          <input name="phoneNumber" value={form.phoneNumber} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Số điện thoại" required />
-          <input name="email" value={form.email} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Email" type="email" />
+          <label className="block text-sm font-medium">Tên khách sạn</label>
+          <input name="name" value={form.name} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Tên khách sạn" required minLength={3} maxLength={100} />
+
+          <label className="block text-sm font-medium">Mô tả khách sạn</label>
+          <textarea name="description" value={form.description} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Mô tả khách sạn (tối thiểu 10 ký tự)" rows={3} required minLength={10} maxLength={1000} />
+
+          <label className="block text-sm font-medium">Thành phố</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="flex-1 border rounded px-3 py-2"
+              placeholder="Lọc thành phố (bỏ dấu)"
+              value={provinceFilter}
+              onChange={e => setProvinceFilter(e.target.value)}
+            />
+            <select
+              name="city"
+              value={form.city}
+              onChange={handleChange}
+              className="flex-1 border rounded px-3 py-2"
+              required
+              disabled={loadingProvinces}
+            >
+              <option value="">Chọn thành phố</option>
+              {provinces
+                .filter(p => {
+                  if (!provinceFilter) return true;
+                  const kw = removeVietnameseDiacritics(provinceFilter).toLowerCase();
+                  return removeVietnameseDiacritics(p.province).toLowerCase().includes(kw);
+                })
+                .map((p) => (
+                  <option key={p.id} value={p.province}>{p.province}</option>
+                ))}
+            </select>
+          </div>
+
+          <label className="block text-sm font-medium">Phường</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="flex-1 border rounded px-3 py-2"
+              placeholder="Lọc phường (bỏ dấu)"
+              value={wardFilter}
+              onChange={e => setWardFilter(e.target.value)}
+              disabled={!form.city || loadingWards}
+            />
+            <select
+              name="ward"
+              value={form.ward}
+              onChange={handleChange}
+              className="flex-1 border rounded px-3 py-2"
+              required
+              disabled={!form.city || loadingWards}
+            >
+              <option value="">Chọn phường</option>
+              {wards
+                .filter(w => {
+                  if (!wardFilter) return true;
+                  const kw = removeVietnameseDiacritics(wardFilter).toLowerCase();
+                  return removeVietnameseDiacritics(w).toLowerCase().includes(kw);
+                })
+                .map((w, idx) => (
+                  <option key={idx} value={w}>{w}</option>
+                ))}
+            </select>
+          </div>
+
+          <label className="block text-sm font-medium">Địa chỉ</label>
+          <input name="address" value={form.address} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Địa chỉ chi tiết (tối thiểu 10 ký tự)" required minLength={10} maxLength={200} />
+
+          <label className="block text-sm font-medium">Số điện thoại</label>
+          <input name="phoneNumber" value={form.phoneNumber} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Số điện thoại (10-15 số)" required minLength={10} maxLength={15} />
+
+          <label className="block text-sm font-medium">Email</label>
+          <input name="email" value={form.email} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Email" type="email" required />
+
           {/* <input name="website" value={form.website} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Website" /> */}
           <div>
             <label className="block text-sm mb-1">Hạng sao</label>

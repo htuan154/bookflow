@@ -451,22 +451,8 @@ const CustomerModal = ({ customer, mode, onClose, onSave }) => {
                                         </div>
                                     </div>
 
-                                    {/* Status Control */}
-                                    {isEditing && (
-                                        <div className="bg-white rounded-lg p-4 border border-purple-200">
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Trạng thái tài khoản
-                                            </label>
-                                            <select
-                                                value={formData.status}
-                                                onChange={(e) => handleInputChange('status', e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                                            >
-                                                <option value="active">✅ Hoạt động</option>
-                                                <option value="inactive">🔒 Không hoạt động</option>
-                                            </select>
-                                        </div>
-                                    )}
+                                    {/* Status Control - Bỏ để khóa không cho chỉnh sửa */}
+                                    {/* Status được quản lý bởi admin thông qua các chức năng khác */}
                                 </div>
                             </div>
 
