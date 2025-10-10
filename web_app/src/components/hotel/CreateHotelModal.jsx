@@ -34,7 +34,7 @@ const CreateHotelModal = ({ isOpen, onClose, onSubmit }) => {
       "ÀÁẠẢÃÂẦẤẬẨẪĂẰẮẶẲẴ" +
       "ÈÉẸẺẼÊỀẾỆỂỄ" +
       "ÌÍỊỈĨ" +
-      "ÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỠ" +
+      "ÒÓỌỎÕÔỒỐỘỔỖƠỜỚỢỞỬ" +
       "ÙÚỤỦŨƯỪỨỰỬỮ" +
       "ỲÝỴỶỸ" +
       "Đ";
@@ -106,7 +106,7 @@ const CreateHotelModal = ({ isOpen, onClose, onSubmit }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 relative">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 relative">
         <button
           className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
           onClick={onClose}
@@ -115,24 +115,26 @@ const CreateHotelModal = ({ isOpen, onClose, onSubmit }) => {
         </button>
         <h2 className="text-xl font-bold mb-4">Đăng ký khách sạn mới</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <label className="block text-sm font-medium">Tên khách sạn</label>
           <input name="name" value={form.name} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Tên khách sạn" required minLength={3} maxLength={100} />
+
+          <label className="block text-sm font-medium">Mô tả khách sạn</label>
           <textarea name="description" value={form.description} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Mô tả khách sạn (tối thiểu 10 ký tự)" rows={3} required minLength={10} maxLength={1000} />
-          {/* Filter province */}
-          <input
-            type="text"
-            className="w-full border rounded px-3 py-2"
-            placeholder="Lọc thành phố (bỏ dấu)"
-            value={provinceFilter}
-            onChange={e => setProvinceFilter(e.target.value)}
-          />
-          {/* Dropdown chọn thành phố */}
-          <div>
-            <label className="block text-sm mb-1">Thành phố</label>
+
+          <label className="block text-sm font-medium">Thành phố</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="flex-1 border rounded px-3 py-2"
+              placeholder="Lọc thành phố (bỏ dấu)"
+              value={provinceFilter}
+              onChange={e => setProvinceFilter(e.target.value)}
+            />
             <select
               name="city"
               value={form.city}
               onChange={handleChange}
-              className="w-full border rounded px-3 py-2"
+              className="flex-1 border rounded px-3 py-2"
               required
               disabled={loadingProvinces}
             >
@@ -148,23 +150,22 @@ const CreateHotelModal = ({ isOpen, onClose, onSubmit }) => {
                 ))}
             </select>
           </div>
-          {/* Filter ward */}
-          <input
-            type="text"
-            className="w-full border rounded px-3 py-2"
-            placeholder="Lọc phường (bỏ dấu)"
-            value={wardFilter}
-            onChange={e => setWardFilter(e.target.value)}
-            disabled={!form.city || loadingWards}
-          />
-          {/* Dropdown chọn phường */}
-          <div>
-            <label className="block text-sm mb-1">Phường</label>
+
+          <label className="block text-sm font-medium">Phường</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="flex-1 border rounded px-3 py-2"
+              placeholder="Lọc phường (bỏ dấu)"
+              value={wardFilter}
+              onChange={e => setWardFilter(e.target.value)}
+              disabled={!form.city || loadingWards}
+            />
             <select
               name="ward"
               value={form.ward}
               onChange={handleChange}
-              className="w-full border rounded px-3 py-2"
+              className="flex-1 border rounded px-3 py-2"
               required
               disabled={!form.city || loadingWards}
             >
@@ -180,10 +181,16 @@ const CreateHotelModal = ({ isOpen, onClose, onSubmit }) => {
                 ))}
             </select>
           </div>
-          {/* Địa chỉ chi tiết */}
+
+          <label className="block text-sm font-medium">Địa chỉ</label>
           <input name="address" value={form.address} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Địa chỉ chi tiết (tối thiểu 10 ký tự)" required minLength={10} maxLength={200} />
+
+          <label className="block text-sm font-medium">Số điện thoại</label>
           <input name="phoneNumber" value={form.phoneNumber} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Số điện thoại (10-15 số)" required minLength={10} maxLength={15} />
+
+          <label className="block text-sm font-medium">Email</label>
           <input name="email" value={form.email} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Email" type="email" required />
+
           {/* <input name="website" value={form.website} onChange={handleChange} className="w-full border rounded px-3 py-2" placeholder="Website" /> */}
           <div>
             <label className="block text-sm mb-1">Hạng sao</label>
