@@ -33,10 +33,10 @@ const HotelOwnerLayout = () => {
         { 
             name: 'Quản lý phòng', 
             icon: <Bed size={20} />, 
-            path: '/hotel-owner/rooms',
-            subItems: [
-                { name: 'Trạng thái phòng', path: '/hotel-owner/rooms/status' }
-            ]
+            path: '/hotel-owner/rooms/management',
+            // subItems: [
+            //     { name: 'Sắp Xếp Phòng', path: '/hotel-owner/rooms/management' }
+            // ]
         },
 
         // Quản lý giá và khuyến mãi
