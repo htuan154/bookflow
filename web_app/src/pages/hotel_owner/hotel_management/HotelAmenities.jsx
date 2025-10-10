@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Shield, Save, X, CheckCircle, ChevronDown,
+  Shield, Save, X, CheckCircle, ChevronDown, ArrowLeft,
   Wifi, Car, Utensils, Dumbbell, Waves, Coffee, Tv, Wind, Phone, Bath
 } from 'lucide-react';
 
@@ -61,9 +62,16 @@ const pickAmenityId = (row) => {
 export default function HotelAmenities() {
   // ...existing code...
   useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { hotelData, fetchOwnerHotel } = useHotelOwner();
   const { amenities, getAmenities } = useAmenity();
   const { getByHotel, addAmenity, removeAmenity } = useHotelAmenity();
+
+  // Check if hotel is locked from detail page
+  const lockedHotel = location.state?.hotel;
+  const isLocked = location.state?.lockHotel;
+  const returnTo = location.state?.returnTo;
 
   // UI state
   const [selectedHotelId, setSelectedHotelId] = useState(''); // chỉ lưu ID cho ổn định
@@ -81,17 +89,27 @@ export default function HotelAmenities() {
 
   /* ---------- init ---------- */
   useEffect(() => {
-    fetchOwnerHotel();
+    // If hotel is locked, don't fetch API, use the locked hotel
+    if (isLocked && lockedHotel) {
+      setSelectedHotelId(hotelIdOf(lockedHotel));
+      // Don't fetch hotelData when locked
+    } else {
+      fetchOwnerHotel();
+    }
     getAmenities({ page: 1, limit: 200, sortBy: 'created_at', sortOrder: 'desc' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ---------- chuẩn hoá danh sách KS ---------- */
   const hotels = useMemo(() => {
+    // If hotel is locked, use locked hotel only
+    if (isLocked && lockedHotel) {
+      return [lockedHotel];
+    }
     if (Array.isArray(hotelData?.data)) return hotelData.data;
     if (Array.isArray(hotelData)) return hotelData;
     return hotelData ? [hotelData] : [];
-  }, [hotelData]);
+  }, [hotelData, isLocked, lockedHotel]);
 
   const selectedHotel = useMemo(
     () => hotels.find(h => hotelIdOf(h) === selectedHotelId) || null,
@@ -228,38 +246,55 @@ export default function HotelAmenities() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
+            {isLocked && (
+              <button
+                onClick={() => {
+                  // Use returnTo if available, otherwise construct URL from locked hotel
+                  const targetUrl = returnTo || `/hotel-owner/hotel/${hotelIdOf(lockedHotel)}`;
+                  console.log('🔙 Navigating back to:', targetUrl);
+                  navigate(targetUrl);
+                }}
+                className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors mr-3"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+            )}
             <Shield size={24} className="text-blue-600 mr-3" />
-            <h1 className="text-2xl font-bold text-gray-900">Tiện nghi khách sạn</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {isLocked ? `Tiện nghi - ${lockedHotel?.name}` : 'Tiện nghi khách sạn'}
+            </h1>
           </div>
         </div>
 
-        {/* Chọn khách sạn */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Chọn khách sạn:</label>
-          <div className="relative">
-            <select
-              value={selectedHotelId}
-              onChange={(e) => {
-                const id = e.target.value;
-                dlog('[Amenity] select hotel ->', id);
-                setSelectedHotelId(id);
-                setIsEditing(false); // đóng editing khi đổi KS
-              }}
-              className="w-full md:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white pr-8"
-            >
-              <option value="">— Vui lòng chọn khách sạn —</option>
-              {hotels.map((h) => {
-                const id = hotelIdOf(h);
-                return (
-                  <option key={id} value={id}>
-                    {h.name} - {h.address}
-                  </option>
-                );
-              })}
-            </select>
-            <ChevronDown size={16} className="absolute right-2 top-3 text-gray-400 pointer-events-none" />
+        {/* Chọn khách sạn - Only show if not locked */}
+        {!isLocked && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Chọn khách sạn:</label>
+            <div className="relative">
+              <select
+                value={selectedHotelId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  dlog('[Amenity] select hotel ->', id);
+                  setSelectedHotelId(id);
+                  setIsEditing(false); // đóng editing khi đổi KS
+                }}
+                className="w-full md:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white pr-8"
+              >
+                <option value="">— Vui lòng chọn khách sạn —</option>
+                {hotels.map((h) => {
+                  const id = hotelIdOf(h);
+                  return (
+                    <option key={id} value={id}>
+                      {h.name} - {h.address}
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown size={16} className="absolute right-2 top-3 text-gray-400 pointer-events-none" />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Thông tin KS */}
         {selectedHotel && (

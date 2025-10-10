@@ -9,7 +9,7 @@ const useAuth = () => {
         throw new Error('useAuth must be used within an AuthProvider');
     }
 
-    const { isAuthenticated, user, login, logout, loading } = context;
+    const { isAuthenticated, user, token, login, logout, loading } = context;
 
     const handleLogout = () => {
         logout(); 
@@ -19,6 +19,7 @@ const useAuth = () => {
     return {
         isAuthenticated,
         user,
+        token,
         login,
         logout,
         handleLogout,

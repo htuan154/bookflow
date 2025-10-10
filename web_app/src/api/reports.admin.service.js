@@ -11,8 +11,8 @@ const buildQuery = (params = {}) => {
   if (!q.date_from || !q.date_to) {
     throw new Error('date_from and date_to are required');
   }
-  // hotels: 'ALL' hoặc mảng UUID -> server hỗ trợ cả 2
-  if (Array.isArray(q.hotels)) q.hotels = q.hotels.join(',');
+  // hotel_filter: 'ALL' hoặc mảng UUID -> server hỗ trợ cả 2
+  if (Array.isArray(q.hotel_filter)) q.hotel_filter = q.hotel_filter.join(',');
   return q;
 };
 

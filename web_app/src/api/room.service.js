@@ -28,8 +28,10 @@ const roomService = {
 
   getStatsByHotel: (hotelId) => axiosClient.get(ROOMS.GET_STATS_BY_HOTEL(hotelId)),
 
-  getByRoomType: (roomTypeId, params = {}) =>
-    axiosClient.get(ROOMS.GET_BY_ROOM_TYPE(roomTypeId), { params }),
+  getByRoomType: (roomTypeId, params = {}) => {
+    console.log('roomService.getByRoomType called with:', roomTypeId);
+    return axiosClient.get(ROOMS.GET_BY_ROOM_TYPE(roomTypeId), { params });
+  },
 
   // Availability
   checkAvailability: (id, params = {}) =>

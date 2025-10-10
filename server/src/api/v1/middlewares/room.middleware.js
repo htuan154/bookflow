@@ -45,9 +45,9 @@ const validateRoomCreation = (req, res, next) => {
 
     // Status validation (if provided)
     if (req.body.status) {
-      const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order'];
+      const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order', 'cleaning'];
       if (!validStatuses.includes(req.body.status)) {
-        errors.push('Invalid room status. Must be one of: available, occupied, maintenance, out_of_order');
+        errors.push('Invalid room status. Must be one of: available, occupied, maintenance, out_of_order, cleaning');
       }
     }
 
@@ -97,9 +97,9 @@ const validateRoomUpdate = (req, res, next) => {
 
     // Status validation
     if (status) {
-      const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order'];
+      const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order', 'cleaning'];
       if (!validStatuses.includes(status)) {
-        errors.push('Invalid room status. Must be one of: available, occupied, maintenance, out_of_order');
+        errors.push('Invalid room status. Must be one of: available, occupied, maintenance, out_of_order, cleaning');
       }
     }
 
@@ -179,9 +179,9 @@ const validateRoomStatus = (req, res, next) => {
       throw new AppError('Room status is required', 400);
     }
 
-    const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order'];
+    const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order', 'cleaning'];
     if (!validStatuses.includes(status)) {
-      throw new AppError('Invalid room status. Must be one of: available, occupied, maintenance, out_of_order', 400);
+      throw new AppError('Invalid room status. Must be one of: available, occupied, maintenance, out_of_order, cleaning', 400);
     }
 
     next();
