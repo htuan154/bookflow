@@ -1,11 +1,12 @@
 // src/pages/hotel-owner/rooms/RoomManagementPage.jsx
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Activity, Hotel, DoorClosed, BrushCleaning, Wrench, Ban, Users } from 'lucide-react';
 import { useHotelOwner } from '../../../hooks/useHotelOwner';
 import { useRoomContext } from '../../../context/RoomContext';
 import roomTypeService from '../../../api/roomType.service';
 import roomService from '../../../api/room.service';
-import ActionButton from '../../../components/common/ActionButton';
+import ActionButton, { ActionButtonsGroup } from '../../../components/common/ActionButton';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Tất cả' },
@@ -27,7 +28,21 @@ const badgeClass = (s) => {
   }
 };
 
+function RoomTypeCard({ roomType, onView }) {
+  return (
+    <div className="room-type-card p-4 border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 flex items-center justify-between">
+      <div>
+        <h3 className="text-lg font-semibold">{roomType.name}</h3>
+        <p className="text-sm text-gray-500">{roomType.description}</p>
+      </div>
+      <ActionButton type="view" onClick={() => onView(roomType)} title="Xem" disabled={false} />
+    </div>
+  );
+}
+
 export default function RoomManagementPage() {
+  const navigate = useNavigate();
+  
   // Lấy danh sách khách sạn của chủ
   const { hotelData, fetchOwnerHotel } = useHotelOwner();
   const hotels = Array.isArray(hotelData) ? hotelData : (hotelData ? [hotelData] : []);
@@ -208,6 +223,13 @@ export default function RoomManagementPage() {
     return statusTransitions[currentStatus] || [];
   };
 
+  const handleViewRoomType = (roomType) => {
+    console.log('Viewing room type:', roomType);
+    // Navigate to the room type rooms page using React Router
+    const roomTypeId = roomType.roomTypeId || roomType.room_type_id || roomType.id;
+    navigate(`/hotel-owner/rooms/types/${roomTypeId}/rooms`);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header + chọn khách sạn */}
@@ -274,24 +296,13 @@ export default function RoomManagementPage() {
           <div className="p-6 text-gray-500">Đang tải dữ liệu…</div>
         ) : (
           <div className="divide-y">
-            {roomTypes.map((r) => {
-              const id = r.room_type_id || r.id;
-              return (
-                <div
-                  key={id}
-                  className="p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-100"
-                  onClick={() => {
-                    console.log('Room type clicked:', r);
-                    setSelectedRoomType(r);
-                  }}
-                >
-                  <div className="flex-1">
-                    <div className="font-medium">{r.name}</div>
-                    <div className="text-sm text-gray-500">{r.description}</div>
-                  </div>
-                </div>
-              );
-            })}
+            {roomTypes.map((roomType) => (
+              <RoomTypeCard
+                key={roomType.roomTypeId || roomType.room_type_id || roomType.id}
+                roomType={roomType}
+                onView={handleViewRoomType}
+              />
+            ))}
             {!roomTypes.length && (
               <div className="p-6 text-gray-500">Không có loại phòng phù hợp.</div>
             )}

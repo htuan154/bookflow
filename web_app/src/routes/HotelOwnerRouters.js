@@ -22,6 +22,7 @@ import RoomTypeDetailPage from '../pages/hotel_owner/roomtype_management/RoomTyp
 import RoomsByTypePage from '../pages/hotel_owner/roomtype_management/RoomsByTypePage';
 import RoomManagementPage from '../pages/hotel_owner/roomtype_management/RoomManagementPage';
 import RoomTypeImagesPage from '../pages/hotel_owner/roomtype_management/RoomTypeImagesPage';
+import RoomTypeRoomsPage from '../pages/hotel_owner/roomtype_management/RoomTypeRoomsPage';
 
 // === Quản lý phòng: Providers (điều chỉnh path nếu bạn lưu khác)
 import { RoomTypeProvider } from '../context/RoomTypeContext';
@@ -94,6 +95,7 @@ const HotelOwnerRoutes = () => {
                 {/* ======================= QUẢN LÝ PHÒNG ======================= */}
                 <Route path="rooms/types" element={<RoomTypeListPage />} />
                 <Route path="rooms/types/:roomTypeId/detail" element={<RoomTypeDetailPage />} />
+                <Route path="rooms/types/:roomTypeId/rooms" element={<RoomTypeRoomsPage />} />
                 <Route path="rooms/list" element={<RoomsByTypePage />} />
                 <Route path="rooms/management" element={<RoomManagementPage />} />
                 <Route path="rooms/images" element={<RoomTypeImagesPage />} />
