@@ -43,6 +43,9 @@ import PromotionsPage from '../pages/hotel_owner/pricing/PromotionsPage';
 // === Support Pages
 import CustomerSupportPage from '../pages/hotel_owner/support/CustomerSupportPage';
 
+// === Booking Pages
+import { BookingManagementPage, BookingDetailView, BookingEditPage } from '../pages/hotel_owner/bookings';
+
 import OwnerReportsPage from '../pages/hotel_owner/reports/OwnerReportsPage';
 import RevenuePage from '../pages/hotel_owner/reports/RevenuePage';
 import OccupancyPage from '../pages/hotel_owner/reports/OccupancyPage';
@@ -120,6 +123,12 @@ const HotelOwnerRoutes = () => {
                 <Route path="pricing" element={<PricingIndex />} />
                 <Route path="pricing/rates" element={<RatesPage />} />
                 <Route path="pricing/promotions" element={<PromotionsPage />} />
+
+                {/* ======================= BOOKING MANAGEMENT ======================= */}
+                <Route path="bookings" element={<BookingManagementPage />} />
+                <Route path="bookings/list" element={<BookingManagementPage />} />
+                <Route path="bookings/:bookingId" element={<BookingDetailView />} />
+                <Route path="bookings/:bookingId/edit" element={<BookingEditPage />} />
 
                 {/* ======================= CUSTOMER SUPPORT ======================= */}
                 <Route path="support" element={<CustomerSupportPage />} />
