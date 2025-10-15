@@ -9,7 +9,8 @@ import { hotelApiService } from '../../../api/hotel.service';
 import { useBooking } from '../../../hooks/useBooking';
 import userService from '../../../api/user.service';
 import { toast } from 'react-toastify';
-import PaymentForm from '../../../components/payment/PaymentForm';
+import { CheckInPayment } from '../../../components/payment/BookingPayment';
+import bookingService from '../../../api/booking.service';
 
 const BookingManagementPage = () => {
   const navigate = useNavigate();
@@ -24,6 +25,10 @@ const BookingManagementPage = () => {
   const [sortBy, setSortBy] = useState('bookedAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [userCache, setUserCache] = useState({}); // Cache user info
+  
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedBookingForPayment, setSelectedBookingForPayment] = useState(null);
 
   // Use booking hook
   const { 
@@ -84,7 +89,7 @@ const BookingManagementPage = () => {
     if (bookings.length > 0) {
       loadUsersForBookings();
     }
-  }, [bookings]);
+  }, [bookings, userCache]);
 
   // Booking status mapping - Updated theo database schema
   const statusConfig = {
@@ -243,8 +248,49 @@ const BookingManagementPage = () => {
     }
   };
 
-  // Payment form modal
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  // Handle open payment modal
+  const handleOpenPayment = (booking) => {
+    setSelectedBookingForPayment(booking);
+    setShowPaymentModal(true);
+  };
+
+  // Handle close payment modal
+  const handleClosePayment = () => {
+    setShowPaymentModal(false);
+    setSelectedBookingForPayment(null);
+  };
+
+  // Handle payment success - Cập nhật trạng thái booking
+  const handlePaymentSuccess = async (qrData, paymentInfo) => {
+    try {
+      console.log('✅ Payment successful:', paymentInfo);
+      
+      // Cập nhật trạng thái booking lên backend
+      if (selectedBookingForPayment?.bookingId) {
+        await bookingService.updateBooking(selectedBookingForPayment.bookingId, {
+          paymentStatus: 'paid',
+          bookingStatus: 'confirmed'
+        });
+
+        toast.success('Thanh toán thành công! Booking đã được cập nhật.');
+        
+        // Đóng modal và refresh danh sách
+        handleClosePayment();
+        
+        // Reload bookings để cập nhật UI
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('❌ Error updating booking status:', error);
+      toast.error('Thanh toán thành công nhưng không thể cập nhật trạng thái booking');
+    }
+  };
+
+  // Handle payment error
+  const handlePaymentError = (error) => {
+    console.error('❌ Payment error:', error);
+    toast.error('Lỗi thanh toán: ' + error.message);
+  };
 
   if (loadingHotels) {
     return (
@@ -581,29 +627,17 @@ const BookingManagementPage = () => {
                             >
                               <Edit size={18} />
                             </button>
+                            
+                            {/* Nút thanh toán cho booking đã xác nhận nhưng chưa thanh toán */}
                             {booking.bookingStatus === 'confirmed' && booking.paymentStatus === 'pending' && (
                               <button
-                                className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors border border-orange-300"
-                                title="Thanh toán"
-                                onClick={() => setShowPaymentForm(true)}
+                                className="px-3 py-1.5 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
+                                title="Thanh toán tại quầy"
+                                onClick={() => handleOpenPayment(booking)}
                               >
                                 Thanh toán
                               </button>
                             )}
-      {showPaymentForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="relative">
-            <button
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl font-bold"
-              onClick={() => setShowPaymentForm(false)}
-              aria-label="Đóng"
-            >
-              ×
-            </button>
-            <PaymentForm />
-          </div>
-        </div>
-      )}
                           </div>
                         </td>
                       </tr>
@@ -613,6 +647,58 @@ const BookingManagementPage = () => {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Payment Modal - VietQR Check-in Payment */}
+      {showPaymentModal && selectedBookingForPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="relative bg-white rounded-lg shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            {/* Close button */}
+            <button
+              onClick={handleClosePayment}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
+              aria-label="Đóng"
+            >
+              <XCircle size={24} />
+            </button>
+
+            {/* Booking info header */}
+            <div className="p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">
+                Thanh toán Booking
+              </h3>
+              <div className="text-sm text-gray-600 space-y-1">
+                <div>
+                  <span className="font-medium">Khách:</span> {userCache[selectedBookingForPayment.userId]?.fullName || 'Loading...'}
+                </div>
+                <div>
+                  <span className="font-medium">Check-in:</span> {formatShortDate(selectedBookingForPayment.checkInDate)} → {formatShortDate(selectedBookingForPayment.checkOutDate)}
+                </div>
+                <div>
+                  <span className="font-medium">Tổng tiền:</span> <span className="font-semibold text-lg text-blue-600">
+                    {formatCurrency(selectedBookingForPayment.totalPrice)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment component */}
+            <div className="p-6">
+              <CheckInPayment
+                bookingId={selectedBookingForPayment.bookingId}
+                amount={selectedBookingForPayment.totalPrice}
+                onSuccess={handlePaymentSuccess}
+                onError={handlePaymentError}
+              />
+            </div>
+
+            {/* Footer info */}
+            <div className="px-6 pb-6 text-xs text-gray-500 text-center">
+              <p>💡 Hướng dẫn: Khách hàng quét mã QR bằng app ngân hàng để thanh toán</p>
+              <p className="mt-1">Trạng thái booking sẽ tự động cập nhật sau khi thanh toán thành công</p>
+            </div>
+          </div>
         </div>
       )}
     </div>

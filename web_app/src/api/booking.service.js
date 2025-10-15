@@ -1,7 +1,7 @@
 // src/api/booking.service.js
 import axiosClient from '../config/axiosClient';
 
-export const bookingApiService = {
+const bookingApiService = {
   /**
    * Lấy danh sách bookings theo hotelId
    */
@@ -46,6 +46,21 @@ export const bookingApiService = {
         throw error;
       }
     },
+
+  /**
+   * Cập nhật booking (generic update - có thể update nhiều fields)
+   */
+  async updateBooking(bookingId, updateData) {
+    try {
+      console.log('🔄 [BOOKING SERVICE] Updating booking:', bookingId, updateData);
+      const response = await axiosClient.patch(`/bookings/${bookingId}`, updateData);
+      console.log('✅ [BOOKING SERVICE] Booking updated:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [BOOKING SERVICE] Error updating booking:', error);
+      throw error;
+    }
+  },
 
   /**
    * Xác nhận booking
@@ -139,3 +154,6 @@ export const bookingApiService = {
     }
   }
 };
+
+export { bookingApiService };
+export default bookingApiService;

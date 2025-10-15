@@ -28,9 +28,9 @@ exports.createQrForBooking = async (req, res) => {
          booking_id, hotel_id,
          base_amount, surcharge_amount, discount_amount,
          pg_fee_amount, admin_fee_amount,
-         status, tx_ref, provider, note
+         status, tx_ref, note
        )
-       VALUES ($1,$2,$3,0,0,0,0,'pending',$4,'api.vietqr.io','Booking QR')`,
+       VALUES ($1,$2,$3,0,0,0,0,'pending',$4,'VietQR Booking')`,
       [bookingId, book.hotel_id, amount, txRef]
     );
 
@@ -64,10 +64,10 @@ exports.createQrAtCounter = async (req, res) => {
          booking_id, hotel_id,
          base_amount, surcharge_amount, discount_amount,
          pg_fee_amount, admin_fee_amount,
-         status, tx_ref, provider, note
+         status, tx_ref, note
        )
-       VALUES ($1,$2,$3,0,0,0,0,'pending',$4,'api.vietqr.io',$5)`,
-      [bookingId, hotelId, Number(amount), txRef, note || 'Walk-in QR']
+       VALUES ($1,$2,$3,0,0,0,0,'pending',$4,$5)`,
+      [bookingId, hotelId, Number(amount), txRef, note || 'VietQR Walk-in']
     );
 
     const qr = await vietqrService.generateQr({
@@ -105,10 +105,10 @@ exports.vietqrWebhook = async (req, res) => {
 
     await client.query(
       `UPDATE payments
-         SET status='paid', paid_at=$2, provider_tx_id=$3,
-             pg_fee_amount=0, admin_fee_amount=0, hotel_net_amount=$4
+         SET status='paid', paid_at=$2,
+             pg_fee_amount=0, admin_fee_amount=0, hotel_net_amount=$3
        WHERE payment_id=$1`,
-      [p.payment_id, paid_at || new Date().toISOString(), provider_tx_id || null, net]
+      [p.payment_id, paid_at || new Date().toISOString(), net]
     );
 
     if (p.booking_id)

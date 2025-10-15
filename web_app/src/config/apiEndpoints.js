@@ -515,13 +515,13 @@ export const API_ENDPOINTS = {
     // --- VietQR Payment Endpoints ---
     VIETQR: {
         // Tạo QR cho booking (Luồng 1 & 2 & 3)
-        CREATE_QR_FOR_BOOKING: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/payments/qr`,
+        CREATE_QR_FOR_BOOKING: (bookingId) => `${API_BASE_URL}/vietqr/bookings/${bookingId}/payments/qr`,
         
         // Tạo QR cho walk-in tại quầy (Luồng 3 - tuỳ chọn)
-        CREATE_QR_AT_COUNTER: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/payments/qr`,
+        CREATE_QR_AT_COUNTER: (hotelId) => `${API_BASE_URL}/vietqr/hotels/${hotelId}/payments/qr`,
         
         // Webhook xác nhận thanh toán (dùng chung)
-        WEBHOOK_CONFIRMATION: `${API_BASE_URL}/webhooks/vietqr`,
+        WEBHOOK_CONFIRMATION: `${API_BASE_URL}/vietqr/webhooks/vietqr`,
     },
 
 };

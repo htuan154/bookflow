@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useMemo, useState, useEffect } from 'react';
 import vietqrService from '../api/vietqr.service';
 
 export const VietQRContext = createContext(null);
@@ -325,6 +325,28 @@ export function VietQRProvider({ children }) {
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }, []);
+
+  // =========================================
+  // EFFECTS - Countdown Timer
+  // =========================================
+
+  useEffect(() => {
+    if (countdown === null || countdown <= 0 || paymentStatus !== 'pending') {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev === null || prev <= 0) {
+          setPaymentStatus('expired');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [countdown, paymentStatus]);
 
   // =========================================
   // COMPUTED VALUES

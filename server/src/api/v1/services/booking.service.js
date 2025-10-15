@@ -132,6 +132,36 @@ class BookingService {
 
         return await bookingRepository.updateStatus(bookingId, newStatus);
     }
+
+    /**
+     * Cập nhật booking (generic update - nhiều fields)
+     * @param {String} bookingId
+     * @param {Object} updateData - {paymentStatus, bookingStatus, ...}
+     */
+    async updateBooking(bookingId, updateData) {
+        const booking = await bookingRepository.findById(bookingId);
+        if (!booking) {
+            throw new AppError('Booking not found', 404);
+        }
+
+        // Validate paymentStatus nếu có
+        if (updateData.paymentStatus) {
+            const validPaymentStatuses = ['pending', 'paid', 'refunded', 'failed'];
+            if (!validPaymentStatuses.includes(updateData.paymentStatus)) {
+                throw new AppError('Invalid payment status', 400);
+            }
+        }
+
+        // Validate bookingStatus nếu có
+        if (updateData.bookingStatus) {
+            const validStatuses = ['pending', 'confirmed', 'canceled', 'completed', 'no_show'];
+            if (!validStatuses.includes(updateData.bookingStatus)) {
+                throw new AppError('Invalid booking status', 400);
+            }
+        }
+
+        return await bookingRepository.update(bookingId, updateData);
+    }
 }
 
 module.exports = new BookingService();

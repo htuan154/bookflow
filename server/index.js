@@ -120,8 +120,8 @@ app.use('/api/v1/im', imConversations);
 app.use('/api/v1/im', imMessages);
 app.use('/api/v1/im', imUploads);
 app.use('/api/v1/im', imStream);
-app.use('/api/v1', vietqrRoutes);
-// --- Thông Báo (Mongo) ---
+app.use('/api/v1/vietqr', vietqrRoutes);
+// --- Thông Báo (Mongo) ---
 app.use('/api/v1/notification-for-contract', notificationForContractRoutes);
 
 // DailyJob API

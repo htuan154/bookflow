@@ -1529,6 +1529,31 @@
             "description": ""
           }
         }
+      },
+      "patch": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
       }
     },
     "/api/v1/bookings/user/{userId}": {
@@ -6173,7 +6198,7 @@
         }
       }
     },
-    "/api/v1/bookings/{bookingId}/payments/qr": {
+    "/api/v1/vietqr/bookings/{bookingId}/payments/qr": {
       "post": {
         "description": "",
         "parameters": [
@@ -6202,7 +6227,7 @@
         }
       }
     },
-    "/api/v1/hotels/{hotelId}/payments/qr": {
+    "/api/v1/vietqr/hotels/{hotelId}/payments/qr": {
       "post": {
         "description": "",
         "parameters": [
@@ -6248,7 +6273,7 @@
         }
       }
     },
-    "/api/v1/webhooks/vietqr": {
+    "/api/v1/vietqr/webhooks/vietqr": {
       "post": {
         "description": "",
         "responses": {
