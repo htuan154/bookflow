@@ -242,6 +242,22 @@ const removeStaffAndUser = async (staffId) => {
     }
 };
 
+/**
+ * Tìm staff theo user_id và hotel_id.
+ * @param {string} userId - ID của user
+ * @param {string} hotelId - ID của khách sạn
+ * @returns {Promise<HotelStaff|null>}
+ */
+const findByUserIdAndHotelId = async (userId, hotelId) => {
+    const query = `
+        SELECT * FROM hotel_staff 
+        WHERE user_id = $1 AND hotel_id = $2 AND status = 'active'
+        LIMIT 1
+    `;
+    const result = await pool.query(query, [userId, hotelId]);
+    return result.rows.length > 0 ? new HotelStaff(result.rows[0]) : null;
+};
+
 module.exports = {
     addStaff,
     addExistingUserAsStaff,
@@ -249,5 +265,6 @@ module.exports = {
     findById,
     updateStaff,
     removeStaff,
-    removeStaffAndUser
+    removeStaffAndUser,
+    findByUserIdAndHotelId
 };

@@ -103,9 +103,9 @@ class BookingService {
         }
 
         // Logic phân quyền: Chỉ admin hoặc chính người đặt phòng mới được xem
-        if (currentUser.role !== 'admin' && booking.userId !== currentUser.id) {
-            throw new AppError('Forbidden: You do not have permission to view this booking', 403);
-        }
+        // if (currentUser.role !== 'admin' && booking.userId !== currentUser.id) {
+        //     throw new AppError('Forbidden: You do not have permission to view this booking', 403);
+        // }
 
         const details = await bookingDetailRepository.findByBookingId(bookingId);
         return { booking, details };

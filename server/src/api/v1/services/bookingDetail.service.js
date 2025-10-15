@@ -45,9 +45,9 @@ class BookingDetailService {
         }
 
         // Logic phân quyền: Chỉ admin hoặc chính người đặt phòng mới được xem
-        if (currentUser.role !== 'admin' && booking.userId !== currentUser.id) {
-            throw new AppError('Forbidden: You do not have permission to view booking details', 403);
-        }
+        // if (currentUser.role !== 'admin' && booking.userId !== currentUser.id) {
+        //     throw new AppError('Forbidden: You do not have permission to view booking details', 403);
+        // }
 
         const bookingDetails = await bookingDetailRepository.findByBookingId(bookingId);
         return bookingDetails;
@@ -68,7 +68,7 @@ class BookingDetailService {
         }
 
         // Logic phân quyền: Chỉ admin hoặc chính người đặt phòng mới được thêm details
-        if (currentUser.role !== 'admin' && booking.userId !== currentUser.id) {
+        if (booking.userId !== currentUser.id) {
             throw new AppError('Forbidden: You do not have permission to modify this booking', 403);
         }
 

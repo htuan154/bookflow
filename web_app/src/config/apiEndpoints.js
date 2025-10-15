@@ -164,6 +164,7 @@ export const API_ENDPOINTS = {
         GET_DETAILS: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}`,
         UPDATE_STATUS: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/status`,
         GET_HISTORY: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/history`,
+        CREATE_HISTORY: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/history`,
         GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/bookings/hotel/${hotelId}`,
     },
 
