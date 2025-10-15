@@ -511,4 +511,16 @@ export const API_ENDPOINTS = {
         ADMIN_HARD_DELETE: (id) => `${API_BASE_URL}/admin/bank-accounts/${id}/hard-delete`,
     },
 
+    // --- VietQR Payment Endpoints ---
+    VIETQR: {
+        // Tạo QR cho booking (Luồng 1 & 2 & 3)
+        CREATE_QR_FOR_BOOKING: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/payments/qr`,
+        
+        // Tạo QR cho walk-in tại quầy (Luồng 3 - tuỳ chọn)
+        CREATE_QR_AT_COUNTER: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/payments/qr`,
+        
+        // Webhook xác nhận thanh toán (dùng chung)
+        WEBHOOK_CONFIRMATION: `${API_BASE_URL}/webhooks/vietqr`,
+    },
+
 };
