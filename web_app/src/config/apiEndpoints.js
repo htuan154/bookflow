@@ -523,8 +523,14 @@ export const API_ENDPOINTS = {
         // Tạo QR cho walk-in tại quầy (Luồng 3 - tuỳ chọn)
         CREATE_QR_AT_COUNTER: (hotelId) => `${API_BASE_URL}/vietqr/hotels/${hotelId}/payments/qr`,
         
+        // Kiểm tra trạng thái thanh toán
+        CHECK_PAYMENT_STATUS: (txRef) => `${API_BASE_URL}/vietqr/payments/${txRef}/status`,
+        
         // Webhook xác nhận thanh toán (dùng chung)
         WEBHOOK_CONFIRMATION: `${API_BASE_URL}/vietqr/webhooks/vietqr`,
+        
+        // Cập nhật status payment
+        UPDATE_PAYMENT_STATUS: `${API_BASE_URL}/vietqr/payments/update-status`,
     },
 
 };

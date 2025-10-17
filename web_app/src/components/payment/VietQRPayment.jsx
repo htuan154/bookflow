@@ -17,9 +17,10 @@ const VietQRPayment = ({
     paymentStatus,
     countdown,
     error,
+    confirming,
     createQRForBooking,
     createQRAtCounter,
-    simulatePaymentConfirmation,
+    updatePaymentStatus,
     startCountdown,
     downloadQRImage,
     formatCountdownTime,
@@ -49,19 +50,35 @@ const VietQRPayment = ({
       if (result) {
         startCountdown();
         toast.success('Tạo QR code thành công!');
-
-        // Auto confirm nếu enabled (dùng cho demo)
-        if (autoConfirm) {
-          setTimeout(() => {
-            simulatePaymentConfirmation(result.tx_ref, result.amount);
-          }, 3000);
-        }
       }
 
     } catch (error) {
       console.error('Lỗi tạo QR:', error);
       toast.error(error.message || 'Không thể tạo QR code');
       onPaymentError?.(error);
+    }
+  };
+
+  // Xác nhận đã chuyển khoản (cập nhật status từ pending -> paid)
+  const handlePaymentConfirmation = async () => {
+    if (!qrData?.tx_ref) {
+      toast.error('Không tìm thấy thông tin giao dịch');
+      return;
+    }
+
+    try {
+      const response = await updatePaymentStatus({
+        txRef: qrData.tx_ref,
+        status: 'paid',
+        paidAt: new Date().toISOString()
+      });
+
+      if (response.ok) {
+        toast.success('Xác nhận thanh toán thành công!');
+      }
+    } catch (error) {
+      console.error('Lỗi xác nhận thanh toán:', error);
+      toast.error(error?.response?.data?.error || 'Không thể xác nhận thanh toán');
     }
   };
 
@@ -190,28 +207,39 @@ const VietQRPayment = ({
               </button>
             )}
 
-            {paymentStatus === 'pending' && autoConfirm && (
+            {paymentStatus === 'pending' && (
               <button
-                onClick={() => simulatePaymentConfirmation(qrData.tx_ref, qrData.amount)}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                onClick={handlePaymentConfirmation}
+                disabled={confirming}
+                className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-2 px-4 rounded-lg font-medium transition-colors"
               >
-                Giả lập thanh toán
+                {confirming ? (
+                  <span className="flex items-center justify-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Đang xác nhận...</span>
+                  </span>
+                ) : (
+                  '✓ Tôi đã chuyển khoản'
+                )}
               </button>
             )}
 
             <button
               onClick={() => downloadQRImage(qrData.qr_image, `qr-${qrData.tx_ref}.png`)}
-              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+              disabled={confirming}
+              className="flex-1 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white py-2 px-4 rounded-lg font-medium transition-colors"
             >
               Tải QR
             </button>
           </div>
 
           {/* Instructions */}
-          <div className="text-xs text-gray-500 text-center">
-            <p>1. Mở ứng dụng ngân hàng</p>
-            <p>2. Quét mã QR hoặc chụp ảnh</p>
-            <p>3. Xác nhận chuyển tiền</p>
+          <div className="text-xs text-gray-500 text-center space-y-1">
+            <p className="font-medium text-gray-700">Hướng dẫn thanh toán:</p>
+            <p>1. Mở ứng dụng ngân hàng của bạn</p>
+            <p>2. Quét mã QR hoặc chụp ảnh mã QR</p>
+            <p>3. Kiểm tra thông tin và xác nhận chuyển tiền</p>
+            <p className="text-green-600 font-medium">4. Nhấn "Tôi đã chuyển khoản" sau khi hoàn tất</p>
           </div>
         </div>
       )}

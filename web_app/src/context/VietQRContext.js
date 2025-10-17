@@ -231,6 +231,59 @@ export function VietQRProvider({ children }) {
     }
   }, [confirmPayment]);
 
+  /**
+   * Cập nhật status payment
+   */
+  const updatePaymentStatus = useCallback(async ({ paymentId, txRef, status, paidAt }) => {
+    setConfirming(true);
+    setError(null);
+
+    try {
+      const response = await vietqrService.updatePaymentStatus({
+        paymentId,
+        txRef,
+        status,
+        paidAt
+      });
+      
+      if (response.ok) {
+        // Update current payment status
+        if (status === 'paid') {
+          setPaymentStatus('paid');
+          setCountdown(null);
+        } else if (status === 'failed') {
+          setPaymentStatus('error');
+        } else if (status === 'refunded') {
+          setPaymentStatus('refunded');
+        }
+        
+        // Update current payment
+        if (currentPayment && (currentPayment.tx_ref === txRef || currentPayment.payment_id === paymentId)) {
+          setCurrentPayment(prev => ({
+            ...prev,
+            status,
+            paidAt: paidAt || prev.paidAt
+          }));
+        }
+
+        // Update payment history
+        setPaymentHistory(prev => prev.map(payment =>
+          payment.tx_ref === txRef || payment.payment_id === paymentId
+            ? { ...payment, status, paidAt: paidAt || payment.paidAt }
+            : payment
+        ));
+      }
+
+      return response;
+    } catch (err) {
+      const errorMsg = err?.response?.data?.error || err?.message || 'Lỗi khi cập nhật status';
+      setError(errorMsg);
+      throw err;
+    } finally {
+      setConfirming(false);
+    }
+  }, [currentPayment]);
+
   // =========================================
   // ACTIONS - QR MANAGEMENT
   // =========================================
@@ -349,6 +402,43 @@ export function VietQRProvider({ children }) {
   }, [countdown, paymentStatus]);
 
   // =========================================
+  // EFFECTS - Payment Status Polling
+  // =========================================
+
+  useEffect(() => {
+    // Chỉ poll khi đang pending và có tx_ref
+    if (paymentStatus !== 'pending' || !qrData?.tx_ref) {
+      return;
+    }
+
+    // Poll mỗi 3 giây
+    const pollInterval = setInterval(async () => {
+      try {
+        const status = await vietqrService.checkPaymentStatus(qrData.tx_ref);
+        
+        if (status.status === 'paid') {
+          setPaymentStatus('paid');
+          setCountdown(null);
+          
+          // Update payment history
+          setPaymentHistory(prev => 
+            prev.map(p => 
+              p.tx_ref === qrData.tx_ref 
+                ? { ...p, status: 'paid', paid_at: status.paid_at }
+                : p
+            )
+          );
+        }
+      } catch (error) {
+        console.error('Lỗi kiểm tra trạng thái thanh toán:', error);
+        // Không set error để không làm gián đoạn polling
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [paymentStatus, qrData]);
+
+  // =========================================
   // COMPUTED VALUES
   // =========================================
 
@@ -375,6 +465,7 @@ export function VietQRProvider({ children }) {
     // Actions - Payment Confirmation
     confirmPayment,
     simulatePaymentConfirmation,
+    updatePaymentStatus,
     
     // Actions - QR Management
     startCountdown,
@@ -396,7 +487,7 @@ export function VietQRProvider({ children }) {
     creating, confirming,
     error, validationErrors,
     createQRForBooking, createQRAtCounter,
-    confirmPayment, simulatePaymentConfirmation,
+    confirmPayment, simulatePaymentConfirmation, updatePaymentStatus,
     startCountdown, resetQR, regenerateQR, downloadQRImage,
     clearError, resetState, checkQRExpired, formatCountdownTime
   ]);

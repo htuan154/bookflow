@@ -6346,6 +6346,32 @@
         }
       }
     },
+    "/api/v1/vietqr/payments/{txRef}/status": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "txRef",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/api/v1/vietqr/webhooks/vietqr": {
       "post": {
         "description": "",
@@ -6376,6 +6402,45 @@
                     "example": "any"
                   },
                   "provider_tx_id": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vietqr/payments/update-status": {
+      "patch": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paymentId": {
+                    "example": "any"
+                  },
+                  "txRef": {
+                    "example": "any"
+                  },
+                  "status": {
+                    "example": "any"
+                  },
+                  "paidAt": {
                     "example": "any"
                   }
                 }

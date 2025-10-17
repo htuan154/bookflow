@@ -289,6 +289,7 @@ export const useBooking = (hotelId = null) => {
     error,
     statistics,
     fetchBookings,
+    refetchBookings: fetchBookings, // Alias để dễ sử dụng
     fetchBookingDetail,
     updateBookingStatus,
     confirmBooking,

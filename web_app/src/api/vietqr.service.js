@@ -58,6 +58,41 @@ class VietQRService {
   }
 
   /**
+   * Kiểm tra trạng thái thanh toán (polling)
+   * @param {string} txRef - Transaction reference
+   * @returns {Promise<Object>} - {tx_ref, status, amount, paid_at, booking_id}
+   */
+  async checkPaymentStatus(txRef) {
+    try {
+      const response = await axiosClient.get(
+        API_ENDPOINTS.VIETQR.CHECK_PAYMENT_STATUS(txRef)
+      );
+      return response.data;
+    } catch (error) {
+      console.error('VietQR - Lỗi kiểm tra trạng thái:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cập nhật status payment
+   * @param {Object} payload - {paymentId, txRef, status, paidAt}
+   * @returns {Promise<Object>} - {ok: true/false, payment: {...}}
+   */
+  async updatePaymentStatus(payload) {
+    try {
+      const response = await axiosClient.patch(
+        API_ENDPOINTS.VIETQR.UPDATE_PAYMENT_STATUS,
+        payload
+      );
+      return response.data;
+    } catch (error) {
+      console.error('VietQR - Lỗi cập nhật status:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Utility: Tạo payload webhook cho demo/test
    * @param {string} txRef - Transaction reference
    * @param {number} amount - Số tiền

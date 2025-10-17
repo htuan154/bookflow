@@ -33,7 +33,8 @@ const BookingManagementPage = () => {
   // Use booking hook
   const { 
     bookings, 
-    loading: loadingBookings
+    loading: loadingBookings,
+    refetchBookings
   } = useBooking(selectedHotelId);
 
   // Load danh sách khách sạn của owner
@@ -274,11 +275,13 @@ const BookingManagementPage = () => {
 
         toast.success('Thanh toán thành công! Booking đã được cập nhật.');
         
-        // Đóng modal và refresh danh sách
+        // Đóng modal
         handleClosePayment();
         
-        // Reload bookings để cập nhật UI
-        window.location.reload();
+        // Refetch bookings để cập nhật UI (không reload trang)
+        if (refetchBookings) {
+          await refetchBookings();
+        }
       }
     } catch (error) {
       console.error('❌ Error updating booking status:', error);
