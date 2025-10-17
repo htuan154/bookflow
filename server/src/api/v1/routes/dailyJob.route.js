@@ -28,4 +28,7 @@ router.post('/update-promotion-status-by-date', dailyJobController.updatePromoti
 // POST duyệt promotion tự động
 router.post('/auto-approve-promotions', dailyJobController.autoApprovePromotions);
 
+// Tạo các season đặc biệt cho năm hiện tại
+router.post('/create-default-seasons', dailyJobController.createDefaultSeasons);
+
 module.exports = router;

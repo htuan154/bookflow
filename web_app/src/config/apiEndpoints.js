@@ -52,6 +52,7 @@ export const API_ENDPOINTS = {
     // --- Season Endpoints ---
     SEASONS: {
         GET_ALL: `${API_BASE_URL}/seasons`,
+        GET_BY_YEAR: (year) => `${API_BASE_URL}/seasons/year/${year}`,
         CREATE: `${API_BASE_URL}/seasons`,
         UPDATE: (id) => `${API_BASE_URL}/seasons/${id}`,
         DELETE: (id) => `${API_BASE_URL}/seasons/${id}`,
@@ -60,6 +61,8 @@ export const API_ENDPOINTS = {
     // --- Seasonal Pricing Endpoints ---
     SEASONAL_PRICINGS: {
         CREATE: `${API_BASE_URL}/seasonal-pricings`,
+        BULK_CREATE: `${API_BASE_URL}/seasonal-pricings/bulk`,
+        GET_AVAILABLE_SEASONS: (roomTypeId, year) => `${API_BASE_URL}/seasonal-pricings/available/${roomTypeId}?year=${year}`,
         UPDATE: (pricingId) => `${API_BASE_URL}/seasonal-pricings/${pricingId}`,
         DELETE: (pricingId) => `${API_BASE_URL}/seasonal-pricings/${pricingId}`,
         GET_FOR_ROOM_TYPE: (roomTypeId) => `${API_BASE_URL}/seasonal-pricings/${roomTypeId}`,

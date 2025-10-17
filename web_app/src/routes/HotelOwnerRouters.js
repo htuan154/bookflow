@@ -36,9 +36,10 @@ import { IMProvider } from '../context/IMContext';
 import OwnerMessagesPage from '../pages/hotel_owner/messages';
 
 // === Pricing Pages
-import PricingIndex from '../pages/hotel_owner/pricing';
-import RatesPage from '../pages/hotel_owner/pricing/RatesPage';
+import { PricingIndex } from '../pages/hotel_owner/pricing';
 import PromotionsPage from '../pages/hotel_owner/pricing/PromotionsPage';
+import SeasonalPricingPage from '../pages/hotel_owner/pricing/SeasonalPricingPage';
+import SeasonalPricingDetailPage from '../pages/hotel_owner/pricing/SeasonalPricingDetailPage';
 
 // === Support Pages
 import CustomerSupportPage from '../pages/hotel_owner/support/CustomerSupportPage';
@@ -120,8 +121,9 @@ const HotelOwnerRoutes = () => {
                 } />
 
                 {/* ======================= PRICING MANAGEMENT ======================= */}
-                <Route path="pricing" element={<PricingIndex />} />
-                <Route path="pricing/rates" element={<RatesPage />} />
+                <Route path="pricing" element={<Navigate to="/hotel-owner/pricing/seasonal" replace />} />
+                <Route path="pricing/seasonal" element={<SeasonalPricingPage />} />
+                <Route path="pricing/seasonal/:roomTypeId" element={<SeasonalPricingDetailPage />} />
                 <Route path="pricing/promotions" element={<PromotionsPage />} />
 
                 {/* ======================= BOOKING MANAGEMENT ======================= */}

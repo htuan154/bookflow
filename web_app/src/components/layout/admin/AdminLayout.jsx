@@ -5,7 +5,7 @@ import useAuth from '../../../hooks/useAuth';
 
 import {
     LayoutDashboard, FileText, Briefcase, Users, Ticket, MessageSquare,
-    MapPin, BarChart2, Bell, FileSignature, BadgePercent, CreditCard,
+    MapPin, BarChart2, Bell, FileSignature, BadgePercent, CreditCard, Calendar,
 } from 'lucide-react';
 
 const AdminLayout = () => {
@@ -33,6 +33,7 @@ const AdminLayout = () => {
         { name: 'Quản lý đối tác', icon: <Briefcase size={20} />, path: '/admin/partners' },
         { name: 'Quản lý hợp đồng', icon: <FileSignature size={20} />, path: '/admin/contracts'},
         { name: 'Quản lý khách hàng', icon: <Users size={20} />, path: '/admin/customers' },
+        { name: 'Quản lý Tăng Giá Theo Mùa', icon: <Calendar size={20} />, path: '/admin/seasons' },
         { name: 'Thanh toán', icon: <Ticket size={20} />, path: '/admin/payments' },
         { name: 'Tin nhắn', icon: <MessageSquare size={20} />, path: '/admin/messages' },
         { 
@@ -134,15 +135,16 @@ const AdminLayout = () => {
                     {navLinks.slice(0, 4).map(renderMenuItem)}
                     
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Khách hàng</p>
-                    {navLinks.slice(4, 7).map(renderMenuItem)}
-                    {/* Tin nhắn */}
+                    {navLinks.slice(4, 8).map(renderMenuItem)}
+                    
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Tin nhắn</p>
-                    {navLinks.slice(7, 8).map(renderMenuItem)}
+                    {navLinks.slice(8, 9).map(renderMenuItem)}
+                    
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Nội dung</p>
-                    {navLinks.slice(8, 11).map(renderMenuItem)}
+                    {navLinks.slice(9, 12).map(renderMenuItem)}
                     
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Báo cáo</p>
-                    {navLinks.slice(11).map(renderMenuItem)}
+                    {navLinks.slice(12).map(renderMenuItem)}
                 </nav>
 
                 {/* Footer cố định - nút đăng xuất */}

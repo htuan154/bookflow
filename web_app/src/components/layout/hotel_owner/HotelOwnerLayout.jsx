@@ -45,7 +45,7 @@ const HotelOwnerLayout = () => {
             icon: <DollarSign size={20} />, 
             path: '/hotel-owner/pricing',
             subItems: [
-                { name: 'Giá', path: '/hotel-owner/pricing/rates' },
+                { name: 'Giá theo Mùa', path: '/hotel-owner/pricing/seasonal' },
                 { name: 'Khuyến Mãi', path: '/hotel-owner/pricing/promotions' }
             ]
         },
