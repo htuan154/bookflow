@@ -29,6 +29,16 @@ const findAll = async () => {
 };
 
 /**
+ * Tìm tất cả các mùa theo năm.
+ * @param {number} year - Năm cần lấy các mùa.
+ * @returns {Promise<Season[]>}
+ */
+const findByYear = async (year) => {
+    const result = await pool.query('SELECT * FROM seasons WHERE year = $1 ORDER BY start_date ASC', [year]);
+    return result.rows.map(row => new Season(row));
+};
+
+/**
  * Tìm một mùa bằng ID.
  * @param {number} seasonId - ID của mùa.
  * @returns {Promise<Season|null>}
@@ -99,6 +109,7 @@ const deleteById = async (seasonId) => {
 module.exports = {
     create,
     findAll,
+    findByYear,
     findById,
     checkOverlap,
     update,

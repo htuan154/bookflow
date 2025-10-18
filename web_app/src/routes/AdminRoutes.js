@@ -52,6 +52,9 @@ import {
     PromotionView,
     PromotionAnalytics
 } from '../pages/admin/PromotionManagement';
+import AdminReportsPage from '../pages/admin/Reports/AdminReportsPage';
+import AdminBankAccountsPage from '../pages/admin/BankAccounts/AdminBankAccountsPage';
+import SeasonManagementPage from '../pages/admin/Season/SeasonManagementPage';
 
 const AdminRoutes = () => {
     const { isAuthenticated, user } = useAuth();
@@ -69,7 +72,7 @@ const AdminRoutes = () => {
             <Route element={<AdminLayout />}>
                 <Route index element={<AdminWelcomePage />} />
                 <Route path="dashboard" element={<AdminDashboardPage />} />
-
+            
                 {/* User Management */}
                 <Route
                     path="users"
@@ -79,7 +82,10 @@ const AdminRoutes = () => {
                         </UserProvider>
                     }
                 />
-
+                <Route path="reports" element={<AdminReportsPage />} /> 
+                <Route path="bank-accounts" element={<AdminBankAccountsPage />} /> 
+                <Route path="seasons" element={<SeasonManagementPage />} />
+                
                 {/* Customer Management - BỔ SUNG */}
                 <Route
                     path="customers"

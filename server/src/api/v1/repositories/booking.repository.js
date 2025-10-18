@@ -70,6 +70,16 @@ const findByHotelId = async (hotelId) => {
 };
 
 /**
+ * Tìm tất cả các đơn đặt phòng của một khách sạn (hotel_id).
+ * @param {string} hotelId - ID của khách sạn.
+ * @returns {Promise<Booking[]>}
+ */
+const findBookingsByHotelId = async (hotelId) => {
+    const result = await pool.query('SELECT * FROM bookings WHERE hotel_id = $1 ORDER BY booked_at DESC', [hotelId]);
+    return result.rows.map(row => new Booking(row));
+};
+
+/**
  * Cập nhật trạng thái của một đơn đặt phòng.
  * @param {string} bookingId - ID của đơn đặt phòng.
  * @param {string} status - Trạng thái mới.
@@ -89,10 +99,64 @@ const updateStatus = async (bookingId, status) => {
     return new Booking(result.rows[0]);
 };
 
+/**
+ * Cập nhật booking (generic update - nhiều fields)
+ * @param {string} bookingId - ID của đơn đặt phòng.
+ * @param {object} updateData - Object chứa các field cần update
+ * @returns {Promise<Booking|null>}
+ */
+const update = async (bookingId, updateData) => {
+    // Build dynamic query
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
+
+    // Mapping frontend field names to database column names
+    const fieldMapping = {
+        paymentStatus: 'payment_status',
+        bookingStatus: 'booking_status',
+        paymentMethod: 'payment_method',
+        specialRequests: 'special_requests',
+        totalPrice: 'total_price',
+        totalGuests: 'total_guests'
+    };
+
+    for (const [key, value] of Object.entries(updateData)) {
+        // Convert camelCase to snake_case using mapping
+        const dbField = fieldMapping[key] || key;
+        fields.push(`${dbField} = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+    }
+
+    // Always update last_updated_at
+    fields.push(`last_updated_at = CURRENT_TIMESTAMP`);
+
+    if (fields.length === 1) { // Only last_updated_at
+        throw new Error('No fields to update');
+    }
+
+    const query = `
+        UPDATE bookings
+        SET ${fields.join(', ')}
+        WHERE booking_id = $${paramIndex}
+        RETURNING *;
+    `;
+    values.push(bookingId);
+
+    const result = await pool.query(query, values);
+    if (!result.rows[0]) {
+        return null;
+    }
+    return new Booking(result.rows[0]);
+};
+
 module.exports = {
     create,
     findById,
     findByUserId,
     findByHotelId,
     updateStatus,
+    update,
+    findBookingsByHotelId,
 };

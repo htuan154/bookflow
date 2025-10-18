@@ -13,11 +13,11 @@ class BookingScreen extends StatefulWidget {
   final Map<String, dynamic>? searchParams; // Thêm parameter này
 
   const BookingScreen({
-    Key? key,
+    super.key,
     required this.hotel,
     this.suitableRoomsForHotel, // Thêm parameter này
     this.searchParams, // Thêm parameter này
-  }) : super(key: key);
+  });
 
   @override
   _BookingScreenState createState() => _BookingScreenState();
@@ -176,7 +176,7 @@ class _BookingScreenState extends State<BookingScreen> {
     final double finalPrice = totalPrice * requiredRooms;
 
     print(
-      '  Tổng ${totalDays} ngày x ${requiredRooms} phòng = ${_formatPrice(finalPrice)}',
+      '  Tổng $totalDays ngày x $requiredRooms phòng = ${_formatPrice(finalPrice)}',
     );
 
     return finalPrice;
@@ -577,7 +577,7 @@ class _BookingScreenState extends State<BookingScreen> {
             // Hình ảnh thumbnail
             ClipRRect(
               borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-              child: Container(
+              child: SizedBox(
                 height: 200,
                 width: double.infinity,
                 child: _buildRoomImage(thumbnail),

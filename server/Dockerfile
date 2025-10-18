@@ -7,6 +7,7 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 8000
+# The app listens on PORT (default 8080 in index.js). Expose the same.
+EXPOSE 8080
 
 CMD ["npm", "start"]

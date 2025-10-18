@@ -56,6 +56,10 @@ const roleRoutes = require('./src/api/v1/routes/role.route');
 
 const dailyJobRoutes = require('./src/api/v1/routes/dailyJob.route');
 const provincesRoutes = require('./src/api/v1/routes/provinces.routes');
+const reportsRoutes = require('./src/api/v1/routes/reports.route');
+const bankAccountRoutes = require('./src/api/v1/routes/bank_account.route');
+const vietqrRoutes = require('./src/api/v1/routes/vietqr.route');
+
 
 // --- App ---
 const app = express();
@@ -116,12 +120,24 @@ app.use('/api/v1/im', imConversations);
 app.use('/api/v1/im', imMessages);
 app.use('/api/v1/im', imUploads);
 app.use('/api/v1/im', imStream);
-
-// --- Thông Báo (Mongo) ---
+app.use('/api/v1/vietqr', vietqrRoutes);
+// --- Thông Báo (Mongo) ---
 app.use('/api/v1/notification-for-contract', notificationForContractRoutes);
 
 // DailyJob API
 app.use('/api/v1/dailyjob', dailyJobRoutes);
+
+// Reports API
+app.use('/api/v1', reportsRoutes);
+
+// Bank Accounts API
+app.use('/api/v1', bankAccountRoutes);
+
+// Debug endpoint to test routes
+app.get('/api/v1/test-bank', (req, res) => {
+  res.json({ message: 'Bank routes are working!' });
+});
+
 // --- 404 chung ---
 app.use((req, res) => {
   res.status(404).json({ success: false, code: 404, message: 'Not found' });

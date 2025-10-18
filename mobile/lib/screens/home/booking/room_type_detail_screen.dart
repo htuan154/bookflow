@@ -16,7 +16,7 @@ class RoomTypeDetailScreen extends StatefulWidget {
   final Map<String, dynamic>? searchParams; // Thêm dòng này
 
   const RoomTypeDetailScreen({
-    Key? key,
+    super.key,
     required this.hotel, // Thêm dòng này
     required this.roomType,
     this.calculatedRoom,
@@ -24,7 +24,7 @@ class RoomTypeDetailScreen extends StatefulWidget {
     this.seasonalPricings,
     this.isRoomSuitable,
     this.searchParams, // Thêm dòng này
-  }) : super(key: key);
+  });
 
   @override
   _RoomTypeDetailScreenState createState() => _RoomTypeDetailScreenState();
@@ -209,7 +209,7 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
           itemCount: roomTypeImages.length,
           itemBuilder: (context, index) {
             final image = roomTypeImages[index];
-            return Container(
+            return SizedBox(
               width: double.infinity,
               height: double.infinity,
               child: Image.network(
@@ -488,8 +488,9 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
   }
 
   Widget _buildPriceBredown() {
-    if (widget.calculatedRoom == null || widget.calculatedPrice == null)
+    if (widget.calculatedRoom == null || widget.calculatedPrice == null) {
       return SizedBox.shrink();
+    }
 
     return Container(
       width: double.infinity,
@@ -562,8 +563,9 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
   }
 
   Widget _buildSeasonalPricingInfo() {
-    if (widget.seasonalPricings == null || widget.seasonalPricings!.isEmpty)
+    if (widget.seasonalPricings == null || widget.seasonalPricings!.isEmpty) {
       return SizedBox.shrink();
+    }
 
     return Container(
       width: double.infinity,

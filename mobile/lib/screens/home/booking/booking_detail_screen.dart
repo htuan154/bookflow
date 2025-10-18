@@ -16,14 +16,14 @@ class BookingDetailScreen extends StatefulWidget {
   final Map<String, dynamic>? searchParams;
 
   const BookingDetailScreen({
-    Key? key,
+    super.key,
     required this.hotel, // Thêm dòng này
     required this.roomType,
     this.calculatedRoom,
     this.calculatedPrice,
     this.seasonalPricings,
     this.searchParams,
-  }) : super(key: key);
+  });
 
   @override
   _BookingDetailScreenState createState() => _BookingDetailScreenState();
@@ -738,7 +738,6 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
 
       if (checkInDate == null ||
           checkOutDate == null ||
-          hotelId == null ||
           userId == null ||
           roomTypeId == null) {
         throw Exception('Thiếu thông tin đặt phòng cần thiết');

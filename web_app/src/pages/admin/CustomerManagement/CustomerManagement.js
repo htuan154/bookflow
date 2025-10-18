@@ -1,6 +1,7 @@
 // src/pages/admin/CustomerManagement.js - Updated with fixed API endpoints
 import React, { useState, useEffect } from 'react';
 import { useCustomer } from '../../../context/CustomerContext';
+import { toast } from 'react-toastify';
 
 // Components
 import CustomerTable from '../../../components/customer/CustomerTable';
@@ -27,56 +28,70 @@ const CustomerManagement = () => {
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [modalMode, setModalMode] = useState('view');
     const [localLoading, setLocalLoading] = useState(false);
+    
+    // State for local filtering
+    const [originalCustomers, setOriginalCustomers] = useState([]);
+    const [filteredCustomers, setFilteredCustomers] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
-    // Load customers on mount - Fetch hotel owners only
+    // Load customers on mount - Fetch hotel owners only (chỉ load 1 lần)
     useEffect(() => {
         const hotelOwnerFilters = {
-            ...filters,
-            page: filters.page || pagination.page || 1,
-            limit: filters.limit || pagination.limit || 10,
+            page: 1,
+            limit: 100, // Load nhiều record để filter local
             roleId: 2,
             role: 'hotel_owner'
         };
         
-        console.log('🔄 useEffect triggered with filters:', hotelOwnerFilters);
-        console.log('📊 Current pagination state:', pagination);
-        console.log('👥 Current customers count:', customers.length);
-        
-        // Fetch hotel owners specifically
+        console.log('🔄 Loading all hotel owners for local filtering:', hotelOwnerFilters);
         fetchCustomers(hotelOwnerFilters);
-    }, [filters.search, filters.status, filters.dateFrom, filters.dateTo, filters.sortBy, filters.sortOrder, filters.page, filters.limit]); // Removed fetchCustomers to avoid infinite loop
+    }, []); // Chỉ load 1 lần khi component mount
 
-    // Handle filter changes - Always maintain hotel owner filter
+    // Lưu original data khi customers từ API thay đổi
+    useEffect(() => {
+        if (customers && customers.length > 0) {
+            setOriginalCustomers(customers);
+            setFilteredCustomers(customers); // Mặc định hiển thị tất cả
+        }
+    }, [customers]);
+
+    // Handle filter changes - Filter theo data có sẵn
     const handleFilterChange = (newFilters) => {
-        const hotelOwnerFilters = {
+        console.log('🔍 Filtering locally with:', newFilters);
+        
+        let filtered = [...originalCustomers];
+        
+        // Filter theo email nếu có search
+        if (newFilters.search && newFilters.search.trim()) {
+            const searchTerm = newFilters.search.toLowerCase().trim();
+            filtered = filtered.filter(customer => 
+                customer.email && customer.email.toLowerCase().includes(searchTerm)
+            );
+        }
+        
+        setFilteredCustomers(filtered);
+        setCurrentPage(1); // Reset về trang đầu khi filter
+        
+        // Cập nhật filters cho UI
+        const updatedFilters = {
             ...newFilters,
             roleId: 2,
             role: 'hotel_owner'
         };
-        setFilters(hotelOwnerFilters);
+        setFilters(updatedFilters);
     };
 
-    // Handle pagination - Sửa để tránh gọi API 2 lần
+    // Handle pagination - Local pagination
     const handlePageChange = (page, limit) => {
-        console.log('🔄 handlePageChange called:', { 
-            requestedPage: page, 
-            requestedLimit: limit, 
-            currentPagination: pagination,
-            currentFilters: filters 
-        });
+        console.log('� Page change requested:', { page, limit, currentPage });
         
-        const newFilters = {
-            ...filters,
-            page,
-            limit: limit || pagination.limit,
-            roleId: 2,
-            role: 'hotel_owner'
-        };
-        
-        console.log('📝 Setting new filters and calling fetchCustomers:', newFilters);
-        
-        // Chỉ cập nhật filters, useEffect sẽ tự động gọi fetchCustomers
-        setFilters(newFilters);
+        if (limit && limit !== itemsPerPage) {
+            setItemsPerPage(limit);
+            setCurrentPage(1); // Reset về trang đầu khi thay đổi limit
+        } else if (page) {
+            setCurrentPage(page);
+        }
     };
 
     // Handle create customer - Create hotel owner specifically
@@ -84,7 +99,14 @@ const CustomerManagement = () => {
         try {
             if (!createCustomer) {
                 console.error('createCustomer function is not available');
-                alert('❌ Chức năng tạo mới chưa được cài đặt!');
+                toast.error('Chức năng tạo mới chưa được cài đặt!', {
+                    position: "top-right",
+                    autoClose: 5000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true
+                });
                 return;
             }
             
@@ -93,7 +115,14 @@ const CustomerManagement = () => {
             setShowModal(true);
         } catch (error) {
             console.error('Error in handleCreateCustomer:', error);
-            alert('❌ Có lỗi xảy ra khi mở form tạo mới!');
+            toast.error('Có lỗi xảy ra khi mở form tạo mới!', {
+                position: "top-right",
+                autoClose: 5000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true
+            });
         }
     };
 
@@ -117,12 +146,26 @@ const CustomerManagement = () => {
             try {
                 setLocalLoading(true);
                 await deleteCustomer(customerId);
-                alert('✅ Xóa chủ khách sạn thành công!');
+                toast.success('Xóa chủ khách sạn thành công!', {
+                    position: "top-right",
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true
+                });
                 await handleRefresh();
             } catch (error) {
                 console.error('Delete customer error:', error);
                 const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi xóa chủ khách sạn!';
-                alert(`❌ ${errorMessage}`);
+                toast.error(errorMessage, {
+                    position: "top-right",
+                    autoClose: 5000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true
+                });
             } finally {
                 setLocalLoading(false);
             }
@@ -153,7 +196,14 @@ const CustomerManagement = () => {
                     throw new Error('Không tìm thấy function để cập nhật trạng thái');
                 }
                 
-                alert(`✅ ${action.charAt(0).toUpperCase() + action.slice(1)} tài khoản thành công!`);
+                toast.success(`${action.charAt(0).toUpperCase() + action.slice(1)} tài khoản thành công!`, {
+                    position: "top-right",
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true
+                });
                 
                 // Force refresh to ensure sync with server
                 await handleRefresh();
@@ -192,7 +242,14 @@ const CustomerManagement = () => {
                     errorMessage = error.message || errorMessage;
                 }
                 
-                alert(`❌ ${errorMessage}`);
+                toast.error(errorMessage, {
+                    position: "top-right",
+                    autoClose: 5000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true
+                });
                 
                 // Force refresh to revert and sync with server
                 await handleRefresh();
@@ -235,7 +292,14 @@ const CustomerManagement = () => {
                 console.log('CustomerManagement - Sending to createCustomer:', newCustomerData);
                 
                 await createCustomer(newCustomerData);
-                alert('✅ Tạo tài khoản chủ khách sạn thành công!');
+                toast.success('Tạo tài khoản chủ khách sạn thành công!', {
+                    position: "top-right",
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true
+                });
             } else {
                 // Update existing customer
                 const updatedData = {
@@ -247,7 +311,14 @@ const CustomerManagement = () => {
                 };
                 
                 await updateCustomer(selectedCustomer.userId, updatedData);
-                alert('✅ Cập nhật thông tin chủ khách sạn thành công!');
+                toast.success('Cập nhật thông tin chủ khách sạn thành công!', {
+                    position: "top-right",
+                    autoClose: 3000,
+                    hideProgressBar: false,
+                    closeOnClick: true,
+                    pauseOnHover: true,
+                    draggable: true
+                });
             }
             
             handleCloseModal();
@@ -293,7 +364,14 @@ const CustomerManagement = () => {
                 errorMessage = error.message || errorMessage;
             }
             
-            alert(`❌ ${errorMessage}`);
+            toast.error(errorMessage, {
+                position: "top-right",
+                autoClose: 5000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true
+            });
         } finally {
             setLocalLoading(false);
         }
@@ -314,18 +392,31 @@ const CustomerManagement = () => {
             await fetchCustomers(hotelOwnerFilters);
         } catch (error) {
             console.error('Error refreshing data:', error);
-            alert('❌ Có lỗi xảy ra khi tải lại dữ liệu!');
+            toast.error('Có lỗi xảy ra khi tải lại dữ liệu!', {
+                position: "top-right",
+                autoClose: 5000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true
+            });
         }
     };
 
-    // Filter customers to show only hotel owners - API đã filter rồi nên không cần filter thêm
-    const displayCustomers = customers; // API đã trả về hotel owners rồi
+    // Local pagination và display
+    const totalFilteredItems = filteredCustomers.length;
+    const totalPages = Math.ceil(totalFilteredItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const displayCustomers = filteredCustomers.slice(startIndex, endIndex);
     
-    console.log('🎯 Display customers:', displayCustomers.length, 'items');
-
-    // Calculate statistics
-    const activeCount = displayCustomers.filter(c => c.status === 'active').length;
-    const inactiveCount = displayCustomers.filter(c => c.status === 'inactive' || c.status === 'suspended').length;
+    // Local pagination object
+    const localPagination = {
+        page: currentPage,
+        limit: itemsPerPage,
+        total: totalFilteredItems,
+        totalPages: totalPages
+    };
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -411,7 +502,7 @@ const CustomerManagement = () => {
                 )}
 
                 {/* Statistics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-6">
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                         <div className="flex items-center">
                             <div className="flex-shrink-0">
@@ -420,84 +511,8 @@ const CustomerManagement = () => {
                                 </div>
                             </div>
                             <div className="ml-4">
-                                <p className="text-sm font-medium text-gray-600">Tổng chủ KS</p>
-                                <p className="text-2xl font-bold text-gray-900">{displayCustomers.length}</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <div className="flex items-center">
-                            <div className="flex-shrink-0">
-                                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                                    <span className="text-green-600">✅</span>
-                                </div>
-                            </div>
-                            <div className="ml-4">
-                                <p className="text-sm font-medium text-gray-600">Hoạt động</p>
-                                <p className="text-2xl font-bold text-green-600">{activeCount}</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <div className="flex items-center">
-                            <div className="flex-shrink-0">
-                                <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                                    <span className="text-red-600">🔒</span>
-                                </div>
-                            </div>
-                            <div className="ml-4">
-                                <p className="text-sm font-medium text-gray-600">Bị khóa</p>
-                                <p className="text-2xl font-bold text-red-600">{inactiveCount}</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                                        <span className="text-gray-600">📄</span>
-                                    </div>
-                                </div>
-                                <div className="ml-4">
-                                    <p className="text-sm font-medium text-gray-600">Trang hiện tại</p>
-                                    <p className="text-2xl font-bold text-gray-900">{pagination.page}/{pagination.totalPages || 1}</p>
-                                </div>
-                            </div>
-                            
-                            {/* Quick page navigation */}
-                            <div className="flex items-center space-x-2">
-                                <button 
-                                    onClick={() => handlePageChange(1)}
-                                    disabled={pagination.page <= 1}
-                                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
-                                >
-                                    Đầu
-                                </button>
-                                <button 
-                                    onClick={() => handlePageChange(pagination.page - 1)}
-                                    disabled={pagination.page <= 1}
-                                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
-                                >
-                                    ← Trước
-                                </button>
-                                <button 
-                                    onClick={() => handlePageChange(pagination.page + 1)}
-                                    disabled={pagination.page >= pagination.totalPages}
-                                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
-                                >
-                                    Tiếp →
-                                </button>
-                                <button 
-                                    onClick={() => handlePageChange(pagination.totalPages)}
-                                    disabled={pagination.page >= pagination.totalPages}
-                                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
-                                >
-                                    Cuối
-                                </button>
+                                <p className="text-sm font-medium text-gray-600">Tổng chủ khách sạn</p>
+                                <p className="text-2xl font-bold text-gray-900">{originalCustomers.length}</p>
                             </div>
                         </div>
                     </div>
@@ -522,7 +537,7 @@ const CustomerManagement = () => {
                                     📊 Hiển thị:
                                 </label>
                                 <select 
-                                    value={pagination.limit || 10} 
+                                    value={itemsPerPage} 
                                     onChange={(e) => handlePageChange(1, parseInt(e.target.value))}
                                     className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
                                 >
@@ -534,7 +549,7 @@ const CustomerManagement = () => {
                                 </select>
                                 
                                 <div className="text-sm text-gray-500 bg-gray-50 px-2 py-1 rounded">
-                                    Tổng: <span className="font-medium text-gray-900">{pagination.total || 0}</span>
+                                    Hiển thị: <span className="font-medium text-gray-900">{totalFilteredItems}</span> / <span className="font-medium text-gray-900">{originalCustomers.length}</span>
                                 </div>
                             </div>
                         </div>
@@ -567,32 +582,32 @@ const CustomerManagement = () => {
                             <div className="flex items-center space-x-2">
                                 <span className="text-blue-600">📄</span>
                                 <span className="text-sm font-medium text-blue-900">
-                                    Trang <span className="font-bold">{pagination.page}</span> / <span className="font-bold">{pagination.totalPages || 1}</span>
+                                    Trang <span className="font-bold">{currentPage}</span> / <span className="font-bold">{totalPages || 1}</span>
                                 </span>
                             </div>
                             <div className="h-6 w-px bg-blue-300"></div>
                             <div className="flex items-center space-x-2">
                                 <span className="text-blue-600">📊</span>
                                 <span className="text-sm text-blue-800">
-                                    Hiển thị <span className="font-medium">{((pagination.page - 1) * (pagination.limit || 10)) + 1}</span> - 
-                                    <span className="font-medium">{Math.min(pagination.page * (pagination.limit || 10), pagination.total || 0)}</span> 
-                                    trong tổng <span className="font-bold">{pagination.total || 0}</span> chủ khách sạn
+                                    Hiển thị <span className="font-medium">{startIndex + 1}</span> - 
+                                    <span className="font-medium">{Math.min(endIndex, totalFilteredItems)}</span> 
+                                    trong tổng <span className="font-bold">{totalFilteredItems}</span> chủ khách sạn
                                 </span>
                             </div>
                         </div>
                         
                         <div className="flex items-center space-x-2">
                             <button 
-                                onClick={() => handlePageChange(pagination.page - 1)}
-                                disabled={pagination.page <= 1}
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage <= 1}
                                 className="inline-flex items-center px-3 py-1 bg-white border border-blue-300 text-blue-700 text-sm font-medium rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                             >
                                 ← Trước
                             </button>
                             
                             <button 
-                                onClick={() => handlePageChange(pagination.page + 1)}
-                                disabled={pagination.page >= (pagination.totalPages || 1)}
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage >= totalPages}
                                 className="inline-flex items-center px-3 py-1 bg-white border border-blue-300 text-blue-700 text-sm font-medium rounded-md hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                             >
                                 Tiếp →
@@ -605,7 +620,7 @@ const CustomerManagement = () => {
                     <CustomerTable
                         customers={displayCustomers}
                         loading={loading || localLoading}
-                        pagination={pagination}
+                        pagination={localPagination}
                         onPageChange={handlePageChange}
                         onView={handleViewCustomer}
                         onEdit={handleEditCustomer}

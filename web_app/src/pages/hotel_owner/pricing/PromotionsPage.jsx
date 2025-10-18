@@ -21,6 +21,10 @@ const PromotionsPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showCreateDetailModal, setShowCreateDetailModal] = useState(false);
@@ -93,6 +97,11 @@ const PromotionsPage = () => {
     loadMyHotels();
   }, []);
 
+  // Reset to first page when hotel changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedHotel]);
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -147,6 +156,39 @@ const PromotionsPage = () => {
     });
   };
 
+  // Get paginated promotions
+  const getPaginatedPromotions = () => {
+    const filtered = getFilteredPromotions();
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filtered.slice(startIndex, endIndex);
+  };
+
+  // Calculate pagination info
+  const totalFilteredItems = getFilteredPromotions().length;
+  const totalPages = Math.ceil(totalFilteredItems / itemsPerPage);
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page
+  };
+
+  // Reset to first page when filters change
+  const handleFilterChange = (filterType, value) => {
+    if (filterType === 'status') {
+      setStatusFilter(value);
+    } else if (filterType === 'type') {
+      setTypeFilter(value);
+    }
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
   // Handle view promotion details
   const handleViewDetails = async (promotion) => {
     try {
@@ -182,20 +224,11 @@ const PromotionsPage = () => {
 
   // Handle edit promotion
   const handleEditPromotion = (promotion) => {
-    console.log('Editing promotion:', promotion);
+    console.log('🔍 Editing promotion:', promotion);
+    console.log('🔍 promotionType:', promotion.promotionType);
+    console.log('🔍 promotion_type:', promotion.promotion_type);
     
-    // Kiểm tra nếu là room_specific thì không cho phép sửa
-    const isRoomSpecific = promotion.promotionType === 'room_specific' || 
-                           promotion.promotion_type === 'room_specific';
-    
-    if (isRoomSpecific) {
-      showError(
-        'Không thể chỉnh sửa!',
-        'Khuyến mãi loại "Theo phòng" không thể chỉnh sửa trực tiếp. Vui lòng sử dụng chức năng "Xem chi tiết" để quản lý.'
-      );
-      return;
-    }
-    
+    // Tất cả các loại khuyến mãi đều có thể edit
     setSelectedPromotionForEdit(promotion);
     setShowEditPromotionModal(true);
   };
@@ -206,6 +239,7 @@ const PromotionsPage = () => {
     // Reload promotions for the current hotel
     if (selectedHotel) {
       loadPromotionsByHotel(selectedHotel.hotelId);
+      // Keep current page after edit
     }
   };
 
@@ -236,7 +270,14 @@ const PromotionsPage = () => {
 
       // Reload promotions list
       if (selectedHotel) {
-        loadPromotionsByHotel(selectedHotel.hotelId);
+        await loadPromotionsByHotel(selectedHotel.hotelId);
+        
+        // Check if current page is empty after deletion and go to previous page
+        const newTotalItems = promotions.length - 1; // After deletion
+        const newTotalPages = Math.ceil(newTotalItems / itemsPerPage);
+        if (currentPage > newTotalPages && newTotalPages > 0) {
+          setCurrentPage(newTotalPages);
+        }
       }
 
       // Close modal
@@ -435,7 +476,7 @@ const PromotionsPage = () => {
               <select
                 id="status-filter"
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="all">Tất cả trạng thái</option>
@@ -455,7 +496,7 @@ const PromotionsPage = () => {
               <select
                 id="type-filter"
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
+                onChange={(e) => handleFilterChange('type', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="all">Tất cả loại</option>
@@ -470,6 +511,7 @@ const PromotionsPage = () => {
                 onClick={() => {
                   setStatusFilter('all');
                   setTypeFilter('all');
+                  setCurrentPage(1);
                 }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
@@ -479,10 +521,26 @@ const PromotionsPage = () => {
 
             {/* Filter Results Count */}
             <div className="flex items-end">
-              <div className="text-sm text-gray-600">
-                Hiển thị: <span className="font-medium text-gray-900">
-                  {getFilteredPromotions().length} / {promotions.length}
-                </span> khuyến mãi
+              <div className="space-y-2">
+                <div className="text-sm text-gray-600">
+                  Hiển thị: <span className="font-medium text-gray-900">
+                    {Math.min((currentPage - 1) * itemsPerPage + 1, totalFilteredItems)} - {Math.min(currentPage * itemsPerPage, totalFilteredItems)} / {totalFilteredItems}
+                  </span> khuyến mãi
+                </div>
+                <div className="flex items-center space-x-2">
+                  <label className="text-xs text-gray-600">Hiển thị:</label>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value))}
+                    className="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </select>
+                  <span className="text-xs text-gray-600">mục/trang</span>
+                </div>
               </div>
             </div>
           </div>
@@ -539,7 +597,7 @@ const PromotionsPage = () => {
                     </div>
                   </td>
                 </tr>
-              ) : getFilteredPromotions().length === 0 ? (
+              ) : totalFilteredItems === 0 ? (
                 <tr>
                   <td colSpan="8" className="px-6 py-12 text-center">
                     <div className="text-gray-500">
@@ -548,7 +606,7 @@ const PromotionsPage = () => {
                   </td>
                 </tr>
               ) : (
-                getFilteredPromotions().map((promotion) => (
+                getPaginatedPromotions().map((promotion) => (
                   <tr key={promotion.promotionId || promotion.promotion_id || promotion.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{promotion.name}</div>
@@ -608,17 +666,9 @@ const PromotionsPage = () => {
                         )}
                         <button 
                           onClick={() => handleEditPromotion(promotion)}
-                          disabled={promotion.promotionType === 'room_specific' || promotion.promotion_type === 'room_specific'}
-                          className={`${
-                            promotion.promotionType === 'room_specific' || promotion.promotion_type === 'room_specific'
-                              ? 'text-gray-400 cursor-not-allowed'
-                              : 'text-blue-600 hover:text-blue-900'
-                          }`}
-                          title={
-                            promotion.promotionType === 'room_specific' || promotion.promotion_type === 'room_specific'
-                              ? 'Không thể chỉnh sửa khuyến mãi loại "Theo phòng"'
-                              : 'Chỉnh sửa'
-                          }
+                          disabled={false}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Chỉnh sửa"
                         >
                           <Edit2 size={16} />
                         </button>
@@ -637,6 +687,70 @@ const PromotionsPage = () => {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="text-sm text-gray-700">
+                  Trang <span className="font-medium">{currentPage}</span> / <span className="font-medium">{totalPages}</span>
+                </div>
+                <div className="text-sm text-gray-500">
+                  Hiển thị {Math.min((currentPage - 1) * itemsPerPage + 1, totalFilteredItems)} - {Math.min(currentPage * itemsPerPage, totalFilteredItems)} trong tổng {totalFilteredItems} khuyến mãi
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage <= 1}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                >
+                  ← Trước
+                </button>
+                
+                {/* Page Numbers */}
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-md transition-colors ${
+                          currentPage === pageNum
+                            ? 'border-blue-500 bg-blue-50 text-blue-600'
+                            : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage >= totalPages}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors"
+                >
+                  Tiếp →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Create Promotion Modal */}
@@ -820,6 +934,8 @@ const PromotionsPage = () => {
             if (selectedHotel?.hotelId) {
               console.log('Reloading promotions for hotel:', selectedHotel.hotelId);
               loadPromotionsByHotel(selectedHotel.hotelId);
+              // Reset to first page when new promotion is created
+              setCurrentPage(1);
             } else {
               console.error('No selectedHotel.hotelId found!');
             }

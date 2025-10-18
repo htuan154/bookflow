@@ -30,6 +30,15 @@ class SeasonService {
     }
 
     /**
+     * Lấy tất cả các mùa theo năm.
+     * @param {number} year - Năm cần lấy các mùa.
+     * @returns {Promise<Season[]>}
+     */
+    async getSeasonsByYear(year) {
+        return await seasonRepository.findByYear(year);
+    }
+
+    /**
      * Cập nhật một mùa.
      * @param {number} seasonId - ID của mùa.
      * @param {object} updateData - Dữ liệu cập nhật.

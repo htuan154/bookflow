@@ -8,7 +8,7 @@ class BlogCard extends StatefulWidget {
   final Blog blog;
   final VoidCallback? onTap;
 
-  const BlogCard({Key? key, required this.blog, this.onTap}) : super(key: key);
+  const BlogCard({super.key, required this.blog, this.onTap});
 
   @override
   _BlogCardState createState() => _BlogCardState();
@@ -130,7 +130,7 @@ class _BlogCardState extends State<BlogCard> {
             // Image section - sử dụng featuredImageUrl thay vì images
             ClipRRect(
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              child: Container(
+              child: SizedBox(
                 height: 200,
                 width: double.infinity,
                 child: widget.blog.featuredImageUrl != null

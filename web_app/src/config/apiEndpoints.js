@@ -2,6 +2,11 @@
 
 const API_BASE_URL = 'http://localhost:8080/api/v1';
 const CHATBOT_BASE = 'http://localhost:8080';
+
+export const CHAT_API_ENDPOINTS = {
+    GET_CHAT_HISTORY: (bookingId) => `${API_BASE_URL}/chats/booking/${bookingId}`,
+    SEND_MESSAGE: `${API_BASE_URL}/chats`,
+};
 export const API_ENDPOINTS = {
     IM: {
         CREATE_DM: `${API_BASE_URL}/im/conversations/dm`,
@@ -47,6 +52,7 @@ export const API_ENDPOINTS = {
     // --- Season Endpoints ---
     SEASONS: {
         GET_ALL: `${API_BASE_URL}/seasons`,
+        GET_BY_YEAR: (year) => `${API_BASE_URL}/seasons/year/${year}`,
         CREATE: `${API_BASE_URL}/seasons`,
         UPDATE: (id) => `${API_BASE_URL}/seasons/${id}`,
         DELETE: (id) => `${API_BASE_URL}/seasons/${id}`,
@@ -55,6 +61,8 @@ export const API_ENDPOINTS = {
     // --- Seasonal Pricing Endpoints ---
     SEASONAL_PRICINGS: {
         CREATE: `${API_BASE_URL}/seasonal-pricings`,
+        BULK_CREATE: `${API_BASE_URL}/seasonal-pricings/bulk`,
+        GET_AVAILABLE_SEASONS: (roomTypeId, year) => `${API_BASE_URL}/seasonal-pricings/available/${roomTypeId}?year=${year}`,
         UPDATE: (pricingId) => `${API_BASE_URL}/seasonal-pricings/${pricingId}`,
         DELETE: (pricingId) => `${API_BASE_URL}/seasonal-pricings/${pricingId}`,
         GET_FOR_ROOM_TYPE: (roomTypeId) => `${API_BASE_URL}/seasonal-pricings/${roomTypeId}`,
@@ -159,6 +167,8 @@ export const API_ENDPOINTS = {
         GET_DETAILS: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}`,
         UPDATE_STATUS: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/status`,
         GET_HISTORY: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/history`,
+        CREATE_HISTORY: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/history`,
+        GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/bookings/hotel/${hotelId}`,
     },
 
     // --- Booking Detail Endpoints ---
@@ -476,4 +486,57 @@ export const API_ENDPOINTS = {
         SEARCH_HOTELS: `${API_BASE_URL}/hotels/search`,
         GET_CITIES: `${API_BASE_URL}/hotels/cities`,
     },
+    // --- Reports Endpoints ---
+    REPORTS: {
+        // Admin reports
+        ADMIN_SUMMARY: (params = '') => `${API_BASE_URL}/admin/reports/summary${params ? `?${params}` : ''}`,
+        ADMIN_PAYMENTS: (params = '') => `${API_BASE_URL}/admin/reports/payments${params ? `?${params}` : ''}`,
+        ADMIN_PAYOUTS: (params = '') => `${API_BASE_URL}/admin/reports/payouts${params ? `?${params}` : ''}`,
+        ADMIN_CREATE_PAYOUT: `${API_BASE_URL}/admin/reports/payouts`,
+
+        // Hotel Owner reports
+        OWNER_PAYMENTS: (params = '') => `${API_BASE_URL}/owner/reports/payments${params ? `?${params}` : ''}`,
+        OWNER_PAYOUTS: (params = '') => `${API_BASE_URL}/owner/reports/payouts${params ? `?${params}` : ''}`,
+    },
+
+    // --- Bank Accounts Endpoints ---
+    BANK_ACCOUNTS: {
+        // Public
+        POPULAR_BANKS: `${API_BASE_URL}/bank-accounts/popular-banks`,
+
+        // Authenticated
+        CREATE: `${API_BASE_URL}/bank-accounts`,
+        GET_USER_ACCOUNTS: `${API_BASE_URL}/bank-accounts`,
+        GET_DEFAULT: `${API_BASE_URL}/bank-accounts/default`,
+        GET_BY_ID: (id) => `${API_BASE_URL}/bank-accounts/${id}`,
+        UPDATE: (id) => `${API_BASE_URL}/bank-accounts/${id}`,
+        SET_DEFAULT: (id) => `${API_BASE_URL}/bank-accounts/${id}/set-default`,
+        DELETE: (id) => `${API_BASE_URL}/bank-accounts/${id}`,
+        
+        // Hotel accounts
+        GET_HOTEL_ACCOUNTS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/bank-accounts`,
+        
+        // Admin
+        ADMIN_STATISTICS: `${API_BASE_URL}/admin/bank-accounts/statistics`,
+        ADMIN_HARD_DELETE: (id) => `${API_BASE_URL}/admin/bank-accounts/${id}/hard-delete`,
+    },
+
+    // --- VietQR Payment Endpoints ---
+    VIETQR: {
+        // Tạo QR cho booking (Luồng 1 & 2 & 3)
+        CREATE_QR_FOR_BOOKING: (bookingId) => `${API_BASE_URL}/vietqr/bookings/${bookingId}/payments/qr`,
+        
+        // Tạo QR cho walk-in tại quầy (Luồng 3 - tuỳ chọn)
+        CREATE_QR_AT_COUNTER: (hotelId) => `${API_BASE_URL}/vietqr/hotels/${hotelId}/payments/qr`,
+        
+        // Kiểm tra trạng thái thanh toán
+        CHECK_PAYMENT_STATUS: (txRef) => `${API_BASE_URL}/vietqr/payments/${txRef}/status`,
+        
+        // Webhook xác nhận thanh toán (dùng chung)
+        WEBHOOK_CONFIRMATION: `${API_BASE_URL}/vietqr/webhooks/vietqr`,
+        
+        // Cập nhật status payment
+        UPDATE_PAYMENT_STATUS: `${API_BASE_URL}/vietqr/payments/update-status`,
+    },
+
 };

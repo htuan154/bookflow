@@ -2,7 +2,7 @@
 import { 
     Building2, Home, Bed, BedDouble, DollarSign, BadgePercent, 
     Users2, Calendar, MessageSquare, Star, FileText, BarChart3,
-    Bell, Settings, User, LogOut, Camera, Wrench
+    Bell, Settings, User, LogOut, Camera, Wrench, CreditCard
 } from "lucide-react";
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import useAuth from '../../../hooks/useAuth';
@@ -23,26 +23,20 @@ const HotelOwnerLayout = () => {
         { 
             name: 'Quản lý khách sạn', 
             icon: <Building2 size={20} />, 
-            path: '/hotel-owner/hotel',
-            subItems: [
-                { name: 'Thông tin khách sạn', path: '/hotel-owner/hotel/info' },
-                { name: 'Hình ảnh khách sạn', path: '/hotel-owner/hotel/images' },
-                { name: 'Tiện nghi', path: '/hotel-owner/hotel/amenities' },
-                { name: 'Cài đặt chung', path: '/hotel-owner/hotel/settings' }
-            ]
+            path: '/hotel-owner/hotel/info',
+            // subItems: [
+            //     { name: 'Thông tin khách sạn', path: '/hotel-owner/hotel/info' }
+            // ]
         },
 
         // Quản lý phòng
         { 
             name: 'Quản lý phòng', 
             icon: <Bed size={20} />, 
-            path: '/hotel-owner/rooms',
-            subItems: [
-                { name: 'Loại phòng', path: '/hotel-owner/rooms/types' },
-                { name: 'Danh sách phòng', path: '/hotel-owner/rooms/list' },
-                { name: 'Trạng thái phòng', path: '/hotel-owner/rooms/status' },
-                { name: 'Hình ảnh phòng', path: '/hotel-owner/rooms/images' }
-            ]
+            path: '/hotel-owner/rooms/management',
+            // subItems: [
+            //     { name: 'Sắp Xếp Phòng', path: '/hotel-owner/rooms/management' }
+            // ]
         },
 
         // Quản lý giá và khuyến mãi
@@ -51,9 +45,16 @@ const HotelOwnerLayout = () => {
             icon: <DollarSign size={20} />, 
             path: '/hotel-owner/pricing',
             subItems: [
-                { name: 'Giá', path: '/hotel-owner/pricing/rates' },
+                { name: 'Giá theo Mùa', path: '/hotel-owner/pricing/seasonal' },
                 { name: 'Khuyến Mãi', path: '/hotel-owner/pricing/promotions' }
             ]
+        },
+
+        // Tài chính & Ngân hàng (Updated - single page)
+        { 
+            name: 'Tài khoản ngân hàng', 
+            icon: <CreditCard size={20} />, 
+            path: '/hotel-owner/bank-accounts'
         },
 
         // Quản lý đặt phòng
@@ -61,12 +62,12 @@ const HotelOwnerLayout = () => {
             name: 'Đặt phòng', 
             icon: <Calendar size={20} />, 
             path: '/hotel-owner/bookings',
-            subItems: [
-                { name: 'Danh sách booking', path: '/hotel-owner/bookings/list' },
-                { name: 'Check-in/Check-out', path: '/hotel-owner/bookings/checkin' },
-                { name: 'Lịch sử booking', path: '/hotel-owner/bookings/history' },
-                { name: 'Phân phòng', path: '/hotel-owner/bookings/assignments' }
-            ]
+            // subItems: [
+            //     { name: 'Danh sách booking', path: '/hotel-owner/bookings/list' },
+            //     { name: 'Check-in/Check-out', path: '/hotel-owner/bookings/checkin' },
+            //     { name: 'Lịch sử booking', path: '/hotel-owner/bookings/history' },
+            //     { name: 'Phân phòng', path: '/hotel-owner/bookings/assignments' }
+            // ]
         },
 
         // Quản lý nhân viên
@@ -93,11 +94,7 @@ const HotelOwnerLayout = () => {
         { 
             name: 'Hỗ trợ khách hàng', 
             icon: <MessageSquare size={20} />, 
-            path: '/hotel-owner/support',
-            subItems: [
-                { name: 'Chat với khách', path: '/hotel-owner/support/chat' },
-                { name: 'Yêu cầu hỗ trợ', path: '/hotel-owner/support/requests' }
-            ]
+            path: '/hotel-owner/support'
         },
         { 
             name: 'Tin nhắn', 
@@ -202,21 +199,25 @@ const HotelOwnerLayout = () => {
     };
 
     return (
-        <div className="flex bg-gray-50 min-h-screen font-sans">
+        <div className="flex bg-gray-50 h-screen font-sans overflow-hidden">
             {/* Sidebar */}
-            <aside className="w-72 bg-white border-r border-gray-200 p-4 flex flex-col">
-                <div className="text-2xl font-bold text-blue-600 mb-4 px-2">
-                    <Building2 className="inline-block mr-2" size={28} />
-                    Hotel Manager
+            <aside className="w-72 bg-white border-r border-gray-200 flex flex-col">
+                {/* Header cố định */}
+                <div className="p-4 border-b border-gray-200 shrink-0">
+                    <div className="text-2xl font-bold text-blue-600 mb-4">
+                        <Building2 className="inline-block mr-2" size={28} />
+                        Hotel Manager
+                    </div>
+                    
+                    <div className="flex border border-gray-200 rounded-lg p-1">
+                        <button className="flex-1 text-sm font-semibold bg-blue-500 text-white rounded-md py-2">
+                            Chủ khách sạn
+                        </button>
+                    </div>
                 </div>
                 
-                <div className="flex border border-gray-200 rounded-lg p-1 mb-6">
-                    <button className="flex-1 text-sm font-semibold bg-blue-500 text-white rounded-md py-2">
-                        Chủ khách sạn
-                    </button>
-                </div>
-                
-                <nav className="flex-1 space-y-1 overflow-y-auto">
+                {/* Navigation - có thể scroll */}
+                <nav className="flex-1 overflow-y-auto p-4 space-y-1 min-h-0">
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mb-2">Tổng quan</p>
                     {navLinks.slice(0, 1).map(renderMenuItem)}
                     
@@ -224,17 +225,17 @@ const HotelOwnerLayout = () => {
                     {navLinks.slice(1, 3).map(renderMenuItem)}
                     
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Kinh doanh</p>
-                    {navLinks.slice(3, 5).map(renderMenuItem)}
+                    {navLinks.slice(3, 6).map(renderMenuItem)}
                     
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Nhân sự & Khách hàng</p>
-                    {navLinks.slice(5, 9).map(renderMenuItem)}
+                    {navLinks.slice(6, 10).map(renderMenuItem)}
                     
                     <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Báo cáo & Hợp đồng</p>
-                    {navLinks.slice(9).map(renderMenuItem)}
+                    {navLinks.slice(10).map(renderMenuItem)}
                 </nav>
 
-                {/* User Info & Logout */}
-                <div className="mt-6 pt-4 border-t border-gray-200">
+                {/* Footer cố định - nút đăng xuất */}
+                <div className="p-4 border-t border-gray-200 shrink-0">
                     <div className="flex items-center px-4 py-2 mb-3">
                         <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
                             <User size={16} className="text-white" />
@@ -244,20 +245,18 @@ const HotelOwnerLayout = () => {
                             <p className="text-xs text-gray-500">{user?.email}</p>
                         </div>
                     </div>
-                    
                     <button
                         onClick={handleLogout}
-                        className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition duration-300"
                     >
-                        <LogOut size={16} />
-                        <span className="ml-3">Đăng xuất</span>
+                        Đăng xuất
                     </button>
                 </div>
             </aside>
             
             {/* Phần nội dung chính */}
-            <div className="flex-1 flex flex-col">
-                <header className="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+            <div className="flex-1 flex flex-col min-w-0">
+                <header className="bg-white border-b border-gray-200 p-4 flex justify-between items-center shrink-0">
                     <h1 className="text-xl font-bold text-gray-800">Quản lý khách sạn</h1>
                     <div className="flex items-center gap-4">
                         <button className="relative text-gray-600 hover:text-gray-800">
@@ -280,7 +279,7 @@ const HotelOwnerLayout = () => {
                     </div>
                 </header>
                 
-                <main className="flex-1 bg-gray-50 p-6">
+                <main className="flex-1 bg-gray-50 overflow-auto">
                    <AmenityProvider>
                         <HotelAmenityProvider>
                             <Outlet />

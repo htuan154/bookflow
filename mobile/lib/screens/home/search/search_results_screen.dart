@@ -14,7 +14,7 @@ class SearchResultsScreen extends StatelessWidget {
   final Map<String, dynamic>? searchParams;
 
   const SearchResultsScreen({
-    Key? key,
+    super.key,
     required this.hotels,
     required this.searchType,
     this.city,
@@ -22,7 +22,7 @@ class SearchResultsScreen extends StatelessWidget {
     this.pagination,
     this.suitableRooms,
     this.searchParams,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -840,7 +840,7 @@ class HotelService {
   }
 
   /// Lấy tất cả loại phòng của một khách sạn
-  /// GET /api/v1/room-types/hotel/:hotelId
+  /// GET /api/v1/roomtypes/hotel/:hotelId
   Future<Map<String, dynamic>> getRoomTypesByHotelId(String hotelId) async {
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}/roomtypes/hotel/$hotelId');
@@ -877,11 +877,11 @@ class HotelService {
   }
 
   /// Lấy tất cả hình ảnh của một loại phòng
-  /// GET /api/v1/room-types/:roomTypeId/images
+  /// GET /api/v1/roomtypes/:roomTypeId/images
   Future<Map<String, dynamic>> getRoomTypeImages(String roomTypeId) async {
     try {
       final url = Uri.parse(
-        '${ApiConfig.baseUrl}/room-types/$roomTypeId/images',
+        '${ApiConfig.baseUrl}/roomtypes/$roomTypeId/images',
       );
       // Lấy token từ TokenService
       final token = await TokenService.getToken();
@@ -918,11 +918,11 @@ class HotelService {
   }
 
   /// Lấy hình ảnh thumbnail của một loại phòng
-  /// GET /api/v1/room-types/:roomTypeId/thumbnail
+  /// GET /api/v1/roomtypes/:roomTypeId/thumbnail
   Future<Map<String, dynamic>> getRoomTypeThumbnail(String roomTypeId) async {
     try {
       final url = Uri.parse(
-        '${ApiConfig.baseUrl}/room-types/$roomTypeId/thumbnail',
+        '${ApiConfig.baseUrl}/roomtypes/$roomTypeId/thumbnail',
       );
       // Lấy token từ TokenService
       final token = await TokenService.getToken();
@@ -982,7 +982,7 @@ class HotelService {
 
       // Lấy token từ TokenService
       final token = await TokenService.getToken();
-      
+
       // Sử dụng headers có token nếu có, không thì dùng headers thường
       final headers = token != null ? _headersWithToken(token) : _headers;
 
@@ -1000,7 +1000,8 @@ class HotelService {
       if (response.statusCode == 200) {
         return {
           'success': true,
-          'message': responseData['message'] ?? 'Tìm kiếm phòng trống thành công',
+          'message':
+              responseData['message'] ?? 'Tìm kiếm phòng trống thành công',
           'data': responseData['data'], // List of RoomTypeAvailability
           'pagination': responseData['pagination'],
         };
@@ -1018,9 +1019,13 @@ class HotelService {
 
   /// Lấy tất cả quy tắc giá mùa vụ của một loại phòng
   /// GET /api/v1/seasonal-pricings/:roomTypeId
-  Future<Map<String, dynamic>> getSeasonalPricingsForRoomType(String roomTypeId) async {
+  Future<Map<String, dynamic>> getSeasonalPricingsForRoomType(
+    String roomTypeId,
+  ) async {
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/seasonal-pricings/$roomTypeId');
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}/seasonal-pricings/$roomTypeId',
+      );
       // Lấy token từ TokenService
       final token = await TokenService.getToken();
       // Sử dụng headers có token nếu có, không thì dùng headers thường
@@ -1036,17 +1041,58 @@ class HotelService {
       if (response.statusCode == 200) {
         return {
           'success': true,
-          'message': responseData['message'] ?? 'Lấy danh sách seasonal pricing thành công',
+          'message':
+              responseData['message'] ??
+              'Lấy danh sách seasonal pricing thành công',
           'data': responseData['data'],
         };
       } else {
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Lỗi khi lấy danh sách seasonal pricing',
+          'message':
+              responseData['message'] ??
+              'Lỗi khi lấy danh sách seasonal pricing',
         };
       }
     } catch (e) {
       print('Lỗi kết nối: $e'); // Debug lỗi kết nối
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Lấy thông tin loại phòng theo ID
+  /// GET /api/v1/roomtypes/:id
+  Future<Map<String, dynamic>> getRoomTypeById(String roomTypeId) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/roomtypes/$roomTypeId');
+      final token = await TokenService.getToken();
+      final headers = token != null ? _headersWithToken(token) : _headers;
+
+      print('🔍 API URL: $url');
+      print('🔍 Headers: $headers');
+
+      final response = await http.get(url, headers: headers);
+      print('🔍 Response status: ${response.statusCode}');
+      print('🔍 Response body: ${response.body}');
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message':
+              responseData['message'] ?? 'Lấy thông tin loại phòng thành công',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message':
+              responseData['message'] ?? 'Lỗi khi lấy thông tin loại phòng',
+        };
+      }
+    } catch (e) {
+      print('🔍 Exception in getRoomTypeById: $e');
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }

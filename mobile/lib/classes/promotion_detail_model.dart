@@ -123,7 +123,7 @@ class PromotionDetail {
   /// Lấy mô tả chi tiết về discount
   String get discountDescription {
     final roomTypeName = roomType?.name ?? 'Unknown Room Type';
-    return 'Giảm ${formattedDiscountValue} cho loại phòng: $roomTypeName';
+    return 'Giảm $formattedDiscountValue cho loại phòng: $roomTypeName';
   }
 
   /// Kiểm tra có phải là discount theo phần trăm không

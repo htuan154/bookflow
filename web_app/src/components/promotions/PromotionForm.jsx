@@ -470,8 +470,17 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
   const isFieldDisabled = (fieldName) => {
     if (!initialData) return false; // Create mode - no restrictions
     
-    const disabledFields = ['code', 'name', 'validFrom', 'validUntil'];
-    return disabledFields.includes(fieldName);
+    const isRoomSpecific = formData.promotionType === 'room_specific' || 
+                          (initialData && (initialData.promotionType === 'room_specific' || initialData.promotion_type === 'room_specific'));
+    
+    if (isRoomSpecific) {
+      // Room-specific promotions: chỉ cho phép sửa status, tất cả field khác bị khóa
+      return fieldName !== 'status';
+    } else {
+      // General promotions: không cho sửa các field cơ bản
+      const disabledFields = ['code', 'name', 'validFrom', 'validUntil'];
+      return disabledFields.includes(fieldName);
+    }
   };
 
   // Helper function to get available status options based on current status
@@ -544,8 +553,8 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
           <select
             value={formData.hotelId || ''}
             onChange={(e) => updateFormData({ hotelId: e.target.value || null })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={loadingHotels}
+            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500${initialData ? ' bg-gray-100 cursor-not-allowed' : ''}`}
+            disabled={loadingHotels || !!initialData}
           >
             <option value="">Khuyến mãi chung (Áp dụng cho tất cả khách sạn)</option>
             {renderHotelOptions()}
@@ -566,6 +575,28 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
           
           {errors.hotelId && <p className="text-red-500 text-sm mt-1">{errors.hotelId}</p>}
         </div>
+
+        {/* Room-specific Edit Notice */}
+        {initialData && (formData.promotionType === 'room_specific' || (initialData.promotionType === 'room_specific' || initialData.promotion_type === 'room_specific')) && (
+          <div className="md:col-span-2 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">
+                  Chỉnh sửa khuyến mãi "Theo phòng"
+                </h3>
+                <div className="mt-2 text-sm text-blue-700">
+                  <p>Đối với khuyến mãi loại "Theo phòng", bạn chỉ có thể thay đổi <strong>trạng thái</strong>.</p>
+                  <p>Để quản lý chi tiết giảm giá theo phòng, vui lòng sử dụng chức năng "Xem chi tiết" trong danh sách khuyến mãi.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Promotion Code */}
         <div>
@@ -631,15 +662,23 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Mô tả
+            {isFieldDisabled('description') && (
+              <span className="text-amber-600 text-xs ml-2">(Không thể chỉnh sửa)</span>
+            )}
           </label>
           <textarea
             value={formData.description || ''}
             onChange={(e) => updateFormData({ description: e.target.value })}
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              isFieldDisabled('description') ? 'bg-gray-100 cursor-not-allowed' : ''
+            }`}
             placeholder="Mô tả chi tiết về chương trình khuyến mãi"
-            // disabled={isSubmitting}
+            disabled={isFieldDisabled('description')}
           />
+          {isFieldDisabled('description') && (
+            <p className="text-xs text-amber-600 mt-1">Mô tả không thể thay đổi đối với khuyến mãi "Theo phòng"</p>
+          )}
         </div>
 
         {/* Promotion Type */}
@@ -689,6 +728,9 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Giá trị giảm giá *
             <span className="text-xs text-gray-500 ml-1">(Tối thiểu: 0.01, Tối đa: 20%)</span>
+            {isFieldDisabled('discountValue') && (
+              <span className="text-amber-600 text-xs ml-2">(Không thể chỉnh sửa)</span>
+            )}
           </label>
           <input
             type="number"
@@ -698,17 +740,21 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             value={formData.discountValue || ''}
             onChange={handleDiscountChange}
             className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              formData.discountValue && !isDiscountValueValid() 
-                ? 'border-red-300 bg-red-50' 
-                : 'border-gray-300'
+              isFieldDisabled('discountValue') 
+                ? 'bg-gray-100 cursor-not-allowed border-gray-300'
+                : formData.discountValue && !isDiscountValueValid() 
+                  ? 'border-red-300 bg-red-50' 
+                  : 'border-gray-300'
             }`}
             placeholder="Nhập giá trị giảm giá (tối thiểu 0.01, tối đa 20)"
-            // disabled={isSubmitting}
+            disabled={isFieldDisabled('discountValue')}
             required
           />
-          {/* Logic validation giống nhau cho cả create và edit */}
-          <p className="text-xs text-gray-500 mt-1">Tối đa 20%</p>
-          {formData.discountValue && !isDiscountValueValid() && (
+          {!isFieldDisabled('discountValue') && <p className="text-xs text-gray-500 mt-1">Tối đa 20%</p>}
+          {isFieldDisabled('discountValue') && (
+            <p className="text-xs text-amber-600 mt-1">Giá trị giảm giá không thể thay đổi đối với khuyến mãi "Theo phòng"</p>
+          )}
+          {formData.discountValue && !isDiscountValueValid() && !isFieldDisabled('discountValue') && (
             <p className="text-red-500 text-sm mt-1">Giá trị giảm giá phải lớn hơn 0</p>
           )}
           {errors.discountValue && <p className="text-red-500 text-sm mt-1">{errors.discountValue}</p>}
@@ -719,6 +765,9 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Số tiền giảm tối đa *
               <span className="text-xs text-gray-500 ml-1">(VNĐ)</span>
+              {isFieldDisabled('max_discount_amount') && (
+                <span className="text-amber-600 text-xs ml-2">(Không thể chỉnh sửa)</span>
+              )}
             </label>
             <input
               type="number"
@@ -727,15 +776,20 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
               step="0.01"
               value={formData.max_discount_amount || ''}
               onChange={handleNumberChange('max_discount_amount')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                isFieldDisabled('max_discount_amount') ? 'bg-gray-100 cursor-not-allowed' : ''
+              }`}
               placeholder="VD: 500000"
+              disabled={isFieldDisabled('max_discount_amount')}
               required
-              // disabled={isSubmitting}
             />
-            {calculateMinDiscountAmount() > 0 && (
+            {!isFieldDisabled('max_discount_amount') && calculateMinDiscountAmount() > 0 && (
               <p className="text-xs text-blue-600 mt-1">
                 Tối thiểu: {calculateMinDiscountAmount().toLocaleString('vi-VN')} VND
               </p>
+            )}
+            {isFieldDisabled('max_discount_amount') && (
+              <p className="text-xs text-amber-600 mt-1">Số tiền giảm tối đa không thể thay đổi đối với khuyến mãi "Theo phòng"</p>
             )}
             {errors.max_discount_amount && <p className="text-red-500 text-sm mt-1">{errors.max_discount_amount}</p>}
           </div>
@@ -745,6 +799,9 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Giá trị đặt chỗ tối thiểu *
             <span className="text-xs text-gray-500 ml-1">(VNĐ)</span>
+            {isFieldDisabled('minBookingPrice') && (
+              <span className="text-amber-600 text-xs ml-2">(Không thể chỉnh sửa)</span>
+            )}
           </label>
           <input
             type="number"
@@ -753,11 +810,16 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             step="0.01"
             value={formData.minBookingPrice || ''}
             onChange={handleNumberChange('minBookingPrice')}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              isFieldDisabled('minBookingPrice') ? 'bg-gray-100 cursor-not-allowed' : ''
+            }`}
             placeholder="VD: 1000000"
+            disabled={isFieldDisabled('minBookingPrice')}
             required
-            // disabled={isSubmitting}
           />
+          {isFieldDisabled('minBookingPrice') && (
+            <p className="text-xs text-amber-600 mt-1">Giá trị đặt chỗ tối thiểu không thể thay đổi đối với khuyến mãi "Theo phòng"</p>
+          )}
           {errors.minBookingPrice && <p className="text-red-500 text-sm mt-1">{errors.minBookingPrice}</p>}
         </div>
 
@@ -765,6 +827,9 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Giới hạn sử dụng (lần) *
+            {isFieldDisabled('usageLimit') && (
+              <span className="text-amber-600 text-xs ml-2">(Không thể chỉnh sửa)</span>
+            )}
           </label>
           <input
             type="number"
@@ -773,11 +838,16 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
             step="1"
             value={formData.usageLimit || ''}
             onChange={handleNumberChange('usageLimit')}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              isFieldDisabled('usageLimit') ? 'bg-gray-100 cursor-not-allowed' : ''
+            }`}
             placeholder="VD: 100"
+            disabled={isFieldDisabled('usageLimit')}
             required
-            // disabled={isSubmitting}
           />
+          {isFieldDisabled('usageLimit') && (
+            <p className="text-xs text-amber-600 mt-1">Giới hạn sử dụng không thể thay đổi đối với khuyến mãi "Theo phòng"</p>
+          )}
           {errors.usageLimit && <p className="text-red-500 text-sm mt-1">{errors.usageLimit}</p>}
         </div>
 

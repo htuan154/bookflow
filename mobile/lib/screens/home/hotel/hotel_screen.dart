@@ -13,11 +13,11 @@ class HotelDetailScreen extends StatefulWidget {
   final Map<String, dynamic>? searchParams; // Thêm parameter này
 
   const HotelDetailScreen({
-    Key? key, 
+    super.key, 
     required this.hotel,
     this.suitableRoomsForHotel, // Thêm parameter này
     this.searchParams, // Thêm parameter này
-  }) : super(key: key);
+  });
 
   @override
   _HotelDetailScreenState createState() => _HotelDetailScreenState();
@@ -274,7 +274,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
 
     // Nếu vẫn không có ảnh nào, dùng ảnh mặc định
     if (imagesToShow.isEmpty) {
-      return Container(
+      return SizedBox(
         width: double.infinity,
         height: double.infinity,
         child: Image.asset(
@@ -304,7 +304,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
           },
           itemCount: imagesToShow.length,
           itemBuilder: (context, index) {
-            return Container(
+            return SizedBox(
               width: double.infinity,
               height: double.infinity,
               child: Image.network(
@@ -385,7 +385,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
           ),
 
         // Caption overlay (nếu có caption)
-        if (imagesToShow.length > 0 &&
+        if (imagesToShow.isNotEmpty &&
             hotelImages.length > currentImageIndex &&
             hotelImages[currentImageIndex].caption != null &&
             hotelImages[currentImageIndex].caption!.isNotEmpty)
@@ -532,7 +532,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
   }
 
   Widget _buildTabContent() {
-    return Container(
+    return SizedBox(
       height: 400,
       child: TabBarView(
         controller: _tabController,
@@ -745,7 +745,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
           SizedBox(height: 8),
 
           // Tên tiện ích với container có chiều cao cố định
-          Container(
+          SizedBox(
             height: 32, // Chiều cao cố định cho 2 dòng text
             child: Center(
               child: Text(
@@ -766,7 +766,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
           // Mô tả với container có chiều cao cố định
           if (description.isNotEmpty) ...[
             SizedBox(height: 4),
-            Container(
+            SizedBox(
               height: 24, // Chiều cao cố định cho mô tả
               child: Center(
                 child: Text(
@@ -1000,7 +1000,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
                 ),
               ),
               SizedBox(height: 2),
-              Container(
+              SizedBox(
                 width: MediaQuery.of(context).size.width - 120,
                 child: Text(
                   value,

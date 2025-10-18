@@ -37,6 +37,41 @@ const {
 
 const USE_LLM = String(process.env.USE_LLM || 'false').toLowerCase() === 'true';
 
+// ===== REQUEST DEDUPE MECHANISM =====
+const recentRequests = new Map(); // key: user_id + message hash -> { timestamp, payload }
+const REQUEST_DEDUPE_WINDOW_MS = 5000; // 5 seconds
+
+function makeRequestKey(userId, message) {
+  const msgHash = normalize(String(message || '')).slice(0, 100);
+  return `${userId || 'anon'}:${msgHash}`;
+}
+
+function checkDuplicateRequest(userId, message) {
+  const key = makeRequestKey(userId, message);
+  const now = Date.now();
+  const recent = recentRequests.get(key);
+  
+  if (recent && (now - recent.timestamp) < REQUEST_DEDUPE_WINDOW_MS) {
+    console.warn('[AI] Duplicate request detected:', { userId, message: message?.slice(0, 50) });
+    return recent.payload; // Return cached response
+  }
+  
+  return null;
+}
+
+function cacheRequest(userId, message, payload) {
+  const key = makeRequestKey(userId, message);
+  recentRequests.set(key, { timestamp: Date.now(), payload });
+  
+  // Cleanup old entries
+  if (recentRequests.size > 500) {
+    const cutoff = Date.now() - REQUEST_DEDUPE_WINDOW_MS;
+    for (const [k, v] of recentRequests.entries()) {
+      if (v.timestamp < cutoff) recentRequests.delete(k);
+    }
+  }
+}
+
 async function suggestHandler(req, res, next) {
   try {
     const db = req.app.locals.db;
@@ -45,6 +80,16 @@ async function suggestHandler(req, res, next) {
     const { message = '', filters = {}, top_n, session_id } = req.body || {};
     const msg = String(message || '').trim();
     if (!msg) return res.status(400).json({ error: 'message is required (string)' });
+
+    const userId = req.user?.id || 'anonymous';
+    
+    // Check for duplicate request
+    const cachedResponse = checkDuplicateRequest(userId, msg);
+    if (cachedResponse) {
+      console.log('[AI] Returning cached response (dedupe)');
+      res.set('X-Dedupe', 'true');
+      return res.json(cachedResponse);
+    }
 
     const nlu = analyze(msg);
     const limit = Number(top_n || nlu.top_n || 10);
@@ -61,10 +106,13 @@ async function suggestHandler(req, res, next) {
     res.set('X-Source', payload.source || 'sql+nosql+llm');
     res.set('X-Latency-ms', (payload.latency_ms ?? latency).toFixed(1));
 
+    // Cache this request/response to prevent duplicates
+    cacheRequest(userId, msg, payload);
+
     // (tuỳ chọn) lưu lịch sử hội thoại nếu bạn đang dùng saveTurn(...)
     try {
       await saveTurn({
-        userId: req.user?.id || 'anonymous',
+        userId,
         sessionId: req.headers['x-session-id'] || session_id || 'default',
         messageText: msg,
         messageRaw: req.body,

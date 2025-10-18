@@ -5,3 +5,6 @@ torch            # CPU: pip sẽ tự lấy bản phù hợp. GPU thì cài theo
 sentencepiece    # nếu model dùng tokenizer BPE/SentencePiece
 protobuf
 accelerate
+
+flask-cors
+PyYAML

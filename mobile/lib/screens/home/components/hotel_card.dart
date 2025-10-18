@@ -12,7 +12,7 @@ class HotelCard extends StatelessWidget {
   final VoidCallback? onFavoritePressed;
 
   const HotelCard({
-    Key? key,
+    super.key,
     required this.name,
     required this.address,
     this.starRating,
@@ -21,7 +21,7 @@ class HotelCard extends StatelessWidget {
     this.imageUrl,
     this.onTap,
     this.onFavoritePressed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
