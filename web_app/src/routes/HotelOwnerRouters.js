@@ -36,6 +36,9 @@ import PricingIndex from '../pages/hotel_owner/pricing';
 import RatesPage from '../pages/hotel_owner/pricing/RatesPage';
 import PromotionsPage from '../pages/hotel_owner/pricing/PromotionsPage';
 
+// === Marketing Pages
+import MarketingPage from '../pages/hotel_owner/marketing/MarketingPage';
+
 
 const HotelOwnerRoutes = () => {
   const { isAuthenticated, user } = useAuth();
@@ -92,6 +95,9 @@ const HotelOwnerRoutes = () => {
                 <Route path="pricing" element={<PricingIndex />} />
                 <Route path="pricing/rates" element={<RatesPage />} />
                 <Route path="pricing/promotions" element={<PromotionsPage />} />
+
+                {/* ======================= MARKETING ======================= */}
+                <Route path="marketing" element={<MarketingPage />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />
             </Routes>

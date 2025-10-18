@@ -297,30 +297,7 @@ const BlogCommentThread = ({
 
                 {/* Admin Actions */}
                 <Stack direction="row" alignItems="center" spacing={1}>
-                  {/* Status Actions for Pending Comments */}
-                  {comment.status === 'pending' && (
-                    <>
-                      <Tooltip title="Duyệt bình luận">
-                        <IconButton
-                          size="small"
-                          color="success"
-                          onClick={() => handleStatusUpdate('approved')}
-                        >
-                          <Check fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Từ chối bình luận">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleStatusUpdate('rejected')}
-                        >
-                          <Close fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </>
-                  )}
-
+                  {/* Đã tắt nút duyệt/trừ chối cho bình luận pending */}
                   {/* More Actions Menu */}
                   <IconButton
                     size="small"

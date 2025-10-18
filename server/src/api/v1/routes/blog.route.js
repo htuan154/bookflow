@@ -53,7 +53,7 @@ router.get('/admin/blogs',
 router.patch(
     '/admin/:blogId/status',
     authenticate,
-    authorize(['admin']), // chỉ admin
+    authorize(['admin','hotel_owner']), // chỉ admin , ngày 3/10/2025 tôi có sửa là thêm hotel owner
     blogController.updateBlogStatus
 );
 // --- Route mới: lấy danh sách blog publish kèm like_count, comment_count ---
@@ -62,6 +62,20 @@ router.get(
     authenticate, 
     authorize(['admin']), 
     blogController.getPublishedBlogsWithStats
+);
+// ---Route mới ngày 4/10/2025 lúc 10h50 Lấy danh sách blog của chủ khách sạn đang đăng nhập
+router.get(
+    '/hotel-owner/blogs',
+    authenticate,
+    authorize(['hotel_owner']),
+    blogController.getOwnerBlogs
+);
+// Route này thêm vào ngày 9/10/2025 lấy danh sách blog do admin đăng (lọc theo role, phân trang, trạng thái)
+router.get(
+    '/admin/blogs/by-role',
+    authenticate,
+    authorize(['admin']),
+    blogController.getAdminBlogsByRole
 );
 
 // --- ROUTES CÔNG KHAI ---

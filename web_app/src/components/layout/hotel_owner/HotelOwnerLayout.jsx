@@ -74,11 +74,7 @@ const HotelOwnerLayout = () => {
             name: 'Nhân viên', 
             icon: <Users2 size={20} />, 
             path: '/hotel-owner/staff',
-            subItems: [
-                { name: 'Danh sách nhân viên', path: '/hotel-owner/staff/list' },
-                { name: 'Thêm nhân viên', path: '/hotel-owner/staff/add' },
-                { name: 'Phân ca làm việc', path: '/hotel-owner/staff/schedules' }
-            ]
+          
         },
 
         // Đánh giá và phản hồi
@@ -112,11 +108,7 @@ const HotelOwnerLayout = () => {
         { 
             name: 'Marketing', 
             icon: <FileText size={20} />, 
-            path: '/hotel-owner/marketing',
-            subItems: [
-                { name: 'Viết blog', path: '/hotel-owner/marketing/blogs' },
-                { name: 'Nội dung marketing', path: '/hotel-owner/marketing/content' }
-            ]
+            path: '/hotel-owner/marketing'
         },
 
         // Báo cáo

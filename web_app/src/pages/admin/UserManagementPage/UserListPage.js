@@ -81,7 +81,7 @@ const UserListPage = () => {
             case 'admin': return 'bg-red-500';
             case 'hotel_owner': return 'bg-blue-500';
             case 'staff': return 'bg-purple-500';
-            default: return 'bg-green-500';
+            default: return 'bg-orange-500';
         }
     };
 
@@ -103,8 +103,8 @@ const UserListPage = () => {
         const initializeComponent = async () => {
             try {
                 setIsInitialized(false);
-                // Đảm bảo fetchUsers trả về dữ liệu mới nhất
-                await fetchUsers({ page: 1, limit: 20 }); // hoặc limit tuỳ ý
+                // Hiển thị mặc định mỗi trang 5 người
+                await fetchUsers({ page: 1, limit: 5 });
                 setIsInitialized(true);
             } catch (err) {
                 console.error('Error initializing UserListPage:', err);
@@ -187,7 +187,7 @@ const UserListPage = () => {
     // Handle refresh
     const handleRefresh = async () => {
         try {
-            await fetchUsers({ page: 1, limit: 20 }); // Đảm bảo luôn lấy lại dữ liệu mới nhất
+            await fetchUsers({ page: 1, limit: 5 }); // Đảm bảo luôn lấy lại dữ liệu mới nhất, mỗi trang 5 người
         } catch (error) {
             console.error('Error refreshing:', error);
         }
@@ -242,7 +242,7 @@ const UserListPage = () => {
                     <button 
                         onClick={handleRefresh}
                         disabled={loading}
-                        className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center space-x-2"
+                        className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center space-x-2"
                     >
                         <span>🔄</span>
                         <span>{loading ? 'Đang tải...' : 'Làm mới'}</span>
@@ -289,7 +289,6 @@ const UserListPage = () => {
                         </div>
                     </div>
                 </div>
-
                 {/* Main Content Card */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100">
                     {/* Search Header (bỏ dropdown lọc vai trò) */}
@@ -502,13 +501,101 @@ const UserListPage = () => {
                     </div>
 
                     {/* Pagination */}
-                    {pagination && pagination.totalPages > 1 && (
-                        <div className="px-6 py-4 border-t border-gray-100 flex justify-between items-center">
-                            <div className="text-sm text-gray-700">
-                                Trang {pagination.page} / {pagination.totalPages}
+                    {pagination && (
+                        <div className="px-6 py-4 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-2">
+                            <div className="flex items-center gap-2 text-sm text-gray-700">
+                                <span>
+                                    Hiển thị {
+                                        pagination && pagination.page && pagination.limit && pagination.total
+                                            ? ((pagination.page - 1) * pagination.limit + 1)
+                                            : 0
+                                    }
+                                    -{
+                                        pagination && pagination.page && pagination.limit && pagination.total
+                                            ? ((pagination.page - 1) * pagination.limit + filteredUsers.length)
+                                            : 0
+                                    }
+                                     trong tổng số {pagination && pagination.total ? pagination.total : 0} khách hàng
+                                </span>
+                                <span className="ml-4">Hiển thị:
+                                    <select
+                                        className="ml-2 px-2 py-1 border rounded"
+                                        value={pagination.limit}
+                                        onChange={e => fetchUsers({ page: 1, limit: Number(e.target.value) })}
+                                    >
+                                        {[5, 10, 20, 50, 100].map(size => (
+                                            <option key={size} value={size}>{size} mục</option>
+                                        ))}
+                                    </select>
+                                </span>
                             </div>
-                            <div className="text-sm text-gray-700">
-                                Hiển thị {filteredUsers.length} / {totalUsers} người dùng
+                            <div className="flex items-center gap-2">
+                                <button
+                                    className="px-2 py-1 border rounded bg-gray-100 hover:bg-gray-200"
+                                    disabled={pagination.page === 1}
+                                    onClick={() => fetchUsers({ page: 1, limit: pagination.limit })}
+                                >
+                                    {'<<'}
+                                </button>
+                                <button
+                                    className="px-2 py-1 border rounded bg-gray-100 hover:bg-gray-200"
+                                    disabled={pagination.page === 1}
+                                    onClick={() => fetchUsers({ page: pagination.page - 1, limit: pagination.limit })}
+                                >
+                                    Trước
+                                </button>
+                                {/* Hiển thị các nút trang với dấu ... nếu nhiều trang */}
+                                {pagination.totalPages > 3 && pagination.page > 2 && (
+                                    <span className="px-2">...</span>
+                                )}
+                                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                                    .filter(pageNum => {
+                                        // Chỉ hiện trang hiện tại, trước và sau nó
+                                        if (pagination.totalPages <= 3) return true;
+                                        if (pagination.page === 1) return pageNum <= 3;
+                                        if (pagination.page === pagination.totalPages) return pageNum >= pagination.totalPages - 2;
+                                        return Math.abs(pageNum - pagination.page) <= 1;
+                                    })
+                                    .map(pageNum => (
+                                        <button
+                                            key={pageNum}
+                                            className={`px-2 py-1 border rounded ${pagination.page === pageNum ? 'bg-orange-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                                            onClick={() => fetchUsers({ page: pageNum, limit: pagination.limit })}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    ))}
+                                {pagination.totalPages > 3 && pagination.page < pagination.totalPages - 1 && (
+                                    <span className="px-2">...</span>
+                                )}
+                                <button
+                                    className="px-2 py-1 border rounded bg-gray-100 hover:bg-gray-200"
+                                    disabled={pagination.page === pagination.totalPages}
+                                    onClick={() => fetchUsers({ page: pagination.page + 1, limit: pagination.limit })}
+                                >
+                                    Tiếp
+                                </button>
+                                <button
+                                    className="px-2 py-1 border rounded bg-gray-100 hover:bg-gray-200"
+                                    disabled={pagination.page === pagination.totalPages}
+                                    onClick={() => fetchUsers({ page: pagination.totalPages, limit: pagination.limit })}
+                                >
+                                    {'>>'}
+                                </button>
+                                <span className="ml-2">Đến trang:</span>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={pagination.totalPages}
+                                    value={pagination.page}
+                                    onChange={e => {
+                                        let page = Number(e.target.value);
+                                        if (page < 1) page = 1;
+                                        if (page > pagination.totalPages) page = pagination.totalPages;
+                                        fetchUsers({ page, limit: pagination.limit });
+                                    }}
+                                    className="w-16 px-2 py-1 border rounded ml-2"
+                                />
                             </div>
                         </div>
                     )}

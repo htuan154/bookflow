@@ -315,6 +315,8 @@ export const API_ENDPOINTS = {
 
         // Blog Management for Admin  
         GET_ALL_BLOGS: (params = '') => `${API_BASE_URL}/blogs/admin/blogs${params ? `?${params}` : ''}`,//comment
+        //thêm vào ngày 9/10/2025
+        GET_BLOGS_BY_ROLE: (params = '') => `${API_BASE_URL}/blogs/admin/blogs/by-role${params ? `?${params}` : ''}`,
         GET_BLOGS_BY_STATUS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
         GET_REJECTED_BLOGS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
         UPDATE_STATUS_ADMIN: (blogId) => `${API_BASE_URL}/blogs/admin/${blogId}/status`,
@@ -358,7 +360,8 @@ export const API_ENDPOINTS = {
     UNPUBLISH: (blogId) => `${API_BASE_URL}/blogs/${blogId}/unpublish`,
 
     // Blog image endpoints
-    UPLOAD_IMAGE: (blogId) => `${API_BASE_URL}/blogs/${blogId}/images`,
+    GET_IMAGES: (blogId) => `${API_BASE_URL}/blogs/${blogId}/images`,
+    UPLOAD_IMAGE: (blogId) => `${API_BASE_URL}/blogs/${blogId}/images`, // Dùng chung cho cả upload file và add từ URL
     DELETE_IMAGE: (blogId, imageId) => `${API_BASE_URL}/blogs/${blogId}/images/${imageId}`,
     SET_FEATURED_IMAGE: (blogId, imageId) => `${API_BASE_URL}/blogs/${blogId}/images/${imageId}/set-featured`,
     // Thêm endpoint xóa ảnh theo imageId
@@ -387,13 +390,16 @@ export const API_ENDPOINTS = {
         CREATE_HOTEL: `${API_BASE_URL}/hotels`,
         UPDATE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
         DELETE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
-        
+
+        // dành cho blog của chủ khách sạn ngày 4/10/2025 lúc 10h50
+        GET_MY_BLOGS: `${API_BASE_URL}/blogs/hotel-owner/blogs`,
+
         // Image management
         GET_IMAGES_BY_HOTEL_ID: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/images`,
         UPLOAD_IMAGES: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/images`,
         DELETE_IMAGE: (hotelId, imageId) => `${API_BASE_URL}/hotels/${hotelId}/images/${imageId}`,
         SET_THUMBNAIL: (hotelId, imageId) => `${API_BASE_URL}/hotels/${hotelId}/images/${imageId}/set-thumbnail`,
-        
+
         // Status & amenities
         UPDATE_STATUS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/status`,
         UPDATE_AMENITIES: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/amenities`,

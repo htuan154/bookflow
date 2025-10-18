@@ -1,6 +1,7 @@
 // src/components/admin/blog/BlogCard.js
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Archive, ArrowDown, Send } from 'lucide-react';
 
 const BlogCard = ({ 
     blog, 
@@ -94,7 +95,7 @@ const BlogCard = ({
                         className="inline-flex items-center px-2 py-1 border border-yellow-400 rounded text-yellow-700 bg-yellow-50 hover:bg-yellow-100 text-xs font-medium"
                         title="Gửi duyệt"
                     >
-                        Gửi duyệt
+                        <Send className="w-3 h-3" />
                     </button>
                 );
             case 'pending':
@@ -127,7 +128,7 @@ const BlogCard = ({
                             className="inline-flex items-center px-2 py-1 border border-blue-400 rounded text-blue-700 bg-blue-50 hover:bg-blue-100 text-xs font-medium mr-1"
                             title="Lưu trữ"
                         >
-                            Lưu trữ
+                            <Archive className="w-3 h-3" />
                         </button>
                         <button
                             onClick={() => handleStatusChange('draft')}
@@ -135,7 +136,7 @@ const BlogCard = ({
                             className="inline-flex items-center px-2 py-1 border border-yellow-400 rounded text-yellow-700 bg-yellow-50 hover:bg-yellow-100 text-xs font-medium"
                             title="Rút lại"
                         >
-                            Rút lại
+                            <ArrowDown className="w-3 h-3" />
                         </button>
                     </>
                 );
@@ -262,7 +263,7 @@ const BlogCard = ({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
-                            Xem
+                            
                         </button>
 
                         <div className="flex items-center space-x-2">

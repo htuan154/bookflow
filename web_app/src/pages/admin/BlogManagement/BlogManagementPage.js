@@ -3,28 +3,39 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BlogList from '../../../components/blog/BlogList';
 import { 
-    FileText, 
-    Clock, 
-    CheckCircle, 
-    XCircle, 
-    AlertCircle,
-    Archive
+    Search,
+    Plus,
+    XCircle
 } from 'lucide-react';
 import { useBlogContext } from '../../../context/BlogContext';
 import useAuth from '../../../hooks/useAuth';
 
 const BlogManagementPage = () => {
+    // State nhận thông tin phân trang từ BlogList
+    const [blogListPagination, setBlogListPagination] = useState({ pagination: {}, loading: false, handlePageChange: () => {} });
+
+    // Đăng ký callback nhận thông tin phân trang từ BlogList
+    useEffect(() => {
+        window.onBlogListPaginationChange = (data) => {
+            setBlogListPagination(data);
+        };
+        return () => {
+            window.onBlogListPaginationChange = null;
+        };
+    }, []);
     const navigate = useNavigate();
     const {  isAuthenticated } = useAuth();
     const {
+        blogs,
+        pagination,
         error,
         statistics,
         fetchStatistics,
         clearError,
         deleteBlog,
-        fetchBlogs,
-        fetchBlogsByStatus, // <-- thêm dòng này
-        updateBlogStatus, // <-- Thêm dòng này nếu đã có hàm updateBlogStatus trong BlogContext
+        getBlogsByRoleAdmin,
+        fetchBlogsByStatus,
+        updateBlogStatus,
     } = useBlogContext();
 
     const [currentStatus, setCurrentStatus] = useState('all');
@@ -39,7 +50,8 @@ const BlogManagementPage = () => {
     // Định nghĩa hàm trước các hook
     const loadStatistics = async () => {
         try {
-            await fetchStatistics();
+            // Truyền keyword (searchTerm) vào fetchStatistics để lấy đúng số lượng theo bộ lọc
+            await fetchStatistics({ keyword: searchTerm });
         } catch (error) {
             console.error('Failed to load blog statistics:', error);
         }
@@ -58,13 +70,12 @@ const BlogManagementPage = () => {
         // Đã truyền keyword vào fetchBlogsByStatus và fetchBlogs
         if (isAuthenticated) {
             if (currentStatus !== 'all') {
-                // Khi truyền vào fetchBlogsByStatus hoặc fetchBlogs để tìm kiếm theo tiêu đề, bạn phải dùng key là "keyword":
                 fetchBlogsByStatus(currentStatus, { keyword: searchTerm });
             } else {
-                fetchBlogs({ keyword: searchTerm });
+                getBlogsByRoleAdmin({ role: 'admin', keyword: searchTerm });
             }
         }
-    }, [isAuthenticated, currentStatus, searchTerm, fetchBlogsByStatus, fetchBlogs]);
+    }, [isAuthenticated, currentStatus, searchTerm, fetchBlogsByStatus, getBlogsByRoleAdmin]);
 
     // Nếu chưa đăng nhập, hiển thị message
     if (!isAuthenticated) {
@@ -197,8 +208,8 @@ const BlogManagementPage = () => {
                 // blog.newStatus là trạng thái mới
                 try {
                     await updateBlogStatus(blog.blogId || blog.id, blog.newStatus);
-                    await fetchBlogs();
-                    await fetchStatistics(); // <-- Thêm dòng này để cập nhật số lượng ở các tab
+                    await getBlogsByRoleAdmin({ role: 'admin', keyword: searchTerm });
+                    await fetchStatistics();
                 } catch (err) {
                     alert('Cập nhật trạng thái thất bại: ' + (err?.message || 'Lỗi không xác định'));
                 }
@@ -214,10 +225,10 @@ const BlogManagementPage = () => {
         const blogId = blog?.blogId || blog?.blog_id || blog?.id || blog?.ID;
         try {
             await deleteBlog(blogId);
-            await fetchBlogs();
+            await getBlogsByRoleAdmin({ role: 'admin', keyword: searchTerm });
             setDeleteModal({ open: false, blog: null });
             setDeleteSuccess(true);
-            setTimeout(() => setDeleteSuccess(false), 2000); // Ẩn sau 2 giây
+            setTimeout(() => setDeleteSuccess(false), 2000);
         } catch (err) {
             alert('Xóa bài viết thất bại: ' + (err?.message || 'Lỗi không xác định'));
         }
@@ -258,7 +269,7 @@ const BlogManagementPage = () => {
     }
 
     return (
-        <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-6xl mx-auto">
             
             {/* Thông báo xóa thành công dạng modal giống xác nhận xóa */}
             {deleteSuccess && (
@@ -287,109 +298,134 @@ const BlogManagementPage = () => {
                         Quản lý tất cả bài viết du lịch và đánh giá khách sạn
                     </p>
                 </div>
-                {/* Bộ lọc sortBy/sortOrder */}
-                <div>
-                    <select
-                        value={`${sortBy}-${sortOrder}`}
-                        onChange={e => {
-                            const [newSortBy, newSortOrder] = e.target.value.split('-');
-                            setSortBy(newSortBy);
-                            setSortOrder(newSortOrder);
-                        }}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                        <option value="created_at-desc">Mới nhất</option>
-                        <option value="created_at-asc">Cũ nhất</option>
-                        <option value="title-asc">Tiêu đề A-Z</option>
-                        <option value="title-desc">Tiêu đề Z-A</option>
-                        <option value="view_count-desc">Lượt xem cao</option>
-                        <option value="like_count-desc">Lượt thích cao</option>
-                    </select>
-                </div>
+                
+                
             </div>
 
-            {/* Status Tabs */}
+           
+
+            {/* Blog List */}
             <div className="bg-white rounded-lg shadow-sm border">
-                <div className="border-b border-gray-200">
-                    <nav className="flex space-x-8 px-6" aria-label="Tabs">
-                        {[
-                            { 
-                                key: 'all', 
-                                label: 'Tất cả', 
-                                icon: FileText,
-                                color: 'text-gray-600' 
-                            },
-                            { 
-                                key: 'draft', 
-                                label: 'Nháp', 
-                                icon: AlertCircle,
-                                color: 'text-gray-600' 
-                            },
-                            { 
-                                key: 'pending', 
-                                label: 'Chờ duyệt', 
-                                icon: Clock,
-                                color: 'text-yellow-600' 
-                            },
-                            { 
-                                key: 'published', 
-                                label: 'Đã xuất bản', 
-                                icon: CheckCircle,
-                                color: 'text-green-600' 
-                            },
-                            { 
-                                key: 'archived', 
-                                label: 'Lưu trữ', 
-                                icon: Archive,
-                                color: 'text-blue-600' 
-                            },
-                            { 
-                                key: 'rejected', 
-                                label: 'Bị từ chối', 
-                                icon: XCircle,
-                                color: 'text-red-600' 
-                            }
-                        ].map((tab) => {
-                            const Icon = tab.icon;
-                            return (
-                                <button
-                                    key={tab.key}
-                                    onClick={() => handleStatusChange(tab.key)}
-                                    className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap flex items-center space-x-2 ${
-                                        currentStatus === tab.key
-                                            ? 'border-orange-500 text-orange-600'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                    }`}
-                                >
-                                    <Icon className="h-4 w-4" />
-                                    <span>{tab.label}</span>
-                                    {statusCounts[tab.key] !== undefined && statusCounts[tab.key] > 0 && (
-                                        <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
-                                            currentStatus === tab.key 
-                                                ? 'bg-orange-100 text-orange-600' 
-                                                : 'bg-gray-100 text-gray-600'
-                                        }`}>
-                                            {statusCounts[tab.key]}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </nav>
+                <div className="p-6">
+                    <BlogList
+                        adminView={true}
+                        statusFilter={currentStatus}
+                        showActions={true}
+                        selectable={true}
+                        onBlogSelect={handleBlogAction}
+                        sortBy={sortBy}
+                        sortOrder={sortOrder}
+                        searchTerm={searchTerm}
+                        gridLayout={true}
+                        // Thêm các props cho Status Filter
+                        currentStatus={currentStatus}
+                        onStatusChange={handleStatusChange}
+                        statusCounts={getStatusCounts()}
+                    />
                 </div>
+                {/* Phân trang ngoài BlogList - theo mẫu */}
+                <div className="flex justify-between items-center mt-8 bg-white p-4 rounded-lg shadow border">
+                    {/* Thông tin hiển thị bên trái - sử dụng dữ liệu thực tế */}
+                    <div className="flex items-center space-x-4">
+                        <span className="text-sm text-gray-600">
+                            {(() => {
+                                const currentPage = pagination.currentPage || 1;
+                                const itemsPerPage = 9;
+                                const totalItems = pagination.totalItems || blogs?.length || 0;
+                                const startItem = totalItems > 0 ? ((currentPage - 1) * itemsPerPage) + 1 : 0;
+                                const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+                                
+                                return `Hiển thị ${startItem}-${endItem} trong tổng số ${totalItems} bài viết`;
+                            })()}
+                        </span>
+                        <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-600">Hiển thị:</span>
+                            <select 
+                                value={9}
+                                onChange={(e) => {
+                                    // Logic thay đổi items per page nếu cần
+                                    console.log('Change items per page to:', e.target.value);
+                                }}
+                                className="border border-gray-300 rounded px-2 py-1 text-sm"
+                            >
+                                <option value={9}>9 mục</option>
+                                <option value={18}>18 mục</option>
+                                <option value={27}>27 mục</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    {/* Navigation bên phải */}
+                    <div className="flex items-center space-x-2">
+                        {/* Nút về đầu */}
+                        <button
+                            onClick={() => blogListPagination.handlePageChange(1)}
+                            disabled={(pagination.currentPage || 1) === 1 || blogListPagination.loading}
+                            className="px-2 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50 text-sm"
+                            title="Trang đầu"
+                        >
+                            &laquo;&laquo;
+                        </button>
+                        {/* Nút về trước */}
+                        <button
+                            onClick={() => blogListPagination.handlePageChange((pagination.currentPage || 1) - 1)}
+                            disabled={(pagination.currentPage || 1) === 1 || blogListPagination.loading}
+                            className="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50 text-sm"
+                            title="Trang trước"
+                        >
+                            Trước
+                        </button>
+                            {/* Số trang hiện tại */}
+                            <button
+                                className="px-3 py-1 bg-orange-600 text-white border border-blue-600 rounded text-sm font-medium"
+                                disabled
+                            >
+                                {pagination.currentPage || 1}
+                            </button>
+                            
+                            {/* Nút về sau */}
+                            <button
+                                onClick={() => blogListPagination.handlePageChange((pagination.currentPage || 1) + 1)}
+                                disabled={(pagination.currentPage || 1) === (pagination.totalPages || 1) || blogListPagination.loading}
+                                className="px-3 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50 text-sm"
+                                title="Trang sau"
+                            >
+                                Tiếp
+                            </button>
+                            {/* Nút về cuối */}
+                            <button
+                                onClick={() => blogListPagination.handlePageChange(pagination.totalPages || 1)}
+                                disabled={(pagination.currentPage || 1) === (pagination.totalPages || 1) || blogListPagination.loading}
+                                className="px-2 py-1 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:opacity-50 text-sm"
+                                title="Trang cuối"
+                            >
+                                &raquo;&raquo;
+                            </button>
+                            
+                            {/* Input nhảy trang */}
+                            <div className="flex items-center space-x-1 ml-2">
+                                <span className="text-sm text-gray-600">Đến trang:</span>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={pagination.totalPages || 1}
+                                    defaultValue={pagination.currentPage || 1}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter') {
+                                            const val = Number(e.target.value);
+                                            const maxPage = pagination.totalPages || 1;
+                                            if (val >= 1 && val <= maxPage) {
+                                                blogListPagination.handlePageChange(val);
+                                            }
+                                        }
+                                    }}
+                                    className="w-12 px-1 py-1 border border-gray-300 rounded text-center text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
             </div>
-
-            {/* Blog List - Truyền currentStatus làm filter */}
-            <BlogList
-                adminView={true}
-                statusFilter={currentStatus}
-                showActions={true}
-                selectable={true}
-                onBlogSelect={handleBlogAction}
-                sortBy={sortBy}
-                sortOrder={sortOrder}
-            />
-
             {/* Delete Confirmation Modal */}
             {deleteModal.open && (
                 <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-30">

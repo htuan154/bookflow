@@ -13,6 +13,10 @@ const BlogList = ({
     selectable = false,
     sortBy: propSortBy,
     sortOrder: propSortOrder,
+    // Thêm các props mới cho status filter
+    currentStatus = 'all',
+    onStatusChange = null,
+    statusCounts = {},
 }) => {
     const {
         blogs,
@@ -21,8 +25,20 @@ const BlogList = ({
         pagination,
         fetchBlogs,
         fetchBlogsByStatus,
-        clearError
+        clearError,
+        setPagination
     } = useBlogContext();
+
+    // Trả pagination, loading, handlePageChange ra ngoài qua callback
+    React.useEffect(() => {
+        if (typeof window.onBlogListPaginationChange === 'function') {
+            window.onBlogListPaginationChange({
+                pagination,
+                loading,
+                handlePageChange,
+            });
+        }
+    }, [pagination, loading]);
 
     const [selectedBlogs, setSelectedBlogs] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -65,9 +81,11 @@ const BlogList = ({
             };
 
             if (adminView) {
-                // Luôn sử dụng fetchBlogsByStatus, với statusFilter = 'all' thì backend sẽ trả về tất cả
-                const status = statusFilter === 'all' ? 'published' : statusFilter;
-                await fetchBlogsByStatus(status, params);
+                if (statusFilter === 'all' || !statusFilter) {
+                    await fetchBlogs({ adminView: true, ...params });
+                } else {
+                    await fetchBlogsByStatus(statusFilter, params);
+                }
             } else {
                 // Public blogs
                 await fetchBlogs(params);
@@ -91,7 +109,10 @@ const BlogList = ({
     };
 
     const handlePageChange = (page) => {
-        // setPagination({ currentPage: page });
+        setPagination(prev => ({
+            ...prev,
+            currentPage: page
+        }));
     };
 
     const handleRefresh = () => {
@@ -199,6 +220,7 @@ const BlogList = ({
         : blogs;
 
     return (
+
         <div className="space-y-6">
             {/* Thông báo tìm kiếm thành công/thất bại */}
             {searchQuery && (
@@ -213,11 +235,11 @@ const BlogList = ({
                 </div>
             )}
 
-            {/* Header với search và actions */}
+            {/* Header với search và actions - gọn gàng hơn */}
             <div className="bg-white p-6 rounded-lg shadow-sm border">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="flex flex-row items-center gap-2 flex-wrap">
                     {/* Search */}
-                    <form onSubmit={handleSearch} className="flex-1 max-w-md">
+                    <form onSubmit={handleSearch} className="flex-1 min-w-[220px] max-w-lg">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                             <input
@@ -230,46 +252,60 @@ const BlogList = ({
                         </div>
                     </form>
 
-                    {/* Sort and Actions */}
-                    <div className="flex items-center space-x-3">
+                    {/* Status Filter Dropdown - chỉ hiển thị trong admin view */}
+                    {adminView && (
                         <select
-                            value={`${sortBy}-${sortOrder}`}
-                            onChange={(e) => {
-                                const [newSortBy, newSortOrder] = e.target.value.split('-');
-                                setSortBy(newSortBy);
-                                setSortOrder(newSortOrder);
-                                // Gọi handleLoadBlogs ngay khi đổi bộ lọc
-                                // handleLoadBlogs(); // Không cần nếu đã có useEffect ở trên
-                            }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            value={currentStatus}
+                            onChange={(e) => onStatusChange && onStatusChange(e.target.value)}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent min-w-[120px]"
                         >
-                            <option value="created_at-desc">Mới nhất</option>
-                            <option value="created_at-asc">Cũ nhất</option>
-                            <option value="title-asc">Tiêu đề A-Z</option>
-                            <option value="title-desc">Tiêu đề Z-A</option>
-                            <option value="view_count-desc">Lượt xem cao</option>
-                            <option value="like_count-desc">Lượt thích cao</option>
+                            <option value="all">Tất cả ({statusCounts.all || 0})</option>
+                            <option value="draft">Nháp ({statusCounts.draft || 0})</option>
+                            <option value="pending">Chờ duyệt ({statusCounts.pending || 0})</option>
+                            <option value="published">Đã xuất bản ({statusCounts.published || 0})</option>
+                            <option value="archived">Lưu trữ ({statusCounts.archived || 0})</option>
+                            <option value="rejected">Bị từ chối ({statusCounts.rejected || 0})</option>
                         </select>
-                        
+                    )}
+
+                    {/* Sort Dropdown */}
+                    <select
+                        value={`${sortBy}-${sortOrder}`}
+                        onChange={(e) => {
+                            const [newSortBy, newSortOrder] = e.target.value.split('-');
+                            setSortBy(newSortBy);
+                            setSortOrder(newSortOrder);
+                        }}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[110px]"
+                    >
+                        <option value="created_at-desc">Mới nhất</option>
+                        <option value="created_at-asc">Cũ nhất</option>
+                        <option value="title-asc">Tiêu đề A-Z</option>
+                        <option value="title-desc">Tiêu đề Z-A</option>
+                        <option value="view_count-desc">Lượt xem cao</option>
+                        <option value="like_count-desc">Lượt thích cao</option>
+                    </select>
+
+                    {/* Nút làm mới */}
+                    <button
+                        onClick={handleRefresh}
+                        disabled={loading}
+                        className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                        <span>Làm mới</span>
+                    </button>
+
+                    {/* Nút thêm bài viết */}
+                    {showActions && (
                         <button
-                            onClick={handleRefresh}
-                            disabled={loading}
-                            className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            onClick={() => navigate('/admin/blog-management/create')}
+                            className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
                         >
-                            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                            <span>Làm mới</span>
+                            <Plus className="h-4 w-4" />
+                            <span>Thêm bài viết</span>
                         </button>
-                        
-                        {showActions && (
-                            <button
-                                onClick={() => navigate('/admin/blog-management/create')}
-                                className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
-                            >
-                                <Plus className="h-4 w-4" />
-                                <span>Thêm bài viết</span>
-                            </button>
-                        )}
-                    </div>
+                    )}
                 </div>
 
                 {/* Bulk selection */}
@@ -304,24 +340,22 @@ const BlogList = ({
                 </div>
             )}
 
-            {/* Blog List */}
+
+            {/* Blog List - Grid 3 cột, căn giữa, card nhỏ hơn, sát nhau */}
+            <div className="w-full max-w-5xl mx-auto">
             {loading ? (
-                <div className="space-y-4">
-                    {[...Array(5)].map((_, index) => (
-                        <div key={index} className="bg-white p-6 rounded-lg shadow-sm border animate-pulse">
-                            <div className="flex space-x-4">
-                                <div className="w-20 h-20 bg-gray-200 rounded-lg"></div>
-                                <div className="flex-1 space-y-3">
-                                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                                    <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-                                </div>
-                            </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {[...Array(3)].map((_, index) => (
+                        <div key={index} className="bg-white p-2 rounded-lg shadow-sm border animate-pulse">
+                            <div className="w-full h-24 bg-gray-200 rounded-lg mb-2"></div>
+                            <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+                            <div className="h-3 bg-gray-200 rounded w-1/2 mb-1"></div>
+                            <div className="h-3 bg-gray-200 rounded w-1/4"></div>
                         </div>
                     ))}
                 </div>
             ) : filteredBlogs.length === 0 ? (
-                <div className="bg-white p-12 rounded-lg shadow-sm border text-center">
+                <div className="bg-white p-8 rounded-lg shadow-sm border text-center">
                     <div className="text-gray-400 mb-4">
                         <Eye className="h-12 w-12 mx-auto" />
                     </div>
@@ -347,9 +381,8 @@ const BlogList = ({
                     )}
                 </div>
             ) : (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {filteredBlogs.map((blog) => {
-                        // Đánh dấu bài viết liên quan nếu tiêu đề chứa từ khóa (không phân biệt hoa thường)
                         const isRelated =
                             searchQuery &&
                             blog.title &&
@@ -383,57 +416,9 @@ const BlogList = ({
                     })}
                 </div>
             )}
+            </div>
 
-            {/* Pagination */}
-            {pagination.totalPages > 1 && (
-                <div className="bg-white p-4 rounded-lg shadow-sm border">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                            <button
-                                onClick={() => handlePageChange(pagination.currentPage - 1)}
-                                disabled={pagination.currentPage === 1 || loading}
-                                className="px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Trước
-                            </button>
-                            
-                            <div className="flex items-center space-x-1">
-                                {[...Array(Math.min(5, pagination.totalPages))].map((_, index) => {
-                                    const page = index + 1;
-                                    const isActive = page === pagination.currentPage;
-                                    
-                                    return (
-                                        <button
-                                            key={page}
-                                            onClick={() => handlePageChange(page)}
-                                            disabled={loading}
-                                            className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                                                isActive
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'text-gray-700 hover:bg-gray-50'
-                                            } disabled:opacity-50`}
-                                        >
-                                            {page}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            
-                            <button
-                                onClick={() => handlePageChange(pagination.currentPage + 1)}
-                                disabled={pagination.currentPage === pagination.totalPages || loading}
-                                className="px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Sau
-                            </button>
-                        </div>
-                        
-                        <div className="text-sm text-gray-600">
-                            Trang {pagination.currentPage} / {pagination.totalPages}
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Pagination sẽ render ở ngoài BlogList */}
         </div>
     );
 };

@@ -25,9 +25,7 @@ const AdminLayout = () => {
             path: '/admin/blog-management',
             subItems: [
                 { name: 'Tất cả bài viết', path: '/admin/blog-management' },
-                { name: 'Tạo bài viết', path: '/admin/blog-management/create' },
-                { name: 'Bản nháp', path: '/admin/blog-management?status=draft' },
-                { name: 'Chờ duyệt', path: '/admin/blog-management?status=pending' }
+                
             ]
         },
         { name: 'Quản lý đối tác', icon: <Briefcase size={20} />, path: '/admin/partners' },
