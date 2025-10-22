@@ -1,4 +1,4 @@
-// src/context/BlogContext.js
+    // src/context/BlogContext.js
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import blogService from '../api/blog.service';
 
@@ -22,13 +22,42 @@ export const BlogProvider = ({ children }) => {
     const [statistics, setStatistics] = useState(null);
     const [pagination, setPagination] = useState({
         currentPage: 1,
-        totalPages: 1,
+        itemsPerPage: 9, // Đặt 9 mục mỗi trang cho blog
         totalItems: 0,
-        itemsPerPage: 10,
-        hasNextPage: false,
-        hasPrevPage: false
+        totalPages: 1
     });
     const [currentBlog, setCurrentBlog] = useState(null);
+
+    // Hàm lấy tất cả blog của admin
+
+    // Hàm lấy tất cả blog của admin
+    const getAllBlogsAdmin = useCallback(async (options = {}) => {
+        try {
+            setLoading(true);
+            setError(null);
+            const params = {
+                page: options.page || pagination.currentPage,
+                limit: options.limit || pagination.itemsPerPage,
+                ...options
+            };
+            const response = await blogService.getAllBlogsAdmin(params);
+            if (response?.success) {
+                const blogsData = Array.isArray(response.data) ? response.data : response.data?.blogs || [];
+                const paginationData = response.pagination || response.data?.pagination || {};
+                setBlogs(blogsData);
+                setPagination(prev => ({ ...prev, ...paginationData, currentPage: params.page }));
+                return { blogs: blogsData, pagination: paginationData };
+            } else {
+                throw new Error(response?.message || 'Không thể lấy danh sách bài viết admin');
+            }
+        } catch (err) {
+            setError(err.message || 'Không thể tải danh sách bài viết admin');
+            setBlogs([]);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    }, [pagination.currentPage, pagination.itemsPerPage]);
 
     // Clear error after 5 seconds
     useEffect(() => {
@@ -41,26 +70,42 @@ export const BlogProvider = ({ children }) => {
     }, [error]);
 
     /**
-     * Fetch blog statistics for admin
+     * Fetch blog statistics for admin only
      */
     const fetchStatistics = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
             
-            console.log('🔄 Fetching blog statistics...');
-            const response = await blogService.getBlogStatisticsAdmin();
+            console.log('🔄 Fetching admin blog statistics...');
+            // Lấy tất cả blog của admin để tính thống kê
+            const response = await blogService.getBlogsByRoleAdmin({ 
+                role: 'admin',
+                limit: 1000 // Lấy nhiều để đảm bảo có đủ dữ liệu tính thống kê
+            });
 
             if (response.success) {
-                setStatistics(response.data);
-                console.log('✅ Statistics loaded successfully:', response.data);
+                const blogs = Array.isArray(response.data) ? response.data : response.data?.blogs || [];
+                
+                // Tính số lượng theo từng trạng thái
+                const statistics = {
+                    total: blogs.length,
+                    draft: blogs.filter(blog => blog.status === 'draft').length,
+                    pending: blogs.filter(blog => blog.status === 'pending').length,
+                    published: blogs.filter(blog => blog.status === 'published').length,
+                    archived: blogs.filter(blog => blog.status === 'archived').length,
+                    rejected: blogs.filter(blog => blog.status === 'rejected').length
+                };
+                
+                setStatistics(statistics);
+                console.log('✅ Admin blog statistics loaded successfully:', statistics);
             } else {
-                throw new Error(response.message || 'Failed to fetch blog statistics');
+                throw new Error(response.message || 'Failed to fetch admin blog statistics');
             }
 
         } catch (err) {
-            console.error('❌ Error fetching blog statistics:', err);
-            setError(err.message || 'Không thể tải thống kê bài viết');
+            console.error('❌ Error fetching admin blog statistics:', err);
+            setError(err.message || 'Không thể tải thống kê bài viết admin');
             setStatistics(null);
         } finally {
             setLoading(false);
@@ -85,33 +130,31 @@ export const BlogProvider = ({ children }) => {
 
             let response;
 
-            // SỬA ĐOẠN NÀY: Đảm bảo endpoint đúng với backend
-            // Nếu backend KHÔNG có /blogs/admin thì dùng endpoint mặc định
-            // Ví dụ: nếu chỉ có /api/v1/blogs?adminView=true
+            // Nếu adminView=true, chỉ lấy blog của admin
             if (options.adminView) {
-                // response = await blogService.getAllBlogsAdmin(params);
-                response = await blogService.getPublishedBlogs({ ...params, adminView: true });
+                // Sử dụng getBlogsByRoleAdmin để chỉ lấy blog của admin
+                response = await blogService.getBlogsByRoleAdmin({ 
+                    ...params, 
+                    role: 'admin' 
+                });
             } else {
                 response = await blogService.getPublishedBlogs(params);
             }
 
             if (response?.success) {
-                const blogsData = response.data?.blogs || [];
-                const paginationData = response.data?.pagination || {};
-                
+                const blogsData = Array.isArray(response.data) ? response.data : response.data?.blogs || [];
+                const paginationData = response.pagination || response.data?.pagination || {};
                 console.log('🔍 Raw blogs data from API:', blogsData);
                 if (blogsData.length > 0) {
                     console.log('🔍 First blog structure:', blogsData[0]);
                     console.log('🔍 First blog keys:', Object.keys(blogsData[0]));
                 }
-                
                 setBlogs(blogsData);
                 setPagination(prev => ({
                     ...prev,
                     ...paginationData,
                     currentPage: params.page
                 }));
-                
                 console.log('✅ Blogs loaded successfully:', {
                     count: blogsData.length,
                     pagination: paginationData
@@ -140,7 +183,7 @@ export const BlogProvider = ({ children }) => {
     }, [pagination.currentPage, pagination.itemsPerPage]); // ⚠️ Có thể cần review dependencies này
 
     /**
-     * Fetch blogs by specific status
+     * Fetch blogs by specific status (admin only)
      */
     const fetchBlogsByStatus = useCallback(async (status, options = {}) => {
         try {
@@ -154,27 +197,28 @@ export const BlogProvider = ({ children }) => {
             const params = {
                 page: options.page || 1,
                 limit: options.limit || 10,
-                keyword: options.keyword || '', // ĐÚNG: dùng keyword
+                keyword: options.keyword || '', 
                 sortBy: options.sortBy || 'created_at',
-                sortOrder: options.sortOrder || 'desc'
+                sortOrder: options.sortOrder || 'desc',
+                role: 'admin', // Chỉ lấy blog của admin
+                status: status // Thêm status vào params
             };
 
-            console.log('🔄 Fetching blogs by status:', status, params);
+            console.log('🔄 Fetching admin blogs by status:', status, params);
 
-            const response = await blogService.getBlogsByStatusAdmin(status, params);
+            // Sử dụng getBlogsByRoleAdmin thay vì getBlogsByStatusAdmin để đảm bảo chỉ lấy blog của admin
+            const response = await blogService.getBlogsByRoleAdmin(params);
 
             if (response?.success) {
-                const blogsData = response.data?.blogs || [];
-                const paginationData = response.data?.pagination || {};
-                
+                const blogsData = Array.isArray(response.data) ? response.data : response.data?.blogs || [];
+                const paginationData = response.pagination || response.data?.pagination || {};
                 setBlogs(blogsData);
                 setPagination(prev => ({
                     ...prev,
                     ...paginationData,
                     currentPage: params.page
                 }));
-                
-                console.log('✅ Blogs by status loaded successfully:', {
+                console.log('✅ Admin blogs by status loaded successfully:', {
                     status,
                     count: blogsData.length,
                     pagination: paginationData
@@ -577,6 +621,47 @@ export const BlogProvider = ({ children }) => {
         setCurrentBlog(null);
     }, []);
 
+    // Thêm hàm getOwnerBlogs để lấy blog của hotel owner
+    const getOwnerBlogs = useCallback(async (options = {}) => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const params = {
+                page: options.page || 1,
+                limit: options.limit || 10,
+                status: options.status,
+                sortBy: options.sortBy || 'created_at',
+                sortOrder: options.sortOrder || 'desc'
+            };
+
+            console.log('🔄 Fetching owner blogs with params:', params);
+            const response = await blogService.getOwnerBlogs(params);
+
+            if (response?.success) {
+                const blogsData = Array.isArray(response.data) ? response.data : response.data?.blogs || [];
+                const paginationData = response.pagination || response.data?.pagination || {};
+                console.log('✅ Owner blogs loaded successfully:', blogsData);
+                setBlogs(blogsData);
+                setPagination(prev => ({
+                    ...prev,
+                    ...paginationData,
+                    currentPage: params.page
+                }));
+                return { blogs: blogsData, pagination: paginationData };
+            } else {
+                throw new Error(response?.message || 'Không thể lấy danh sách bài viết');
+            }
+        } catch (err) {
+            console.error('❌ Error fetching owner blogs:', err);
+            setError(err.message || 'Không thể tải danh sách bài viết của bạn');
+            setBlogs([]);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     // Thêm hàm searchBlogsByTitle vào BlogProvider
     const searchBlogsByTitle = useCallback(async (keyword, options = {}) => {
         try {
@@ -592,9 +677,8 @@ export const BlogProvider = ({ children }) => {
             const response = await blogService.searchBlogsByTitle(params);
 
             if (response?.success) {
-                const blogsData = response.data?.blogs || [];
-                const paginationData = response.data?.pagination || {};
-
+                const blogsData = Array.isArray(response.data) ? response.data : response.data?.blogs || [];
+                const paginationData = response.pagination || response.data?.pagination || {};
                 setBlogs(blogsData);
                 setPagination(prev => ({
                     ...prev,
@@ -612,6 +696,80 @@ export const BlogProvider = ({ children }) => {
         }
     }, []);
 
+    /**
+     * Fetch blogs by admin role (lọc theo role, phân trang, trạng thái)
+     */
+    const fetchBlogsByRole = useCallback(async (options = {}) => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const params = {
+                page: options.page || 1,
+                limit: options.limit || 10,
+                role: options.role,
+                status: options.status,
+                sortBy: options.sortBy || 'created_at',
+                sortOrder: options.sortOrder || 'desc'
+            };
+
+            const response = await blogService.getBlogsByRoleAdmin(params);
+
+            if (response?.success) {
+                const blogsData = Array.isArray(response.data) ? response.data : response.data?.blogs || [];
+                const paginationData = response.pagination || response.data?.pagination || {};
+                setBlogs(blogsData);
+                setPagination(prev => ({
+                    ...prev,
+                    ...paginationData,
+                    currentPage: params.page
+                }));
+            } else {
+                throw new Error(response?.message || 'Failed to fetch blogs by role');
+            }
+        } catch (err) {
+            setError(err.message || 'Không thể tải danh sách bài viết');
+            setBlogs([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Lấy blog theo authorId (admin)
+    const getBlogsByAuthorId = useCallback(async (authorId, options = {}) => {
+        try {
+            setLoading(true);
+            setError(null);
+            const params = {
+                page: options.page || 1,
+                limit: options.limit || 10,
+                status: options.status,
+                keyword: options.keyword || '',
+                sortBy: options.sortBy || 'created_at',
+                sortOrder: options.sortOrder || 'desc'
+            };
+            const response = await blogService.getBlogsByAuthorId(authorId, params);
+            if (response?.success) {
+                const blogsData = Array.isArray(response.data) ? response.data : response.data?.blogs || [];
+                const paginationData = response.pagination || response.data?.pagination || {};
+                setBlogs(blogsData);
+                setPagination(prev => ({
+                    ...prev,
+                    ...paginationData,
+                    currentPage: params.page
+                }));
+                return { blogs: blogsData, pagination: paginationData };
+            } else {
+                throw new Error(response?.message || 'Không thể lấy danh sách bài viết');
+            }
+        } catch (err) {
+            setError(err.message || 'Không thể tải danh sách bài viết của admin');
+            setBlogs([]);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
     // ✅ QUAN TRỌNG: Memoize context value để tránh re-render vô tận
     const value = useMemo(() => ({
         // States
@@ -623,22 +781,27 @@ export const BlogProvider = ({ children }) => {
         currentBlog,
 
         // Actions
-        fetchBlogs,
-        fetchBlogsByStatus,
-        fetchStatistics,
-        createBlog,
-        updateBlog,
-        deleteBlog,
-        getBlogById,
-        updateBlogStatus,
-        refreshBlogs,
-        updatePagination,
-        clearError,
-        setCurrentBlog,
-        clearCurrentBlog,
+    fetchBlogs,
+    fetchBlogsByStatus,
+    fetchStatistics,
+    createBlog,
+    updateBlog,
+    deleteBlog,
+    getBlogById,
+    updateBlogStatus,
+    refreshBlogs,
+    updatePagination,
+    clearError,
+    setCurrentBlog,
+    clearCurrentBlog,
+    getOwnerBlogs,
+    getAllBlogsAdmin,
 
-        // Thêm hàm tìm kiếm blog theo tiêu đề (không dấu)
-        searchBlogsByTitle,
+    // Thêm hàm tìm kiếm blog theo tiêu đề (không dấu)
+    searchBlogsByTitle,
+    // Thêm hàm lấy blog theo role admin
+    fetchBlogsByRole,
+    getBlogsByRoleAdmin: fetchBlogsByRole,
     }), [
         // ✅ QUAN TRỌNG: Dependencies chính xác
         blogs,
@@ -647,20 +810,23 @@ export const BlogProvider = ({ children }) => {
         statistics,
         pagination,
         currentBlog,
-        fetchBlogs,
-        fetchBlogsByStatus,
-        fetchStatistics,
-        createBlog,
-        updateBlog,
-        deleteBlog,
-        getBlogById,
-        updateBlogStatus,
-        refreshBlogs,
-        updatePagination,
-        clearError,
-        setCurrentBlog,
-        clearCurrentBlog,
-        searchBlogsByTitle,
+    fetchBlogs,
+    fetchBlogsByStatus,
+    fetchStatistics,
+    createBlog,
+    updateBlog,
+    deleteBlog,
+    getBlogById,
+    updateBlogStatus,
+    refreshBlogs,
+    updatePagination,
+    clearError,
+    setCurrentBlog,
+    clearCurrentBlog,
+    getOwnerBlogs,
+    getAllBlogsAdmin,
+    searchBlogsByTitle,
+    fetchBlogsByRole,
     ]);
 
     return (

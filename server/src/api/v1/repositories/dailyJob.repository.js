@@ -140,6 +140,84 @@ const autoApprovePromotions = async () => {
   return { rowCount: result.rowCount };
 };
 
+// Tạo các season đặc biệt cho năm hiện tại, bao gồm các ngày thứ 7 không trùng với season cố định
+const createDefaultSeasonsForYear = async (year) => {
+  // Các season cố định
+  const fixedSeasons = [
+    {
+      name: 'Tết Dương lịch',
+      start_date: `${year}-01-01`,
+      end_date: `${year}-01-01`,
+      description: 'Ngày 01 tháng 01 dương lịch',
+    },
+    {
+      name: 'Ngày Chiến thắng',
+      start_date: `${year}-04-30`,
+      end_date: `${year}-04-30`,
+      description: 'Ngày 30 tháng 4 dương lịch',
+    },
+    {
+      name: 'Ngày Quốc tế lao động',
+      start_date: `${year}-05-01`,
+      end_date: `${year}-05-01`,
+      description: 'Ngày 01 tháng 5 dương lịch',
+    },
+    {
+      name: 'Mùa hè',
+      start_date: `${year}-05-31`,
+      end_date: `${year}-09-05`,
+      description: 'Từ 31/5 đến 05/09',
+    },
+  ];
+
+  // Tạo set các ngày đã có trong fixedSeasons
+  const fixedDates = new Set();
+  fixedSeasons.forEach(s => {
+    // Nếu là mùa hè thì thêm tất cả các ngày trong khoảng
+    if (s.name === 'Mùa hè') {
+      const start = new Date(s.start_date);
+      const end = new Date(s.end_date);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        fixedDates.add(d.toISOString().slice(0, 10));
+      }
+    } else {
+      fixedDates.add(s.start_date);
+    }
+  });
+
+  // Tìm tất cả các ngày thứ 7 trong năm, loại trừ ngày đã có trong fixedDates
+  const saturdays = [];
+  const startOfYear = new Date(`${year}-01-01`);
+  const endOfYear = new Date(`${year}-12-31`);
+  for (let d = new Date(startOfYear); d <= endOfYear; d.setDate(d.getDate() + 1)) {
+    if (d.getDay() === 6) { // 6 = Saturday
+      const dateStr = d.toISOString().slice(0, 10);
+      if (!fixedDates.has(dateStr)) {
+        saturdays.push({
+          name: 'Thứ 7',
+          start_date: dateStr,
+          end_date: dateStr,
+          description: `Thứ 7 (${dateStr})`,
+        });
+      }
+    }
+  }
+
+  // Gộp tất cả season
+  const allSeasons = [...fixedSeasons, ...saturdays];
+
+  // Insert vào DB
+  if (allSeasons.length === 0) return [];
+  const values = allSeasons.map(s => `('${s.name}', '${s.start_date}', '${s.end_date}', ${year}, '${s.description}')`).join(',');
+  const query = `
+    INSERT INTO seasons (name, start_date, end_date, year, description)
+    VALUES ${values}
+    RETURNING *;
+  `;
+  const result = await pool.query(query);
+  return result.rows;
+};
+
 module.exports = {
   doJob,
   updateHotelStatusByContract,
@@ -152,5 +230,6 @@ module.exports = {
   updatePendingContractsToDraft,
   getPendingContractsOverDays,
   updatePromotionStatusByDate,
-  autoApprovePromotions
+  autoApprovePromotions,
+  createDefaultSeasonsForYear
 };

@@ -13,6 +13,9 @@ const router = express.Router();
 // GET /api/v1/seasons -> Lấy tất cả các mùa
 router.get('/', seasonController.getAllSeasons);
 
+// GET /api/v1/seasons/year/:year -> Lấy các mùa theo năm
+router.get('/year/:year', seasonController.getSeasonsByYear);
+
 // --- ADMIN-ONLY ROUTES ---
 // Các route dưới đây yêu cầu phải đăng nhập với vai trò 'admin'
 router.use(authenticate, authorize(['admin']));

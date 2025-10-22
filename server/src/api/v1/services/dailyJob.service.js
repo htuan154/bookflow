@@ -65,6 +65,11 @@ const autoApprovePromotions = async () => {
   };
 };
 
+// Tạo các season đặc biệt cho năm hiện tại
+const createDefaultSeasonsForYear = async (year) => {
+  return await dailyJobRepo.createDefaultSeasonsForYear(year);
+};
+
 module.exports = {
   updateHotelStatusByContract,
   updateExpiredContracts,
@@ -76,5 +81,6 @@ module.exports = {
   updatePendingContractsToDraft,
   getPendingContractsOverDays,
   updatePromotionStatusByDate,
-  autoApprovePromotions
+  autoApprovePromotions,
+  createDefaultSeasonsForYear
 };

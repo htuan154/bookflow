@@ -1,5 +1,5 @@
 // src/components/hotel_owner_contract/HotelOwnerContractTable.js
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { getContractStatusLabel } from '../../pages/hotel_owner/contract_management/ContractStatusUtils';
 // ...existing imports...
 // Component UI hiển thị danh sách thông báo hết hạn hợp đồng
@@ -48,6 +48,10 @@ const HotelOwnerContractTable = ({
   showActions,
   hotels = [],
 }) => {
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+
   // Kiểm tra dữ liệu hợp đồng trả về từ backend
   console.log('HotelOwnerContractTable contracts:', contracts);
 
@@ -70,6 +74,28 @@ const HotelOwnerContractTable = ({
     };
   });
 
+  // Calculate paginated data
+  const totalItems = contractsWithHotelName.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  
+  const paginatedContracts = useMemo(() => {
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    return contractsWithHotelName.slice(startIdx, startIdx + itemsPerPage);
+  }, [contractsWithHotelName, currentPage, itemsPerPage]);
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Reset to first page
+  };
+
   // Thông báo hết hạn hợp đồng, nhận qua props hoặc để trống nếu chưa có dữ liệu
   const notifications = [];
 
@@ -83,28 +109,28 @@ const HotelOwnerContractTable = ({
           <thead className="bg-gray-50">
             <tr>
               {/* Số hợp đồng */}
-              <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Số hợp đồng</th>
-              {/* Tiêu đề + mô tả */}
+              <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Số HĐ</th>
+              {/* Tiêu đề */}
               <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Tiêu đề</th>
-              {/* Loại hợp đồng */}
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Loại hợp đồng</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Khách sạn ID</th>
+              {/* Tên khách sạn */}
               <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Tên khách sạn</th>
-              <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Giá trị</th>
-              <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Loại tiền</th>
+              {/* Thời gian */}
               <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Thời gian</th>
+              {/* Trạng thái */}
               <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Trạng thái</th>
+              {/* Ngày tạo */}
               <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Ngày tạo</th>
-              <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">File hợp đồng</th>
+              {/* File hợp đồng */}
+              <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">File</th>
               {showActions && (
                 <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Thao tác</th>
               )}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
-            {contractsWithHotelName.length === 0 ? (
+            {paginatedContracts.length === 0 ? (
               <tr>
-                <td colSpan={showActions ? 9 : 8} className="px-6 py-16 text-center text-gray-500">
+                <td colSpan={showActions ? 8 : 7} className="px-6 py-16 text-center text-gray-500">
                   <div className="flex flex-col items-center">
                     <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
                       <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,51 +145,24 @@ const HotelOwnerContractTable = ({
                 </td>
               </tr>
             ) : (
-              contractsWithHotelName.map((contract, index) => (
+              paginatedContracts.map((contract, index) => (
                 <tr key={contract.contractId} className={`hover:bg-gradient-to-r hover:from-orange-50 hover:to-orange-100 transition-all duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                   {/* Số hợp đồng */}
                   <td className="px-6 py-5 whitespace-nowrap">
-                    <div className="text-sm font-bold text-gray-900 mb-1">
+                    <div className="text-sm font-bold text-gray-900">
                       {contract.contractNumber}
                     </div>
                   </td>
-                  {/* Tiêu đề + mô tả */}
+                  {/* Tiêu đề */}
                   <td className="px-6 py-5">
-                    <div className="text-sm font-semibold text-gray-900 max-w-xs truncate mb-1">
+                    <div className="text-sm font-semibold text-gray-900 max-w-xs truncate">
                       {contract.title}
-                    </div>
-                    <div className="text-xs text-gray-600 max-w-xs truncate">
-                      {contract.description}
-                    </div>
-                  </td>
-                  {/* Loại hợp đồng */}
-                  <td className="px-6 py-5 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {contract.contractType}
-                    </div>
-                  </td>
-                  {/* Khách sạn ID */}
-                  <td className="px-6 py-5 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 bg-orange-50 px-3 py-1 rounded-lg inline-block">
-                      {contract.hotelId || contract.hotel_id || 'N/A'}
                     </div>
                   </td>
                   {/* Tên khách sạn */}
                   <td className="px-6 py-5 whitespace-nowrap">
                     <div className="text-sm font-semibold text-gray-900">
                       {contract.hotelName}
-                    </div>
-                  </td>
-                  {/* Giá trị */}
-                  <td className="px-6 py-5 whitespace-nowrap">
-                    <div className="text-sm font-bold text-emerald-700">
-                      {contract.contractValue} ₫
-                    </div>
-                  </td>
-                  {/* Loại tiền */}
-                  <td className="px-6 py-5 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {contract.currency}
                     </div>
                   </td>
                   {/* Thời gian */}
@@ -199,7 +198,7 @@ const HotelOwnerContractTable = ({
                         Tải file
                       </a>
                     ) : (
-                      <span className="text-xs text-gray-400">Chưa có</span>
+                      <span className="text-xs text-gray-400">Không có</span>
                     )}
                   </td>
                   {/* Thao tác */}
@@ -214,7 +213,7 @@ const HotelOwnerContractTable = ({
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                           </svg>
-                          Xem
+                          
                         </button>
                         {contract.permissions?.canEdit && (
                           <button
@@ -224,7 +223,7 @@ const HotelOwnerContractTable = ({
                             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
-                            Sửa
+                        
                           </button>
                         )}
                         {contract.permissions?.canDelete && (
@@ -235,7 +234,7 @@ const HotelOwnerContractTable = ({
                             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
-                            Xóa
+                            
                           </button>
                         )}
                         {contract.permissions?.canSendForApproval && (
@@ -246,7 +245,7 @@ const HotelOwnerContractTable = ({
                             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                             </svg>
-                            Gửi duyệt
+                            
                           </button>
                         )}
                       </div>
@@ -258,6 +257,125 @@ const HotelOwnerContractTable = ({
           </tbody>
         </table>
       </div>
+      
+      {/* Pagination */}
+      {totalItems > 0 && (
+        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Trước
+            </button>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Tiếp
+            </button>
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-700">
+                Hiển thị {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)}-{Math.min(currentPage * itemsPerPage, totalItems)} trong tổng số {totalItems} hợp đồng
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">Hiển thị:</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm"
+                >
+                  <option value={5}>5 mục</option>
+                  <option value={10}>10 mục</option>
+                  <option value={20}>20 mục</option>
+                  <option value={50}>50 mục</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                &lt;&lt;
+              </button>
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+              Trước
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                        currentPage === pageNum
+                          ? 'z-10 bg-blue-600 border-blue-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Tiếp
+              </button>
+              <button
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+                className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                &gt;&gt;
+              </button>
+              
+              <div className="flex items-center gap-2 ml-4">
+                <span className="text-sm text-gray-700">Đến trang:</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={totalPages}
+                  value={currentPage}
+                  onChange={(e) => {
+                    const page = Number(e.target.value);
+                    if (page >= 1 && page <= totalPages) {
+                      handlePageChange(page);
+                    }
+                  }}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm w-16 text-center"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

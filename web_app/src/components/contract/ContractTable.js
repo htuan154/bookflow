@@ -39,15 +39,19 @@ const ContractTable = ({
     const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
     const [editingContract, setEditingContract] = useState(null);
     const [editFormData, setEditFormData] = useState({});
+    
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
-    // Status tabs with improved styling (removed 'draft' status from UI)
-    const statusTabs = [
-        { key: 'ALL', label: 'Tất cả', count: contracts.filter(c => c.status !== 'draft').length, color: 'orange' },
-        { key: 'pending', label: 'Chờ duyệt', count: contracts.filter(c => c.status === 'pending').length, color: 'yellow' },
-        { key: 'active', label: 'Đang hiệu lực', count: contracts.filter(c => c.status === 'active').length, color: 'green' },
-        { key: 'expired', label: 'Hết hạn', count: contracts.filter(c => c.status === 'expired').length, color: 'orange' },
-        { key: 'terminated', label: 'Đã chấm dứt', count: contracts.filter(c => c.status === 'terminated').length, color: 'red' },
-        { key: 'cancelled', label: 'Đã hủy', count: contracts.filter(c => c.status === 'cancelled').length, color: 'red' },
+    // Status options for dropdown filter
+    const statusOptions = [
+        { key: 'ALL', label: 'Tất cả' },
+        { key: 'pending', label: 'Chờ duyệt' },
+        { key: 'active', label: 'Đang hiệu lực' },
+        { key: 'expired', label: 'Hết hạn' },
+        { key: 'terminated', label: 'Đã chấm dứt' },
+        { key: 'cancelled', label: 'Đã hủy' },
     ];
 
     // Filter contracts based on current tab and search
@@ -90,6 +94,41 @@ const ContractTable = ({
         return filtered;
     }, [contracts, currentTab, searchTerm, sortConfig]);
 
+    // Calculate pagination data
+    const totalItems = filteredContracts.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    
+    // Get current page data
+    const paginatedContracts = useMemo(() => {
+        const startIdx = (currentPage - 1) * itemsPerPage;
+        return filteredContracts.slice(startIdx, startIdx + itemsPerPage);
+    }, [filteredContracts, currentPage, itemsPerPage]);
+
+    // Handle page change
+    const handlePageChange = (page) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+
+    // Handle items per page change
+    const handleItemsPerPageChange = (newItemsPerPage) => {
+        setItemsPerPage(newItemsPerPage);
+        setCurrentPage(1); // Reset to first page
+    };
+
+    // Handle tab change
+    const handleTabChange = (tab) => {
+        setCurrentTab(tab);
+        setCurrentPage(1); // Reset to first page when changing filter
+    };
+
+    // Handle search change
+    const handleSearchChange = (term) => {
+        setSearchTerm(term);
+        setCurrentPage(1); // Reset to first page when searching
+    };
+
     // Handle sort
     const handleSort = (key) => {
         setSortConfig(prevConfig => ({
@@ -98,10 +137,10 @@ const ContractTable = ({
         }));
     };
 
-    // Handle select all
+    // Handle select all contracts
     const handleSelectAll = (checked) => {
         if (checked) {
-            setSelectedContracts(filteredContracts.map(c => c.contractId));
+            setSelectedContracts(paginatedContracts.map(c => c.contractId));
         } else {
             setSelectedContracts([]);
         }
@@ -336,32 +375,23 @@ const ContractTable = ({
 
     return (
         <div className="bg-white shadow-xl rounded-xl border border-gray-100 overflow-hidden">
-            {/* Header with tabs and search */}
+            {/* Header with status filter and search */}
             <div className="bg-gradient-to-r from-slate-50 to-gray-50 px-6 py-5 border-b border-gray-200">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-                    {/* Status Tabs */}
-                    <nav className="flex space-x-1 overflow-x-auto">
-                        {statusTabs.map((tab) => (
-                            <button
-                                key={tab.key}
-                                onClick={() => setCurrentTab(tab.key)}
-                                className={`relative whitespace-nowrap px-4 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
-                                    currentTab === tab.key
-                                        ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/25 transform scale-105'
-                                        : 'text-gray-600 hover:text-gray-800 hover:bg-white hover:shadow-md'
-                                }`}
-                            >
-                                {tab.label}
-                                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${
-                                    currentTab === tab.key 
-                                        ? 'bg-white/20 text-white' 
-                                        : 'bg-gray-100 text-gray-700'
-                                }`}>
-                                    {tab.count}
-                                </span>
-                            </button>
-                        ))}
-                    </nav>
+                    {/* Status Filter Dropdown */}
+                    <div className="flex items-center mb-2">
+                        <label htmlFor="statusFilter" className="mr-2 font-medium">Trạng thái:</label>
+                        <select
+                            id="statusFilter"
+                            value={currentTab}
+                            onChange={e => handleTabChange(e.target.value)}
+                            className="border rounded px-3 py-1 focus:outline-none focus:ring"
+                        >
+                            {statusOptions.map(option => (
+                                <option key={option.key} value={option.key}>{option.label}</option>
+                            ))}
+                        </select>
+                    </div>
 
                     {/* Search with enhanced styling */}
                     <div className="flex-1 max-w-lg">
@@ -375,7 +405,7 @@ const ContractTable = ({
                                 type="text"
                                 placeholder="Tìm kiếm theo số hợp đồng, tiêu đề..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                                 className="block w-full pl-12 pr-4 py-3 border-0 rounded-lg bg-white shadow-sm ring-1 ring-gray-200 placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:bg-white text-sm transition-all duration-200"
                             />
                         </div>
@@ -438,7 +468,7 @@ const ContractTable = ({
                             <th scope="col" className="px-6 py-4 text-left">
                                 <input
                                     type="checkbox"
-                                    checked={selectedContracts.length === filteredContracts.length && filteredContracts.length > 0}
+                                    checked={selectedContracts.length === paginatedContracts.length && paginatedContracts.length > 0}
                                     onChange={(e) => handleSelectAll(e.target.checked)}
                                     className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
                                 />
@@ -448,12 +478,7 @@ const ContractTable = ({
                                 className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors duration-200"
                                 onClick={() => handleSort('contractNumber')}
                             >
-                                <div className="flex items-center space-x-2">
-                                    <span>Số hợp đồng</span>
-                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                                    </svg>
-                                </div>
+                                Số HĐ
                             </th>
                             <th 
                                 scope="col" 
@@ -467,13 +492,6 @@ const ContractTable = ({
                                 className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider"
                             >
                                 Khách sạn
-                            </th>
-                            <th 
-                                scope="col" 
-                                className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors duration-200"
-                                onClick={() => handleSort('contractValue')}
-                            >
-                                Giá trị
                             </th>
                             <th 
                                 scope="col" 
@@ -496,6 +514,12 @@ const ContractTable = ({
                             >
                                 Ngày tạo
                             </th>
+                            <th 
+                                scope="col" 
+                                className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider"
+                            >
+                                File
+                            </th>
                             {showActions && (
                                 <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                                     Thao tác
@@ -506,7 +530,7 @@ const ContractTable = ({
                     <tbody className="bg-white divide-y divide-gray-100">
                         {filteredContracts.length === 0 ? (
                             <tr>
-                                <td colSpan={showActions ? 9 : 8} className="px-6 py-16 text-center text-gray-500">
+                                <td colSpan={showActions ? 8 : 7} className="px-6 py-16 text-center text-gray-500">
                                     <div className="flex flex-col items-center">
                                         <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
                                             <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -521,7 +545,7 @@ const ContractTable = ({
                                 </td>
                             </tr>
                         ) : (
-                            filteredContracts.map((contract, index) => {
+                            paginatedContracts.map((contract, index) => {
                                 // Debug: log chi tiết contract để kiểm tra dữ liệu
                                 console.log('=== CONTRACT DEBUG ===');
                                 console.log('Full contract object:', contract);
@@ -543,37 +567,25 @@ const ContractTable = ({
                                         />
                                     </td>
                                     <td className="px-6 py-5 whitespace-nowrap">
-                                        <div className="text-sm font-bold text-gray-900 mb-1">
+                                        <div className="text-sm font-bold text-gray-900">
                                             {contract.contractNumber}
-                                        </div>
-                                        <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md inline-block">
-                                            {contract.contractType}
                                         </div>
                                     </td>
                                     <td className="px-6 py-5">
-                                        <div className="text-sm font-semibold text-gray-900 max-w-xs truncate mb-1">
+                                        <div className="text-sm font-semibold text-gray-900 max-w-xs truncate">
                                             {contract.title}
                                         </div>
-                                        <div className="text-xs text-gray-600 max-w-xs truncate">
-                                            {contract.description}
+                                    </td>
+                                    <td className="px-6 py-5 whitespace-nowrap">
+                                        <div className="text-sm font-medium text-gray-900">
+                                            {contract.hotelName || contract.hotelId || 'N/A'}
                                         </div>
                                     </td>
                                     <td className="px-6 py-5 whitespace-nowrap">
-                                        <div className="text-sm font-medium text-gray-900 bg-orange-50 px-3 py-1 rounded-lg inline-block">
-                                            {contract.hotelId || 'N/A'}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5 whitespace-nowrap">
-                                        <div className="text-sm font-bold text-emerald-700">
-                                            {formatCurrency(contract.contractValue, contract.currency)}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900 font-medium">
-                                            {formatDate(contract.startDate)}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                            đến {formatDate(contract.endDate)}
+                                        <div className="text-sm text-gray-900">
+                                            {contract.startDate && contract.endDate 
+                                                ? `${formatDate(contract.startDate)} - ${formatDate(contract.endDate)}`
+                                                : '-'}
                                         </div>
                                     </td>
                                     <td className="px-6 py-5 whitespace-nowrap">
@@ -581,55 +593,23 @@ const ContractTable = ({
                                     </td>
                                     <td className="px-6 py-5 whitespace-nowrap">
                                         <div className="text-sm text-gray-900 font-medium">
-                                            {(() => {
-                                                // Tìm tất cả các trường có thể chứa ngày tạo
-                                                const possibleDateFields = [
-                                                    'createdAt', 'created_at', 'created_date', 
-                                                    'createDate', 'dateCreated', 'timestamp',
-                                                    'createdAtSupabase', 'date_created',
-                                                    'creation_date', 'created_time'
-                                                ];
-                                                
-                                                console.log(`=== Contract ${contract.contractId || contract.contract_id} date debug ===`);
-                                                console.log('Full contract object:', contract);
-                                                console.log('All contract keys:', Object.keys(contract));
-                                                
-                                                const dateFieldsFound = {};
-                                                possibleDateFields.forEach(field => {
-                                                    if (contract.hasOwnProperty(field)) {
-                                                        dateFieldsFound[field] = contract[field];
-                                                    }
-                                                });
-                                                
-                                                console.log('Date fields found:', dateFieldsFound);
-                                                
-                                                // Tìm trường đầu tiên có giá trị
-                                                let dateValue = null;
-                                                let fieldUsed = null;
-                                                
-                                                for (const field of possibleDateFields) {
-                                                    if (contract[field] && 
-                                                        contract[field] !== null && 
-                                                        contract[field] !== undefined &&
-                                                        contract[field] !== 'null' &&
-                                                        contract[field] !== '') {
-                                                        dateValue = contract[field];
-                                                        fieldUsed = field;
-                                                        console.log(`✅ Using date field '${field}' with value:`, dateValue);
-                                                        break;
-                                                    }
-                                                }
-                                                
-                                                if (!dateValue) {
-                                                    console.log('❌ No valid date field found for contract:', contract.contractId || contract.contract_id);
-                                                    console.log('Available fields:', Object.keys(contract));
-                                                    return 'Không có ngày';
-                                                }
-                                                
-                                                const result = formatDate(dateValue);
-                                                console.log(`Final result for field '${fieldUsed}':`, result);
-                                                return result;
-                                            })()}
+                                            {formatDate(contract.createdAt || contract.created_at)}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-5 whitespace-nowrap">
+                                        <div className="text-sm text-gray-900">
+                                            {contract.fileUrl ? (
+                                                <a 
+                                                    href={contract.fileUrl} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-600 hover:text-blue-800 underline"
+                                                >
+                                                    Tải file
+                                                </a>
+                                            ) : (
+                                                <span className="text-gray-500">Không có</span>
+                                            )}
                                         </div>
                                     </td>
                                     {showActions && (
@@ -644,7 +624,7 @@ const ContractTable = ({
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                                         </svg>
-                                                        Xem
+                                                        
                                                     </button>
                                                 ) : (
                                                     <>
@@ -656,7 +636,7 @@ const ContractTable = ({
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                                             </svg>
-                                                            Xem
+                                                            
                                                         </button>
                                                         {contract.status === 'active' && (
                                                             <button
@@ -666,7 +646,7 @@ const ContractTable = ({
                                                                 <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                                 </svg>
-                                                                Sửa
+                                                               
                                                             </button>
                                                         )}
                                                     </>
@@ -683,16 +663,24 @@ const ContractTable = ({
             </div>
 
             {/* Enhanced Pagination */}
-            {filteredContracts.length > 0 && (
+            {totalItems > 0 && (
                 <div className="bg-gradient-to-r from-gray-50 to-slate-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
                     <div className="flex-1 flex justify-between sm:hidden">
-                        <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 shadow-sm transition-all duration-200">
+                        <button 
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                             </svg>
                             Trước
                         </button>
-                        <button className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 shadow-sm transition-all duration-200">
+                        <button 
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             Sau
                             <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -700,34 +688,100 @@ const ContractTable = ({
                         </button>
                     </div>
                     <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                        <div className="flex items-center">
-                            <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mr-3">
-                                <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                                </svg>
+                        <div className="flex items-center gap-4">
+                            <div className="text-sm text-gray-700">
+                                Hiển thị {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)}-{Math.min(currentPage * itemsPerPage, totalItems)} trong tổng số {totalItems} kết quả
                             </div>
-                            <p className="text-sm font-medium text-gray-700">
-                                Hiển thị <span className="font-bold text-orange-600">1</span> đến <span className="font-bold text-orange-600">{filteredContracts.length}</span> trong tổng số <span className="font-bold text-orange-600">{filteredContracts.length}</span> kết quả
-                            </p>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-700">Hiển thị:</span>
+                                <select
+                                    value={itemsPerPage}
+                                    onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                                    className="border border-gray-300 rounded px-2 py-1 text-sm"
+                                >
+                                    <option value={5}>5 mục</option>
+                                    <option value={10}>10 mục</option>
+                                    <option value={15}>15 mục</option>
+                                    <option value={20}>20 mục</option>
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <nav className="relative z-0 inline-flex rounded-lg shadow-sm -space-x-px" aria-label="Pagination">
-                                <button className="relative inline-flex items-center px-3 py-2 rounded-l-lg border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200">
-                                    <span className="sr-only">Previous</span>
-                                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                </button>
-                                <button className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-orange-600 text-sm font-bold text-white hover:bg-orange-700 transition-all duration-200">
-                                    1
-                                </button>
-                                <button className="relative inline-flex items-center px-3 py-2 rounded-r-lg border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200">
-                                    <span className="sr-only">Next</span>
-                                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                                    </svg>
-                                </button>
-                            </nav>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => handlePageChange(1)}
+                                disabled={currentPage === 1}
+                                className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                &lt;&lt;
+                            </button>
+                            <button
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Trước
+                            </button>
+                            
+                            <div className="flex items-center gap-1">
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                    let pageNum;
+                                    if (totalPages <= 5) {
+                                        pageNum = i + 1;
+                                    } else if (currentPage <= 3) {
+                                        pageNum = i + 1;
+                                    } else if (currentPage >= totalPages - 2) {
+                                        pageNum = totalPages - 4 + i;
+                                    } else {
+                                        pageNum = currentPage - 2 + i;
+                                    }
+                                    
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => handlePageChange(pageNum)}
+                                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                                currentPage === pageNum
+                                                    ? 'z-10 bg-orange-600 border-orange-600 text-white'
+                                                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            
+                            <button
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Tiếp
+                            </button>
+                            <button
+                                onClick={() => handlePageChange(totalPages)}
+                                disabled={currentPage === totalPages}
+                                className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                &gt;&gt;
+                            </button>
+                            
+                            <div className="flex items-center gap-2 ml-4">
+                                <span className="text-sm text-gray-700">Đến trang:</span>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max={totalPages}
+                                    value={currentPage}
+                                    onChange={(e) => {
+                                        const page = Number(e.target.value);
+                                        if (page >= 1 && page <= totalPages) {
+                                            handlePageChange(page);
+                                        }
+                                    }}
+                                    className="border border-gray-300 rounded px-2 py-1 text-sm w-16 text-center"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

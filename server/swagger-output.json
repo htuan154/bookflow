@@ -1529,6 +1529,31 @@
             "description": ""
           }
         }
+      },
+      "patch": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
       }
     },
     "/api/v1/bookings/user/{userId}": {
@@ -1649,6 +1674,54 @@
         "responses": {
           "default": {
             "description": ""
+          }
+        }
+      },
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "old_status": {
+                    "example": "any"
+                  },
+                  "new_status": {
+                    "example": "any"
+                  },
+                  "change_reason": {
+                    "example": "any"
+                  },
+                  "notes": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1773,6 +1846,26 @@
         }
       }
     },
+    "/api/v1/seasons/year/{year}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/seasons/{id}": {
       "put": {
         "description": "",
@@ -1832,6 +1925,59 @@
           {
             "name": "authorization",
             "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/seasonal-pricings/bulk": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/seasonal-pricings/available/{roomTypeId}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "roomTypeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -2939,6 +3085,93 @@
         }
       }
     },
+    "/api/v1/blogs/hotel-owner/blogs": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/blogs/admin/blogs/by-role": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "adminRole",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/blogs/": {
       "get": {
         "description": "",
@@ -2962,6 +3195,20 @@
         "responses": {
           "default": {
             "description": ""
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -6023,6 +6270,9 @@
           },
           "400": {
             "description": "Bad Request"
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       }
@@ -6118,6 +6368,185 @@
           },
           "403": {
             "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/vietqr/bookings/{bookingId}/payments/qr": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/vietqr/hotels/{hotelId}/payments/qr": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bookingId": {
+                    "example": "any"
+                  },
+                  "amount": {
+                    "example": "any"
+                  },
+                  "note": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vietqr/payments/{txRef}/status": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "txRef",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/v1/vietqr/webhooks/vietqr": {
+      "post": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tx_ref": {
+                    "example": "any"
+                  },
+                  "amount": {
+                    "example": "any"
+                  },
+                  "paid_at": {
+                    "example": "any"
+                  },
+                  "provider_tx_id": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vietqr/payments/update-status": {
+      "patch": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "paymentId": {
+                    "example": "any"
+                  },
+                  "txRef": {
+                    "example": "any"
+                  },
+                  "status": {
+                    "example": "any"
+                  },
+                  "paidAt": {
+                    "example": "any"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -6334,6 +6763,16 @@
       }
     },
     "/api/v1/dailyjob/auto-approve-promotions": {
+      "post": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/dailyjob/create-default-seasons": {
       "post": {
         "description": "",
         "responses": {

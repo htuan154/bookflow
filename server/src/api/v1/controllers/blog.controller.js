@@ -14,7 +14,8 @@ class BlogController {
         try {
             const authorId = req.user.id;
             const newBlog = await BlogService.createBlog(req.body, authorId);
-            successResponse(res, newBlog, 'Blog created successfully as a draft', 201);
+            const statusMessage = req.body.status === 'published' ? 'published' : 'draft';// sửa ngày 30/9
+            successResponse(res, newBlog, `Blog created successfully as ${statusMessage}`, 201);
         } catch (error) {
             next(error);
         }
@@ -257,7 +258,46 @@ async searchBlogs(req, res, next) {
        }
    }
 
-    
+    // Thêm ngày 4/10/2025
+    /**
+     * Lấy danh sách blog của chủ khách sạn đang đăng nhập
+     * GET /api/v1/hotel-owner/blogs
+     */
+    async getOwnerBlogs(req, res, next) {
+        try {
+            const authorId = req.user.id; // Lấy từ middleware xác thực
+            const { page = 1, limit = 10, status } = req.query;
+            const options = {
+                page: parseInt(page, 10) || 1,
+                limit: parseInt(limit, 10) || 10,
+                status
+            };
+            const result = await BlogService.getBlogsByAuthor(authorId, options);
+            res.status(200).json(result);
+        } catch (error) {
+            next(error);
+        }
+    }
+    /**
+     * thêm vào ngày 9/10/2025
+     * Lấy danh sách blog do admin đăng (lọc theo role, phân trang, trạng thái)
+     * GET /api/v1/admin/blogs/by-role
+     */
+    async getAdminBlogsByRole(req, res, next) {
+        try {
+            const {
+                page = 1,
+                limit = 10,
+                status, // không mặc định 'published', nếu FE không truyền sẽ là undefined
+                adminRole = 'admin'
+            } = req.query;
+
+            const result = await BlogService.getAdminBlogs({ page, limit, status, adminRole });
+            res.status(200).json(result);
+        } catch (error) {
+            next(error);
+        }
+    }
 
 }
 

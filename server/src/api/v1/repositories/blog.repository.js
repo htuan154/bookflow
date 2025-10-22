@@ -382,7 +382,71 @@ const searchByTitleSimple = async (keyword, limit = 10, offset = 0, status) => {
         commentCount: parseInt(row.comment_count, 10) || 0
     }));
 };
-
+//Tôi vừa mới thêm vào lúc 10h43 ngày 04/10/2025 hàm lấy blog đúng theo chủ khách sạn đó 
+/**
+ * Lấy danh sách blog theo author_id (có phân trang, tuỳ chọn status)
+ * @param {string} authorId - ID của tác giả (chủ khách sạn)
+ * @param {object} options - { limit, offset, status }
+ * @returns {Promise<{blogs: Blog[], total: number}>}
+ */
+const findByAuthorId = async (authorId, options = {}) => {
+    const { limit = 10, offset = 0, status } = options;
+    let whereClause = 'WHERE author_id = $1';
+    const params = [authorId];
+    if (status) {
+        whereClause += ' AND status = $2';
+        params.push(status);
+    }
+    const limitParamIndex = params.length + 1;
+    const offsetParamIndex = params.length + 2;
+    const blogsQuery = `
+        SELECT * FROM blogs
+        ${whereClause}
+        ORDER BY created_at DESC
+        LIMIT $${limitParamIndex}::int OFFSET $${offsetParamIndex}::int
+    `;
+    const countQuery = `
+        SELECT COUNT(*) as total FROM blogs
+        ${whereClause}
+    `;
+    const queryParams = [...params, parseInt(limit), parseInt(offset)];
+    const [blogsResult, countResult] = await Promise.all([
+        pool.query(blogsQuery, queryParams),
+        pool.query(countQuery, params)
+    ]);
+    const blogs = blogsResult.rows.map(row => new Blog(row));
+    const total = parseInt(countResult.rows[0].total);
+    return { blogs, total };
+};
+/**
+ * Lấy các blog do admin đăng (không hardcode role, truyền role qua tham số)
+ * @param {number} limit
+ * @param {number} offset
+ * @param {string} status
+ * @param {string} adminRole - role của admin, mặc định là 'admin'
+ * @returns {Promise<Blog[]>}
+ */
+const findAdminBlogs = async (limit = 10, offset = 0, status, adminRole = 'admin') => {
+    let whereClause = `WHERE r.role_name = $1`;
+    const params = [adminRole];
+    if (status) {
+        whereClause += ' AND b.status = $2';
+        params.push(status);
+    }
+    const limitParamIndex = params.length + 1;
+    const offsetParamIndex = params.length + 2;
+    const query = `
+        SELECT b.*
+        FROM blogs b
+        JOIN users u ON b.author_id = u.user_id
+        JOIN roles r ON u.role_id = r.role_id
+        ${whereClause}
+        ORDER BY b.created_at DESC
+        LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}
+    `;
+    const result = await pool.query(query, [...params, limit, offset]);
+    return result.rows.map(row => new Blog(row));
+};
 
 module.exports = {
     create,
@@ -399,4 +463,6 @@ module.exports = {
     updateStatus, // Thêm function mới
     searchByTitleSimple, // Thêm export hàm đơn giản này
     findBlogsWithStatsByStatus
+    ,findByAuthorId // Thêm export hàm mới ngày 4/10/2025
+    ,findAdminBlogs // Export hàm lấy blog do admin đăng thêm ngày 9/10
 };

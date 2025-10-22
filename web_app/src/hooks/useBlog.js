@@ -285,6 +285,36 @@ const useBlog = () => {
         }
     }, [clearLocalError, setError]);
 
+    // Get owner blogs (chỉ lấy blog của hotel owner đang đăng nhập)
+    const getOwnerBlogs = useCallback(async (params = {}) => {
+        try {
+            setLocalLoading(true);
+            clearLocalError();
+            
+            return await blogContext.getOwnerBlogs(params);
+        } catch (error) {
+            setError(error.message);
+            throw error;
+        } finally {
+            setLocalLoading(false);
+        }
+    }, [blogContext, clearLocalError, setError]);
+
+    // Get blogs by role for admin
+    const getBlogsByRole = useCallback(async (role, params = {}) => {
+        try {
+            setLocalLoading(true);
+            clearLocalError();
+            
+            await blogContext.fetchBlogsByRole(role, params);
+        } catch (error) {
+            setError(error.message);
+            throw error;
+        } finally {
+            setLocalLoading(false);
+        }
+    }, [blogContext, clearLocalError, setError]);
+
     // Create blog
     const createBlog = useCallback(async (blogData) => {
         try {
@@ -565,6 +595,8 @@ const useBlog = () => {
         searchBlogs,
         getPopularBlogs,
         getRecentBlogs,
+        getOwnerBlogs,
+        getBlogsByRole,
 
         // Bulk operations
         bulkApproveBlog,

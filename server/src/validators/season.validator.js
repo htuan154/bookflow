@@ -13,7 +13,7 @@ const createSeasonSchema = Joi.object({
         'any.required': `"Tên mùa" là trường bắt buộc`
     }),
     start_date: Joi.date().iso().required(),
-    end_date: Joi.date().iso().greater(Joi.ref('start_date')).required(),
+    end_date: Joi.date().iso().min(Joi.ref('start_date')).required(),
     year: Joi.number().integer().min(2020).required(),
     description: Joi.string().allow('').max(1000)
 });
@@ -24,7 +24,7 @@ const createSeasonSchema = Joi.object({
 const updateSeasonSchema = Joi.object({
     name: Joi.string().min(3).max(255),
     start_date: Joi.date().iso(),
-    end_date: Joi.date().iso().greater(Joi.ref('start_date')),
+    end_date: Joi.date().iso().min(Joi.ref('start_date')),
     year: Joi.number().integer().min(2020),
     description: Joi.string().allow('').max(1000)
 }).min(1); // Yêu cầu có ít nhất một trường để cập nhật

@@ -165,6 +165,7 @@ function filterDocByProvince(doc, target) {
 
 
   const isForeign = (name) => {
+    if (!name) return false; // Safety check
     const s = norm(name);
     for (const o of others) {
       if (s.includes(o)) return true;                    // chứa tên tỉnh khác
@@ -176,9 +177,23 @@ function filterDocByProvince(doc, target) {
 
   return {
     ...doc,
-    places: (doc.places || []).filter(p => !isForeign(p.name)),
-    dishes: (doc.dishes || []).filter(d => !isForeign(d.name)),
-    tips:   (doc.tips || []).filter(t => typeof t === 'string' ? !isForeign(t) : true),
+    places: (doc.places || [])
+      .filter(p => p && (typeof p === 'string' || p.name)) // Ensure valid item
+      .filter(p => {
+        const name = typeof p === 'string' ? p : p.name;
+        return !isForeign(name);
+      }),
+    dishes: (doc.dishes || [])
+      .filter(d => d && (typeof d === 'string' || d.name)) // Ensure valid item
+      .filter(d => {
+        const name = typeof d === 'string' ? d : d.name;
+        return !isForeign(name);
+      }),
+    tips: (doc.tips || []).filter(t => {
+      if (typeof t === 'string') return !isForeign(t);
+      if (t && t.name) return !isForeign(t.name);
+      return true; // Keep non-string tips without name
+    }),
   };
 }
 
@@ -707,7 +722,14 @@ if (typeof sameProvince !== 'function') {
 if (typeof extractProvinceDoc !== 'function') {
   const _asArray = x => (Array.isArray(x) ? x : []);
   const _toNameItems = arr =>
-    _asArray(arr).map(i => (typeof i === 'string' ? { name: i } : i)).filter(Boolean);
+    _asArray(arr)
+      .map(i => {
+        if (!i) return null; // null/undefined
+        if (typeof i === 'string') return { name: i };
+        if (typeof i === 'object' && i.name) return i; // Already has .name
+        return null; // Invalid object without .name
+      })
+      .filter(Boolean);
 
   const uniqBy = (arr, keyFn) => {
     const seen = new Set();
@@ -723,23 +745,30 @@ if (typeof extractProvinceDoc !== 'function') {
   function extractProvinceDoc(raw) {
     if (!raw) return null;
 
-    // giữ bản gốc để fallback nếu lọc hết
-    const rawPlaces = _toNameItems(
-      raw.places || raw.pois || raw.locations || raw.sites || raw['dia_danh'] || raw['địa_danh']
-    );
-    const rawDishes = _toNameItems(
-      raw.dishes || raw.foods || raw.specialties || raw.specialities || raw['mon_an'] || raw['món_ăn']
-    );
-    const rawTips = _asArray(raw.tips);
+    try {
+      // giữ bản gốc để fallback nếu lọc hết
+      const rawPlaces = _toNameItems(
+        raw.places || raw.pois || raw.locations || raw.sites || raw['dia_danh'] || raw['địa_danh']
+      );
+      const rawDishes = _toNameItems(
+        raw.dishes || raw.foods || raw.specialties || raw.specialities || raw['mon_an'] || raw['món_ăn']
+      );
+      const rawTips = _asArray(raw.tips);
 
     // dedupe mềm: giữ bản đầu tiên theo key đã chuẩn hoá
-    let places = uniqBy(rawPlaces, x => normKey(x.name));
-    let dishes = uniqBy(rawDishes, x => normKey(x.name));
-    let tips   = uniqBy(rawTips, x => (typeof x === 'string' ? normKey(x) : normKey(x.name || JSON.stringify(x))));
+    let places = uniqBy(rawPlaces, x => x && x.name ? normKey(x.name) : null).filter(Boolean);
+    let dishes = uniqBy(rawDishes, x => x && x.name ? normKey(x.name) : null).filter(Boolean);
+    let tips   = uniqBy(rawTips, x => {
+      if (typeof x === 'string') return normKey(x);
+      if (x && x.name) return normKey(x.name);
+      return x ? normKey(JSON.stringify(x)) : null;
+    }).filter(Boolean);
 
-    // Fallback: nếu vì lý do nào đó lọc thành rỗng -> trả về bản gốc (để không “mất dữ liệu”)
+    // Fallback: nếu vì lý do nào đó lọc thành rỗng -> trả về bản gốc (để không "mất dữ liệu")
     if (places.length === 0 && rawPlaces.length) places = rawPlaces;
     if (dishes.length === 0 && rawDishes.length) dishes = rawDishes;
+
+    console.log(`[extractProvinceDoc] ${raw.name}: ${places.length} places, ${dishes.length} dishes, ${tips.length} tips`);
 
     return {
       name: raw.name || raw.title || raw.province || 'unknown',
@@ -749,6 +778,17 @@ if (typeof extractProvinceDoc !== 'function') {
       aliases: raw.aliases || [],
       merged_from: raw.merged_from || raw.mergedFrom || []
     };
+    } catch (err) {
+      console.error('[extractProvinceDoc] Error:', err.message, 'Doc:', raw?._id || raw?.name);
+      return {
+        name: raw?.name || raw?.title || 'unknown',
+        places: [],
+        dishes: [],
+        tips: [],
+        aliases: raw?.aliases || [],
+        merged_from: raw?.merged_from || raw?.mergedFrom || []
+      };
+    }
   }
   global.extractProvinceDoc = extractProvinceDoc;
 }

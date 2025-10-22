@@ -87,6 +87,22 @@ class BookingController {
             next(error);
         }
     }
+
+    /**
+     * Cập nhật thông tin booking (generic update - nhiều fields)
+     * PATCH /api/v1/bookings/:bookingId
+     */
+    async updateBooking(req, res, next) {
+        try {
+            const { bookingId } = req.params;
+            const updateData = req.body;
+
+            const updatedBooking = await BookingService.updateBooking(bookingId, updateData);
+            successResponse(res, updatedBooking, 'Booking updated successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new BookingController();

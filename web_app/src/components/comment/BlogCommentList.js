@@ -19,31 +19,28 @@ const BlogCommentList = ({
   onRefresh 
 }) => {
   const [error, setError] = useState('');
-  
-  // ✅ FIX: Đơn giản hóa state management - không cần internal state
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(5);
   const debounceTimeoutRef = useRef(null);
 
   // Đảm bảo blogs luôn là mảng
   const safeBlogs = Array.isArray(blogs) ? blogs : [];
+  const total = safeBlogs.length;
+  const totalPages = Math.ceil(total / limit);
+  const pagedBlogs = safeBlogs.slice((page - 1) * limit, page * limit);
 
-  // ✅ FIX: Handle search change đơn giản - trực tiếp gọi callback
   const handleSearchChange = (value) => {
-    console.log('[BlogCommentList] Search change:', value);
-
-    // Clear previous timeout
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
-
-    // Debounced call to parent
     debounceTimeoutRef.current = setTimeout(() => {
       if (onSearchChange) {
         onSearchChange(value);
       }
+      setPage(1); // Reset về trang 1 khi search
     }, 300);
   };
 
-  // ✅ Cleanup timeout
   useEffect(() => {
     return () => {
       if (debounceTimeoutRef.current) {
@@ -229,149 +226,215 @@ const BlogCommentList = ({
 
           {/* Table */}
           {safeBlogs.length > 0 && (
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: '#f8fafc' }}>
-                    <TableCell sx={{ fontWeight: '600', color: '#475569', py: 2 }}>ID</TableCell>
-                    <TableCell sx={{ fontWeight: '600', color: '#475569', py: 2 }}>
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <Article fontSize="small" sx={{ color: '#FF6B35' }} />
-                        <span>Bài viết</span>
-                      </Stack>
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: '600', color: '#475569', py: 2 }}>
-                      <Stack direction="row" alignItems="center" spacing={1}>
-                        <Schedule fontSize="small" sx={{ color: '#64748b' }} />
-                        <span>Ngày đăng</span>
-                      </Stack>
-                    </TableCell>
-                    <TableCell align="center" sx={{ fontWeight: '600', color: '#475569', py: 2 }}>
-                      <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
-                        <ThumbUp fontSize="small" sx={{ color: '#64748b' }} />
-                        <span>Thích</span>
-                      </Stack>
-                    </TableCell>
-                    <TableCell align="center" sx={{ fontWeight: '600', color: '#475569', py: 2 }}>
-                      <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
-                        <ChatBubbleOutline fontSize="small" sx={{ color: '#FF6B35' }} />
-                        <span>Bình luận</span>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {safeBlogs.map((blog, index) => {
-                    return (
-                      <TableRow 
-                        key={blog.blogId || blog.blog_id || blog._id || index}
-                        sx={{ 
-                          '&:hover': { 
-                            bgcolor: 'rgba(255, 107, 53, 0.04)',
-                            transform: 'translateY(-1px)',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-                          },
-                          transition: 'all 0.2s ease',
-                          borderBottom: '1px solid #f1f5f9',
-                          cursor: 'pointer'
-                        }}
-                        onClick={() => onSelectBlog && onSelectBlog(blog)}
-                      >
-                        <TableCell sx={{ py: 2 }}>
-                          <Chip 
-                            label={blog.blogId || blog.blog_id || blog._id || '-'} 
-                            sx={{
-                              bgcolor: '#FF6B35',
-                              color: 'white',
-                              fontWeight: '600',
-                              minWidth: 32,
-                              height: 28
-                            }}
-                          />
-                        </TableCell>
-                        
-                        <TableCell sx={{ py: 2 }}>
-                          <Box sx={{ maxWidth: 400 }}>
-                            <Typography 
-                              variant="body1" 
-                              fontWeight="600"
-                              color="#1e293b"
-                              sx={{ 
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                mb: 1
+            <>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
+                      <TableCell sx={{ fontWeight: '600', color: '#475569', py: 2 }}>ID</TableCell>
+                      <TableCell sx={{ fontWeight: '600', color: '#475569', py: 2 }}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <Article fontSize="small" sx={{ color: '#FF6B35' }} />
+                          <span>Bài viết</span>
+                        </Stack>
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: '600', color: '#475569', py: 2 }}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <Schedule fontSize="small" sx={{ color: '#64748b' }} />
+                          <span>Ngày đăng</span>
+                        </Stack>
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: '600', color: '#475569', py: 2 }}>
+                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
+                          <ThumbUp fontSize="small" sx={{ color: '#64748b' }} />
+                          <span>Thích</span>
+                        </Stack>
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: '600', color: '#475569', py: 2 }}>
+                        <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
+                          <ChatBubbleOutline fontSize="small" sx={{ color: '#FF6B35' }} />
+                          <span>Bình luận</span>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {pagedBlogs.map((blog, index) => {
+                      return (
+                        <TableRow 
+                          key={blog.blogId || blog.blog_id || blog._id || index}
+                          sx={{ 
+                            '&:hover': { 
+                              bgcolor: 'rgba(255, 107, 53, 0.04)',
+                              transform: 'translateY(-1px)',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                            },
+                            transition: 'all 0.2s ease',
+                            borderBottom: '1px solid #f1f5f9',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => onSelectBlog && onSelectBlog(blog)}
+                        >
+                          <TableCell sx={{ py: 2 }}>
+                            <Chip 
+                              label={blog.blogId || blog.blog_id || blog._id || '-'} 
+                              sx={{
+                                bgcolor: '#FF6B35',
+                                color: 'white',
+                                fontWeight: '600',
+                                minWidth: 32,
+                                height: 28
                               }}
-                            >
-                              {blog.title}
-                            </Typography>
-                            <Stack direction="row" alignItems="center" spacing={1}>
-                              <Avatar sx={{ width: 18, height: 18, bgcolor: 'rgba(255,107,53,0.1)' }}>
-                                <Person sx={{ fontSize: 12, color: '#FF6B35' }} />
-                              </Avatar>
-                              <Typography variant="caption" color="#64748b" fontWeight="500">
-                                {blog.authorId || blog.author_id || '-'}
-                              </Typography>
-                              <Chip 
-                                label={blog.status || 'published'} 
-                                size="small" 
+                            />
+                          </TableCell>
+                          
+                          <TableCell sx={{ py: 2 }}>
+                            <Box sx={{ maxWidth: 400 }}>
+                              <Typography 
+                                variant="body1" 
+                                fontWeight="600"
+                                color="#1e293b"
                                 sx={{ 
-                                  height: 20, 
-                                  fontSize: '0.7rem',
-                                  bgcolor: 'rgba(34, 197, 94, 0.1)',
-                                  color: '#16a34a',
-                                  fontWeight: '600'
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                  mb: 1
                                 }}
+                              >
+                                {blog.title}
+                              </Typography>
+                              <Stack direction="row" alignItems="center" spacing={1}>
+                                <Avatar sx={{ width: 18, height: 18, bgcolor: 'rgba(255,107,53,0.1)' }}>
+                                  <Person sx={{ fontSize: 12, color: '#FF6B35' }} />
+                                </Avatar>
+                                <Typography variant="caption" color="#64748b" fontWeight="500">
+                                  {blog.authorId || blog.author_id || '-'}
+                                </Typography>
+                                <Chip 
+                                  label={blog.status || 'published'} 
+                                  size="small" 
+                                  sx={{ 
+                                    height: 20, 
+                                    fontSize: '0.7rem',
+                                    bgcolor: 'rgba(34, 197, 94, 0.1)',
+                                    color: '#16a34a',
+                                    fontWeight: '600'
+                                  }}
+                                />
+                              </Stack>
+                            </Box>
+                          </TableCell>
+
+                          <TableCell sx={{ py: 2 }}>
+                            <Typography variant="body2" color="#64748b" fontWeight="500">
+                              {blog.createdAt || blog.created_at ? formatDate(blog.createdAt || blog.created_at) : '-'}
+                            </Typography>
+                          </TableCell>
+
+                          <TableCell align="center" sx={{ py: 2 }}>
+                            <Tooltip title={`${blog.likeCount || blog.like_count || 0} lượt thích`}>
+                              <Chip 
+                                label={formatNumber(blog.likeCount || blog.like_count || 0)}
+                                size="small"
+                                sx={{
+                                  bgcolor: 'rgba(239, 68, 68, 0.1)',
+                                  color: '#ef4444',
+                                  fontWeight: '600',
+                                  minWidth: 50,
+                                  height: 26
+                                }}
+                                icon={<ThumbUp sx={{ fontSize: 12 }} />}
                               />
-                            </Stack>
-                          </Box>
-                        </TableCell>
+                            </Tooltip>
+                          </TableCell>
 
-                        <TableCell sx={{ py: 2 }}>
-                          <Typography variant="body2" color="#64748b" fontWeight="500">
-                            {blog.createdAt || blog.created_at ? formatDate(blog.createdAt || blog.created_at) : '-'}
-                          </Typography>
-                        </TableCell>
-
-                        <TableCell align="center" sx={{ py: 2 }}>
-                          <Tooltip title={`${blog.likeCount || blog.like_count || 0} lượt thích`}>
-                            <Chip 
-                              label={formatNumber(blog.likeCount || blog.like_count || 0)}
-                              size="small"
-                              sx={{
-                                bgcolor: 'rgba(239, 68, 68, 0.1)',
-                                color: '#ef4444',
-                                fontWeight: '600',
-                                minWidth: 50,
-                                height: 26
-                              }}
-                              icon={<ThumbUp sx={{ fontSize: 12 }} />}
-                            />
-                          </Tooltip>
-                        </TableCell>
-
-                        <TableCell align="center" sx={{ py: 2 }}>
-                          <Tooltip title={`${getCommentCount(blog)} bình luận`}>
-                            <Chip 
-                              label={formatNumber(getCommentCount(blog))}
-                              size="small"
-                              sx={{
-                                bgcolor: 'rgba(255, 107, 53, 0.1)',
-                                color: '#FF6B35',
-                                fontWeight: '600',
-                                minWidth: 50,
-                                height: 26
-                              }}
-                              icon={<ChatBubbleOutline sx={{ fontSize: 12 }} />}
-                            />
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                          <TableCell align="center" sx={{ py: 2 }}>
+                            <Tooltip title={`${getCommentCount(blog)} bình luận`}>
+                              <Chip 
+                                label={formatNumber(getCommentCount(blog))}
+                                size="small"
+                                sx={{
+                                  bgcolor: 'rgba(255, 107, 53, 0.1)',
+                                  color: '#FF6B35',
+                                  fontWeight: '600',
+                                  minWidth: 50,
+                                  height: 26
+                                }}
+                                icon={<ChatBubbleOutline sx={{ fontSize: 12 }} />}
+                              />
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {/* Pagination UI */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 3, py: 2, borderTop: '1px solid #e2e8f0', bgcolor: 'white', flexWrap: 'wrap', gap: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', gap: 2, flexWrap: 'wrap', py: 1 }}>
+                  <Typography variant="body2" color="#554333ff" sx={{ fontSize: 15, fontWeight: 500, minWidth: 180 }}>
+                    Hiển thị {(page - 1) * limit + 1}-{Math.min(page * limit, total)} trong tổng số {total} bài viết
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2" sx={{ fontSize: 15, fontWeight: 500 }}>Hiển thị:</Typography>
+                    <TextField
+                      select
+                      size="small"
+                      value={limit}
+                      onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}
+                      SelectProps={{ native: true }}
+                      sx={{ width: 100, fontSize: 15, '& .MuiInputBase-input': { py: 0.5, fontSize: 15, textAlign: 'center' }, '& select': { paddingRight: '18px' } }}
+                    >
+                      {[5, 10, 20, 50, 100].map(size => (
+                        <option key={size} value={size} style={{ fontSize: 15, padding: 2 }}>{`${size} mục`}</option>
+                      ))}
+                    </TextField>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <Button size="small" variant="outlined" disabled={page === 1} onClick={() => setPage(1)} sx={{ minWidth: 32, px: 1, fontSize: 14 }}> {'<<'} </Button>
+                    <Button size="small" variant="outlined" disabled={page === 1} onClick={() => setPage(page - 1)} sx={{ minWidth: 32, px: 1, fontSize: 14 }}> Trước </Button>
+                    {totalPages > 3 && page > 2 && (<Box sx={{ px: 1, fontSize: 15 }}>...</Box>)}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(pageNum => {
+                        if (totalPages <= 3) return true;
+                        if (page === 1) return pageNum <= 3;
+                        if (page === totalPages) return pageNum >= totalPages - 2;
+                        return Math.abs(pageNum - page) <= 1;
+                      })
+                      .map(pageNum => (
+                        <Button
+                          key={pageNum}
+                          size="small"
+                          variant={page === pageNum ? 'contained' : 'outlined'}
+                          color={page === pageNum ? 'warning' : 'inherit'}
+                          onClick={() => setPage(pageNum)}
+                          sx={{ minWidth: 32, px: 1, fontSize: 14 }}
+                        >
+                          {pageNum}
+                        </Button>
+                      ))}
+                    {totalPages > 3 && page < totalPages - 1 && (<Box sx={{ px: 1, fontSize: 15 }}>...</Box>)}
+                    <Button size="small" variant="outlined" disabled={page === totalPages} onClick={() => setPage(page + 1)} sx={{ minWidth: 32, px: 1, fontSize: 14 }}> Tiếp </Button>
+                    <Button size="small" variant="outlined" disabled={page === totalPages} onClick={() => setPage(totalPages)} sx={{ minWidth: 32, px: 1, fontSize: 14 }}> {'>>'} </Button>
+                    <Typography variant="body2" sx={{ fontSize: 15, fontWeight: 500, ml: 2 }}>Đến trang:</Typography>
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={page}
+                      onChange={e => {
+                        let p = Number(e.target.value);
+                        if (p < 1) p = 1;
+                        if (p > totalPages) p = totalPages;
+                        setPage(p);
+                      }}
+                      inputProps={{ min: 1, max: totalPages, style: { width: 40, padding: 2, textAlign: 'center' } }}
+                      sx={{ width: 56, mx: 1, '& .MuiInputBase-input': { py: 0.5, fontSize: 15 } }}
+                    />
+                  </Box>
+                </Box>
+              </Box>
+            </>
           )}
         </CardContent>
       </Card>

@@ -18,8 +18,7 @@ const ContractManagement = () => {
   const [showDetail, setShowDetail] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingContract, setEditingContract] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const contractsPerPage = 5; // Số hợp đồng mỗi trang
+
   const [renewModal, setRenewModal] = useState({ open: false, contract: null });
   const [renewMessage, setRenewMessage] = useState('');
 
@@ -98,17 +97,7 @@ const ContractManagement = () => {
     fetchAllContracts();
   }, [currentHotel?.hotel_id]);
 
-  // Tính toán danh sách hợp đồng hiển thị theo trang
-  const totalPages = Math.ceil(contracts.length / contractsPerPage);
-  const paginatedContracts = useMemo(() => {
-    const startIdx = (currentPage - 1) * contractsPerPage;
-    return contracts.slice(startIdx, startIdx + contractsPerPage);
-  }, [contracts, currentPage, contractsPerPage]);
 
-  // Reset về trang đầu khi danh sách thay đổi
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [contracts.length]);
 
   // Xử lý xem chi tiết
   const handleViewDetail = (contract) => {
@@ -416,145 +405,127 @@ const ContractManagement = () => {
   };
 
   return (
-    <div className="contract-management-page w-full px-0 pt-0 pb-0 bg-transparent">
-      {/* Hiển thị error */}
-      {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
-        </div>
-      )}
-
-      <div className="flex items-center justify-between mb-6 px-8 pt-8">
-        <h2 className="text-2xl font-bold text-blue-700">Quản lý hợp đồng khách sạn</h2>
-        <button
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded shadow disabled:opacity-50"
-          onClick={handleCreateNew}
-          disabled={loading}
-        >
-          + Tạo hợp đồng mới
-        </button>
-      </div>
-
-      {/* Form tạo/sửa hợp đồng */}
-      {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative max-h-[90vh] overflow-y-auto">
-            <button
-              className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-xl"
-              onClick={handleCancelCreate}
-            >
-              &times;
-            </button>
-            <ContractForm
-              onSave={handleSaveContract}
-              onCancel={handleCancelCreate}
-              contract={editingContract}
-              hotels={approvedHotels}
-            />
+    <div className="contract-management-page w-full px-0 pt-0 pb-0 bg-transparent flex justify-center">
+      <div className="w-full max-w-6xl">
+        {/* Hiển thị error */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Bảng hợp đồng */}
-      <div className="bg-white p-6 rounded-xl shadow-lg w-full mx-0">
-        <HotelOwnerContractTable
-          contracts={paginatedContracts.map(contract => ({
-            ...contract,
-            permissions: getHotelOwnerPermissions(contract.status)
-          }))}
-          loading={loading}
-          onViewDetail={handleViewDetail}
-          showActions={true}
-          onEdit={handleEditContract}
-          onDelete={handleDeleteContract}
-          onSendForApproval={handleSendForApproval}
-        />
-        {/* Phân trang */}
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center mt-4 gap-2">
-            <button
-              className="px-2 py-1 rounded border bg-gray-100 hover:bg-gray-200"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            >
-              &lt; Trước
-            </button>
-            <span className="mx-2 text-sm">
-              Trang {currentPage} / {totalPages}
-            </span>
-            <button
-              className="px-2 py-1 rounded border bg-gray-100 hover:bg-gray-200"
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            >
-              Sau &gt;
-            </button>
+        <div className="flex items-center justify-between mb-6 px-8 pt-8">
+          <h2 className="text-2xl font-bold text-blue-700">Quản lý hợp đồng khách sạn</h2>
+          <button
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded shadow disabled:opacity-50"
+            onClick={handleCreateNew}
+            disabled={loading}
+          >
+            + Tạo hợp đồng mới
+          </button>
+        </div>
+
+        {/* Form tạo/sửa hợp đồng */}
+        {showCreateForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative max-h-[90vh] overflow-y-auto">
+              <button
+                className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-xl"
+                onClick={handleCancelCreate}
+              >
+                &times;
+              </button>
+              <ContractForm
+                onSave={handleSaveContract}
+                onCancel={handleCancelCreate}
+                contract={editingContract}
+                hotels={approvedHotels}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Bảng hợp đồng */}
+        <div className="bg-white p-6 rounded-xl shadow-lg w-full mx-0">
+          <HotelOwnerContractTable
+            contracts={contracts.map(contract => ({
+              ...contract,
+              permissions: getHotelOwnerPermissions(contract.status)
+            }))}
+            loading={loading}
+            onViewDetail={handleViewDetail}
+            showActions={true}
+            onEdit={handleEditContract}
+            onDelete={handleDeleteContract}
+            onSendForApproval={handleSendForApproval}
+          />
+        </div>
+
+        {/* Thông báo hết hạn/sắp hết hạn hợp đồng */}
+        {contractExpiryWarning && contractExpiryWarning.type && (
+          <div className={`mb-4 p-3 rounded border ${contractExpiryWarning.type === 'expired' ? 'bg-red-100 border-red-400 text-red-700' : 'bg-yellow-100 border-yellow-400 text-yellow-800'}`}>
+            <div className="font-semibold mb-2">
+              {contractExpiryWarning.type === 'expired' ? 'Hợp đồng đã hết hạn!' : 'Hợp đồng sắp hết hạn!'}
+            </div>
+            <div>{contractExpiryWarning.message}</div>
+            {contractExpiryWarning.contracts && contractExpiryWarning.contracts.length > 0 && (
+              <ul className="mt-2 text-sm">
+                {contractExpiryWarning.contracts.map(c => (
+                  <li key={c.contract_id || c.contractId}>
+                    <span className="font-bold">{c.title}</span> - Hết hạn: {c.end_date}
+                    {contractExpiryWarning.type === 'expired' && (
+                      <button
+                        className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs"
+                        onClick={() => handleRenewContract(c)}
+                      >
+                        Gia hạn hợp đồng
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* Modal gia hạn hợp đồng */}
+        {renewModal.open && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+              <h3 className="text-lg font-semibold mb-4 text-blue-700">Gia hạn hợp đồng</h3>
+              <div className="mb-2">Bạn muốn gia hạn hợp đồng <span className="font-bold">{renewModal.contract?.title}</span> thêm 1 năm?</div>
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+                  onClick={handleRenewCancel}
+                >
+                  Hủy
+                </button>
+                <button
+                  className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+                  onClick={handleRenewConfirm}
+                >
+                  Xác nhận gia hạn
+                </button>
+              </div>
+              {renewMessage && <div className="mt-2 text-green-700">{renewMessage}</div>}
+            </div>
+          </div>
+        )}
+
+        {/* Modal chi tiết hợp đồng */}
+        {showDetail && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative">
+              <ContractDetail
+                contract={selectedContract}
+                onClose={handleCloseDetail}
+                isPage={false}
+              />
+            </div>
           </div>
         )}
       </div>
-
-      {/* Thông báo hết hạn/sắp hết hạn hợp đồng */}
-      {contractExpiryWarning && (
-        <div className={`mb-4 p-3 rounded border ${contractExpiryWarning.type === 'expired' ? 'bg-red-100 border-red-400 text-red-700' : 'bg-yellow-100 border-yellow-400 text-yellow-800'}`}>
-          <div className="font-semibold mb-2">
-            {contractExpiryWarning.type === 'expired' ? 'Hợp đồng đã hết hạn!' : 'Hợp đồng sắp hết hạn!'}
-          </div>
-          <div>{contractExpiryWarning.message}</div>
-          <ul className="mt-2 text-sm">
-            {contractExpiryWarning.contracts.map(c => (
-              <li key={c.contract_id || c.contractId}>
-                <span className="font-bold">{c.title}</span> - Hết hạn: {c.end_date}
-                {contractExpiryWarning.type === 'expired' && (
-                  <button
-                    className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs"
-                    onClick={() => handleRenewContract(c)}
-                  >
-                    Gia hạn hợp đồng
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Modal gia hạn hợp đồng */}
-      {renewModal.open && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4 text-blue-700">Gia hạn hợp đồng</h3>
-            <div className="mb-2">Bạn muốn gia hạn hợp đồng <span className="font-bold">{renewModal.contract?.title}</span> thêm 1 năm?</div>
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
-                onClick={handleRenewCancel}
-              >
-                Hủy
-              </button>
-              <button
-                className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
-                onClick={handleRenewConfirm}
-              >
-                Xác nhận gia hạn
-              </button>
-            </div>
-            {renewMessage && <div className="mt-2 text-green-700">{renewMessage}</div>}
-          </div>
-        </div>
-      )}
-
-      {/* Modal chi tiết hợp đồng */}
-      {showDetail && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative">
-            <ContractDetail
-              contract={selectedContract}
-              onClose={handleCloseDetail}
-              isPage={false}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 };
