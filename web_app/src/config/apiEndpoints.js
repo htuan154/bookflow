@@ -52,6 +52,7 @@ export const API_ENDPOINTS = {
     // --- Season Endpoints ---
     SEASONS: {
         GET_ALL: `${API_BASE_URL}/seasons`,
+        GET_BY_YEAR: (year) => `${API_BASE_URL}/seasons/year/${year}`,
         CREATE: `${API_BASE_URL}/seasons`,
         UPDATE: (id) => `${API_BASE_URL}/seasons/${id}`,
         DELETE: (id) => `${API_BASE_URL}/seasons/${id}`,
@@ -60,6 +61,8 @@ export const API_ENDPOINTS = {
     // --- Seasonal Pricing Endpoints ---
     SEASONAL_PRICINGS: {
         CREATE: `${API_BASE_URL}/seasonal-pricings`,
+        BULK_CREATE: `${API_BASE_URL}/seasonal-pricings/bulk`,
+        GET_AVAILABLE_SEASONS: (roomTypeId, year) => `${API_BASE_URL}/seasonal-pricings/available/${roomTypeId}?year=${year}`,
         UPDATE: (pricingId) => `${API_BASE_URL}/seasonal-pricings/${pricingId}`,
         DELETE: (pricingId) => `${API_BASE_URL}/seasonal-pricings/${pricingId}`,
         GET_FOR_ROOM_TYPE: (roomTypeId) => `${API_BASE_URL}/seasonal-pricings/${roomTypeId}`,
@@ -164,6 +167,7 @@ export const API_ENDPOINTS = {
         GET_DETAILS: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}`,
         UPDATE_STATUS: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/status`,
         GET_HISTORY: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/history`,
+        CREATE_HISTORY: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/history`,
         GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/bookings/hotel/${hotelId}`,
     },
 
@@ -321,6 +325,8 @@ export const API_ENDPOINTS = {
 
         // Blog Management for Admin  
         GET_ALL_BLOGS: (params = '') => `${API_BASE_URL}/blogs/admin/blogs${params ? `?${params}` : ''}`,//comment
+        //thêm vào ngày 9/10/2025
+        GET_BLOGS_BY_ROLE: (params = '') => `${API_BASE_URL}/blogs/admin/blogs/by-role${params ? `?${params}` : ''}`,
         GET_BLOGS_BY_STATUS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
         GET_REJECTED_BLOGS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
         UPDATE_STATUS_ADMIN: (blogId) => `${API_BASE_URL}/blogs/admin/${blogId}/status`,
@@ -364,7 +370,8 @@ export const API_ENDPOINTS = {
     UNPUBLISH: (blogId) => `${API_BASE_URL}/blogs/${blogId}/unpublish`,
 
     // Blog image endpoints
-    UPLOAD_IMAGE: (blogId) => `${API_BASE_URL}/blogs/${blogId}/images`,
+    GET_IMAGES: (blogId) => `${API_BASE_URL}/blogs/${blogId}/images`,
+    UPLOAD_IMAGE: (blogId) => `${API_BASE_URL}/blogs/${blogId}/images`, // Dùng chung cho cả upload file và add từ URL
     DELETE_IMAGE: (blogId, imageId) => `${API_BASE_URL}/blogs/${blogId}/images/${imageId}`,
     SET_FEATURED_IMAGE: (blogId, imageId) => `${API_BASE_URL}/blogs/${blogId}/images/${imageId}/set-featured`,
     // Thêm endpoint xóa ảnh theo imageId
@@ -393,13 +400,16 @@ export const API_ENDPOINTS = {
         CREATE_HOTEL: `${API_BASE_URL}/hotels`,
         UPDATE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
         DELETE_HOTEL: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
-        
+
+        // dành cho blog của chủ khách sạn ngày 4/10/2025 lúc 10h50
+        GET_MY_BLOGS: `${API_BASE_URL}/blogs/hotel-owner/blogs`,
+
         // Image management
         GET_IMAGES_BY_HOTEL_ID: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/images`,
         UPLOAD_IMAGES: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/images`,
         DELETE_IMAGE: (hotelId, imageId) => `${API_BASE_URL}/hotels/${hotelId}/images/${imageId}`,
         SET_THUMBNAIL: (hotelId, imageId) => `${API_BASE_URL}/hotels/${hotelId}/images/${imageId}/set-thumbnail`,
-        
+
         // Status & amenities
         UPDATE_STATUS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/status`,
         UPDATE_AMENITIES: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/amenities`,
@@ -509,6 +519,24 @@ export const API_ENDPOINTS = {
         // Admin
         ADMIN_STATISTICS: `${API_BASE_URL}/admin/bank-accounts/statistics`,
         ADMIN_HARD_DELETE: (id) => `${API_BASE_URL}/admin/bank-accounts/${id}/hard-delete`,
+    },
+
+    // --- VietQR Payment Endpoints ---
+    VIETQR: {
+        // Tạo QR cho booking (Luồng 1 & 2 & 3)
+        CREATE_QR_FOR_BOOKING: (bookingId) => `${API_BASE_URL}/vietqr/bookings/${bookingId}/payments/qr`,
+        
+        // Tạo QR cho walk-in tại quầy (Luồng 3 - tuỳ chọn)
+        CREATE_QR_AT_COUNTER: (hotelId) => `${API_BASE_URL}/vietqr/hotels/${hotelId}/payments/qr`,
+        
+        // Kiểm tra trạng thái thanh toán
+        CHECK_PAYMENT_STATUS: (txRef) => `${API_BASE_URL}/vietqr/payments/${txRef}/status`,
+        
+        // Webhook xác nhận thanh toán (dùng chung)
+        WEBHOOK_CONFIRMATION: `${API_BASE_URL}/vietqr/webhooks/vietqr`,
+        
+        // Cập nhật status payment
+        UPDATE_PAYMENT_STATUS: `${API_BASE_URL}/vietqr/payments/update-status`,
     },
 
 };

@@ -2,6 +2,7 @@
 
 const SeasonalPricingService = require('../services/seasonalPricing.service');
 const { successResponse } = require('../../../utils/response');
+const { AppError } = require('../../../utils/errors');
 
 class SeasonalPricingController {
     /**
@@ -33,6 +34,26 @@ class SeasonalPricingController {
     }
 
     /**
+     * Lấy các seasons chưa có seasonal pricing cho một room type trong một năm.
+     * GET /api/v1/seasonal-pricings/available/:roomTypeId?year=2025
+     */
+    async getAvailableSeasonsForRoomType(req, res, next) {
+        try {
+            const { roomTypeId } = req.params;
+            const { year } = req.query;
+            
+            if (!year) {
+                throw new AppError('Year parameter is required', 400);
+            }
+
+            const availableSeasons = await SeasonalPricingService.getAvailableSeasonsForRoomType(roomTypeId, parseInt(year));
+            successResponse(res, availableSeasons);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
      * Cập nhật một quy tắc giá.
      * PUT /api/v1/seasonal-pricings/:pricingId
      */
@@ -57,6 +78,20 @@ class SeasonalPricingController {
             const userId = req.user.id;
             await SeasonalPricingService.deleteSeasonalPricing(pricingId, userId);
             successResponse(res, null, 'Seasonal pricing rule deleted successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * Tạo bulk seasonal pricing cho một room type với tất cả seasons của một năm.
+     * POST /api/v1/seasonal-pricings/bulk
+     */
+    async bulkCreateSeasonalPricing(req, res, next) {
+        try {
+            const userId = req.user.id;
+            const result = await SeasonalPricingService.bulkCreateSeasonalPricing(req.body, userId);
+            successResponse(res, result, result.message, 201);
         } catch (error) {
             next(error);
         }

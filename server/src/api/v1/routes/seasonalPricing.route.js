@@ -4,7 +4,7 @@ const express = require('express');
 const seasonalPricingController = require('../controllers/seasonalPricing.controller');
 const { authenticate, authorize } = require('../middlewares/auth.middleware');
 const { validate } = require('../middlewares/validation.middleware');
-const { createPricingSchema, updatePricingSchema } = require('../../../validators/seasonalPricing.validator');
+const { createPricingSchema, updatePricingSchema, bulkCreatePricingSchema } = require('../../../validators/seasonalPricing.validator');
 
 const router = express.Router();
 
@@ -18,6 +18,19 @@ router.post(
     '/',
     validate(createPricingSchema),
     seasonalPricingController.createSeasonalPricing
+);
+
+// POST /api/v1/seasonal-pricings/bulk -> Tạo bulk seasonal pricing cho một room type với tất cả seasons của một năm
+router.post(
+    '/bulk',
+    validate(bulkCreatePricingSchema),
+    seasonalPricingController.bulkCreateSeasonalPricing
+);
+
+// GET /api/v1/seasonal-pricings/available/:roomTypeId -> Lấy các seasons chưa có pricing cho room type
+router.get(
+    '/available/:roomTypeId',
+    seasonalPricingController.getAvailableSeasonsForRoomType
 );
 
 // PUT /api/v1/seasonal-pricings/:pricingId -> Cập nhật một quy tắc giá

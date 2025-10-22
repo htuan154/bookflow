@@ -104,6 +104,13 @@ async function myDailyTask() {
     console.log('- Kết quả duyệt tự động khuyến mãi:', autoApproveResult);
 
     console.log('✅ Daily job hoàn thành thành công!');
+      // Nếu là ngày 31/12 thì tạo season cho năm tiếp theo
+      const now = new Date();
+      if (now.getMonth() === 11 && now.getDate() === 31) { // 11 = December, 31st
+        const nextYear = now.getFullYear() + 1;
+        await createDefaultSeasonsForYear(nextYear);
+        console.log(`[DailyJob] Đã tạo season mặc định cho năm ${nextYear}`);
+      }
   } catch (err) {
     console.error('❌ Lỗi khi chạy daily job:', err);
   }
@@ -119,6 +126,13 @@ async function moderationTask() {
   }
 }
 
+// Hàm test tạo season cho năm hiện tại
+// async function testCreateSeasons() {
+//   const year = new Date().getFullYear();
+//   await dailyJobService.createDefaultSeasonsForYear(year);
+//   console.log(`[Test] Đã tạo season mặc định cho năm ${year}`);
+// }
+
 function startDailyJob() {
   // Chạy daily job vào 7h sáng mỗi ngày
   cron.schedule('0 7 * * *', myDailyTask, { timezone: 'Asia/Ho_Chi_Minh' });
@@ -126,7 +140,8 @@ function startDailyJob() {
   // Chạy moderation worker mỗi 10 phút
   //cron.schedule('*/10 * * * *', moderationTask, { timezone: 'Asia/Ho_Chi_Minh' });
   
-  //cron.schedule('*/10 * * * * *', myDailyTask); // mỗi 10 giây để test
+  //cron.schedule('*/10 * * * * *', myDailyTask); // mỗi 10 giây để test job chính
+  //cron.schedule('*/10 * * * * *', testCreateSeasons); // mỗi 10 giây để test tạo season
 }
 
 module.exports = { startDailyJob };

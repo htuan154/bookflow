@@ -7,44 +7,20 @@ const historyRoutes = require('./bookingStatusHistory.route');
 
 const router = express.Router();
 
-// --- Áp dụng middleware xác thực cho tất cả các route bên dưới ---
 router.use(authenticate);
 
-// POST /api/v1/bookings
-router.post(
-    '/',
-    validate(createBookingSchema),
-    bookingController.createBooking
-);
+router.post('/', validate(createBookingSchema), bookingController.createBooking);
 
-// GET /api/v1/bookings/:bookingId
-router.get(
-    '/:bookingId',
-    bookingController.getBookingDetails
-);
+router.get('/:bookingId', bookingController.getBookingDetails);
 
-// GET /api/v1/bookings/user/:userId
-router.get(
-    '/user/:userId',
-    bookingController.getUserBookings
-);
+router.get('/user/:userId', bookingController.getUserBookings);
 
-// GET /api/v1/bookings/hotel/:hotelId
-router.get(
-    '/hotel/:hotelId',
-    authorize(['hotel_owner', 'admin']),
-    bookingController.getBookingsByHotelId
-);
+router.get('/hotel/:hotelId', authorize(['hotel_owner', 'admin']), bookingController.getBookingsByHotelId);
 
-// PATCH /api/v1/bookings/:bookingId/status
-router.patch(
-    '/:bookingId/status',
-    authorize(['hotel_owner', 'admin']),
-    validate(updateStatusSchema),
-    bookingController.updateBookingStatus
-);
-// request đến /:bookingId/history
+router.patch('/:bookingId/status', authorize(['hotel_owner', 'admin']), validate(updateStatusSchema), bookingController.updateBookingStatus);
+
+router.patch('/:bookingId', authorize(['hotel_owner', 'admin']), bookingController.updateBooking);
+
 router.use('/', historyRoutes);
-
 
 module.exports = router;

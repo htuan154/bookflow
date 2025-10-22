@@ -22,6 +22,7 @@ import RoomTypeDetailPage from '../pages/hotel_owner/roomtype_management/RoomTyp
 import RoomsByTypePage from '../pages/hotel_owner/roomtype_management/RoomsByTypePage';
 import RoomManagementPage from '../pages/hotel_owner/roomtype_management/RoomManagementPage';
 import RoomTypeImagesPage from '../pages/hotel_owner/roomtype_management/RoomTypeImagesPage';
+import RoomTypeRoomsPage from '../pages/hotel_owner/roomtype_management/RoomTypeRoomsPage';
 
 // === Quản lý phòng: Providers (điều chỉnh path nếu bạn lưu khác)
 import { RoomTypeProvider } from '../context/RoomTypeContext';
@@ -35,12 +36,19 @@ import { IMProvider } from '../context/IMContext';
 import OwnerMessagesPage from '../pages/hotel_owner/messages';
 
 // === Pricing Pages
-import PricingIndex from '../pages/hotel_owner/pricing';
-import RatesPage from '../pages/hotel_owner/pricing/RatesPage';
+import { PricingIndex } from '../pages/hotel_owner/pricing';
 import PromotionsPage from '../pages/hotel_owner/pricing/PromotionsPage';
+import SeasonalPricingPage from '../pages/hotel_owner/pricing/SeasonalPricingPage';
+import SeasonalPricingDetailPage from '../pages/hotel_owner/pricing/SeasonalPricingDetailPage';
+
+// === Marketing Pages
+import MarketingPage from '../pages/hotel_owner/marketing/MarketingPage';
 
 // === Support Pages
 import CustomerSupportPage from '../pages/hotel_owner/support/CustomerSupportPage';
+
+// === Booking Pages
+import { BookingManagementPage, BookingDetailView, BookingEditPage } from '../pages/hotel_owner/bookings';
 
 import OwnerReportsPage from '../pages/hotel_owner/reports/OwnerReportsPage';
 import RevenuePage from '../pages/hotel_owner/reports/RevenuePage';
@@ -94,6 +102,7 @@ const HotelOwnerRoutes = () => {
                 {/* ======================= QUẢN LÝ PHÒNG ======================= */}
                 <Route path="rooms/types" element={<RoomTypeListPage />} />
                 <Route path="rooms/types/:roomTypeId/detail" element={<RoomTypeDetailPage />} />
+                <Route path="rooms/types/:roomTypeId/rooms" element={<RoomTypeRoomsPage />} />
                 <Route path="rooms/list" element={<RoomsByTypePage />} />
                 <Route path="rooms/management" element={<RoomManagementPage />} />
                 <Route path="rooms/images" element={<RoomTypeImagesPage />} />
@@ -115,9 +124,19 @@ const HotelOwnerRoutes = () => {
                 } />
 
                 {/* ======================= PRICING MANAGEMENT ======================= */}
-                <Route path="pricing" element={<PricingIndex />} />
-                <Route path="pricing/rates" element={<RatesPage />} />
+                <Route path="pricing" element={<Navigate to="/hotel-owner/pricing/seasonal" replace />} />
+                <Route path="pricing/seasonal" element={<SeasonalPricingPage />} />
+                <Route path="pricing/seasonal/:roomTypeId" element={<SeasonalPricingDetailPage />} />
                 <Route path="pricing/promotions" element={<PromotionsPage />} />
+
+
+                {/* ======================= MARKETING ======================= */}
+                <Route path="marketing" element={<MarketingPage />} />
+                {/* ======================= BOOKING MANAGEMENT ======================= */}
+                <Route path="bookings" element={<BookingManagementPage />} />
+                <Route path="bookings/list" element={<BookingManagementPage />} />
+                <Route path="bookings/:bookingId" element={<BookingDetailView />} />
+                <Route path="bookings/:bookingId/edit" element={<BookingEditPage />} />
 
                 {/* ======================= CUSTOMER SUPPORT ======================= */}
                 <Route path="support" element={<CustomerSupportPage />} />
