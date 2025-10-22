@@ -1,3 +1,4 @@
+   
 // src/api/v1/services/blog.service.js
 
 const blogRepository = require('../repositories/blog.repository');
@@ -24,7 +25,7 @@ class BlogService {
             ...blogData,
             author_id: authorId,
             slug: slug,
-            status: 'draft', // Mặc định là bản nháp
+            status: blogData.status || 'draft', // Cho phép FE set status, mặc định là draft// sửa ngày 30/9
         };
 
         return await blogRepository.create(fullBlogData);
@@ -286,6 +287,59 @@ async searchBlogsByTitleSimple(keyword, options = {}) {
         } catch (error) {
             throw new Error(`Error getting blogs with stats by status: ${error.message}`);
         }
+    }
+    //thêm vào ngày 4/10/2025 
+     /**
+     * Lấy danh sách blog theo author_id (chủ khách sạn)//thêm vào ngày 4/10/2025 
+     * @param {string} authorId - ID của tác giả
+     * @param {object} options - { page, limit, status }
+     * @returns {Promise<object>}
+     */
+    async getBlogsByAuthor(authorId, options = {}) {
+        const page = parseInt(options.page, 10) || 1;
+        const limit = parseInt(options.limit, 10) || 10;
+        const offset = (page - 1) * limit;
+        const status = options.status;
+        const result = await blogRepository.findByAuthorId(authorId, { limit, offset, status });
+        const totalPages = Math.ceil(result.total / limit);
+        return {
+            success: true,
+            data: {
+                blogs: result.blogs,
+                pagination: {
+                    currentPage: page,
+                    totalPages,
+                    totalItems: result.total,
+                    itemsPerPage: limit,
+                    hasNextPage: page < totalPages,
+                    hasPrevPage: page > 1
+                }
+            }
+        };
+    }
+
+    /**
+     * thêm vào ngày 9/10/2025
+     * Lấy danh sách blog do admin đăng (có phân trang, truyền role động).
+     * @param {object} options - { page, limit, status, adminRole }
+     * @returns {Promise<object>}
+     */
+    async getAdminBlogs(options = {}) {
+        const page = parseInt(options.page, 10) || 1;
+        const limit = parseInt(options.limit, 10) || 10;
+        const offset = (page - 1) * limit;
+        const status = options.status;
+        const adminRole = options.adminRole || 'admin'; // hoặc truyền từ FE/API
+
+        const blogs = await blogRepository.findAdminBlogs(limit, offset, status, adminRole);
+        return {
+            success: true,
+            data: blogs,
+            pagination: {
+                currentPage: page,
+                itemsPerPage: limit
+            }
+        };
     }
 }
 

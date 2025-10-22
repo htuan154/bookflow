@@ -18,6 +18,20 @@ class SeasonController {
     }
 
     /**
+     * Lấy các mùa theo năm.
+     * GET /api/v1/seasons/year/:year
+     */
+    async getSeasonsByYear(req, res, next) {
+        try {
+            const { year } = req.params;
+            const seasons = await SeasonService.getSeasonsByYear(parseInt(year));
+            successResponse(res, seasons, `Lấy danh sách các mùa năm ${year} thành công`);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
      * Tạo một mùa mới.
      * POST /api/v1/seasons
      */

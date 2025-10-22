@@ -102,6 +102,27 @@ const blogService = {
         return await makeApiCall(url);
     },
 
+        /**
+         * Get blogs by role for admin
+         * @param {object} params - Query parameters (role, page, limit, status, ...)
+         * @returns {Promise<object>} - Blogs data
+         */
+        getBlogsByRoleAdmin: async (params = {}) => {
+            const queryParams = new URLSearchParams();
+            if (params.role) queryParams.append('adminRole', params.role); // role -> adminRole
+            if (params.page) queryParams.append('page', params.page);
+            if (params.limit) queryParams.append('limit', params.limit);
+            if (params.status) queryParams.append('status', params.status);
+            if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+            if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+            
+            const url = `${API_ENDPOINTS.ADMIN.GET_BLOGS_BY_ROLE()}?${queryParams.toString()}`;
+            console.log('🔍 DEBUG: getBlogsByRoleAdmin URL:', url);
+            console.log('🔍 DEBUG: getBlogsByRoleAdmin Params:', params);
+            
+            return await makeApiCall(url);
+        },
+
     /**
      * Get all published blogs
      * @param {object} params - Query parameters
@@ -379,17 +400,20 @@ const blogService = {
      * @returns {Promise<object>} - All blogs data with pagination
      */
     getAllBlogsAdmin: async (params = {}) => {
-        const queryParams = new URLSearchParams();
-        
-        if (params.page) queryParams.append('page', params.page);
-        if (params.limit) queryParams.append('limit', params.limit);
-        if (params.status) queryParams.append('status', params.status);
-        if (params.search) queryParams.append('search', params.search);
-        if (params.sortBy) queryParams.append('sortBy', params.sortBy);
-        if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
-
-        const url = `${API_ENDPOINTS.ADMIN.GET_ALL_BLOGS}${queryParams.toString() ? `?${queryParams}` : ''}`;
-        return await makeApiCall(url);
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page);
+    if (params.limit) queryParams.append('limit', params.limit);
+    if (params.status) queryParams.append('status', params.status);
+    if (params.search) queryParams.append('search', params.search);
+    if (params.keyword) queryParams.append('keyword', params.keyword);
+    if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    // Đảm bảo không truyền hotelId vào admin API
+    // const { hotelId, ...rest } = params;
+    // Nếu có hotelId thì KHÔNG truyền vào queryParams
+    // API_ENDPOINTS.ADMIN.GET_ALL_BLOGS is a function, not a string
+    const url = API_ENDPOINTS.ADMIN.GET_ALL_BLOGS(queryParams.toString());
+    return await makeApiCall(url);
     },
 
     /**
@@ -498,7 +522,7 @@ const blogService = {
     // ===============================
 
     /**
-     * Upload blog image
+     * Upload blog image file (using FormData for file upload)
      * @param {string} blogId - Blog ID
      * @param {FormData} formData - Form data with image file
      * @returns {Promise<object>} - Upload response
@@ -548,6 +572,39 @@ const blogService = {
         });
     },
 
+    /**
+     * Get all images of a blog
+     * @param {string} blogId - Blog ID
+     * @returns {Promise<object>} - Blog images data
+     */
+    getBlogImages: async (blogId) => {
+        return await makeApiCall(API_ENDPOINTS.BLOGS.GET_IMAGES(blogId));
+    },
+
+    /**
+     * Add multiple images to a blog from URLs (using JSON data)
+     * @param {string} blogId - Blog ID
+     * @param {Array} imagesData - Array of image objects [{image_url, caption, order_index}]
+     * @returns {Promise<object>} - Response data
+     */
+    addBlogImages: async (blogId, imagesData) => {
+        return await makeApiCall(API_ENDPOINTS.BLOGS.UPLOAD_IMAGE(blogId), {
+            method: 'POST',
+            body: JSON.stringify({ images: imagesData })
+        });
+    },
+
+    /**
+     * Delete a blog image by image ID
+     * @param {string} imageId - Image ID
+     * @returns {Promise<object>} - Response data
+     */
+    deleteBlogImageById: async (imageId) => {
+        return await makeApiCall(API_ENDPOINTS.BLOGS.DELETE_IMAGE_BY_ID(imageId), {
+            method: 'DELETE'
+        });
+    },
+
     // ===============================
     // STATISTICS AND ANALYTICS
     // ===============================
@@ -589,6 +646,24 @@ const blogService = {
         if (params.limit) queryParams.append('limit', params.limit);
 
         const url = `${API_ENDPOINTS.BLOGS.SEARCH}?${queryParams.toString()}`;
+        return await makeApiCall(url);
+    },
+
+    /**
+     * Get blogs for hotel owner (chỉ lấy blog của chủ khách sạn đang đăng nhập)
+     * @param {object} params - Query parameters
+     * @returns {Promise<object>} - Owner blogs data
+     */
+    getOwnerBlogs: async (params = {}) => {
+        const queryParams = new URLSearchParams();
+        
+        if (params.page) queryParams.append('page', params.page);
+        if (params.limit) queryParams.append('limit', params.limit);
+        if (params.status) queryParams.append('status', params.status);
+        if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+        if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+        const url = `${API_ENDPOINTS.HOTEL_OWNER.GET_MY_BLOGS}${queryParams.toString() ? `?${queryParams}` : ''}`;
         return await makeApiCall(url);
     },
 

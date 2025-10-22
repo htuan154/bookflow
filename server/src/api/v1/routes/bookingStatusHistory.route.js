@@ -15,4 +15,11 @@ router.get(
     bookingStatusHistoryController.getBookingHistory
 );
 
+// POST /api/v1/bookings/:bookingId/history -> Tạo mới bản ghi lịch sử trạng thái
+router.post(
+    '/:bookingId/history',
+    authenticate,
+    bookingStatusHistoryController.createBookingStatusHistory
+);
+
 module.exports = router;

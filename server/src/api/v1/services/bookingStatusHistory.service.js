@@ -2,6 +2,7 @@
 
 const bookingStatusHistoryRepository = require('../repositories/bookingStatusHistory.repository');
 const bookingRepository = require('../repositories/booking.repository');
+const hotelStaffRepository = require('../repositories/hotelStaff.repository');
 const { AppError } = require('../../../utils/errors');
 
 class BookingStatusHistoryService {
@@ -9,10 +10,30 @@ class BookingStatusHistoryService {
      * Ghi lại một thay đổi trạng thái.
      * Đây là hàm nội bộ, được gọi bởi các service khác.
      * @param {object} logData - Dữ liệu cần ghi lại.
+     * @param {string} currentUserId - ID của user đang thao tác
      * @returns {Promise<BookingStatusHistory>}
      */
-    async createLog(logData) {
-        return await bookingStatusHistoryRepository.create(logData);
+    async createLog(logData, currentUserId) {
+        // 1. Tìm thông tin booking để lấy hotel_id
+        const booking = await bookingRepository.findById(logData.booking_id);
+        if (!booking) {
+            throw new AppError('Booking not found', 404);
+        }
+
+        // 2. Tìm staff_id dựa vào user_id và hotel_id
+        const staff = await hotelStaffRepository.findByUserIdAndHotelId(currentUserId, booking.hotelId);
+        if (!staff) {
+            throw new AppError('Bạn không phải là nhân viên của khách sạn này', 403);
+        }
+
+        // 3. Cập nhật logData với staff_id
+        const updatedLogData = {
+            ...logData,
+            changed_by_staff: staff.staffId
+        };
+
+        // 4. Tạo bản ghi lịch sử
+        return await bookingStatusHistoryRepository.create(updatedLogData);
     }
 
     /**

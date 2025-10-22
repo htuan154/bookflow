@@ -16,7 +16,15 @@ const cache = new LRUCache({
   ttl: parseInt(process.env.CACHE_TTL_MS || '300000', 10),
 });
 
-const makeKey = ({ province, intent, filters }) =>
-  ['v1', province || '-', intent || '-', JSON.stringify(filters || {})].join('|');
+const makeKey = ({ province, intent, filters, doc_key, city, sql_tags, user_ctx }) =>
+  [
+    'v2',
+    doc_key || province || '-',
+    city || '-',
+    sql_tags || '-',
+    intent || '-',
+    JSON.stringify(filters || {}),
+    JSON.stringify(user_ctx || {})
+  ].join('|');
 
 module.exports = { cache, makeKey };

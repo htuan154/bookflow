@@ -15,19 +15,16 @@ import {useComment} from '../../context/BlogCommentContext';
 const BlogPostInfo = ({ blog, blogId, sx, onEdit, onDelete, showActions = false }) => {
   const { currentBlog, loading, error } = useComment();
 
-  // Sửa dependencies của useMemo và loại bỏ biến không dùng
   const blogData = useMemo(() => {
-    // Ưu tiên lấy blog truyền vào, nếu không thì lấy currentBlog từ context
-    const sourceBlog =  currentBlog || blog;
+    const sourceBlog = currentBlog || blog;
     if (!sourceBlog) return null;
     return {
       ...sourceBlog,
-      // Sửa lại lấy đúng key cho viewCount, likeCount, commentCount
-      viewCount: sourceBlog.viewCount ??  0,
-      likeCount: sourceBlog.likeCount ??  0,
-      commentCount: sourceBlog.commentCount ??  0
+      viewCount: sourceBlog.viewCount ?? 0,
+      likeCount: sourceBlog.likeCount ?? 0,
+      commentCount: sourceBlog.commentCount ?? 0
     };
-  }, [currentBlog, blog, blogId]); // Thêm blogId vào dependencies
+  }, [currentBlog, blog, blogId]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -65,7 +62,7 @@ const BlogPostInfo = ({ blog, blogId, sx, onEdit, onDelete, showActions = false 
   const getStatusText = (status) => {
     switch (status) {
       case 'published': return 'Đã xuất bản';
-      case 'draft': return 'Bản nháp';
+      case 'draft': return 'Bản nhá';
       case 'pending': return 'Chờ duyệt';
       case 'archived': return 'Đã lưu trữ';
       case 'rejected': return 'Bị từ chối';
@@ -81,7 +78,6 @@ const BlogPostInfo = ({ blog, blogId, sx, onEdit, onDelete, showActions = false 
         url: window.location.href
       });
     } else {
-      // Fallback: copy to clipboard
       navigator.clipboard.writeText(window.location.href);
     }
   };
@@ -105,15 +101,11 @@ const BlogPostInfo = ({ blog, blogId, sx, onEdit, onDelete, showActions = false 
   }
 
   if (!blogData) {
-    return (
-      <Alert severity="warning" sx={sx}>
-        Không tìm thấy thông tin bài viết
-      </Alert>
-    );
+    return null;
   }
 
   return (
-    <Card sx={{ 
+    <Card sx={{
       ...sx,
       borderRadius: 3,
       boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
@@ -121,42 +113,71 @@ const BlogPostInfo = ({ blog, blogId, sx, onEdit, onDelete, showActions = false 
       overflow: 'hidden',
       bgcolor: 'white'
     }}>
-      {/* Header */}
+      {/* Header trắng, nút cam */}
       <Box sx={{
-        background: 'linear-gradient(135deg, #FF6B35 0%, #f7931e 100%)',
-        color: 'white',
+        bgcolor: 'white',
+        borderBottom: '1px solid #f0f0f0',
         p: 3
       }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={2}>
           <Stack direction="row" alignItems="center" spacing={2}>
-            <Article sx={{ fontSize: 32 }} />
+            <Box sx={{
+              bgcolor: '#FFF7F0',
+              p: 1.5,
+              borderRadius: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Article sx={{ fontSize: 28, color: '#FF6B35' }} />
+            </Box>
             <Box>
-              <Typography variant="h5" fontWeight="600" gutterBottom>
-                📄 Thông tin bài viết
+              <Typography variant="h5" fontWeight="700" gutterBottom sx={{ mb: 0.5, color: '#1a202c' }}>
+                Thông tin bài viết
               </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              <Typography variant="body2" sx={{ opacity: 0.9, color: '#64748b' }}>
                 Chi tiết và thống kê tương tác
               </Typography>
             </Box>
           </Stack>
-          
           {showActions && (
             <Stack direction="row" spacing={1}>
               <Tooltip title="Chia sẻ">
-                <IconButton onClick={handleShare} sx={{ color: 'white' }}>
+                <IconButton
+                  onClick={handleShare}
+                  sx={{
+                    color: '#FF6B35',
+                    bgcolor: '#FFF7F0',
+                    '&:hover': { bgcolor: '#FFE3CC' }
+                  }}
+                >
                   <Share />
                 </IconButton>
               </Tooltip>
               {onEdit && (
                 <Tooltip title="Chỉnh sửa">
-                  <IconButton onClick={() => onEdit(blogData)} sx={{ color: 'white' }}>
+                  <IconButton
+                    onClick={() => onEdit(blogData)}
+                    sx={{
+                      color: '#FF6B35',
+                      bgcolor: '#FFF7F0',
+                      '&:hover': { bgcolor: '#FFE3CC' }
+                    }}
+                  >
                     <Edit />
                   </IconButton>
                 </Tooltip>
               )}
               {onDelete && (
                 <Tooltip title="Xóa">
-                  <IconButton onClick={() => onDelete(blogData.blog_id)} sx={{ color: 'white' }}>
+                  <IconButton
+                    onClick={() => onDelete(blogData.blog_id)}
+                    sx={{
+                      color: '#FF6B35',
+                      bgcolor: '#FFF7F0',
+                      '&:hover': { bgcolor: '#FFE3CC' }
+                    }}
+                  >
                     <Delete />
                   </IconButton>
                 </Tooltip>
@@ -165,83 +186,87 @@ const BlogPostInfo = ({ blog, blogId, sx, onEdit, onDelete, showActions = false 
           )}
         </Stack>
       </Box>
-
-      <CardContent sx={{ p: 4 }}>
-        {/* Blog Title */}
+      {/* ...giữ nguyên phần CardContent và các section khác... */}
+      <CardContent sx={{ p: 3 }}>
+        {/* Blog Title & Excerpt */}
         <Box sx={{ mb: 3 }}>
-          <Typography variant="h4" fontWeight="700" color="#1a202c" gutterBottom>
+          <Typography variant="h4" fontWeight="700" color="#1a202c" gutterBottom sx={{ mb: 2 }}>
             {blogData.title}
           </Typography>
           {blogData.excerpt && (
-            <Typography variant="body1" color="#64748b" sx={{ lineHeight: 1.6 }}>
+            <Typography variant="body1" color="#64748b" sx={{ lineHeight: 1.7 }}>
               {blogData.excerpt}
             </Typography>
           )}
         </Box>
 
-        {/* Blog Meta Info */}
-        <Grid container spacing={3} sx={{ mb: 3 }}>
-          {/* Author Info */}
-          <Grid>
+        <Divider sx={{ my: 3 }} />
+
+        {/* Author & Date Info */}
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={12} md={6}>
             <Box sx={{ 
               display: 'flex', 
               alignItems: 'center', 
               gap: 2,
-              p: 3,
+              p: 2.5,
               bgcolor: '#f8fafc',
-              borderRadius: 3,
-              border: '1px solid #f1f5f9'
+              borderRadius: 2,
+              border: '1px solid #e2e8f0',
+              height: '100%'
             }}>
               <Avatar sx={{ 
                 width: 48, 
                 height: 48,
-                bgcolor: '#757575'
+                bgcolor: '#667eea',
+                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
               }}>
                 <Person />
               </Avatar>
               <Box>
-                <Typography variant="subtitle2" color="#64748b">
+                <Typography variant="caption" color="#94a3b8" fontWeight="600" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   Tác giả
                 </Typography>
-                <Typography variant="h6" fontWeight="600" color="#1a202c">
+                <Typography variant="body1" fontWeight="700" color="#1a202c">
                   {blogData.authorId || 'Không rõ'}
                 </Typography>
               </Box>
             </Box>
           </Grid>
 
-          {/* Date Info */}
-          <Grid>
+          <Grid item xs={12} md={6}>
             <Box sx={{ 
               display: 'flex', 
               alignItems: 'center', 
               gap: 2,
-              p: 3,
+              p: 2.5,
               bgcolor: '#f8fafc',
-              borderRadius: 3,
-              border: '1px solid #f1f5f9'
+              borderRadius: 2,
+              border: '1px solid #e2e8f0',
+              height: '100%'
             }}>
               <Box sx={{
-                bgcolor: 'rgba(255, 107, 53, 0.1)',
-                p: 2,
+                bgcolor: 'rgba(102, 126, 234, 0.1)',
+                p: 1.5,
                 borderRadius: 2,
                 display: 'flex',
-                alignItems: 'center'
+                alignItems: 'center',
+                justifyContent: 'center'
               }}>
-                <Schedule sx={{ fontSize: 24, color: '#FF6B35' }} />
+                <Schedule sx={{ fontSize: 24, color: '#667eea' }} />
               </Box>
-              <Box>
-                <Typography variant="subtitle2" color="#64748b">
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="caption" color="#94a3b8" fontWeight="600" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   Ngày đăng
                 </Typography>
-                <Typography variant="body1" fontWeight="600" color="#1a202c">
+                <Typography variant="body2" fontWeight="700" color="#1a202c" sx={{ mb: 0.5 }}>
                   {formatDate(blogData.createdAt)}
                 </Typography>
                 <Chip 
                   label={getStatusText(blogData.status)}
                   size="small"
                   color={getStatusColor(blogData.status)}
-                  sx={{ fontSize: '0.7rem', mt: 0.5 }}
+                  sx={{ fontSize: '0.7rem', height: 20, fontWeight: 600 }}
                 />
               </Box>
             </Box>
@@ -250,81 +275,83 @@ const BlogPostInfo = ({ blog, blogId, sx, onEdit, onDelete, showActions = false 
 
         {/* Statistics */}
         <Box sx={{ mb: 3 }}>
-          <Typography variant="h6" fontWeight="600" gutterBottom sx={{ mb: 2, color: '#1a202c' }}>
-            📊 Thống kê tương tác
+          <Typography variant="h6" fontWeight="700" gutterBottom sx={{ mb: 2, color: '#1a202c' }}>
+            Thống kê tương tác
           </Typography>
           
           <Grid container spacing={2}>
-            <Grid>
+            <Grid item xs={12} sm={4}>
               <Card sx={{ 
-                bgcolor: '#f8fafc',
+                bgcolor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
                 border: '1px solid #e2e8f0',
-                borderRadius: 3,
-                transition: 'all 0.2s ease',
+                borderRadius: 2,
+                transition: 'all 0.3s ease',
                 '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 16px rgba(102, 126, 234, 0.2)',
+                  borderColor: '#667eea'
                 }
               }}>
-                <CardContent sx={{ p: 3, textAlign: 'center' }}>
-                  <Visibility sx={{ fontSize: 32, color: '#64748b', mb: 1 }} />
-                  <Typography variant="h5" fontWeight="700" color="#1a202c">
+                <CardContent sx={{ p: 2.5, textAlign: 'center' }}>
+                  <Visibility sx={{ fontSize: 36, color: '#667eea', mb: 1 }} />
+                  <Typography variant="h4" fontWeight="700" color="#1a202c">
                     {formatNumber(blogData.viewCount)}
                   </Typography>
-                  <Typography variant="caption" color="#64748b">
+                  <Typography variant="caption" color="#64748b" fontWeight="600" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                     Lượt xem
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
 
-            <Grid>
+            <Grid item xs={12} sm={4}>
               <Card sx={{ 
-                bgcolor: '#f8fafc',
+                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%)',
                 border: '1px solid #e2e8f0',
-                borderRadius: 3,
-                transition: 'all 0.2s ease',
+                borderRadius: 2,
+                transition: 'all 0.3s ease',
                 '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 16px rgba(239, 68, 68, 0.2)',
+                  borderColor: '#ef4444'
                 }
               }}>
-                <CardContent sx={{ p: 3, textAlign: 'center' }}>
-                  <ThumbUp sx={{ fontSize: 32, color: '#FF6B35', mb: 1 }} />
-                  <Typography variant="h5" fontWeight="700" color="#1a202c">
+                <CardContent sx={{ p: 2.5, textAlign: 'center' }}>
+                  <ThumbUp sx={{ fontSize: 36, color: '#ef4444', mb: 1 }} />
+                  <Typography variant="h4" fontWeight="700" color="#1a202c">
                     {formatNumber(blogData.likeCount || 0)}
                   </Typography>
-                  <Typography variant="caption" color="#64748b">
+                  <Typography variant="caption" color="#64748b" fontWeight="600" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                     Lượt thích
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
 
-            <Grid>
+            <Grid item xs={12} sm={4}>
               <Card sx={{ 
-                bgcolor: '#f8fafc',
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)',
                 border: '1px solid #e2e8f0',
-                borderRadius: 3,
-                transition: 'all 0.2s ease',
+                borderRadius: 2,
+                transition: 'all 0.3s ease',
                 '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 16px rgba(59, 130, 246, 0.2)',
+                  borderColor: '#3b82f6'
                 }
               }}>
-                <CardContent sx={{ p: 3, textAlign: 'center' }}>
-                  <ChatBubbleOutline sx={{ fontSize: 32, color: '#3b82f6', mb: 1 }} />
-                  <Typography variant="h5" fontWeight="700" color="#1a202c">
+                <CardContent sx={{ p: 2.5, textAlign: 'center' }}>
+                  <ChatBubbleOutline sx={{ fontSize: 36, color: '#3b82f6', mb: 1 }} />
+                  <Typography variant="h4" fontWeight="700" color="#1a202c">
                     {formatNumber(blogData.commentCount || 0)}
                   </Typography>
-                  <Typography variant="caption" color="#64748b">
+                  <Typography variant="caption" color="#64748b" fontWeight="600" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                     Bình luận
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
-
-          
           </Grid>
         </Box>
 
@@ -332,56 +359,57 @@ const BlogPostInfo = ({ blog, blogId, sx, onEdit, onDelete, showActions = false 
         {(blogData.tags || blogData.category) && (
           <Box>
             <Divider sx={{ my: 3 }} />
-            <Stack direction="row" spacing={2} flexWrap="wrap">
-              {blogData.category && (
-                <Box>
-                  <Typography variant="subtitle2" color="#64748b" sx={{ mb: 1 }}>
-                    Danh mục:
-                  </Typography>
-                  <Chip 
-                    icon={<Category />}
-                    label={blogData.category}
-                    variant="outlined"
-                    sx={{
-                      borderColor: '#FF6B35',
-                      color: '#FF6B35',
-                      '&:hover': {
-                        bgcolor: 'rgba(255, 107, 53, 0.04)'
-                      }
-                    }}
-                  />
-                </Box>
-              )}
-              
-              {blogData.tags && (
-                <Box>
-                  <Typography variant="subtitle2" color="#64748b" sx={{ mb: 1 }}>
-                    Thẻ:
-                  </Typography>
-                  <Stack direction="row" spacing={1} flexWrap="wrap">
-                    {blogData.tags.split(',').map((tag, index) => (
-                      <Chip 
-                        key={index}
-                        icon={<Tag />}
-                        label={tag.trim()}
-                        size="small"
-                        variant="outlined"
-                        sx={{ 
-                          mb: 1,
-                          borderColor: '#e2e8f0',
-                          color: '#64748b',
-                          '&:hover': {
-                            borderColor: '#FF6B35',
-                            color: '#FF6B35',
-                            bgcolor: 'rgba(255, 107, 53, 0.04)'
-                          }
-                        }}
-                      />
-                    ))}
-                  </Stack>
-                </Box>
-              )}
-            </Stack>
+            
+            {blogData.category && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="#64748b" fontWeight="600" sx={{ mb: 1.5, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Danh mục
+                </Typography>
+                <Chip 
+                  icon={<Category sx={{ fontSize: 16 }} />}
+                  label={blogData.category}
+                  sx={{
+                    bgcolor: 'rgba(102, 126, 234, 0.1)',
+                    color: '#667eea',
+                    fontWeight: 600,
+                    border: '1px solid rgba(102, 126, 234, 0.3)',
+                    '&:hover': {
+                      bgcolor: 'rgba(102, 126, 234, 0.2)'
+                    }
+                  }}
+                />
+              </Box>
+            )}
+            
+            {blogData.tags && (
+              <Box>
+                <Typography variant="subtitle2" color="#64748b" fontWeight="600" sx={{ mb: 1.5, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Thẻ
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {blogData.tags.split(',').map((tag, index) => (
+                    <Chip 
+                      key={index}
+                      icon={<Tag sx={{ fontSize: 14 }} />}
+                      label={tag.trim()}
+                      size="small"
+                      sx={{ 
+                        mb: 1,
+                        bgcolor: '#f8fafc',
+                        borderColor: '#e2e8f0',
+                        color: '#64748b',
+                        fontWeight: 600,
+                        '&:hover': {
+                          borderColor: '#667eea',
+                          color: '#667eea',
+                          bgcolor: 'rgba(102, 126, 234, 0.04)'
+                        }
+                      }}
+                    />
+                  ))}
+                </Stack>
+              </Box>
+            )}
           </Box>
         )}
       </CardContent>

@@ -76,10 +76,66 @@ const deleteById = async (pricingId) => {
     return result.rowCount > 0;
 };
 
+/**
+ * Kiểm tra xem room_type_id đã có seasonal_pricing với season_id nào chưa.
+ * @param {string} roomTypeId - ID của loại phòng.
+ * @param {number[]} seasonIds - Mảng các season_id cần kiểm tra.
+ * @returns {Promise<number[]>} - Trả về mảng các season_id đã tồn tại.
+ */
+const findExistingSeasonIds = async (roomTypeId, seasonIds) => {
+    const query = `
+        SELECT DISTINCT season_id 
+        FROM seasonal_pricing 
+        WHERE room_type_id = $1 AND season_id = ANY($2::int[])
+    `;
+    const result = await pool.query(query, [roomTypeId, seasonIds]);
+    return result.rows.map(row => row.season_id);
+};
+
+/**
+ * Tạo nhiều quy tắc giá cùng lúc (bulk insert).
+ * @param {Array} pricingDataArray - Mảng các dữ liệu quy tắc giá.
+ * @returns {Promise<SeasonalPricing[]>}
+ */
+const bulkCreate = async (pricingDataArray) => {
+    if (!pricingDataArray || pricingDataArray.length === 0) {
+        return [];
+    }
+
+    const values = [];
+    const placeholders = [];
+    
+    pricingDataArray.forEach((data, index) => {
+        const offset = index * 6;
+        placeholders.push(
+            `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`
+        );
+        values.push(
+            data.room_type_id,
+            data.season_id,
+            data.name,
+            data.start_date,
+            data.end_date,
+            data.price_modifier
+        );
+    });
+
+    const query = `
+        INSERT INTO seasonal_pricing (room_type_id, season_id, name, start_date, end_date, price_modifier)
+        VALUES ${placeholders.join(', ')}
+        RETURNING *;
+    `;
+
+    const result = await pool.query(query, values);
+    return result.rows.map(row => new SeasonalPricing(row));
+};
+
 module.exports = {
     create,
     findByRoomTypeId,
     findById,
     update,
     deleteById,
+    findExistingSeasonIds,
+    bulkCreate,
 };

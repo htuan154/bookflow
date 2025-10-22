@@ -124,6 +124,18 @@ const autoApprovePromotions = async (req, res, next) => {
   }
 };
 
+// POST /api/v1/dailyjob/create-default-seasons
+const createDefaultSeasons = async (req, res, next) => {
+  try {
+    // Lấy năm hiện tại
+    const year = new Date().getFullYear();
+    const result = await dailyJobService.createDefaultSeasonsForYear(year);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   updateHotelStatus,
   updateExpiredContracts,
@@ -135,5 +147,6 @@ module.exports = {
   updatePendingContractsToDraft,
   getPendingContractsOverDays,
   updatePromotionStatusByDate,
-  autoApprovePromotions
+  autoApprovePromotions,
+  createDefaultSeasons
 };

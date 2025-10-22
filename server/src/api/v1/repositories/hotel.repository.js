@@ -421,36 +421,54 @@ const findByOwnerAndStatus = async (ownerId, status = null) => {
 // };
 
 /**
- * Tìm phòng trống theo thành phố + khoảng ngày (đêm [checkIn -> checkOut))
- * - checkOut là exclusive: đêm trả phòng KHÔNG chiếm phòng
+ * Tìm phòng theo thành phố + khoảng đêm [checkIn -> checkOut)
+ * - Dựa trên phòng vật lý trong bảng rooms (status='available')
+ * - Vẫn hiển thị room type hết phòng (available_rooms = 0)
  */
 const findAvailableRoomsByCity = async (city, checkInDate, checkOutDate, ward = null) => {
-  // Tham số: $1=checkInDate, $2=checkOutDate, $3=city, ($4=ward nếu có)
+  // $1=checkInDate, $2=checkOutDate, $3=city, ($4=ward nếu có)
   let query = `
-    SELECT
-        h.hotel_id,
+    WITH rooms_avail AS (
+      SELECT
+        rt.hotel_id,
         rt.room_type_id,
-        rt.name AS room_type_name,
-        rt.number_of_rooms,
-        rt.max_occupancy,
-        COALESCE(SUM(bd.quantity), 0) AS total_rooms_booked,
-        (rt.number_of_rooms - COALESCE(SUM(bd.quantity), 0)) AS available_rooms
+        COUNT(*)::int AS total_physical_available
+      FROM room_types rt
+      JOIN rooms r
+        ON r.room_type_id = rt.room_type_id
+       AND r.status = 'available'
+      GROUP BY rt.hotel_id, rt.room_type_id
+    ),
+    booked AS (
+      SELECT
+        b.hotel_id,
+        bd.room_type_id,
+        COALESCE(SUM(bd.quantity), 0)::int AS total_booked
+      FROM bookings b
+      JOIN booking_details bd
+        ON bd.booking_id = b.booking_id
+      WHERE b.booking_status IN ('pending','confirmed')
+        AND b.check_in_date  < $2::date   -- overlap [checkIn -> checkOut)
+        AND b.check_out_date > $1::date
+      GROUP BY b.hotel_id, bd.room_type_id
+    )
+    SELECT
+      h.hotel_id,
+      rt.room_type_id,
+      rt.name AS room_type_name,
+      COALESCE(ra.total_physical_available, 0) AS number_of_rooms,       -- số phòng vật lý đang 'available'
+      rt.max_occupancy,
+      COALESCE(bk.total_booked, 0) AS total_rooms_booked,
+      GREATEST(COALESCE(ra.total_physical_available,0) - COALESCE(bk.total_booked,0), 0) AS available_rooms
     FROM room_types rt
     JOIN hotels h
       ON rt.hotel_id = h.hotel_id
-
-    -- Chỉ giữ các booking trùng khoảng đêm cần kiểm tra
-    LEFT JOIN bookings b
-      ON b.hotel_id = h.hotel_id
-     AND b.booking_status IN ('pending','confirmed')
-     AND b.check_in_date < $2::date
-     AND b.check_out_date > $1::date
-
-    -- Chỉ cộng booking_details của những booking hợp lệ ở trên
-    LEFT JOIN booking_details bd
-      ON bd.booking_id = b.booking_id
-     AND bd.room_type_id = rt.room_type_id
-
+    LEFT JOIN rooms_avail ra
+      ON ra.hotel_id = h.hotel_id
+     AND ra.room_type_id = rt.room_type_id
+    LEFT JOIN booked bk
+      ON bk.hotel_id = h.hotel_id
+     AND bk.room_type_id = rt.room_type_id
     WHERE h.city = $3
       AND h.status = 'active'
   `;
@@ -463,15 +481,12 @@ const findAvailableRoomsByCity = async (city, checkInDate, checkOutDate, ward = 
   }
 
   query += `
-    GROUP BY h.hotel_id, rt.room_type_id, rt.name, rt.number_of_rooms, rt.max_occupancy
-    HAVING COALESCE(SUM(bd.quantity), 0) <= rt.number_of_rooms
+    ORDER BY h.hotel_id, rt.room_type_id
   `;
 
   const result = await pool.query(query, values);
   return result.rows.map(row => new RoomTypeAvailability(row));
 };
-
-
 
 module.exports = {
   // CRUD cơ bản

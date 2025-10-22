@@ -37,15 +37,15 @@ function pickPayload(m) {
 }
 
 /** Lấy text câu hỏi (user) từ nhiều schema */
-function pickUserText(m) {
-  return (
-    m?.message?.text ||
-    m?.messageText ||
-    m?.message_text ||
-    m?.question ||
-    ''
-  );
-}
+// function pickUserText(m) {
+//   return (
+//     m?.message?.text ||
+//     m?.messageText ||
+//     m?.message_text ||
+//     m?.question ||
+//     ''
+//   );
+// }
 
 /* ========================== Rich render cho payload ========================== */
 function HotelsList({ hotels = [] }) {
@@ -217,6 +217,8 @@ export default function AdminSuggestionsPage() {
   const [msg, setMsg] = useState('');
 
   const listEndRef = useRef(null);
+  const inputRef = useRef(null);
+  const lastSentRef = useRef(0); // Track last sent timestamp for client-side dedupe
 
   const headers = useMemo(() => {
     const h = {};
@@ -260,6 +262,28 @@ export default function AdminSuggestionsPage() {
     const text = msg.trim();
     if (!text || sending) return;
 
+    // ✅ CLIENT-SIDE DEDUPE: Check if sent recently (< 2 seconds)
+    const now = Date.now();
+    if (now - lastSentRef.current < 2000) {
+      console.warn('⚠️ Client-side dedupe: message sent too quickly');
+      setMessages(prev => [
+        ...prev,
+        {
+          reply: { text: '⚠️ Vui lòng đợi vài giây giữa các tin nhắn.' },
+          created_at: new Date().toISOString(),
+          source: 'client-dedupe'
+        }
+      ]);
+      return;
+    }
+    lastSentRef.current = now;
+
+    // ✅ XÓA INPUT NGAY LẬP TỨC (trước khi gửi)
+    setMsg('');
+
+    // ✅ Focus back to input after clearing (better UX)
+    setTimeout(() => inputRef.current?.focus(), 50);
+
     // Optional: hạn chế độ dài để tránh request quá lớn
     if (text.length > 2000) {
       setMessages(prev => [
@@ -279,21 +303,28 @@ export default function AdminSuggestionsPage() {
       setActiveSession(sid);
     }
 
+    // ✅ SET SENDING STATE TRƯỚC KHI PUSH MESSAGE
     setSending(true);
 
-    try {
-      // Push user bubble ngay
-      setMessages((prev) => [
-        ...prev,
-        { message: { text }, created_at: new Date().toISOString(), source: 'client' },
-      ]);
+    // ✅ Push user bubble ngay (optimistic UI)
+    setMessages((prev) => [
+      ...prev,
+      { 
+        message: { text }, 
+        created_at: new Date().toISOString(), 
+        source: 'client',
+        _optimistic: true // đánh dấu là optimistic update
+      },
+    ]);
 
+    try {
       const token = localStorage.getItem('accessToken');
 
       // Body mở rộng ép LLM + chỗ để truyền các tham số tùy chọn
       const body = {
         message: text,
         use_llm: true,
+        session_id: sid, // thêm session_id vào body
         // top_n: 8,
         // filters: { amenities: ['pool'] },
       };
@@ -307,25 +338,52 @@ export default function AdminSuggestionsPage() {
         ...(token && { Authorization: `Bearer ${token}` }),
       };
 
-      // Gửi
+      // ✅ Gửi request
       const res = await chatSuggest(text, body, h);
 
-      // Push assistant (res trả raw payload → để AssistantReply xử lý)
+      // ✅ Check dedupe header
+      const isDedupe = res?._headers?.['x-dedupe'] === 'true' || res?.isDedupe;
+      if (isDedupe) {
+        console.log('🔄 Received cached response (dedupe)');
+      }
+
+      // ✅ Push assistant (res trả raw payload → để AssistantReply xử lý)
       setMessages((prev) => [
         ...prev,
         {
           replyPayload: res,
           created_at: new Date().toISOString(),
-          source: res?.source || 'nosql+llm'
+          source: res?.source || 'nosql+llm',
+          isDedupe
         },
       ]);
 
-      setMsg('');
-      // Đồng bộ lại từ server (trong trường hợp BE lưu log khác)
-      setTimeout(() => openSession(sid), 250);
-      loadSessions();
+      // ✅ Đồng bộ lại từ server (debounced để tránh spam)
+      setTimeout(() => {
+        if (activeSession === sid) {
+          openSession(sid);
+        }
+      }, 500);
+      
+      // ✅ Refresh sessions list (debounced)
+      setTimeout(() => loadSessions(), 800);
     } catch (e) {
       console.error('❌ Chat error:', e?.response?.data || e?.message);
+      
+      // ✅ Handle duplicate error (HTTP 409)
+      if (e?.response?.status === 409 || e?.response?.data?.code === 'DUPLICATE_MESSAGE') {
+        console.warn('⚠️ Duplicate message detected by backend');
+        setMessages(prev => [
+          ...prev,
+          {
+            reply: { text: '⚠️ Tin nhắn này vừa được gửi. Vui lòng đợi vài giây trước khi gửi lại.' },
+            created_at: new Date().toISOString(),
+            source: 'dedupe'
+          }
+        ]);
+        return;
+      }
+
       setMessages(prev => [
         ...prev,
         {
@@ -445,8 +503,14 @@ export default function AdminSuggestionsPage() {
                 {(hasAssistantText || hasAssistantPayload) && (
                   <div className="flex justify-start">
                     <div className="max-w-[min(800px,85%)] w-fit px-5 py-4 rounded-2xl bg-white shadow border">
-                      <div className="text-xs text-gray-500 mb-3">
-                        {fmtTime(m.created_at)} {m.source ? `• ${m.source}` : ''}
+                      <div className="text-xs text-gray-500 mb-3 flex items-center gap-2">
+                        <span>{fmtTime(m.created_at)}</span>
+                        {m.source && <span>• {m.source}</span>}
+                        {m.isDedupe && (
+                          <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-xs font-medium">
+                            🔄 Cached
+                          </span>
+                        )}
                       </div>
                       <AssistantReply message={m} />
                     </div>
@@ -471,24 +535,41 @@ export default function AdminSuggestionsPage() {
         {/* Composer - Fixed */}
         <div className="border-t bg-white p-4 flex gap-3 shrink-0">
           <input
+            ref={inputRef}
             value={msg}
             onChange={(e) => setMsg(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onSend()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                onSend();
+              }
+            }}
             placeholder="Nhập câu hỏi… (VD: Top 5 khách sạn Đà Nẵng / Voucher khách sạn Hồ Chí Minh tháng 9)"
-            className="flex-1 h-12 px-4 rounded-lg border text-base"
+            className="flex-1 h-12 px-4 rounded-lg border text-base focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            disabled={sending}
+            autoFocus
           />
           <button
             onClick={onSend}
             disabled={sending || !msg.trim()}
             className={cls(
-              'h-12 px-5 rounded-lg inline-flex items-center gap-2 text-base font-medium',
+              'h-12 px-5 rounded-lg inline-flex items-center gap-2 text-base font-medium transition-all',
               sending || !msg.trim()
-                ? 'bg-gray-200 text-gray-500'
-                : 'bg-orange-600 text-white hover:bg-orange-700'
+                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                : 'bg-orange-600 text-white hover:bg-orange-700 active:scale-95'
             )}
           >
-            <Send size={18} />
-            Gửi
+            {sending ? (
+              <>
+                <Loader2 className="animate-spin" size={18} />
+                Đang gửi...
+              </>
+            ) : (
+              <>
+                <Send size={18} />
+                Gửi
+              </>
+            )}
           </button>
         </div>
       </main>

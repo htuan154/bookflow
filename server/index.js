@@ -58,6 +58,8 @@ const dailyJobRoutes = require('./src/api/v1/routes/dailyJob.route');
 const provincesRoutes = require('./src/api/v1/routes/provinces.routes');
 const reportsRoutes = require('./src/api/v1/routes/reports.route');
 const bankAccountRoutes = require('./src/api/v1/routes/bank_account.route');
+const vietqrRoutes = require('./src/api/v1/routes/vietqr.route');
+
 
 // --- App ---
 const app = express();
@@ -118,8 +120,8 @@ app.use('/api/v1/im', imConversations);
 app.use('/api/v1/im', imMessages);
 app.use('/api/v1/im', imUploads);
 app.use('/api/v1/im', imStream);
-
-// --- Thông Báo (Mongo) ---
+app.use('/api/v1/vietqr', vietqrRoutes);
+// --- Thông Báo (Mongo) ---
 app.use('/api/v1/notification-for-contract', notificationForContractRoutes);
 
 // DailyJob API
