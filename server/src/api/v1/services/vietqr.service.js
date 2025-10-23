@@ -37,6 +37,32 @@ class VietQRService {
       throw new Error(data?.desc || 'Lỗi tạo QR từ VietQR');
     return data.data; // { qrDataURL, qrCode }
   }
+    // === PayOS: tạo payment-request (polling, không webhook) ===
+  async payosCreate({ orderCode, amount, description, returnUrl, cancelUrl }) {
+    const base = process.env.PAYOS_BASE_URL || 'https://api-merchant.payos.vn';
+    const headers = {
+      'x-client-id': process.env.PAYOS_CLIENT_ID,
+      'x-api-key': process.env.PAYOS_API_KEY,
+      'Content-Type': 'application/json'
+    };
+    const body = { orderCode, amount, description, returnUrl, cancelUrl };
+    const { data } = await axios.post(`${base}/v2/payment-requests`, body, { headers, timeout: 15000 });
+    if (!data) throw new Error('payOS create: empty response');
+    return data.data || data;
+  }
+
+  // === PayOS: lấy trạng thái theo orderCode ===
+  async payosGetStatus(orderCode) {
+    const base = process.env.PAYOS_BASE_URL || 'https://api-merchant.payos.vn';
+    const headers = {
+      'x-client-id': process.env.PAYOS_CLIENT_ID,
+      'x-api-key': process.env.PAYOS_API_KEY
+    };
+    const { data } = await axios.get(`${base}/v2/payment-requests/${orderCode}`, { headers, timeout: 15000 });
+    if (!data) throw new Error('payOS status: empty response');
+    return data.data || data;
+  }
+
 }
 
 module.exports = new VietQRService();

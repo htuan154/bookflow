@@ -4,15 +4,15 @@ import ReportsAdminService from '../api/reports.admin.service';
 export const AdminReportsContext = createContext(null);
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
-const yesterdayISO = () => {
-  const d = new Date(); d.setDate(d.getDate() - 1);
+ const daysAgoISO = (n) => {
+  const d = new Date(); d.setDate(d.getDate() - n);
   return d.toISOString().slice(0, 10);
 };
 
 export function AdminReportsProvider({ children }) {
   // ---- bộ lọc chung cho toàn trang Báo cáo thống kê (Admin)
   const [filters, setFilters] = useState({
-    date_from: yesterdayISO(),
+    date_from: daysAgoISO(14),   // 14 ngày gần nhất → chắc chắn bao trùm 10/17
     date_to: todayISO(),
     hotel_filter: 'ALL',       // Đổi tên từ 'hotels' thành 'hotel_filter' để khớp backend
     page: 1,

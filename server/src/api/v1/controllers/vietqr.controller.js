@@ -187,3 +187,131 @@ exports.checkPaymentStatus = async (req, res) => {
     client.release();
   }
 };
+
+// === PayOS: tạo đơn thanh toán (POLLING, không webhook) ===
+exports.createPayOSPayment = async (req, res) => {
+  const client = await db.connect();
+  try {
+    // chấp nhận camelCase / snake_case
+    const booking_id = req.body.booking_id ?? req.body.bookingId;
+    let   hotel_id   = req.body.hotel_id   ?? req.body.hotelId; // có thể không gửi từ FE
+    const amount     = Number(req.body.amount);
+    const description = req.body.description || 'Thanh toan don';
+
+    if (!booking_id || !amount || Number.isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ ok:false, message:'bookingId/amount không hợp lệ' });
+    }
+
+    // ⬇️ Lookup hotel_id từ booking nếu FE không gửi
+    if (!hotel_id) {
+      // TH1: bookings có cột hotel_id
+      const q1 = await client.query(
+        `select hotel_id from bookings where booking_id = $1 limit 1`,
+        [booking_id]
+      );
+      hotel_id = q1.rows?.[0]?.hotel_id;
+
+      // TH2 (fallback): join rooms nếu bookings không có cột hotel_id
+      if (!hotel_id) {
+        const q2 = await client.query(
+          `select r.hotel_id
+             from bookings b
+             join rooms r on r.room_id = b.room_id
+            where b.booking_id = $1
+            limit 1`,
+          [booking_id]
+        );
+        hotel_id = q2.rows?.[0]?.hotel_id;
+      }
+      if (!hotel_id) {
+        return res.status(404).json({ ok:false, message:'Không tìm thấy hotel_id cho booking này' });
+      }
+    }
+
+    const makeOrderCode = () => Number(String(Date.now()).slice(-9));
+    const orderCode = makeOrderCode();
+
+    // 1) Gọi payOS tạo payment request (polling: KHÔNG webhookUrl)
+    const data = await vietqrService.payosCreate({
+      orderCode,
+      amount,
+      description: `${description} #${orderCode}`,
+      returnUrl: process.env.REDIRECT_URL,
+      cancelUrl: process.env.REDIRECT_URL
+    });
+    const checkoutUrl = data.checkoutUrl || data.checkoutUrlWeb || data.checkoutUrlApp;
+    const qrCode = data.qrCode || data.qrCodeUrl;
+
+    // 2) Lưu PENDING vào DB
+    await client.query(
+      `INSERT INTO payments (
+         booking_id, hotel_id,
+         base_amount, surcharge_amount, discount_amount,
+         pg_fee_amount, admin_fee_amount,
+         status, tx_ref, note
+       )
+       VALUES ($1,$2,$3,0,0,0,0,'pending',$4,'PayOS (polling)')`,
+        [booking_id, hotel_id, amount, String(orderCode)]
+    );
+
+    return res.json({ ok:true, orderId:String(orderCode), checkoutUrl, qrCode });
+  } catch (err) {
+    console.error('❌ [PayOS create] Error:', err?.response?.data || err.message);
+    return res.status(500).json({ ok:false, message:'create payment failed' });
+  } finally {
+    client.release();
+  }
+};
+
+// === PayOS: kiểm tra trạng thái (PAID -> update DB) ===
+exports.checkPayOSStatus = async (req, res) => {
+  const { orderCode } = req.params;
+  if (!orderCode) return res.status(400).json({ ok:false, message:'orderCode required' });
+
+  const client = await db.connect();
+  try {
+    // 1) hỏi PayOS
+    const status = await vietqrService.payosGetStatus(orderCode);
+    const gatewayStatus = String(status.status || status.payment?.status || '').toUpperCase();
+
+    // 2) nếu PAID -> update DB (idempotent)
+    if (gatewayStatus === 'PAID') {
+      await client.query(
+        `UPDATE payments
+           SET status='paid', paid_at=now(), note=concat(coalesce(note,''),' | payOS txn ', $1)
+         WHERE tx_ref=$1 AND status <> 'paid'`,
+        [String(orderCode)]
+      );
+
+      // đồng bộ booking nếu có
+      await client.query(
+        `UPDATE bookings
+            SET payment_status='paid', last_updated_at=now()
+         WHERE booking_id IN (SELECT booking_id FROM payments WHERE tx_ref=$1)`,
+        [String(orderCode)]
+      );
+    }
+
+    // 3) đọc trạng thái hiện tại trong DB
+    const q = await client.query(
+      `SELECT payment_id, booking_id, status, paid_at, tx_ref
+         FROM payments WHERE tx_ref=$1 LIMIT 1`,
+      [String(orderCode)]
+    );
+    const row = q.rows[0] || null;
+
+    return res.json({
+      ok: true,
+      orderId: String(orderCode),
+      gatewayStatus: gatewayStatus || 'UNKNOWN',
+      dbStatus: row?.status || 'unknown',
+      paid_at: row?.paid_at || null,
+      booking_id: row?.booking_id || null
+    });
+  } catch (err) {
+    console.error('❌ [PayOS status] Error:', err?.response?.data || err.message);
+    return res.status(500).json({ ok:false, message:'check status failed' });
+  } finally {
+    client.release();
+  }
+};

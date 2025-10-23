@@ -489,14 +489,14 @@ export const API_ENDPOINTS = {
     // --- Reports Endpoints ---
     REPORTS: {
         // Admin reports
-        ADMIN_SUMMARY: (params = '') => `${API_BASE_URL}/admin/reports/summary${params ? `?${params}` : ''}`,
-        ADMIN_PAYMENTS: (params = '') => `${API_BASE_URL}/admin/reports/payments${params ? `?${params}` : ''}`,
-        ADMIN_PAYOUTS: (params = '') => `${API_BASE_URL}/admin/reports/payouts${params ? `?${params}` : ''}`,
+        ADMIN_SUMMARY: `${API_BASE_URL}/admin/reports/summary`,
+        ADMIN_PAYMENTS: `${API_BASE_URL}/admin/reports/payments`,
+        ADMIN_PAYOUTS: `${API_BASE_URL}/admin/reports/payouts`,
         ADMIN_CREATE_PAYOUT: `${API_BASE_URL}/admin/reports/payouts`,
 
         // Hotel Owner reports
-        OWNER_PAYMENTS: (params = '') => `${API_BASE_URL}/owner/reports/payments${params ? `?${params}` : ''}`,
-        OWNER_PAYOUTS: (params = '') => `${API_BASE_URL}/owner/reports/payouts${params ? `?${params}` : ''}`,
+        OWNER_PAYMENTS: `${API_BASE_URL}/owner/reports/payments`,
+        OWNER_PAYOUTS: `${API_BASE_URL}/owner/reports/payouts`,
     },
 
     // --- Bank Accounts Endpoints ---
@@ -538,5 +538,9 @@ export const API_ENDPOINTS = {
         // Cập nhật status payment
         UPDATE_PAYMENT_STATUS: `${API_BASE_URL}/vietqr/payments/update-status`,
     },
-
+    // --- PayOS (VietQR qua payOS, dùng POLLING) ---
+    PAYOS: {
+        CREATE: `${API_BASE_URL}/vietqr/payos/create`,
+        STATUS: (orderCode) => `${API_BASE_URL}/vietqr/payos/status/${orderCode}`,
+    },
 };

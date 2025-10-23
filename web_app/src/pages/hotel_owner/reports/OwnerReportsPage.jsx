@@ -5,7 +5,7 @@ import useOwnerReports from '../../../hooks/useOwnerReports';
 import { useHotel } from '../../../hooks/useHotel';
 
 function OwnerFilterBar() {
-  const { filters, setFilters, fetchPayments, fetchPayouts } = useOwnerReports(false);
+  const { filters, setFilters, setSelectedHotel,fetchPayments, fetchPayouts } = useOwnerReports(false);
   const { fetchApprovedHotels, approvedHotels } = useHotel();
   const [loadingHotels, setLoadingHotels] = useState(false);
   
@@ -48,7 +48,14 @@ function OwnerFilterBar() {
   ]), []);
 
   const applyAll = async () => {
-    await Promise.all([fetchPayments(), fetchPayouts()]);
+    try {
+      await Promise.all([fetchPayments(), fetchPayouts()]);
+    } catch (err) {
+      // fetchPayments / fetchPayouts will set context error, but also log here for visibility
+      console.error('Error applying filters:', err);
+      // Rethrow so callers (if any) can handle it
+      throw err;
+    }
   };
 
   const handleHotelChange = (value) => {
@@ -97,11 +104,20 @@ function OwnerFilterBar() {
           >
             <option value="">Vui lòng chọn khách sạn</option>
             <option value="ALL">Tất cả khách sạn của tôi</option>
-            {approvedHotels.map(hotel => (
-              <option key={hotel.hotel_id} value={hotel.hotel_id}>
-                {hotel.name} - {hotel.city}
-              </option>
-            ))}
+           {approvedHotels.map((hotel, idx) => {
+   const id =
+     hotel.hotel_id ??
+     hotel.hotelId ??
+     hotel.id ??
+     `tmp-${idx}`; // fallback cuối cùng để tránh trùng key
+   const name = hotel.name ?? hotel.hotel_name ?? 'Khách sạn';
+   const city = hotel.city ?? hotel.hotel_city ?? '';
+   return (
+     <option key={String(id)} value={String(id)}>
+       {name} - {city}
+     </option>
+   );
+ })}
           </select>
           {loadingHotels && (
             <p className="text-xs text-green-500 mt-1">Đang tải danh sách khách sạn...</p>
@@ -325,7 +341,7 @@ function OwnerPaymentsTable() {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {currentRows.map((r, i) => (
-              <tr key={`${r.payment_id}-${i}`} className="hover:bg-gray-50 transition-colors">
+              <tr key={`${r.paymentId || r.payment_id || i}`} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{r.bizDateVn}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">{r.hotelName}</div>
@@ -457,7 +473,7 @@ function OwnerPayoutsTable() {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {currentRows.map((r, i) => (
-              <tr key={`${r.payout_id}-${i}`} className="hover:bg-gray-50 transition-colors">
+              <tr key={`${r.payoutId || r.payout_id || i}`} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{r.cover_date}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {new Date(r.scheduled_at).toLocaleDateString('vi-VN')} {new Date(r.scheduled_at).toLocaleTimeString('vi-VN')}
@@ -515,7 +531,7 @@ function OwnerPayoutsTable() {
 }
 
 function OwnerReportsInner() {
-  useOwnerReports(true); // auto fetch payments & payouts lần đầu
+  const { error } = useOwnerReports(true); // auto fetch payments & payouts lần đầu
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50 to-emerald-100">
@@ -532,6 +548,19 @@ function OwnerReportsInner() {
             </div>
           </div>
         </div>
+
+        {/* Global error banner for owner reports (e.g., authentication/network) */}
+        {error && (
+          <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+            <strong className="block font-medium">Lỗi khi tải báo cáo</strong>
+            <div className="text-sm mt-1">{typeof error === 'string' ? error : (error?.message || JSON.stringify(error))}</div>
+            {error?.status === 401 && (
+              <div className="text-sm mt-2">
+                Bạn chưa đăng nhập hoặc phiên đã hết hạn. Vui lòng đăng nhập lại.
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Content */}
         <div className="space-y-8">

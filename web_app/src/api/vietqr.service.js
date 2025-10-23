@@ -134,6 +134,38 @@ class VietQRService {
     const diffMinutes = (now - created) / (1000 * 60);
     return diffMinutes > ttlMinutes;
   }
+   // ================================
+  // ================================
+  // PayOS (create + polling status)
+  // ================================
+  async createPayOSPayment({ bookingId, hotelId, amount, description }) {
+    const payload = { bookingId, hotelId, amount, description };
+    const res = await axiosClient.post(API_ENDPOINTS.PAYOS.CREATE, payload);
+    // BE trả: { ok, orderId, checkoutUrl, qrCode }
+    const d = res.data || {};
+    return {
+      ok: !!d.ok,
+      // Chuẩn hóa để UI cũ dùng được:
+      tx_ref: d.orderId,               // dùng làm khóa để poll
+      qr_image: d.qrCode || null,      // nếu BE trả base64; nếu không có sẽ dùng checkoutUrl để open tab
+      checkout_url: d.checkoutUrl || null,
+      raw: d
+    };
+  }
+
+  async checkPayOSStatus(orderCode) {
+    const res = await axiosClient.get(API_ENDPOINTS.PAYOS.STATUS(orderCode));
+    // BE trả: { ok, orderId, gatewayStatus, dbStatus, paid_at }
+    const d = res.data || {};
+    return {
+      ok: !!d.ok,
+      tx_ref: d.orderId,
+      status: d.dbStatus === 'paid' ? 'paid' : (d.gatewayStatus || 'PENDING'),
+      paid_at: d.paid_at || null,
+      gatewayStatus: d.gatewayStatus,
+      dbStatus: d.dbStatus
+    };
+  }
 }
 
 const vietqrService = new VietQRService();
