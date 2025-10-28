@@ -890,39 +890,27 @@ const MarketingPage = () => {
     console.log('🔄 [loadBlogImages] Updated editImages state');
   };
 
-  // Hàm load ảnh cho tất cả blog để hiển thị ở trang chính - sử dụng hàm chung
+  // Hàm load chỉ ảnh đầu tiên cho tất cả blog để hiển thị ở trang chính
   const loadAllBlogImages = async (postsList = null) => {
     try {
       const currentPosts = postsList || posts;
-      console.log('🖼️ [Main] Loading images for', currentPosts.length, 'posts');
       const imageMap = {};
-      
-      // Load ảnh cho tất cả blog
       for (let i = 0; i < currentPosts.length; i++) {
         const post = currentPosts[i];
         const blogId = post.blogId || post.id || post.blog_id;
-        
         try {
-          console.log('🖼️ [Main] Loading images for blog:', blogId);
           const imageUrls = await fetchBlogImages(blogId, post);
-          
           if (imageUrls.length > 0) {
-            imageMap[blogId] = imageUrls;
-            console.log('✅ [Main] Set images for blog', blogId, ':', imageUrls);
+            imageMap[blogId] = [imageUrls[0]]; // chỉ lấy hình đầu tiên
           } else {
             imageMap[blogId] = [];
-            console.log('⚠️ [Main] No images for blog', blogId);
           }
         } catch (error) {
-          console.error('❌ [Main] Error loading images for blog', blogId, ':', error);
           imageMap[blogId] = [];
         }
       }
-      
-      console.log('🎯 [Main] Final imageMap:', imageMap);
       setBlogImages(imageMap);
     } catch (error) {
-      console.error('❌ [Main] Error in loadAllBlogImages:', error);
       setBlogImages({});
     }
   };
@@ -1397,56 +1385,16 @@ const MarketingPage = () => {
                           const blogId = blog.blogId || blog.id || blog.blog_id;
                           
                           // Thử dùng ảnh từ API trước, nếu không có thì dùng featuredImageUrl
-                          let displayImages = blogImages[blogId] || [];
-                          
-                          // Nếu không có ảnh từ API, thử dùng featuredImageUrl
-                          if (displayImages.length === 0) {
-                            const featuredImage = blog.featuredImageUrl || blog.featured_image_url;
-                            if (featuredImage) {
-                              displayImages = [featuredImage];
-                            }
-                          }
-                          
-                          // Debug logging
-                          console.log('🎯 [Render] Blog:', blogId, 'API Images:', blogImages[blogId], 'Featured:', blog.featuredImageUrl || blog.featured_image_url, 'Final:', displayImages);
-                          
-                          if (displayImages.length > 0) {
-                            return displayImages.length === 1 ? (
-                              // Hiển thị 1 ảnh lớn
+                          let displayImage = (blogImages[blogId] && blogImages[blogId][0]) || blog.featuredImageUrl || blog.featured_image_url;
+                          if (displayImage) {
+                            return (
                               <div className="h-48 overflow-hidden">
                                 <img 
-                                  src={displayImages[0]} 
+                                  src={displayImage}
                                   alt={blog.title}
                                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
                                   onError={(e) => { e.target.src = 'https://cdn-icons-png.flaticon.com/512/1829/1829586.png'; }}
                                 />
-                              </div>
-                            ) : (
-                              // Hiển thị grid nhiều ảnh
-                              <div className="h-48 overflow-hidden p-2">
-                                <div className={`h-full grid gap-1 ${displayImages.length === 2 ? 'grid-cols-2' : displayImages.length === 3 ? 'grid-cols-2 grid-rows-2' : 'grid-cols-2 grid-rows-2'}`}>
-                                  {displayImages.slice(0, 4).map((imageUrl, idx) => (
-                                    <div 
-                                      key={idx} 
-                                      className={`overflow-hidden rounded-md relative ${
-                                        displayImages.length === 3 && idx === 0 ? 'row-span-2' : ''
-                                      }`}
-                                    >
-                                      <img 
-                                        src={imageUrl} 
-                                        alt={`${blog.title} - ${idx + 1}`}
-                                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                                        onError={(e) => { e.target.src = 'https://cdn-icons-png.flaticon.com/512/1829/1829586.png'; }}
-                                      />
-                                      {/* Hiển thị số ảnh còn lại nếu có nhiều hơn 4 ảnh */}
-                                      {idx === 3 && displayImages.length > 4 && (
-                                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center text-white font-semibold text-lg">
-                                          +{displayImages.length - 4}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
                               </div>
                             );
                           } else {
