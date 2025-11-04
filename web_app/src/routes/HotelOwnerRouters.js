@@ -52,9 +52,6 @@ import { BookingManagementPage, BookingDetailView, BookingEditPage } from '../pa
 
 import OwnerReportsPage from '../pages/hotel_owner/reports/OwnerReportsPage';
 import RevenuePage from '../pages/hotel_owner/reports/RevenuePage';
-import OccupancyPage from '../pages/hotel_owner/reports/OccupancyPage';
-import PromotionEffectivenessPage from '../pages/hotel_owner/reports/PromotionEffectivenessPage';
-import ReportsSummaryPage from '../pages/hotel_owner/reports/ReportsSummaryPage';
 
 // Bank Accounts
 import { HotelBankAccountsPage } from '../pages/hotel_owner/bank_accounts';
@@ -77,10 +74,7 @@ const HotelOwnerRoutes = () => {
                 <Route path="dashboard" element={<HotelOwnerWelcomePage />} />
                 {/* Reports (Báo cáo & Thống kê) */}
                 <Route path="reports" element={<OwnerReportsPage />} />
-                <Route path="reports/summary" element={<ReportsSummaryPage />} />
                 <Route path="reports/revenue" element={<RevenuePage />} />
-                <Route path="reports/occupancy" element={<OccupancyPage />} />
-                <Route path="reports/promotions" element={<PromotionEffectivenessPage />} />
 
                 {/* Bank Accounts & Financial Management */}
                 <Route path="financial" element={<HotelBankAccountsPage />} />

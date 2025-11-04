@@ -4,6 +4,25 @@ const pool = require('../../../config/db');
 const BankAccount = require('../../../models/bank_account.model');
 
 class BankAccountRepository {
+  /**
+   * Lấy tất cả tài khoản ngân hàng trong hệ thống
+   */
+  async getAll() {
+    const sql = `
+      SELECT ba.*, u.full_name as user_name, h.name as hotel_name
+      FROM bank_accounts ba
+      LEFT JOIN users u ON ba.user_id = u.user_id
+      LEFT JOIN hotels h ON ba.hotel_id = h.hotel_id
+      ORDER BY ba.is_default DESC, ba.created_at DESC
+    `;
+    const { rows } = await pool.query(sql);
+    return rows.map(row => {
+      const bankAccount = BankAccount.fromDB(row);
+      bankAccount.userName = row.user_name;
+      bankAccount.hotelName = row.hotel_name;
+      return bankAccount;
+    });
+  }
 
   /**
    * Tạo tài khoản ngân hàng mới

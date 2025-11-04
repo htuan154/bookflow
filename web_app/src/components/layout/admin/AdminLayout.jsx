@@ -32,7 +32,6 @@ const AdminLayout = () => {
         { name: 'Quản lý hợp đồng', icon: <FileSignature size={20} />, path: '/admin/contracts'},
         { name: 'Quản lý khách hàng', icon: <Users size={20} />, path: '/admin/customers' },
         { name: 'Quản lý Tăng Giá Theo Mùa', icon: <Calendar size={20} />, path: '/admin/seasons' },
-        { name: 'Thanh toán', icon: <Ticket size={20} />, path: '/admin/payments' },
         { name: 'Tin nhắn', icon: <MessageSquare size={20} />, path: '/admin/messages' },
         { 
             name: 'Chương trình KM', 

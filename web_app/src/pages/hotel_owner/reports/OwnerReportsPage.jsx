@@ -316,8 +316,8 @@ function OwnerPaymentsTable() {
       <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-800">📊 Chi tiết giao dịch từ khách sạn</h3>
-            <p className="text-sm text-gray-600 mt-1">Danh sách tất cả giao dịch và thu nhập của khách sạn</p>
+            <h3 className="text-lg font-semibold text-gray-800">📊 Chi tiết giao dịch đặt phòng</h3>
+            <p className="text-sm text-gray-600 mt-1">Danh sách các giao dịch booking từ khách hàng (chưa thanh toán cho khách sạn)</p>
           </div>
           <div className="text-sm text-gray-500">
             Tổng: <span className="font-medium text-gray-700">{totalItems}</span> giao dịch
@@ -412,6 +412,7 @@ function OwnerPayoutsTable() {
   const { payouts, loadingPayouts } = useOwnerReports(false);
   const rows = payouts?.rows || [];
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedRow, setExpandedRow] = useState(null);
   const itemsPerPage = 10;
   
   // Calculate pagination
@@ -446,13 +447,24 @@ function OwnerPayoutsTable() {
     );
   };
 
+  // Parse note JSON to display details
+  const parsePayoutDetails = (note) => {
+    if (!note) return null;
+    try {
+      const details = typeof note === 'string' ? JSON.parse(note) : note;
+      return details;
+    } catch (e) {
+      return null;
+    }
+  };
+
   return (
     <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
       <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-800">💳 Lịch sử thanh toán (Payouts)</h3>
-            <p className="text-sm text-gray-600 mt-1">Danh sách các khoản thanh toán đã được xử lý cho khách sạn</p>
+            <h3 className="text-lg font-semibold text-gray-800">💳 Lịch sử thanh toán nhận được (Payouts)</h3>
+            <p className="text-sm text-gray-600 mt-1">Các khoản tiền admin đã chuyển vào tài khoản ngân hàng của bạn</p>
           </div>
           <div className="text-sm text-gray-500">
             Tổng: <span className="font-medium text-gray-700">{totalItems}</span> thanh toán
@@ -472,25 +484,130 @@ function OwnerPayoutsTable() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {currentRows.map((r, i) => (
-              <tr key={`${r.payoutId || r.payout_id || i}`} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{r.cover_date}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(r.scheduled_at).toLocaleDateString('vi-VN')} {new Date(r.scheduled_at).toLocaleTimeString('vi-VN')}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                  <span className="font-bold text-green-600">
-                    {Number(r.total_net_amount||0).toLocaleString('vi-VN')} ₫
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  {getStatusBadge(r.status)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {r.note || '—'}
-                </td>
-              </tr>
-            ))}
+            {currentRows.map((r, i) => {
+              const details = parsePayoutDetails(r.note);
+              const isExpanded = expandedRow === i;
+              const payoutId = r.payoutId || r.payout_id || i;
+              
+              return (
+                <React.Fragment key={payoutId}>
+                  <tr className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {r.cover_date || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <div>
+                        {r.scheduled_at ? new Date(r.scheduled_at).toLocaleDateString('vi-VN') : 'N/A'}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {r.scheduled_at ? new Date(r.scheduled_at).toLocaleTimeString('vi-VN') : ''}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                      <span className="font-bold text-green-600">
+                        {Number(r.total_net_amount||0).toLocaleString('vi-VN')} ₫
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      {getStatusBadge(r.status)}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {details ? (
+                        <button
+                          onClick={() => setExpandedRow(isExpanded ? null : i)}
+                          className="text-blue-600 hover:text-blue-800 font-medium flex items-center"
+                        >
+                          {isExpanded ? '▼ Ẩn chi tiết' : '▶ Xem chi tiết'}
+                        </button>
+                      ) : (
+                        <span className="text-gray-500">{r.note || '—'}</span>
+                      )}
+                    </td>
+                  </tr>
+                  {isExpanded && details && (
+                    <tr className="bg-blue-50">
+                      <td colSpan={5} className="px-6 py-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Calculation Details */}
+                          {details.calculation && (
+                            <div className="bg-white rounded-lg p-4 border border-blue-200">
+                              <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+                                <span className="text-lg mr-2">💰</span>
+                                Chi Tiết Tính Toán
+                              </h4>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Tổng doanh thu:</span>
+                                  <span className="font-semibold">{details.calculation.total_amount?.toLocaleString('vi-VN')} ₫</span>
+                                </div>
+                                <div className="flex justify-between text-red-600">
+                                  <span>Hoa hồng ({details.calculation.commission_rate}):</span>
+                                  <span className="font-semibold">- {details.calculation.commission_amount?.toLocaleString('vi-VN')} ₫</span>
+                                </div>
+                                <div className="border-t border-gray-200 pt-2 flex justify-between">
+                                  <span className="font-semibold text-gray-800">Số tiền nhận được:</span>
+                                  <span className="font-bold text-green-600">{details.calculation.payout_amount?.toLocaleString('vi-VN')} ₫</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Bank Account Details */}
+                          {details.bank_account && (
+                            <div className="bg-white rounded-lg p-4 border border-green-200">
+                              <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+                                <span className="text-lg mr-2">🏦</span>
+                                Tài Khoản Nhận Tiền
+                              </h4>
+                              <div className="space-y-2 text-sm">
+                                <div>
+                                  <p className="text-xs text-gray-500">Chủ tài khoản</p>
+                                  <p className="font-semibold text-gray-900">{details.bank_account.holder_name}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500">Số tài khoản</p>
+                                  <p className="font-mono font-bold text-gray-900">{details.bank_account.account_number}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500">Ngân hàng</p>
+                                  <p className="font-medium text-gray-900">{details.bank_account.bank_name}</p>
+                                </div>
+                                {details.bank_account.branch_name && (
+                                  <div>
+                                    <p className="text-xs text-gray-500">Chi nhánh</p>
+                                    <p className="font-medium text-gray-900">{details.bank_account.branch_name}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Contract Info */}
+                          {details.contract && (
+                            <div className="bg-white rounded-lg p-4 border border-purple-200 md:col-span-2">
+                              <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+                                <span className="text-lg mr-2">📋</span>
+                                Thông Tin Hợp Đồng
+                              </h4>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <p className="text-xs text-gray-500">ID Hợp đồng</p>
+                                  <p className="font-mono text-sm">{details.contract.contract_id?.slice(0, 20)}...</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500">Tỉ lệ hoa hồng</p>
+                                  <p className="font-bold text-purple-600">{details.contract.commission_rate}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
             
             {!loadingPayouts && currentRows.length === 0 && (
               <tr>

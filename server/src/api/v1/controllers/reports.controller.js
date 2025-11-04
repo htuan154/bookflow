@@ -178,3 +178,57 @@ exports.createAdminPayout = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Preview payout - Lấy thông tin chi tiết TRƯỚC KHI tạo payout
+ * POST /api/v1/admin/reports/payouts/preview
+ */
+exports.previewAdminPayout = async (req, res, next) => {
+  try {
+    const { hotel_id, cover_date } = req.body;
+
+    if (!hotel_id || !cover_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'hotel_id and cover_date are required'
+      });
+    }
+
+    const result = await reportsService.previewPayout({
+      hotel_id,
+      cover_date
+    });
+
+    res.json({
+      success: true,
+      data: result,
+      message: 'Payout preview retrieved successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Lấy danh sách ngày có revenue cho hotel (để chọn ngày payout)
+ * GET /api/v1/admin/reports/hotels/:hotelId/revenue-dates
+ */
+exports.getHotelRevenueDates = async (req, res, next) => {
+  try {
+    const { hotelId } = req.params;
+    const { dateFrom, dateTo } = req.query;
+
+    const result = await reportsService.getHotelRevenueDates({
+      hotelId,
+      dateFrom: dateFrom || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 90 days ago
+      dateTo: dateTo || new Date().toISOString().split('T')[0] // today
+    });
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -21,26 +21,33 @@ const HotelBankAccountsPage = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
   const [formData, setFormData] = useState({
-    bank_name: '',
-    account_number: '',
-    account_holder_name: '',
-    branch_name: '',
-    swift_code: '',
-    description: '',
-    is_default: false
+      bankName: '',
+      accountNumber: '',
+      holderName: '',
+      branchName: '',
+      swiftCode: '',
+      description: '',
+      isDefault: false
   });
 
   // Hooks
-  const { 
-    accounts: bankAccounts, 
-    loading, 
-    error, 
-    fetchUserAccounts: fetchBankAccounts, 
-    createBankAccount, 
-    updateBankAccount, 
+  // Sử dụng đúng API cho hotel bank accounts
+  const {
+    accounts,
+    loading,
+    error,
+    fetchHotelAccounts,
+    createBankAccount,
+    updateBankAccount,
     deleteBankAccount,
-    setDefaultBankAccount
+    setAccountAsDefault,
   } = useBankAccount();
+
+  // Chỉ lấy bank accounts của hotel đang chọn
+    const bankAccounts = useMemo(() => {
+      if (!selectedHotelId) return [];
+      return accounts.filter(acc => acc.hotelId === selectedHotelId);
+  }, [accounts, selectedHotelId]);
   
   const { 
     hotelData, 
@@ -64,36 +71,41 @@ const HotelBankAccountsPage = () => {
 
   // Process hotel data with useMemo to avoid duplicate calculations
   const hotels = useMemo(() => {
-    return Array.isArray(hotelData) ? hotelData : 
-           (hotelData?.data && Array.isArray(hotelData.data)) ? hotelData.data : 
-           hotelData ? [hotelData] : [];
+    if (Array.isArray(hotelData)) return hotelData;
+    if (hotelData?.data && Array.isArray(hotelData.data)) return hotelData.data;
+    if (hotelData) return [hotelData];
+    return [];
   }, [hotelData]);
 
-  // Don't auto-select hotel - let user choose manually
-  // useEffect(() => {
-  //   if (hotels.length > 0) {
-  //     if (!selectedHotelId) {
-  //       const firstHotel = hotels[0];
-  //       setSelectedHotelId(firstHotel.hotel_id || firstHotel.id || firstHotel.hotelId);
-  //     }
-  //     else if (!hotels.find(h => (h.hotel_id || h.id || h.hotelId) === selectedHotelId)) {
-  //       const firstHotel = hotels[0];
-  //       setSelectedHotelId(firstHotel.hotel_id || firstHotel.id || firstHotel.hotelId);
-  //     }
-  //   }
-  // }, [hotels, selectedHotelId]);
+  // Auto-select first hotel if none selected
+  useEffect(() => {
+    if (hotels.length > 0) {
+      if (!selectedHotelId) {
+        const firstHotel = hotels[0];
+        setSelectedHotelId(firstHotel.hotel_id || firstHotel.id || firstHotel.hotelId);
+      } else if (!hotels.find(h => (h.hotel_id || h.id || h.hotelId) === selectedHotelId)) {
+        const firstHotel = hotels[0];
+        setSelectedHotelId(firstHotel.hotel_id || firstHotel.id || firstHotel.hotelId);
+      }
+    }
+  }, [hotels, selectedHotelId]);
 
   // Fetch bank accounts when hotel is selected
   useEffect(() => {
     if (selectedHotelId) {
-      fetchBankAccounts(selectedHotelId);
+      fetchHotelAccounts(selectedHotelId);
     }
-  }, [selectedHotelId, fetchBankAccounts]);
+  }, [selectedHotelId, fetchHotelAccounts]);
 
   // Get current hotel info
   const currentHotel = hotels.find(hotel => 
     (hotel.hotel_id || hotel.id || hotel.hotelId) === selectedHotelId
   ) || hotels[0];
+
+  // Debug: Log bankAccounts data for troubleshooting
+  useEffect(() => {
+    console.log('🏦 bankAccounts:', bankAccounts);
+  }, [bankAccounts]);
 
   // Get default bank account
   const defaultAccount = bankAccounts?.find(account => account.is_default);
@@ -116,25 +128,29 @@ const HotelBankAccountsPage = () => {
 
     try {
       const accountData = {
-        ...formData,
-        hotel_id: selectedHotelId
+        bankName: formData.bankName,
+        accountNumber: formData.accountNumber,
+        holderName: formData.holderName,
+        branchName: formData.branchName,
+        swiftCode: formData.swiftCode,
+        description: formData.description,
+        isDefault: formData.isDefault,
+        hotelId: selectedHotelId
       };
-
       if (editingAccount) {
-        await updateBankAccount(editingAccount.id, accountData);
+        await updateBankAccount(editingAccount.bankAccountId || editingAccount.id, accountData);
       } else {
         await createBankAccount(accountData);
       }
-
       // Reset form
       setFormData({
-        bank_name: '',
-        account_number: '',
-        account_holder_name: '',
-        branch_name: '',
-        swift_code: '',
+        bankName: '',
+        accountNumber: '',
+        holderName: '',
+        branchName: '',
+        swiftCode: '',
         description: '',
-        is_default: false
+        isDefault: false
       });
       setIsFormOpen(false);
       setEditingAccount(null);
@@ -146,13 +162,13 @@ const HotelBankAccountsPage = () => {
   const handleEdit = (account) => {
     setEditingAccount(account);
     setFormData({
-      bank_name: account.bank_name || '',
-      account_number: account.account_number || '',
-      account_holder_name: account.account_holder_name || '',
-      branch_name: account.branch_name || '',
-      swift_code: account.swift_code || '',
+      bankName: account.bankName || '',
+      accountNumber: account.accountNumber || '',
+      holderName: account.holderName || '',
+      branchName: account.branchName || '',
+      swiftCode: account.swiftCode || '',
       description: account.description || '',
-      is_default: account.is_default || false
+      isDefault: account.isDefault || false
     });
     setIsFormOpen(true);
   };
@@ -169,7 +185,7 @@ const HotelBankAccountsPage = () => {
 
   const handleSetDefault = async (accountId) => {
     try {
-      await setDefaultBankAccount(accountId);
+      await setAccountAsDefault(accountId);
     } catch (error) {
       console.error('Error setting default account:', error);
     }
@@ -344,70 +360,79 @@ const HotelBankAccountsPage = () => {
               </div>
             ) : (
               <div className="grid gap-4">
-                {bankAccounts.map((account) => (
-                  <div
-                    key={account.id}
-                    className={`border rounded-lg p-4 ${
-                      account.is_default 
-                        ? 'border-yellow-300 bg-yellow-50' 
-                        : 'border-gray-200 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-gray-900">{account.bank_name}</h3>
-                          {account.is_default && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                              <StarIconSolid className="h-3 w-3" />
-                              Mặc định
-                            </span>
-                          )}
+                {bankAccounts.map((account, idx) => {
+                  // Sử dụng đúng field từ API
+                  const bankName = account.bankName || '(Chưa có tên ngân hàng)';
+                  const accountNumber = account.accountNumber || '(Chưa có số TK)';
+                  const holderName = account.holderName || '(Chưa có chủ TK)';
+                  const branchName = account.branchName || '';
+                  const swiftCode = account.swiftCode || '';
+                  const description = account.description || '';
+                  return (
+                    <div
+                      key={account.bankAccountId || idx}
+                      className={`border rounded-lg p-4 ${
+                        account.isDefault 
+                          ? 'border-yellow-300 bg-yellow-50' 
+                          : 'border-gray-200 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-gray-900">{bankName}</h3>
+                            {account.isDefault && (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                <StarIconSolid className="h-3 w-3" />
+                                Mặc định
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-gray-600 mt-1">
+                            Số TK: <span className="font-mono">{accountNumber}</span>
+                          </p>
+                          <p className="text-gray-600">
+                            Chủ TK: {holderName}
+                          </p>
+                          {branchName !== '' ? (
+                            <p className="text-sm text-gray-500">Chi nhánh: {branchName}</p>
+                          ) : null}
+                          {swiftCode !== '' ? (
+                            <p className="text-sm text-gray-500">SWIFT: {swiftCode}</p>
+                          ) : null}
+                          {description !== '' ? (
+                            <p className="text-sm text-gray-500 mt-2">{description}</p>
+                          ) : null}
                         </div>
-                        <p className="text-gray-600 mt-1">
-                          Số TK: <span className="font-mono">{account.account_number}</span>
-                        </p>
-                        <p className="text-gray-600">
-                          Chủ TK: {account.account_holder_name}
-                        </p>
-                        {account.branch_name && (
-                          <p className="text-sm text-gray-500">Chi nhánh: {account.branch_name}</p>
-                        )}
-                        {account.swift_code && (
-                          <p className="text-sm text-gray-500">SWIFT: {account.swift_code}</p>
-                        )}
-                        {account.description && (
-                          <p className="text-sm text-gray-500 mt-2">{account.description}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        {!account.is_default && (
+                        <div className="flex items-center gap-2 ml-4">
+                          {!account.isDefault && (
+                            <button
+                              onClick={() => handleSetDefault(account.bankAccountId)}
+                              className="p-2 text-gray-400 hover:text-yellow-600 transition-colors"
+                              title="Đặt làm mặc định"
+                            >
+                              <StarIcon className="h-4 w-4" />
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleSetDefault(account.id)}
-                            className="p-2 text-gray-400 hover:text-yellow-600 transition-colors"
-                            title="Đặt làm mặc định"
+                            onClick={() => handleEdit(account)}
+                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                            title="Chỉnh sửa"
                           >
-                            <StarIcon className="h-4 w-4" />
+                            <PencilIcon className="h-4 w-4" />
                           </button>
-                        )}
-                        <button
-                          onClick={() => handleEdit(account)}
-                          className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                          title="Chỉnh sửa"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(account.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                          title="Xóa"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
+                          <button
+                            onClick={() => handleDelete(account.bankAccountId)}
+                            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Xóa"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -485,8 +510,8 @@ const HotelBankAccountsPage = () => {
                   </label>
                   <input
                     type="text"
-                    name="branch_name"
-                    value={formData.branch_name}
+                    name="branchName"
+                    value={formData.branchName}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Tên chi nhánh"
@@ -499,8 +524,8 @@ const HotelBankAccountsPage = () => {
                   </label>
                   <input
                     type="text"
-                    name="swift_code"
-                    value={formData.swift_code}
+                    name="swiftCode"
+                    value={formData.swiftCode}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Mã SWIFT (nếu có)"
@@ -524,9 +549,9 @@ const HotelBankAccountsPage = () => {
                 <div className="flex items-center">
                   <input
                     type="checkbox"
-                    id="is_default"
-                    name="is_default"
-                    checked={formData.is_default}
+                    id="isDefault"
+                    name="isDefault"
+                    checked={formData.isDefault}
                     onChange={handleInputChange}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />

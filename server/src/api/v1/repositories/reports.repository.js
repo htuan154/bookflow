@@ -17,12 +17,18 @@ class ReportsRepository {
    */
   async getAdminDailyRevenue({ dateFrom, dateTo, hotelIds = null }) {
     let sql = `
-      SELECT biz_date_vn, hotel_id, hotel_name, hotel_city,
+      SELECT TO_CHAR(biz_date_vn, 'YYYY-MM-DD') as biz_date_vn, 
+             hotel_id, hotel_name, hotel_city,
              bookings_count,
              gross_sum AS final_sum,     -- ⭐ alias để khớp model FE
-             pg_fee_sum, admin_fee_sum, hotel_net_sum
+             pg_fee_sum, admin_fee_sum, hotel_net_sum,
+             EXISTS (
+               SELECT 1 FROM payouts po
+               WHERE po.hotel_id = admin_daily_revenue_by_hotel.hotel_id 
+                 AND po.cover_date = admin_daily_revenue_by_hotel.biz_date_vn
+             ) AS exists_in_payouts
       FROM admin_daily_revenue_by_hotel
-      WHERE biz_date_vn BETWEEN $1 AND $2
+      WHERE biz_date_vn BETWEEN $1::date AND $2::date
     `;
     const params = [dateFrom, dateTo];
 
@@ -40,35 +46,62 @@ class ReportsRepository {
     } catch (err) {
       // If the view schema is different or missing columns (e.g. gross_sum),
       // fallback to computing aggregates directly from payments table.
+      // ⚠️ IMPORTANT: Calculate amounts in SQL because GENERATED columns return 0
       if (err && err.code === '42703') {
         const fallbackSql = `
           SELECT
-            (p.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS biz_date_vn,
-            p.hotel_id,
-            h.name AS hotel_name,
-            h.city AS hotel_city,
-            COUNT(*) AS bookings_count,
-            SUM(p.final_amount) AS final_sum,
-            SUM(p.pg_fee_amount) AS pg_fee_sum,
-            SUM(p.admin_fee_amount) AS admin_fee_sum,
-            SUM(p.hotel_net_amount) AS hotel_net_sum
-          FROM payments p
-          LEFT JOIN hotels h ON h.hotel_id = p.hotel_id
-          WHERE p.status = 'paid'
-            AND p.paid_at IS NOT NULL
-            AND (p.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $1 AND $2
+            agg.biz_date_vn,
+            agg.hotel_id,
+            agg.hotel_name,
+            agg.hotel_city,
+            agg.bookings_count,
+            agg.final_sum,
+            agg.pg_fee_sum,
+            agg.admin_fee_sum,
+            agg.hotel_net_sum,
+            EXISTS (
+              SELECT 1 FROM payouts po
+              WHERE po.hotel_id = agg.hotel_id 
+                AND po.cover_date = agg.biz_date_vn::date
+            ) AS exists_in_payouts
+          FROM (
+            SELECT
+              TO_CHAR((p.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, 'YYYY-MM-DD') AS biz_date_vn,
+              p.hotel_id,
+              h.name AS hotel_name,
+              h.city AS hotel_city,
+              COUNT(*) AS bookings_count,
+              SUM(p.base_amount + COALESCE(p.surcharge_amount, 0) - COALESCE(p.discount_amount, 0)) AS final_sum,
+              SUM(COALESCE(p.pg_fee_amount, 0)) AS pg_fee_sum,
+              SUM(COALESCE(p.admin_fee_amount, 0)) AS admin_fee_sum,
+              SUM(
+                (p.base_amount + COALESCE(p.surcharge_amount, 0) - COALESCE(p.discount_amount, 0))
+                - COALESCE(p.pg_fee_amount, 0) 
+                - COALESCE(p.admin_fee_amount, 0)
+              ) AS hotel_net_sum
+            FROM payments p
+            LEFT JOIN hotels h ON h.hotel_id = p.hotel_id
+            WHERE p.status = 'paid'
+              AND p.paid_at IS NOT NULL
+              AND (p.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $1::date AND $2::date
         `;
 
         const fallbackParams = [dateFrom, dateTo];
         let finalSql = fallbackSql;
         if (hotelIds && hotelIds.length > 0) {
-          finalSql += ` AND hotel_id = ANY($3::uuid[])`;
+          finalSql += ` AND p.hotel_id = ANY($3::uuid[])`;
           fallbackParams.push(hotelIds);
         }
 
-        finalSql += ` GROUP BY biz_date_vn, hotel_id ORDER BY biz_date_vn DESC, hotel_id`;
+        finalSql += ` GROUP BY biz_date_vn, p.hotel_id, h.name, h.city
+          ) agg
+          ORDER BY agg.biz_date_vn DESC, agg.hotel_id`;
 
         const { rows: fbRows } = await pool.query(finalSql, fallbackParams);
+        console.log('✅ Fallback getAdminDailyRevenue returned rows:', fbRows.length);
+        if (fbRows.length > 0) {
+          console.log('🔍 First row sample:', JSON.stringify(fbRows[0], null, 2));
+        }
         return fbRows.map(row => new AdminDailyRevenueByHotelItem(row));
       }
 
@@ -148,13 +181,20 @@ class ReportsRepository {
 
     sql += ` ORDER BY cover_date DESC, total_net_amount DESC`;
 
-    const { rows } = await pool.query(sql, params);
-    return rows.map(row => ({
-      cover_date: row.cover_date,
-      hotel_id: row.hotel_id,
-      total_net_amount: row.total_net_amount,
-      exists_in_payouts: row.exists_in_payouts
-    }));
+    try {
+      const { rows } = await pool.query(sql, params);
+      return rows.map(row => ({
+        cover_date: row.cover_date,
+        hotel_id: row.hotel_id,
+        total_net_amount: row.total_net_amount,
+        exists_in_payouts: row.exists_in_payouts
+      }));
+    } catch (err) {
+      console.error('❌ Error querying admin_daily_revenue_by_hotel for payout proposals:', err.message);
+      console.log('🔄 Returning empty payout proposals array');
+      // Return empty array instead of failing - payout proposals are optional
+      return [];
+    }
   }
 
   /**
@@ -368,31 +408,39 @@ class ReportsRepository {
    */
   async getHotelOwnerPayouts({ hotelIds, dateFrom, dateTo }) {
     let sql = `
-      SELECT *
-      FROM hotel_owner_payouts
+      SELECT 
+        p.payout_id,
+        p.hotel_id,
+        p.cover_date,
+        p.scheduled_at,
+        p.total_net_amount,
+        p.status,
+        p.note,
+        p.created_at
+      FROM payouts p
       WHERE 1=1
     `;
     const params = [];
 
     if (hotelIds && hotelIds.length > 0) {
       params.push(hotelIds);
-      sql += ` AND hotel_id = ANY($${params.length}::uuid[])`;
+      sql += ` AND p.hotel_id = ANY($${params.length}::uuid[])`;
     }
 
     if (dateFrom) {
       params.push(dateFrom);
-      sql += ` AND cover_date >= $${params.length}`;
+      sql += ` AND p.cover_date >= $${params.length}`;
     }
 
     if (dateTo) {
       params.push(dateTo);
-      sql += ` AND cover_date <= $${params.length}`;
+      sql += ` AND p.cover_date <= $${params.length}`;
     }
 
-    sql += ` ORDER BY cover_date DESC`;
+    sql += ` ORDER BY p.cover_date DESC, p.created_at DESC`;
 
     const { rows } = await pool.query(sql, params);
-    return rows.map(row => new AdminPayoutOverviewItem(row));
+    return rows.map(row => Payout.fromDB(row));
   }
 
   // =========================================
@@ -426,6 +474,7 @@ class ReportsRepository {
   }
 
   async createPayout(payoutData) {
+    // Lưu thông tin payout với note chứa details (JSON)
     const sql = `
       INSERT INTO payouts (
         hotel_id, cover_date, total_net_amount, status, note
@@ -437,7 +486,7 @@ class ReportsRepository {
       payoutData.cover_date,
       payoutData.total_net_amount,
       payoutData.status || 'scheduled',
-      payoutData.note
+      payoutData.note // Chứa JSON với thông tin bank account, commission, etc.
     ];
 
     const { rows } = await pool.query(sql, values);

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AdminReportsProvider } from '../../../context/AdminReportsContext';
 import { HotelProvider } from '../../../context/HotelContext';
 import useAdminReports from '../../../hooks/useAdminReports';
@@ -277,10 +278,177 @@ function Pagination({ currentPage, totalPages, onPageChange }) {
   );
 }
 
+// Modal hiển thị chi tiết payout
+function PayoutDetailModal({ isOpen, onClose, payoutData, onConfirm, loading }) {
+  if (!isOpen || !payoutData) return null;
+
+  const { calculation, bank_account, contract, user_note } = payoutData.details || {};
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-5 rounded-t-2xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold">💳 Chi Tiết Thanh Toán</h3>
+              <p className="text-sm opacity-90 mt-1">Xác nhận thông tin trước khi chuyển khoản</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-colors"
+            >
+              <span className="text-2xl">×</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 space-y-6">
+          {/* Tính Toán */}
+          {calculation && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+              <h4 className="font-semibold text-gray-800 mb-4 flex items-center">
+                <span className="text-lg mr-2">💰</span>
+                Tính Toán Chi Tiết
+              </h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Tổng doanh thu:</span>
+                  <span className="font-bold text-lg text-gray-900">
+                    {calculation.total_amount?.toLocaleString('vi-VN')} ₫
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-red-600">
+                  <span>Hoa hồng ({calculation.commission_rate}%):</span>
+                  <span className="font-semibold">
+                    - {calculation.commission_amount?.toLocaleString('vi-VN')} ₫
+                  </span>
+                </div>
+                <div className="border-t border-blue-200 pt-3 mt-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-800 font-semibold">Số tiền chuyển cho hotel:</span>
+                    <span className="font-bold text-2xl text-green-600">
+                      {calculation.payout_amount?.toLocaleString('vi-VN')} ₫
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tài Khoản Ngân Hàng */}
+          {bank_account && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-5">
+              <h4 className="font-semibold text-gray-800 mb-4 flex items-center">
+                <span className="text-lg mr-2">🏦</span>
+                Thông Tin Tài Khoản Nhận
+              </h4>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Chủ tài khoản</p>
+                    <p className="font-semibold text-gray-900">{bank_account.holder_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Số tài khoản</p>
+                    <p className="font-mono font-bold text-gray-900">{bank_account.account_number}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Ngân hàng</p>
+                    <p className="font-medium text-gray-900">{bank_account.bank_name}</p>
+                  </div>
+                  {bank_account.branch_name && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Chi nhánh</p>
+                      <p className="font-medium text-gray-900">{bank_account.branch_name}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Thông Tin Hợp Đồng */}
+          {contract && (
+            <div className="bg-purple-50 border border-purple-200 rounded-xl p-5">
+              <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+                <span className="text-lg mr-2">📋</span>
+                Hợp Đồng
+              </h4>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">ID Hợp đồng:</span>
+                  <span className="font-mono text-sm text-gray-900">{contract.contract_id?.slice(0, 13)}...</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Tỉ lệ hoa hồng:</span>
+                  <span className="font-bold text-purple-600">{contract.commission_rate}%</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Warning */}
+          <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-4 flex items-start">
+            <span className="text-2xl mr-3">⚠️</span>
+            <div className="flex-1">
+              <p className="font-semibold text-yellow-800 mb-2">Lưu ý quan trọng</p>
+              <ul className="text-sm text-yellow-700 space-y-1 list-disc list-inside">
+                <li>Vui lòng kiểm tra kỹ thông tin tài khoản trước khi xác nhận</li>
+                <li>Sau khi xác nhận, hệ thống sẽ ghi nhận giao dịch và không thể hoàn tác</li>
+                {(!bank_account || bank_account.holder_name === 'Đang tải...') && (
+                  <li className="text-red-600 font-semibold">
+                    ⚠️ Thông tin tài khoản chưa được tải. Hệ thống sẽ lấy dữ liệu từ backend khi bạn xác nhận.
+                  </li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 bg-gray-50 rounded-b-2xl flex items-center justify-end space-x-3">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 font-medium hover:bg-gray-100 transition-colors disabled:opacity-50"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 flex items-center"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                Đang xử lý...
+              </>
+            ) : (
+              <>
+                <span className="mr-2">✅</span>
+                Xác Nhận Thanh Toán
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SummaryTable() {
   const { summary, loading, createPayout, fetchSummary, filters, setFilters } = useAdminReports(false);
+  const navigate = useNavigate();
   const rows = summary?.daily_summary || [];
   const [currentPage, setCurrentPage] = useState(1);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedPayout, setSelectedPayout] = useState(null);
+  const [creatingPayout, setCreatingPayout] = useState(false);
   const itemsPerPage = 10;
   
   // Calculate pagination
@@ -292,12 +460,84 @@ function SummaryTable() {
   
   const mapKey = (r,i) => `${r.bizDateVn}-${r.hotelId}-${i}`;
 
-  const handleCreate = async (r) => {
+  const handleCreateClick = async (r) => {
     try {
-      await createPayout({ hotel_id: r.hotelId, cover_date: r.bizDateVn });
-      // fetchSummary() đã được gọi trong context sau khi tạo payout
+      setCreatingPayout(true);
+      
+      // Gọi API PREVIEW để lấy thông tin chi tiết TRƯỚC KHI tạo payout
+      const previewResponse = await fetch(`http://localhost:8080/api/v1/admin/reports/payouts/preview`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          hotel_id: r.hotelId,
+          cover_date: r.bizDateVn
+        })
+      });
+      
+      if (!previewResponse.ok) {
+        const errorData = await previewResponse.json();
+        throw new Error(errorData.message || 'Failed to preview payout');
+      }
+      
+      const previewData = await previewResponse.json();
+      
+      // Hiển thị modal với dữ liệu THẬT từ backend
+      setSelectedPayout({
+        hotelId: r.hotelId,
+        coverDate: r.bizDateVn,
+        details: previewData.data.details
+      });
+      setShowModal(true);
+      
+    } catch (error) {
+      console.error('Error previewing payout:', error);
+      alert('❌ Lỗi: ' + (error.message || 'Không thể tải thông tin thanh toán'));
+    } finally {
+      setCreatingPayout(false);
+    }
+  };
+
+  const handleConfirmPayout = async () => {
+    try {
+      setCreatingPayout(true);
+      // capture current selection before we clear it
+      const hotelId = selectedPayout?.hotelId;
+      const coverDate = selectedPayout?.coverDate;
+      
+      await createPayout({ 
+        hotel_id: hotelId, 
+        cover_date: coverDate,
+      });
+
+      // Show success message
+      alert('✅ Thanh toán đã được tạo thành công!');
+
+      // close modal and clear selection AFTER success
+      setShowModal(false);
+      setSelectedPayout(null);
+
+      // Force refresh summary to update exists_in_payouts flag
+      await fetchSummary();
+
+      // open hotel daily revenue page in a new tab for quick verification
+      // (Hotel owner's view filtered by hotel and date)
+      if (typeof window !== 'undefined' && hotelId) {
+        try {
+          const origin = window.location.origin || '';
+          const ownerRevenuePath = `/hotel-owner/reports?date_from=${encodeURIComponent(coverDate || '')}&date_to=${encodeURIComponent(coverDate || '')}&hotel_id=${encodeURIComponent(hotelId)}`;
+          window.open(origin + ownerRevenuePath, '_blank');
+        } catch (openErr) {
+          console.error('Failed to open hotel revenue page:', openErr);
+        }
+      }
     } catch (error) {
       console.error('Error creating payout:', error);
+      alert('❌ Lỗi: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setCreatingPayout(false);
     }
   };
 
@@ -311,8 +551,20 @@ function SummaryTable() {
   }, [rows.length]);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
-      <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
+    <>
+      <PayoutDetailModal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setSelectedPayout(null);
+        }}
+        payoutData={selectedPayout}
+        onConfirm={handleConfirmPayout}
+        loading={creatingPayout}
+      />
+      
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-800">📊 Báo cáo tổng hợp theo ngày và khách sạn</h3>
@@ -370,10 +622,11 @@ function SummaryTable() {
                           ✅ Đã thanh toán
                         </span>
                       : <button
-                          onClick={() => handleCreate(r)}
-                          className="inline-flex items-center px-4 py-2 text-xs font-medium rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 focus:ring-4 focus:ring-blue-300 transition-all duration-200 shadow-md hover:shadow-lg"
+                          onClick={() => handleCreateClick(r)}
+                          disabled={creatingPayout}
+                          className="inline-flex items-center px-4 py-2 text-xs font-medium rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 focus:ring-4 focus:ring-blue-300 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          💳 Tạo thanh toán
+                          {creatingPayout ? '⏳' : '💳'} Tạo thanh toán
                         </button>
                   ) : <span className="text-xs text-gray-400">—</span>}
                 </td>
@@ -414,7 +667,8 @@ function SummaryTable() {
           onPageChange={handlePageChange}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

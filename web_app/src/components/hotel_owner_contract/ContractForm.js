@@ -153,6 +153,14 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
     setLoading(true);
     setError('');
     
+    // Kiểm tra tỷ lệ hoa hồng phải từ 0-100
+    const commissionValue = parseFloat(form.contract_value);
+    if (isNaN(commissionValue) || commissionValue < 0 || commissionValue > 100) {
+      setError('Tỷ lệ hoa hồng phải từ 0 đến 100%. Vui lòng nhập lại!');
+      setLoading(false);
+      return;
+    }
+    
     // Kiểm tra ngày bắt đầu phải từ hôm nay + 7 ngày trở đi
     const minStartDate = new Date(getMinStartDate());
     const selectedStartDate = new Date(form.start_date);
@@ -225,33 +233,26 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
           />
         </div>
 
-        <div className="mb-4 grid grid-cols-2 gap-4">
-          <div>
-            <label className="block font-semibold mb-1 text-gray-700">Giá trị hợp đồng *</label>
+        <div className="mb-4">
+          <label className="block font-semibold mb-1 text-gray-700">Hoa hồng (%) *</label>
+          <div className="relative">
             <input
               type="number"
               name="contract_value"
               value={form.contract_value}
               onChange={handleChange}
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
-              placeholder="0"
+              className="w-full border border-gray-300 rounded px-3 py-2 pr-10 focus:outline-none focus:border-blue-500"
+              placeholder="10"
               min="0"
-              step="1000"
+              max="100"
+              step="0.1"
               required
             />
+            <span className="absolute right-3 top-2 text-gray-500 font-semibold">%</span>
           </div>
-          <div>
-            <label className="block font-semibold mb-1 text-gray-700">Loại tiền</label>
-            <select
-              name="currency"
-              value={form.currency}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
-            >
-              <option value="VND">VND</option>
-              <option value="USD">USD</option>
-            </select>
-          </div>
+          <small className="text-gray-500 text-xs mt-1 block">
+            Nhập tỷ lệ hoa hồng từ 0 đến 100%
+          </small>
         </div>
 
         <div className="mb-4 grid grid-cols-2 gap-4">

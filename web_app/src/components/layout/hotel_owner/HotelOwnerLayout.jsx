@@ -114,10 +114,7 @@ const HotelOwnerLayout = () => {
             icon: <BarChart3 size={20} />, 
             path: '/hotel-owner/reports',
             subItems: [
-                { name: 'Doanh thu', path: '/hotel-owner/reports/revenue' },
-                { name: 'Tỷ lệ lấp đầy', path: '/hotel-owner/reports/occupancy' },
-                { name: 'Hiệu quả khuyến mãi', path: '/hotel-owner/reports/promotions' },
-                { name: 'Báo cáo tổng hợp', path: '/hotel-owner/reports/summary' }
+                { name: 'Doanh thu', path: '/hotel-owner/reports/revenue' }
             ]
         },
 
