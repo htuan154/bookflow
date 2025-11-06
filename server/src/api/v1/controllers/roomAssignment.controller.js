@@ -5,6 +5,19 @@ const { successResponse } = require('../../../utils/response');
 
 class RoomAssignmentController {
     /**
+     * Lấy danh sách phòng trống để xếp phòng cho một booking theo loại phòng.
+     * GET /api/v1/assignments/available-rooms
+     */
+    async getAvailableRooms(req, res, next) {
+        try {
+            const { roomTypeId, checkInDate, checkOutDate, limit } = req.query;
+            const rooms = await RoomAssignmentService.getAvailableRooms(roomTypeId, checkInDate, checkOutDate, Number(limit) || 10);
+            successResponse(res, rooms);
+        } catch (error) {
+            next(error);
+        }
+    }
+    /**
      * Gán một phòng cụ thể cho một chi tiết đặt phòng.
      * POST /api/v1/assignments
      */

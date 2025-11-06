@@ -49,6 +49,10 @@ import CustomerSupportPage from '../pages/hotel_owner/support/CustomerSupportPag
 
 // === Booking Pages
 import { BookingManagementPage, BookingDetailView, BookingEditPage } from '../pages/hotel_owner/bookings';
+import RoomAssignmentPage from '../pages/hotel_owner/bookings/RoomAssignmentPage';
+import BookingWrapper from '../pages/hotel_owner/bookings/BookingWrapper';
+import { RoomAssignmentProvider } from '../context/RoomAssignmentContext';
+import { BookingProvider } from '../context/BookingContext';
 
 import OwnerReportsPage from '../pages/hotel_owner/reports/OwnerReportsPage';
 import RevenuePage from '../pages/hotel_owner/reports/RevenuePage';
@@ -137,6 +141,11 @@ const HotelOwnerRoutes = () => {
                 <Route path="bookings/list" element={<BookingManagementPage />} />
                 <Route path="bookings/:bookingId" element={<BookingDetailView />} />
                 <Route path="bookings/:bookingId/edit" element={<BookingEditPage />} />
+                <Route path="bookings/:bookingId/assign-rooms" element={
+                  <RoomAssignmentProvider>
+                    <RoomAssignmentPage />
+                  </RoomAssignmentProvider>
+                } />
 
                 {/* ======================= CUSTOMER SUPPORT ======================= */}
                 <Route path="support" element={<CustomerSupportPage />} />

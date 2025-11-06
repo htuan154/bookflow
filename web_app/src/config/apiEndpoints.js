@@ -99,6 +99,8 @@ export const API_ENDPOINTS = {
         ASSIGN: `${API_BASE_URL}/assignments`,
         UNASSIGN: (assignmentId) => `${API_BASE_URL}/assignments/${assignmentId}`,
         GET_FOR_BOOKING: (bookingId) => `${API_BASE_URL}/assignments/bookings/${bookingId}`,
+        GET_AVAILABLE_ROOMS: ({ roomTypeId, checkInDate, checkOutDate, limit }) =>
+            `${API_BASE_URL}/assignments/available-rooms?roomTypeId=${encodeURIComponent(roomTypeId)}&checkInDate=${encodeURIComponent(checkInDate)}&checkOutDate=${encodeURIComponent(checkOutDate)}&limit=${limit}`,
     },
 
     // --- Room Type Endpoints ---
@@ -169,6 +171,7 @@ export const API_ENDPOINTS = {
         GET_HISTORY: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/history`,
         CREATE_HISTORY: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/history`,
         GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/bookings/hotel/${hotelId}`,
+        UPDATE_BOOKING: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}`,
     },
 
     // --- Booking Detail Endpoints ---

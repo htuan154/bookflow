@@ -118,7 +118,9 @@ const update = async (bookingId, updateData) => {
         paymentMethod: 'payment_method',
         specialRequests: 'special_requests',
         totalPrice: 'total_price',
-        totalGuests: 'total_guests'
+        totalGuests: 'total_guests',
+        actualCheckInDate: 'actual_check_in_date',
+        actualCheckOutDate: 'actual_check_out_date'
     };
 
     for (const [key, value] of Object.entries(updateData)) {
