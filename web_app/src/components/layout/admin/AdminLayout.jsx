@@ -5,7 +5,7 @@ import useAuth from '../../../hooks/useAuth';
 
 import {
     LayoutDashboard, FileText, Briefcase, Users, Ticket, MessageSquare,
-    MapPin, BarChart2, Bell, FileSignature, BadgePercent, CreditCard, Calendar,
+    MapPin, BarChart2, Bell, FileSignature, BadgePercent, CreditCard, Calendar, User,
 } from 'lucide-react';
 
 const AdminLayout = () => {
@@ -47,7 +47,7 @@ const AdminLayout = () => {
         { name: 'Gợi ý địa danh', icon: <MapPin size={20} />, path: '/admin/suggestions' },
         { name: 'Báo cáo thống kê', icon: <BarChart2 size={20} />, path: '/admin/reports' },
         { name: 'Quản lý tài khoản NH', icon: <CreditCard size={20} />, path: '/admin/bank-accounts' },
-        
+        { name: 'Hồ sơ cá nhân', icon: <User size={20} />, path: '/admin/profile' },
     ];
 
     // Hàm render menu item với sub-items

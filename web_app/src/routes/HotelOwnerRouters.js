@@ -55,6 +55,9 @@ import RevenuePage from '../pages/hotel_owner/reports/RevenuePage';
 
 // Bank Accounts
 import { HotelBankAccountsPage } from '../pages/hotel_owner/bank_accounts';
+
+// Profile
+import ProfilePage from '../pages/shared/ProfilePage';
 const HotelOwnerRoutes = () => {
   const { isAuthenticated, user } = useAuth();
 
@@ -79,6 +82,9 @@ const HotelOwnerRoutes = () => {
                 {/* Bank Accounts & Financial Management */}
                 <Route path="financial" element={<HotelBankAccountsPage />} />
                 <Route path="bank-accounts" element={<HotelBankAccountsPage />} />
+
+                {/* Profile */}
+                <Route path="profile" element={<ProfilePage />} />
 
                 {/* Hotel management */}
                 <Route path="hotel" element={<Navigate to="/hotel-owner/hotel/info" replace />} />

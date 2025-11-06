@@ -10,7 +10,8 @@ class User {
     created_at,
     phone_number,
     address,
-    is_active
+    is_active,
+    profile_picture_url
   }) {
     this.userId = user_id;
     this.username = username;
@@ -24,6 +25,7 @@ class User {
     this.phoneNumber = phone_number || null;
     this.address = address || null;
     this.isActive = is_active !== undefined ? is_active : true; // Default true
+    this.profilePictureUrl = profile_picture_url || null;
   }
 
   isAdmin() {
@@ -40,7 +42,8 @@ class User {
       createdAt: this.createdAt,
       phoneNumber: this.phoneNumber,
       address: this.address,
-      isActive: this.isActive
+      isActive: this.isActive,
+      profilePictureUrl: this.profilePictureUrl
     };
   }
 
@@ -61,7 +64,8 @@ class User {
       phone_number: this.phoneNumber,
       address: this.address,
       is_active: this.isActive,
-      created_at: this.createdAt
+      created_at: this.createdAt,
+      profile_picture_url: this.profilePictureUrl
     };
   }
 }

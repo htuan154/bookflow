@@ -129,6 +129,13 @@ const HotelOwnerLayout = () => {
                 { name: 'Điều khoản', path: '/hotel-owner/contracts/terms' }
             ]
                 */
+        },
+
+        // Hồ sơ cá nhân
+        { 
+            name: 'Hồ sơ cá nhân', 
+            icon: <User size={20} />, 
+            path: '/hotel-owner/profile'
         }
             
     ];
