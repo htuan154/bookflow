@@ -3,9 +3,11 @@ import 'package:intl/intl.dart';
 import '../../../classes/room_type_model.dart';
 import '../../../classes/season_pricing_model.dart';
 import '../../../services/booking_service.dart';
-import '../../../services/user_service.dart'; // Thêm dòng này
-import '../../../classes/user_model.dart'; // Thêm dòng này
-import '../../../classes/hotel_model.dart'; // Thêm dòng này
+import '../../../services/user_service.dart';
+import '../../../services/booking_nightly_price_service.dart';
+import '../../../classes/user_model.dart';
+import '../../../classes/hotel_model.dart';
+import '../../../classes/booking_nightly_price_model.dart';
 
 class BookingDetailScreen extends StatefulWidget {
   final Hotel hotel; // Thêm dòng này
@@ -44,6 +46,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   bool _agreeToTerms = false;
 
   User? _user;
+  List<BookingNightlyPrice> _nightlyPrices = [];
 
   String _selectedPaymentMethod = 'credit_card'; // Mặc định
 
@@ -51,6 +54,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   void initState() {
     super.initState();
     _loadUserInfo();
+    _calculateNightlyPrices();
   }
 
   @override
@@ -76,6 +80,60 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     } catch (e) {
       print('Error loading user info: $e');
     }
+  }
+
+  /// Tính giá từng đêm dựa vào seasonal pricing
+  void _calculateNightlyPrices() {
+    final checkInDate = widget.searchParams?['checkInDate'];
+    final checkOutDate = widget.searchParams?['checkOutDate'];
+    final roomCount = widget.calculatedRoom?['requiredRooms'] ?? 1;
+
+    if (checkInDate == null || checkOutDate == null) return;
+
+    final checkIn = DateTime.parse(checkInDate);
+    final checkOut = DateTime.parse(checkOutDate);
+    final nights = checkOut.difference(checkIn).inDays;
+
+    List<BookingNightlyPrice> prices = [];
+
+    for (int i = 0; i < nights; i++) {
+      final stayDate = checkIn.add(Duration(days: i));
+      final baseRate = widget.roomType.basePrice;
+      
+      // Tìm seasonal pricing áp dụng cho ngày này
+      SeasonalPricing? applicableSeason;
+      if (widget.seasonalPricings != null) {
+        for (var season in widget.seasonalPricings!) {
+          if (season.isDateInRange(stayDate)) {
+            applicableSeason = season;
+            break;
+          }
+        }
+      }
+
+      final seasonMultiplier = applicableSeason?.priceModifier ?? 1.0;
+      final grossNightlyPrice = baseRate * seasonMultiplier;
+      final grossNightlyTotal = grossNightlyPrice * roomCount;
+
+      // Tạo temporary model để hiển thị (chưa có priceId vì chưa lưu DB)
+      prices.add(BookingNightlyPrice(
+        priceId: '', // Temporary
+        bookingId: '', // Temporary
+        roomTypeId: widget.roomType.roomTypeId ?? '',
+        stayDate: stayDate,
+        quantity: roomCount,
+        baseRate: baseRate,
+        seasonPricingId: applicableSeason?.pricingId,
+        seasonMultiplier: seasonMultiplier,
+        grossNightlyPrice: grossNightlyPrice,
+        grossNightlyTotal: grossNightlyTotal,
+        createdAt: DateTime.now(),
+      ));
+    }
+
+    setState(() {
+      _nightlyPrices = prices;
+    });
   }
 
   Widget _buildHotelInfo() {
@@ -206,6 +264,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     _buildHotelInfo(),
                     _buildBookingSummary(),
                     SizedBox(height: 24),
+                    _buildNightlyPricesBreakdown(),
+                    SizedBox(height: 24),
                     _buildUserInfoForm(),
                     SizedBox(height: 24),
                     _buildPaymentMethodSelector(), // Thêm dòng này
@@ -308,22 +368,64 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             if (widget.seasonalPricings != null &&
                 widget.seasonalPricings!.isNotEmpty) ...[
               SizedBox(height: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: widget.seasonalPricings!.map((pricing) {
-                  final priceAfterSeason =
-                      widget.roomType.basePrice * pricing.priceModifier;
-                  return Text(
-                    'Giá phòng theo mùa: ${_formatPrice(priceAfterSeason)} / đêm'
-                    ' (${pricing.name}: ${DateFormat('dd/MM/yyyy').format(pricing.startDate)} - ${DateFormat('dd/MM/yyyy').format(pricing.endDate)})',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.orange,
-                      fontStyle: FontStyle.italic,
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.local_fire_department, size: 16, color: Colors.orange[700]),
+                        SizedBox(width: 4),
+                        Text(
+                          'Giá theo mùa (áp dụng cho thời gian đặt)',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange[700],
+                          ),
+                        ),
+                      ],
                     ),
-                  );
-                }).toList(),
+                    SizedBox(height: 8),
+                    ...widget.seasonalPricings!.map((pricing) {
+                      final priceAfterSeason =
+                          widget.roomType.basePrice * pricing.priceModifier;
+                      return Padding(
+                        padding: EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '• ${pricing.name}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '${_formatPrice(priceAfterSeason)}/đêm',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.orange[800],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
               ),
+              SizedBox(height: 8),
             ],
             _buildPriceRow('Số phòng', 'x $roomCount'),
             if (checkInDate != null && checkOutDate != null) ...[
@@ -401,6 +503,176 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNightlyPricesBreakdown() {
+    if (_nightlyPrices.isEmpty) {
+      return SizedBox.shrink();
+    }
+
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.calendar_today, color: Colors.teal, size: 24),
+              SizedBox(width: 8),
+              Text(
+                'Chi tiết giá từng đêm',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          ..._nightlyPrices.asMap().entries.map((entry) {
+            final index = entry.key;
+            final price = entry.value;
+            final nextDate = price.stayDate.add(Duration(days: 1));
+            final isLastNight = index == _nightlyPrices.length - 1;
+            
+            return Container(
+              margin: EdgeInsets.only(bottom: isLastNight ? 0 : 12),
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: price.hasSeasonalPricing 
+                  ? Colors.orange.withOpacity(0.1)
+                  : Colors.grey.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: price.hasSeasonalPricing
+                    ? Colors.orange.withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.2),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${price.formattedDate} → ${nextDate.day.toString().padLeft(2, '0')}/${nextDate.month.toString().padLeft(2, '0')}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              price.weekdayName,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            _formatPrice(price.grossNightlyTotal),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: price.hasSeasonalPricing 
+                                ? Colors.orange[700]
+                                : Colors.black87,
+                            ),
+                          ),
+                          if (price.quantity > 1) ...[
+                            SizedBox(height: 2),
+                            Text(
+                              '${price.quantity} phòng x ${_formatPrice(price.grossNightlyPrice)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (price.hasSeasonalPricing) ...[
+                    SizedBox(height: 8),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.local_fire_department, size: 14, color: Colors.orange[800]),
+                          SizedBox(width: 4),
+                          Text(
+                            'Giá mùa (x${price.seasonMultiplier.toStringAsFixed(2)})',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.orange[800],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }).toList(),
+          if (_nightlyPrices.isNotEmpty) ...[
+            Divider(height: 24, color: Colors.grey[300]),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Tổng (${_nightlyPrices.length} đêm)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                Text(
+                  _formatPrice(_nightlyPrices.fold(0.0, (sum, price) => sum + price.grossNightlyTotal)),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -788,6 +1060,9 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         );
 
         if (detailResult['success']) {
+          // 4. Lưu booking_nightly_prices
+          await _saveNightlyPrices(bookingId, roomTypeId, roomCount);
+
           _showSuccessDialog(bookingId);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -815,6 +1090,66 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  /// Lưu giá từng đêm vào database
+  Future<void> _saveNightlyPrices(String bookingId, String roomTypeId, int roomCount) async {
+    try {
+      final checkInDate = widget.searchParams?['checkInDate'];
+      final checkOutDate = widget.searchParams?['checkOutDate'];
+
+      if (checkInDate == null || checkOutDate == null) return;
+
+      final checkIn = DateTime.parse(checkInDate);
+      final checkOut = DateTime.parse(checkOutDate);
+      final nights = checkOut.difference(checkIn).inDays;
+
+      print('🌙 Saving $nights nightly prices for booking: $bookingId');
+
+      for (int i = 0; i < nights; i++) {
+        final stayDate = checkIn.add(Duration(days: i));
+        final baseRate = widget.roomType.basePrice;
+        
+        // Tìm seasonal pricing áp dụng cho ngày này
+        SeasonalPricing? applicableSeason;
+        if (widget.seasonalPricings != null) {
+          for (var season in widget.seasonalPricings!) {
+            if (season.isDateInRange(stayDate)) {
+              applicableSeason = season;
+              break;
+            }
+          }
+        }
+
+        final seasonMultiplier = applicableSeason?.priceModifier ?? 1.0;
+
+        // Gọi API để lưu
+        final nightlyPriceData = {
+          'booking_id': bookingId,
+          'room_type_id': roomTypeId,
+          'stay_date': stayDate.toIso8601String().split('T')[0],
+          'quantity': roomCount,
+          'base_rate': baseRate,
+          'season_pricing_id': applicableSeason?.pricingId,
+          'season_multiplier': seasonMultiplier,
+        };
+
+        print('📤 Sending nightly price data for ${stayDate.toIso8601String().split('T')[0]}: $nightlyPriceData');
+
+        final result = await BookingNightlyPriceService().create(nightlyPriceData);
+        
+        if (result['success']) {
+          print('✅ Nightly price saved for ${stayDate.toIso8601String().split('T')[0]}');
+        } else {
+          print('❌ Failed to save nightly price: ${result['message']}');
+        }
+      }
+      
+      print('✅ All nightly prices saved successfully');
+    } catch (e) {
+      print('❌ Error saving nightly prices: $e');
+      // Không throw error để không block việc booking thành công
     }
   }
 

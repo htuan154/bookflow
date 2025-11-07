@@ -10,8 +10,40 @@ import userService from '../../../api/user.service';
 import { toast } from 'react-toastify';
 import { useBookingStatusHistory } from '../../../hooks/useBookingStatusHistory';
 import PaymentForm from '../../../components/payment/PaymentForm';
+import { bookingApiService } from '../../../api/booking.service';
+import { CheckInPayment } from '../../../components/payment/BookingPayment';
 
 const BookingDetailView = () => {
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedBookingForPayment, setSelectedBookingForPayment] = useState(null);
+
+  // Payment success handler
+  const handlePaymentSuccess = async (qrData, paymentInfo) => {
+    try {
+      // Cập nhật trạng thái booking lên backend
+      if (booking?.bookingId) {
+        await bookingApiService.updateBooking(booking.bookingId, {
+          paymentStatus: 'paid',
+          bookingStatus: 'confirmed'
+        });
+        toast.success('Thanh toán thành công! Booking đã được cập nhật.');
+        setShowPaymentModal(false);
+        setSelectedBookingForPayment(null);
+        // Refetch lại dữ liệu booking
+        await loadBookingInfo();
+      }
+    } catch (error) {
+      console.error('❌ Error updating booking status:', error);
+      toast.error('Thanh toán thành công nhưng không thể cập nhật trạng thái booking');
+    }
+  };
+
+  // Payment error handler
+  const handlePaymentError = (error) => {
+    console.error('❌ Payment error:', error);
+    toast.error('Lỗi thanh toán: ' + error.message);
+  };
   const { bookingId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -417,24 +449,64 @@ const BookingDetailView = () => {
           <div className="mt-8 flex justify-end">
             <button
               className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-semibold shadow border border-orange-300"
-              onClick={() => setShowPaymentForm(true)}
+              onClick={() => {
+                setSelectedBookingForPayment(booking);
+                setShowPaymentModal(true);
+              }}
             >
               Thanh toán
             </button>
           </div>
         )}
 
-        {showPaymentForm && (
+        {/* Payment Modal - VietQR Check-in Payment */}
+        {showPaymentModal && selectedBookingForPayment && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className="relative">
+            <div className="relative bg-white rounded-lg shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+              {/* Close button */}
               <button
                 className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-xl font-bold"
-                onClick={() => setShowPaymentForm(false)}
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setSelectedBookingForPayment(null);
+                }}
                 aria-label="Đóng"
               >
                 ×
               </button>
-              <PaymentForm />
+              {/* Booking info header */}
+              <div className="p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  Thanh toán Booking
+                </h3>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <div>
+                    <span className="font-medium">Khách:</span> {userInfo?.fullName || 'Loading...'}
+                  </div>
+                  <div>
+                    <span className="font-medium">Check-in:</span> {formatShortDate(selectedBookingForPayment.checkInDate)} → {formatShortDate(selectedBookingForPayment.checkOutDate)}
+                  </div>
+                  <div>
+                    <span className="font-medium">Tổng tiền:</span> <span className="font-semibold text-lg text-blue-600">
+                      {formatCurrency(selectedBookingForPayment.totalPrice)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {/* Payment component */}
+              <div className="p-6">
+                <CheckInPayment
+                  bookingId={selectedBookingForPayment.bookingId}
+                  amount={selectedBookingForPayment.totalPrice}
+                  onSuccess={handlePaymentSuccess}
+                  onError={handlePaymentError}
+                />
+              </div>
+              {/* Footer info */}
+              <div className="px-6 pb-6 text-xs text-gray-500 text-center">
+                <p>💡 Hướng dẫn: Khách hàng quét mã QR bằng app ngân hàng để thanh toán</p>
+                <p className="mt-1">Trạng thái booking sẽ tự động cập nhật sau khi thanh toán thành công</p>
+              </div>
             </div>
           </div>
         )}
@@ -455,12 +527,12 @@ const BookingDetailView = () => {
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
-                    <span className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm font-medium">
-                      {item.oldStatus || 'Mới'}
+                    <span className={`px-3 py-1 rounded text-sm font-medium ${statusConfig[item.oldStatus]?.color || 'bg-gray-200 text-gray-700'}`}>
+                      {statusConfig[item.oldStatus]?.label || item.oldStatus || 'Mới'}
                     </span>
                     <span className="text-gray-400">→</span>
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-semibold">
-                      {item.newStatus}
+                    <span className={`px-3 py-1 rounded text-sm font-semibold ${statusConfig[item.newStatus]?.color || 'bg-blue-100 text-blue-700'}`}>
+                      {statusConfig[item.newStatus]?.label || item.newStatus}
                     </span>
                   </div>
                   <span className="text-xs text-gray-500">

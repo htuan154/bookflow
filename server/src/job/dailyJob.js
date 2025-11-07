@@ -38,7 +38,7 @@ async function myDailyTask() {
 
     // 3. Cập nhật trạng thái khuyến mãi theo ngày
     console.log('- Đang cập nhật trạng thái khuyến mãi theo ngày...');
-    const promotionResult = await dailyJobService.updatePromotionStatusByDate();
+    const promotionResult = await dailyJobService.updatePromotionSttatusByDate();
     console.log('- Kết quả cập nhật trạng thái khuyến mãi:', promotionResult);
 
     // 4. Tìm hợp đồng sắp hết hạn và gửi thông báo

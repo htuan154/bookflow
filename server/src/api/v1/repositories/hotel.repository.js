@@ -346,8 +346,6 @@ const countByCityAndWard = async (city, ward) => {
  * @returns {Promise<Array<Hotel>>}
  */
 const findByOwnerAndStatus = async (ownerId, status = null) => {
-  console.log('🔍 Repository findByOwnerAndStatus called:', { ownerId, status });
-  
   let query = 'SELECT * FROM hotels WHERE owner_id = $1';
   const values = [ownerId];
 
@@ -359,13 +357,8 @@ const findByOwnerAndStatus = async (ownerId, status = null) => {
 
   query += ' ORDER BY name ASC';
   
-  console.log('📝 SQL Query:', query);
-  console.log('📊 Values:', values);
-  
   const result = await pool.query(query, values);
-  
-  console.log('📊 Query result count:', result.rows.length);
-  
+    
   return result.rows.map(row => new Hotel(row));
 };
 

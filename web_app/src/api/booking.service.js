@@ -17,6 +17,21 @@ const bookingApiService = {
     }
   },
 
+    /**
+   * Cập nhật thông tin booking (generic update - nhiều fields)
+   */
+  async updateBooking(bookingId, updateData) {
+    try {
+      console.log('🔄 [BOOKING SERVICE] Updating booking:', bookingId, updateData);
+      const response = await axiosClient.patch(`/bookings/${bookingId}`, updateData);
+      console.log('✅ [BOOKING SERVICE] Booking updated:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [BOOKING SERVICE] Error updating booking:', error);
+      throw error;
+    }
+  },
+  
   /**
    * Lấy chi tiết booking theo bookingId
    */
