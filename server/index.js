@@ -59,7 +59,8 @@ const provincesRoutes = require('./src/api/v1/routes/provinces.routes');
 const reportsRoutes = require('./src/api/v1/routes/reports.route');
 const bankAccountRoutes = require('./src/api/v1/routes/bank_account.route');
 const vietqrRoutes = require('./src/api/v1/routes/vietqr.route');
-
+const bookingNightlyPriceRoutes = require('./src/api/v1/routes/bookingNightlyPrice.route');
+const bookingDiscountRoutes = require('./src/api/v1/routes/bookingDiscount.route');
 
 // --- App ---
 const app = express();
@@ -136,6 +137,8 @@ app.use('/api/v1', reportsRoutes);
 
 // Bank Accounts API
 app.use('/api/v1', bankAccountRoutes);
+app.use('/api/v1/booking-nightly-prices', bookingNightlyPriceRoutes);
+app.use('/api/v1/booking-discounts', bookingDiscountRoutes);
 
 // Debug endpoint to test routes
 app.get('/api/v1/test-bank', (req, res) => {

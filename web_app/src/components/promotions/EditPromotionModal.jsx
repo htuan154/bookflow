@@ -483,7 +483,7 @@ const EditPromotionModal = ({ isOpen, onClose, promotion, onSuccess }) => {
                     <input
                       type="number"
                       min={calculateMinDiscountAmount()}
-                      step="1000"
+                      //step="1000"
                       value={formData.maxDiscountAmount}
                       onChange={(e) => handleInputChange('maxDiscountAmount', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
