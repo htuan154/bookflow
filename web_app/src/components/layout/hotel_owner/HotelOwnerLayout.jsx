@@ -113,9 +113,7 @@ const HotelOwnerLayout = () => {
             name: 'Báo cáo & Thống kê', 
             icon: <BarChart3 size={20} />, 
             path: '/hotel-owner/reports',
-            subItems: [
-                { name: 'Doanh thu', path: '/hotel-owner/reports/revenue' }
-            ]
+            
         },
 
         // Hợp đồng

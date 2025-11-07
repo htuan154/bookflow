@@ -1,153 +1,112 @@
-# AI Comment Classifier (Tiếng Việt)
+=== TỔNG QUAN HỆ THỐNG ===
 
-Microservice phân loại bình luận Tiếng Việt thành **4 nhãn**: `SẠCH`, `CHỬI BỚI`, `KÍCH ĐỘNG`, `SPAM`.
-Fine-tune PhoBERT trên Colab, xuất checkpoint và phục vụ qua Flask + Swagger.
+[MODEL 4 NHÃN]
+Một mô hình đọc bình luận tiếng Việt và phân loại vào 1 trong 4 nhãn:
+- SẠCH (bình thường)
+- CHỬI BỚI
+- KÍCH ĐỘNG (kêu gọi tẩy chay, bóc phốt…)
+- SPAM (sđt, link, ib, sale…)
 
----
+[SERVER API]
+Một server API (Flask) nhận câu đầu vào, trả về:
+- classification: nhãn dự đoán
+- confidence: độ tự tin
+- top: danh sách xác suất theo từng nhãn
+- features: cờ nhận diện (có sđt, url, tục, kêu gọi) để tham khảo
+Có sẵn Swagger UI để test nhanh.
 
-## 1. Kiến trúc nhanh
+------------------------------------------------------------
 
-- **Model**: `vinai/phobert-base` fine-tune cho 4 lớp.
-- **Huấn luyện**: notebook 11 cell (Colab) – có **checkpoint định kỳ** để dừng/tiếp tục.
-- **Triển khai**: Flask API, Swagger UI; cấu hình runtime qua `config.yaml`.
-- **An toàn**: thresholds theo nhãn + `abstain_floor` ⇒ có thể trả `REVIEW`.
+=== QUY TRÌNH HUẤN LUYỆN (11 CELL) ===
+Cell 0 – CÀI THƯ VIỆN
+- Cài transformers, datasets, evaluate, torch… và in phiên bản để tái lập môi trường.
 
----
+Cell 1 – IMPORT & SEED
+- Import thư viện, đặt SEED cho random/NumPy/PyTorch (tái hiện kết quả tốt hơn).
 
-## 2. Cài đặt & chạy API
+Cell 2 – TẢI CSV
+- Upload `training_data.csv` với 2 cột: text, label; làm sạch khoảng trắng.
 
-### 2.1. Yêu cầu
-- Python 3.10+ (khuyên 3.11)
-- Cài thư viện:
-  ```bash
-  pip install -r requirements.txt
-  ```
+Cell 3 – CHUẨN HÓA & VÁ NHÃN
+- Chuẩn hóa nhãn về 4 lớp (SẠCH|CHỬI BỚI|KÍCH ĐỘNG|SPAM).
+- Rule hiển nhiên:
+  + có sđt/link/“ib/sale/…” → SPAM
+  + có từ tục → CHỬI BỚI
+  + “tẩy chay/đừng mua/bóc phốt/…” → KÍCH ĐỘNG
+- Loại trùng (text,label) và giữ đúng 4 lớp.
 
-### 2.2. Chuẩn bị checkpoint
-Giải nén model đã fine-tune vào `./model` (mặc định), hoặc đặt biến môi trường:
+Cell 4 – CHIA TẬP & AUGMENT
+- Chia train/val/test (stratify).
+- Augment nhẹ: bỏ dấu + chèn ký tự để mô phỏng kiểu viết “né lọc”.
 
-```bash
-export MODEL_PATH=/path/to/checkpoint
-export CONF_PATH=./config.yaml    # tuỳ chọn, nếu không sẽ dùng default
-```
+Cell 5 – TOKENIZE & DATASETS
+- Tokenize (PhoBERT), max_length=128, padding=max_length.
+- Ép nhãn về ClassLabel để giữ đúng thứ tự tên lớp.
 
-### 2.3. Chạy server
-```bash
-python app.py
-# Mặc định http://localhost:5000
-# Swagger UI: http://localhost:5000/apidocs
-```
+Cell 6 – CLASS WEIGHTS
+- Tính trọng số lớp (giảm lệch phân bố), dùng trong cross-entropy.
 
----
+Cell 7 – MODEL + TRAINER (RESUME-FRIENDLY)
+- PhoBERT `AutoModelForSequenceClassification(num_labels=4)`.
+- WeightedTrainer override `compute_loss`.
+- TrainingArguments:
+  + evaluation_strategy="steps", save_strategy="steps" (thường 1000 bước)
+  + save_total_limit=3, load_best_model_at_end=True (metric=f1_macro)
+  + fp16 nếu GPU hỗ trợ, gradient_accumulation_steps nếu VRAM ít
+→ Có checkpoint định kỳ, cho phép dừng/tiếp tục huấn luyện.
 
-## 3. Cấu hình `config.yaml`
+Cell 8 – TRAIN & VAL
+- `trainer.train(resume_from_checkpoint=True)` → có checkpoint thì nối tiếp, không có thì train mới.
+- Evaluate val; lưu `val_metrics.json` và (tuỳ chọn) `training_log_history.csv`.
 
-```yaml
-labels: ["SẠCH","CHỬI BỚI","KÍCH ĐỘNG","SPAM"]
+Cell 9 – TEST OVERALL & CHECK 1000
+- In classification_report + confusion_matrix trên test.
+- Lấy ngẫu nhiên 1000 mẫu test để đo Accuracy/F1 @1000 và so lệch với overall.
+- Dùng `labels` + `zero_division=0` để tránh lỗi khi mẫu 1000 thiếu lớp.
 
-# Nhiệt độ (temperature scaling) để làm “mềm” xác suất
-temperature: 1.3
+Cell 10 – MANUAL-10 (HẬU XỬ LÝ)
+- Test 10 câu “đời thường”.
+- Hậu xử lý:
+  + Rule “cứng” (sđt/link/tục/kêu gọi) → gán nhãn trực tiếp
+  + Ưu tiên SẠCH cho câu hỏi/lịch sự (nếu không có dấu hiệu xấu)
+  + Ngưỡng tự tin tổng & theo nhãn (siết KÍCH ĐỘNG hoặc SPAM nếu muốn)
 
-# Ngưỡng theo từng nhãn (vượt ngưỡng + vượt abstain_floor mới chấp nhận)
-thresholds:
-  SẠCH: 0.55
-  CHỬI BỚI: 0.60
-  KÍCH ĐỘNG: 0.60
-  SPAM: 0.55
+Cell 11 – LƯU MODEL (GATE)
+- Chỉ lưu/zip model khi đạt chuẩn (ví dụ Manual-10 ≥ 90%).
+- Nếu chưa đạt, không xuất model (tránh đưa model chưa tốt vào production).
 
-# Nếu max-prob < abstain_floor → trả REVIEW
-abstain_floor: 0.40
+------------------------------------------------------------
 
-# Bật/tắt các feature logging
-features:
-  use_phone_feature: true
-  use_url_feature: true
-  use_profanity_feature: true
-  use_imperative_feature: true
+=== CƠ CHẾ QUYẾT ĐỊNH CỦA API /check-comment ===
+1) Kiểm tra nhanh bằng regex:
+   - sđt/url/“ib/sale/…” → nghiêng SPAM
+   - tục → nghiêng CHỬI BỚI
+   - “tẩy chay/đừng mua/bóc phốt/…” → nghiêng KÍCH ĐỘNG
+2) Nếu chưa dính rule, đưa vào model → logits → temperature scaling → softmax.
+3) Lấy nhãn có xác suất cao nhất; so với threshold theo nhãn + abstain_floor:
+   - nếu không đủ tự tin → trả REVIEW (hoặc SẠCH, tùy cấu hình)
+   - nếu đủ → trả nhãn top-1
+4) Trả JSON: classification, confidence, top (xác suất từng nhãn), features (cờ regex).
 
-# Tuỳ chọn nâng cao:
-# remap: {"SẠCH":"CHỬI BỚI"}            # remap label ở runtime
-# force_if_profanity: "CHỬI BỚI"        # nếu phát hiện tục → ép nhãn này
-```
+------------------------------------------------------------
 
-**Thay đổi cấu hình tại runtime** (không restart):
-```bash
-curl -X POST http://localhost:5000/check-comment
-```
+=== ENDPOINT & TEST NHANH ===
+- Swagger UI: http://localhost:5000/apidocs
+- POST /check-comment
+  Body: { "text": "…" }
 
----
+Ví dụ:
+curl -X POST "http://127.0.0.1:5000/check-comment" \
+  -H "accept: application/json" -H "Content-Type: application/json" \
+  -d '{ "text": "Zalo 0912345678 đặt tour giá rẻ, ib ngay!" }'
 
-## 4. Endpoints
+------------------------------------------------------------
 
-- `GET /health` – thông tin model/config.
-- `GET /labels` – mapping `id2label/label2id`.
-- `POST /reload-config` – nạp lại config.
-- `POST /check-comment` – phân loại bình luận.
-
-**Body mẫu**:
-```json
-{ "text": "Thằng viết bài này ngu vãi chưởng." }
-```
-
-**Kết quả**:
-```json
-{
-  "classification": "CHỬI BỚI",
-  "confidence": 0.8731,
-  "top": [
-    {"label":"CHỬI BỚI","prob":0.8731},
-    {"label":"KÍCH ĐỘNG","prob":0.0661},
-    {"label":"SPAM","prob":0.0356},
-    {"label":"SẠCH","prob":0.0252}
-  ],
-  "features": {"has_phone":0,"has_url":0,"profanity":1,"imperative":0}
-}
-```
-
----
-
-## 5. Quy trình huấn luyện (tóm lược 11 cell)
-
-1. **Cài thư viện** & kiểm tra version.
-2. **Import + SEED**.
-3. **Upload `training_data.csv`** (`text,label`).
-4. **Chuẩn hóa nhãn** về 4 lớp + **vá nhãn hiển nhiên** (regex cho SPAM/tục/kêu gọi).
-5. **Chia train/val/test** + **augment nhẹ** (bỏ dấu, chèn ký tự).
-6. **Tokenize** (PhoBERT), tạo `datasets` với `ClassLabel`.
-7. **Class weights** bằng `compute_class_weight`.
-8. **PhoBERT + WeightedTrainer** + `TrainingArguments` (checkpoint theo bước, FP16…). 
-9. **Train** với `resume_from_checkpoint=True` + lưu `val_metrics.json`, `training_log_history.csv`.
-10. **Đánh giá test** + **Check 1000** (chỉ định `labels` và `zero_division=0` để tránh lỗi thiếu lớp).
-11. **Manual-10 + hậu xử lý** (ngưỡng & rule lịch sự) → **xuất model** nếu đạt chuẩn.
-
-> Có thể **dừng/tái chạy** giữa chừng. Chỉ cần giữ `output_dir` (mặc định `./results`) và gọi lại train với `resume_from_checkpoint=True`.
-
----
-
-## 6. Test nhanh API
-
-**Swagger**: mở `http://localhost:5000/apidocs` → `POST /check-comment` → dán JSON:
-```json
-{ "text": "Zalo 0912345678 đặt tour giá rẻ, ib ngay!" }
-```
-
-**cURL**:
-```bash
-curl -X POST http://localhost:5000/check-comment   -H "Content-Type: application/json"   -d '{"text":"Mọi người đừng đặt chỗ này, lừa đảo đó!"}'
-```
-
----
-
-## 7. Mẹo vận hành
-
-- Điều chỉnh **temperature** và **thresholds** để cân bằng recall/precision.
-- Dùng **abstain_floor** để an toàn: nghi ngờ thì trả `REVIEW`.
-- Bật `force_if_profanity` để siết chặt CHỬI BỚI trong production.
-- Thay đổi cấu hình → `POST /reload-config`.
-
----
-
-## 8. Bản quyền & Ghi công
-
-- PhoBERT thuộc VinAI (tuân thủ license tương ứng).
-- Thư viện: PyTorch, Transformers, Flasgger, Flask, v.v.
+=== LƯU Ý VẬN HÀNH ===
+- Có thể dừng giữa chừng (mất mạng/sleep). Khi quay lại:
+  + Nếu runtime còn sống: chạy lại Cell 8 để tiếp tục.
+  + Nếu runtime reset: chạy Cell 0→7 để tạo Trainer rồi chạy Cell 8 (resume).
+- Điều chỉnh “độ khắt khe”:
+  + Tăng/giảm temperature, thresholds (per-label), abstain_floor.
+  + Bật force_if_profanity để câu có tục luôn là CHỬI BỚI.
+- Nếu nhầm SẠCH→KÍCH ĐỘNG ở câu hỏi/lịch sự: siết THRESH["KÍCH ĐỘNG"] và ưu tiên SẠCH cho QUESTION/POLITE.
