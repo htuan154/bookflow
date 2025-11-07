@@ -791,7 +791,11 @@ const BookingManagementPage = () => {
 
                         {/* Trạng thái xếp phòng */}
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {booking.bookingStatus === 'confirmed' ? (
+                          {booking.bookingStatus === 'completed' ? (
+                            <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Đã xếp
+                            </span>
+                          ) : booking.bookingStatus === 'confirmed' ? (
                             roomAssignmentStatus[booking.bookingId] === 'assigned' ? (
                               <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                 Đã xếp

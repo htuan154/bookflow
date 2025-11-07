@@ -14,10 +14,8 @@ class PromotionUsageService {
     async logPromotionUsage(usageData, client) {
         // Bước 1: Ghi lại lịch sử sử dụng
         const newUsage = await promotionUsageRepository.create(usageData, client);
-
-        // Bước 2: Cập nhật (tăng) số lượt đã dùng của mã khuyến mãi
-        await promotionRepository.incrementUsageCount(usageData.promotion_id, client);
-
+        // Bước 2: Tăng số lượt dùng
+        await promotionUsageRepository.incrementUsageCount(usageData.promotion_id, client);
         return newUsage;
     }
 

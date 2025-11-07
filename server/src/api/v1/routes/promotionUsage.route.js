@@ -5,6 +5,13 @@ const promotionUsageController = require('../controllers/promotionUsage.controll
 const { authenticate, authorize } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
+// POST /api/v1/promotions/:promotionId/use -> Ghi nhận sử dụng khuyến mãi
+// Yêu cầu: Đã đăng nhập
+router.post(
+    '/:promotionId/use',
+    authenticate,
+    promotionUsageController.usePromotion
+);
 
 
 // GET /api/v1/promotions/:promotionId/usage-history -> Lấy lịch sử sử dụng của một mã

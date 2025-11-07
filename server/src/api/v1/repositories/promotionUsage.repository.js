@@ -12,24 +12,19 @@ const PromotionUsage = require('../../../models/promotionUsage.model');
  */
 const create = async (usageData, client) => {
     const {
-        promotion_id, user_id, booking_id, discount_amount,
-        original_amount, final_amount, ip_address, user_agent
+        promotion_id, user_id, booking_id
     } = usageData;
 
     const query = `
         INSERT INTO promotion_usage (
-            promotion_id, user_id, booking_id, discount_amount,
-            original_amount, final_amount, ip_address, user_agent
+            promotion_id, user_id, booking_id
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3)
         RETURNING *;
     `;
     const values = [
-        promotion_id, user_id, booking_id, discount_amount,
-        original_amount, final_amount, ip_address, user_agent
+        promotion_id, user_id, booking_id
     ];
-    
-    // Sử dụng client đã được cung cấp để đảm bảo nó là một phần của transaction
     const result = await client.query(query, values);
     return new PromotionUsage(result.rows[0]);
 };
