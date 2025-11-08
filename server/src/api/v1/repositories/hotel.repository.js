@@ -429,7 +429,7 @@ const findAvailableRoomsByCity = async (city, checkInDate, checkOutDate, ward = 
       FROM room_types rt
       JOIN rooms r
         ON r.room_type_id = rt.room_type_id
-       AND r.status = 'available'
+        AND r.status IN ('available','occupied','cleaning')
       GROUP BY rt.hotel_id, rt.room_type_id
     ),
     booked AS (

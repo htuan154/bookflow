@@ -14,18 +14,33 @@ module.exports = {
 
   async create(data) {
     const {
+      booking_id,
       bookingId,
+      promotion_id,
       promotionId,
+      gross_amount_snapshot,
       grossAmountSnapshot,
+      discount_type,
       discountType,
+      discount_value,
       discountValue,
+      discount_applied,
       discountApplied
     } = data;
+    
+    // Support both snake_case and camelCase
+    const finalBookingId = booking_id || bookingId;
+    const finalPromotionId = promotion_id || promotionId;
+    const finalGrossAmount = gross_amount_snapshot || grossAmountSnapshot;
+    const finalDiscountType = discount_type || discountType;
+    const finalDiscountValue = discount_value || discountValue;
+    const finalDiscountApplied = discount_applied || discountApplied;
+    
     const res = await pool.query(
       `INSERT INTO ${TABLE} (
         booking_id, promotion_id, gross_amount_snapshot, discount_type, discount_value, discount_applied
       ) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [bookingId, promotionId, grossAmountSnapshot, discountType, discountValue, discountApplied]
+      [finalBookingId, finalPromotionId, finalGrossAmount, finalDiscountType, finalDiscountValue, finalDiscountApplied]
     );
     return new BookingDiscount(res.rows[0]);
   }
