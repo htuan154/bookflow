@@ -137,8 +137,8 @@ function startDailyJob() {
   // Chạy daily job vào 7h sáng mỗi ngày
   cron.schedule('0 7 * * *', myDailyTask, { timezone: 'Asia/Ho_Chi_Minh' });
   
-  // Chạy moderation worker mỗi 10 phút
-  //cron.schedule('*/10 * * * *', moderationTask, { timezone: 'Asia/Ho_Chi_Minh' });
+  // Chạy moderation worker mỗi 10 giây
+  cron.schedule('*/10 * * * * *', moderationTask, { timezone: 'Asia/Ho_Chi_Minh' });
   
   //cron.schedule('*/10 * * * * *', myDailyTask); // mỗi 10 giây để test job chính
   //cron.schedule('*/10 * * * * *', testCreateSeasons); // mỗi 10 giây để test tạo season

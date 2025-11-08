@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { Edit, Trash2, Eye, Calendar, Tag, Globe, CheckCircle, XCircle, Clock, AlertTriangle, Archive, Loader, ArrowLeft } from 'lucide-react';
+import { Edit, Trash2, Eye, Calendar, Tag, Globe, CheckCircle, XCircle, Clock, AlertTriangle, Archive, Loader, ArrowLeft, MessageCircle, Send, X } from 'lucide-react';
 import { FiImage, FiMapPin, FiHash, FiSmile, FiPlus, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 // Đã gộp toàn bộ logic CRUD và giao diện danh sách bài viết vào file này, không còn dùng component con
 import { useHotel } from '../../../hooks/useHotel';
 import { hotelApiService } from '../../../api/hotel.service';
 import blogService from '../../../api/blog.service';
+import commentService from '../../../api/comment.service';
 import { AuthContext } from '../../../context/AuthContext';
 
 import useBlog from '../../../hooks/useBlog';
@@ -64,6 +65,27 @@ const MarketingPage = () => {
 
   // State cho modal notification (bảng lớn giữa trang)
   const [modalNotification, setModalNotification] = useState({ message: '', type: '' });
+
+  // State cho chức năng bình luận - Redesigned
+  const [showCommentsPanel, setShowCommentsPanel] = useState(false);
+  const [selectedBlogForComments, setSelectedBlogForComments] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyContent, setReplyContent] = useState('');
+  const [expandedComments, setExpandedComments] = useState(new Set());
+  
+  // State cho infinite scroll
+  const [commentsPage, setCommentsPage] = useState(1);
+  const [commentsPerPage] = useState(10); // Tăng lên 10 cho infinite scroll
+  const [totalComments, setTotalComments] = useState(0);
+  const [hasMoreComments, setHasMoreComments] = useState(false);
+  const [loadingMoreComments, setLoadingMoreComments] = useState(false);
+  
+  // State cho sorting và filtering
+  const [commentSortBy, setCommentSortBy] = useState('newest'); // newest, oldest, popular
+  const [commentFilter, setCommentFilter] = useState('all'); // all, approved, pending
 
   // Modal Notification component (bảng lớn giữa trang)
   const ModalNotification = ({ message, type, onClose }) => (
@@ -540,7 +562,7 @@ const MarketingPage = () => {
         createdAt: blog.createdAt || blog.created_at,
         
         // Author
-        author: blog.author || 'Ẩn danh'
+        author: blog.username || blog.author || 'Ẩn danh'
       };
       
       console.log('✅ Normalized blog for modal:', normalizedBlog);
@@ -985,6 +1007,257 @@ const MarketingPage = () => {
   }
 };
 
+  // Hàm xử lý hiển thị panel bình luận (thay thế modal)
+  const handleShowComments = async (blog) => {
+    console.log('🚀 [handleShowComments] Starting to load comments for blog:', blog);
+    
+    setSelectedBlogForComments(blog);
+    setShowCommentsPanel(true);
+    setCommentsLoading(true);
+    setCommentsPage(1);
+    setComments([]);
+    
+    try {
+      await loadCommentsData(blog, 1, true); // true = reset comments
+    } catch (error) {
+      console.error('❌ [handleShowComments] Error:', error);
+      setModalNotification({ message: 'Lỗi khi tải bình luận: ' + error.message, type: 'error' });
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  // Hàm load dữ liệu bình luận (dùng chung cho first load và infinite scroll)
+  const loadCommentsData = async (blog, page = 1, resetComments = false) => {
+    const blogId = blog.blogId || blog.blog_id || blog.id;
+    const params = `page=${page}&limit=${commentsPerPage}&sort=${commentSortBy}&filter=${commentFilter}`;
+    
+    console.log('📡 [loadCommentsData] Loading page:', page, 'params:', params);
+    
+    const response = await commentService.getBlogCommentsWithUser(blogId, params);
+    
+    // Parse response data
+    let commentsData = [];
+    let total = 0;
+    
+    if (Array.isArray(response)) {
+      commentsData = response;
+      total = response.length;
+    } else if (response?.data && Array.isArray(response.data)) {
+      commentsData = response.data;
+      total = response.total || response.data.length;
+    } else if (response?.comments && Array.isArray(response.comments)) {
+      commentsData = response.comments;
+      total = response.total || response.comments.length;
+    }
+    
+    const organizedComments = organizeCommentsTree(commentsData);
+    
+    if (resetComments) {
+      setComments(organizedComments);
+    } else {
+      setComments(prev => [...prev, ...organizedComments]);
+    }
+    
+    setTotalComments(total);
+    setHasMoreComments(commentsData.length >= commentsPerPage);
+    setCommentsPage(page);
+    
+    return { commentsData, total };
+  };
+
+  // Hàm load thêm bình luận (Infinite scroll)
+  const handleLoadMoreComments = async () => {
+    if (loadingMoreComments || !hasMoreComments || !selectedBlogForComments) return;
+    
+    setLoadingMoreComments(true);
+    const nextPage = commentsPage + 1;
+    
+    try {
+      await loadCommentsData(selectedBlogForComments, nextPage, false); // false = append comments
+    } catch (error) {
+      console.error('❌ Error loading more comments:', error);
+      setModalNotification({ message: 'Lỗi khi tải thêm bình luận', type: 'error' });
+    } finally {
+      setLoadingMoreComments(false);
+    }
+  };
+
+  // Hàm đóng panel bình luận
+  const handleCloseCommentsPanel = () => {
+    setShowCommentsPanel(false);
+    setSelectedBlogForComments(null);
+    setComments([]);
+    setNewComment('');
+    setReplyingTo(null);
+    setReplyContent('');
+    setExpandedComments(new Set());
+    // Reset states
+    setCommentsPage(1);
+    setTotalComments(0);
+    setHasMoreComments(false);
+    setLoadingMoreComments(false);
+  };
+
+  // Hàm thay đổi sort/filter và reload comments
+  const handleCommentSortChange = async (newSort) => {
+    if (newSort === commentSortBy) return;
+    
+    setCommentSortBy(newSort);
+    setCommentsLoading(true);
+    
+    try {
+      await loadCommentsData(selectedBlogForComments, 1, true);
+    } catch (error) {
+      setModalNotification({ message: 'Lỗi khi tải bình luận', type: 'error' });
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  const handleCommentFilterChange = async (newFilter) => {
+    if (newFilter === commentFilter) return;
+    
+    setCommentFilter(newFilter);
+    setCommentsLoading(true);
+    
+    try {
+      await loadCommentsData(selectedBlogForComments, 1, true);
+    } catch (error) {
+      setModalNotification({ message: 'Lỗi khi tải bình luận', type: 'error' });
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  // Hàm tổ chức comments thành cây
+  const organizeCommentsTree = (comments) => {
+    const commentMap = {};
+    const rootComments = [];
+
+    // First pass: create a map of all comments
+    comments.forEach(comment => {
+      commentMap[comment.commentId || comment.comment_id] = {
+        ...comment,
+        replies: []
+      };
+    });
+
+    // Second pass: organize into tree structure
+    comments.forEach(comment => {
+      const commentObj = commentMap[comment.commentId || comment.comment_id];
+      if (comment.parentCommentId || comment.parent_comment_id) {
+        const parentId = comment.parentCommentId || comment.parent_comment_id;
+        const parent = commentMap[parentId];
+        if (parent) {
+          parent.replies.push(commentObj);
+        }
+      } else {
+        rootComments.push(commentObj);
+      }
+    });
+
+    return rootComments;
+  };
+
+  // Hàm đóng modal bình luận
+  const handleCloseCommentsModal = () => {
+    setShowCommentsPanel(false);
+    setSelectedBlogForComments(null);
+    setComments([]);
+    setNewComment('');
+    setReplyingTo(null);
+    setReplyContent('');
+    setExpandedComments(new Set());
+    // Reset pagination states
+    setCommentsPage(1);
+    setTotalComments(0);
+    setHasMoreComments(false);
+    setLoadingMoreComments(false);
+  };
+
+  // Hàm gửi bình luận mới
+  const handleSubmitComment = async () => {
+    if (!newComment.trim()) return;
+    
+    try {
+      const blogId = selectedBlogForComments.blogId || selectedBlogForComments.blog_id || selectedBlogForComments.id;
+      await commentService.createComment(blogId, {
+        content: newComment.trim()
+      });
+      
+      setNewComment('');
+      setModalNotification({ message: '✅ Đã gửi bình luận!', type: 'success' });
+      
+      // Reload comments from the beginning để thấy bình luận mới
+      await loadCommentsData(selectedBlogForComments, 1, true);
+    } catch (error) {
+      console.error('Error creating comment:', error);
+      setModalNotification({ message: 'Lỗi khi gửi bình luận: ' + error.message, type: 'error' });
+    }
+  };
+
+  // Hàm trả lời bình luận
+  const handleReplyToComment = async () => {
+    if (!replyContent.trim() || !replyingTo) return;
+    
+    try {
+      const blogId = selectedBlogForComments.blogId || selectedBlogForComments.blog_id || selectedBlogForComments.id;
+      await commentService.replyComment(blogId, replyingTo.commentId || replyingTo.comment_id, {
+        content: replyContent.trim(),
+        autoApprove: true
+      });
+      
+      setReplyContent('');
+      setReplyingTo(null);
+      setModalNotification({ message: '✅ Đã trả lời bình luận!', type: 'success' });
+      
+      // Reload comments from the beginning để thấy reply mới
+      await loadCommentsData(selectedBlogForComments, 1, true);
+    } catch (error) {
+      console.error('Error replying to comment:', error);
+      setModalNotification({ message: 'Lỗi khi trả lời bình luận: ' + error.message, type: 'error' });
+    }
+  };
+
+  // Hàm toggle reply form
+  const toggleReply = (comment) => {
+    if (replyingTo && (replyingTo.commentId === comment.commentId || replyingTo.comment_id === comment.comment_id)) {
+      setReplyingTo(null);
+      setReplyContent('');
+    } else {
+      setReplyingTo(comment);
+      setReplyContent('');
+    }
+  };
+
+  // Hàm toggle expand/collapse comments
+  const toggleCommentExpansion = (commentId) => {
+    const newExpanded = new Set(expandedComments);
+    if (newExpanded.has(commentId)) {
+      newExpanded.delete(commentId);
+    } else {
+      newExpanded.add(commentId);
+    }
+    setExpandedComments(newExpanded);
+  };
+
+  // Hàm format thời gian
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) return 'Vừa xong';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} phút trước`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} giờ trước`;
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} ngày trước`;
+    
+    return date.toLocaleDateString('vi-VN');
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="space-y-6">
@@ -1421,7 +1694,7 @@ const MarketingPage = () => {
                           <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                             <div className="flex items-center space-x-2">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                              <span>{blog.author?.name || blog.author || 'Ẩn danh'}</span>
+                              <span>{blog.username || blog.author?.name || blog.author || 'Ẩn danh'}</span>
                             </div>
                             <div className="flex items-center space-x-2">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -1438,9 +1711,23 @@ const MarketingPage = () => {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
                                 <span>{blog.likeCount || blog.like_count || 0}</span>
                               </div>
-                              <div className="flex items-center space-x-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                                <span>{blog.commentCount || blog.comment_count || 0}</span>
+                              <div 
+                                className="flex items-center space-x-1 cursor-pointer hover:text-blue-600 transition-colors"
+                                onClick={() => {
+                                  console.log('🔍 Clicked comment for blog:', blog);
+                                  console.log('📊 Blog ID variants:', {
+                                    blogId: blog.blogId,
+                                    blog_id: blog.blog_id,
+                                    id: blog.id,
+                                    commentCount: blog.commentCount,
+                                    comment_count: blog.comment_count
+                                  });
+                                  handleShowComments(blog);
+                                }}
+                                title="Xem bình luận"
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                                <span className="text-blue-600 font-medium">{blog.commentCount || blog.comment_count || 0}</span>
                               </div>
                             </div>
                           </div>
@@ -1686,7 +1973,7 @@ const MarketingPage = () => {
                       <div className="flex items-center space-x-6 text-sm">
                         <div className="flex items-center space-x-2 bg-white px-3 py-1 rounded-full shadow-sm">
                           <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                          <span className="text-gray-700 font-medium">{selectedBlog.author}</span>
+                          <span className="text-gray-700 font-medium">{selectedBlog.username || selectedBlog.author}</span>
                         </div>
                         <div className="flex items-center space-x-2 bg-white px-3 py-1 rounded-full shadow-sm">
                           <Calendar className="h-4 w-4 text-blue-500" />
@@ -2172,6 +2459,280 @@ const MarketingPage = () => {
             type={modalNotification.type}
             onClose={() => setModalNotification({ message: '', type: '' })}
           />
+        )}
+
+        {/* Comments Sidebar Panel - Modern Design */}
+        {showCommentsPanel && selectedBlogForComments && (
+          <>
+            {/* Backdrop */}
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-30 z-40"
+              onClick={handleCloseCommentsPanel}
+            ></div>
+
+            {/* Sidebar Panel */}
+            <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <MessageCircle className="w-5 h-5 text-blue-200" />
+                      <h2 className="text-lg font-semibold truncate">Bình luận</h2>
+                    </div>
+                    <p className="text-blue-200 text-sm mt-1 truncate">{selectedBlogForComments.title}</p>
+                  </div>
+                  <button
+                    onClick={handleCloseCommentsPanel}
+                    className="text-blue-200 hover:text-white hover:bg-blue-800 transition-all duration-200 p-1 rounded-full ml-2"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Stats & Controls */}
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="text-blue-200 text-sm">
+                    {totalComments > 0 ? (
+                      <span>💬 {totalComments} bình luận</span>
+                    ) : (
+                      <span>💭 Chưa có bình luận</span>
+                    )}
+                  </div>
+                  
+                  {/* Sort & Filter Controls */}
+                  <div className="flex items-center space-x-2">
+                    <select
+                      value={commentSortBy}
+                      onChange={(e) => handleCommentSortChange(e.target.value)}
+                      className="bg-blue-800 text-white text-xs rounded px-2 py-1 border border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      disabled={commentsLoading}
+                    >
+                      <option value="newest">Mới nhất</option>
+                      <option value="oldest">Cũ nhất</option>
+                      <option value="popular">Phổ biến</option>
+                    </select>
+                    
+                    <select
+                      value={commentFilter}
+                      onChange={(e) => handleCommentFilterChange(e.target.value)}
+                      className="bg-blue-800 text-white text-xs rounded px-2 py-1 border border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      disabled={commentsLoading}
+                    >
+                      <option value="all">Tất cả</option>
+                      <option value="approved">Đã duyệt</option>
+                      <option value="pending">Chờ duyệt</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content Area với Infinite Scroll */}
+              <div className="flex-1 overflow-y-auto">
+                {commentsLoading && comments.length === 0 ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <Loader className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-3" />
+                      <p className="text-gray-600">Đang tải bình luận...</p>
+                    </div>
+                  </div>
+                ) : comments.length > 0 ? (
+                  <div className="divide-y divide-gray-100">
+                    {comments.map((comment, index) => (
+                      <div key={comment.commentId || comment.comment_id} className="p-4 hover:bg-gray-50 transition-colors">
+                        {/* Comment Item */}
+                        <div className="flex space-x-3">
+                          {/* Avatar */}
+                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                            {(comment.fullName || comment.username || comment.user?.full_name || 'U')[0].toUpperCase()}
+                          </div>
+                          
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            {/* User Info */}
+                            <div className="flex items-center space-x-2 mb-1">
+                              <h4 className="font-semibold text-gray-900 text-sm truncate">
+                                {comment.fullName || comment.username || comment.user?.full_name || 'Người dùng'}
+                              </h4>
+                              <span className="text-xs text-gray-500">
+                                {formatTimeAgo(comment.createdAt || comment.created_at)}
+                              </span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                comment.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                comment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>
+                                {comment.status === 'approved' ? '✓' :
+                                 comment.status === 'pending' ? '⏳' : '✗'}
+                              </span>
+                            </div>
+
+                            {/* Comment Text */}
+                            <div className="text-gray-700 text-sm leading-relaxed mb-2 break-words">
+                              {comment.content}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center space-x-3 text-xs">
+                              <button
+                                onClick={() => toggleReply(comment)}
+                                className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                              >
+                                {replyingTo && (replyingTo.commentId === comment.commentId || replyingTo.comment_id === comment.comment_id) 
+                                  ? '✕ Hủy' : '↩️ Trả lời'}
+                              </button>
+                              
+                              {comment.replies && comment.replies.length > 0 && (
+                                <button
+                                  onClick={() => toggleCommentExpansion(comment.commentId || comment.comment_id)}
+                                  className="text-gray-600 hover:text-gray-800 font-medium transition-colors"
+                                >
+                                  {expandedComments.has(comment.commentId || comment.comment_id) 
+                                    ? '🔼 Ẩn' : `🔽 ${comment.replies.length} phản hồi`}
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Reply Form */}
+                            {replyingTo && (replyingTo.commentId === comment.commentId || replyingTo.comment_id === comment.comment_id) && (
+                              <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <div className="flex space-x-2">
+                                  <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                    {(user?.fullName || user?.username || 'Y')[0].toUpperCase()}
+                                  </div>
+                                  <div className="flex-1">
+                                    <textarea
+                                      value={replyContent}
+                                      onChange={(e) => setReplyContent(e.target.value)}
+                                      placeholder={`Trả lời ${comment.fullName || comment.username || 'người dùng'}...`}
+                                      className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                                      rows={2}
+                                    />
+                                    <div className="flex items-center justify-end space-x-1 mt-2">
+                                      <button
+                                        onClick={() => {
+                                          setReplyingTo(null);
+                                          setReplyContent('');
+                                        }}
+                                        className="px-2 py-1 text-gray-600 hover:text-gray-800 text-xs"
+                                      >
+                                        Hủy
+                                      </button>
+                                      <button
+                                        onClick={handleReplyToComment}
+                                        disabled={!replyContent.trim()}
+                                        className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center"
+                                      >
+                                        <Send className="w-3 h-3 mr-1" />
+                                        Gửi
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Replies */}
+                            {comment.replies && comment.replies.length > 0 && expandedComments.has(comment.commentId || comment.comment_id) && (
+                              <div className="mt-3 space-y-2 pl-4 border-l-2 border-blue-200">
+                                {comment.replies.map((reply) => (
+                                  <div key={reply.commentId || reply.comment_id} className="flex space-x-2">
+                                    <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-teal-500 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                                      {(reply.fullName || reply.username || reply.user?.full_name || 'U')[0].toUpperCase()}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center space-x-1">
+                                        <h5 className="text-xs font-semibold text-gray-900 truncate">
+                                          {reply.fullName || reply.username || reply.user?.full_name || 'Người dùng'}
+                                        </h5>
+                                        <span className="text-xs text-gray-500">
+                                          {formatTimeAgo(reply.createdAt || reply.created_at)}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-gray-700 mt-1 break-words">{reply.content}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Infinite Scroll Trigger */}
+                    {hasMoreComments && (
+                      <div className="p-4 text-center">
+                        <button
+                          onClick={handleLoadMoreComments}
+                          disabled={loadingMoreComments}
+                          className="w-full py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 disabled:bg-gray-100 disabled:text-gray-400 transition-colors text-sm font-medium"
+                        >
+                          {loadingMoreComments ? (
+                            <span className="flex items-center justify-center">
+                              <Loader className="w-4 h-4 animate-spin mr-2" />
+                              Đang tải...
+                            </span>
+                          ) : (
+                            `⬇️ Tải thêm (còn ${Math.max(0, totalComments - comments.length)} bình luận)`
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {!hasMoreComments && comments.length > 5 && (
+                      <div className="p-4 text-center">
+                        <div className="text-xs text-gray-500 bg-gray-50 py-2 px-4 rounded-lg inline-flex items-center">
+                          <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                          Đã hiển thị tất cả bình luận
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <MessageCircle className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                      <h3 className="text-sm font-medium text-gray-900 mb-1">Chưa có bình luận</h3>
+                      <p className="text-xs text-gray-500">Hãy là người đầu tiên bình luận!</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Comment Input (Sticky Footer) */}
+              <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
+                <div className="flex space-x-3">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                    {(user?.fullName || user?.username || 'Y')[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1">
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Viết bình luận của bạn..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      rows={3}
+                      maxLength={500}
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs text-gray-500">
+                        {newComment.length}/500
+                      </span>
+                      <button
+                        onClick={handleSubmitComment}
+                        disabled={!newComment.trim() || newComment.length > 500}
+                        className="px-4 py-1.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center text-sm"
+                      >
+                        <Send className="w-3 h-3 mr-1" />
+                        Gửi
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
     
