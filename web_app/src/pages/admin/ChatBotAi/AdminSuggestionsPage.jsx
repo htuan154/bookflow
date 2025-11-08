@@ -110,12 +110,23 @@ function SimpleList({ title, items = [], nameKey = 'name' }) {
         {items.map((x, i) => {
           const name = typeof x === 'string' ? x : x?.[nameKey] || x?.title || '';
           const where = x?.where || x?.place || x?.location || x?.address || '';
-          const note = x?.hint || x?.description || x?.note || '';
+          const hint = x?.hint || x?.description || x?.note || '';
+          
+          // Nếu chỉ có name (string thuần hoặc object không có hint/where)
+          if (!where && !hint) {
+            return (
+              <li key={i} className="text-base leading-relaxed">
+                <span className="font-medium">{name}</span>
+              </li>
+            );
+          }
+          
+          // Có hint hoặc where -> hiển thị tên in đậm và mô tả in nghiêng cùng màu
           return (
-            <li key={i} className="text-base leading-relaxed">
-              <span className="font-medium">{name}</span>
-              {where && <span className="text-gray-600"> — {where}</span>}
-              {note && <span className="text-gray-700">. {note}</span>}
+            <li key={i} className="text-base leading-relaxed text-gray-800">
+              <span className="font-semibold">{name}</span>
+              {hint && <div className="italic mt-0.5">{hint}</div>}
+              {where && <div className="italic mt-0.5">{where}</div>}
             </li>
           );
         })}
@@ -408,28 +419,28 @@ export default function AdminSuggestionsPage() {
   }, [messages, sending]);
 
   return (
-    <div className="h-screen w-full flex overflow-hidden">
+    <div className="absolute inset-0 flex overflow-hidden bg-gray-50">
       {/* Sidebar - tăng width */}
-      <aside className="w-[320px] shrink-0 border-r bg-white flex flex-col">
-        <div className="p-4 flex gap-3 shrink-0">
+      <aside className="w-[320px] shrink-0 border-r bg-white flex flex-col shadow-lg">
+        <div className="p-4 flex gap-3 shrink-0 border-b">
           <button
             onClick={newChat}
-            className="flex-1 h-11 inline-flex items-center justify-center gap-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium"
+            className="flex-1 h-11 inline-flex items-center justify-center gap-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium transition-colors"
             title="New chat"
           >
             <Plus size={18} /> New chat
           </button>
           <button
             onClick={loadSessions}
-            className="w-11 h-11 inline-flex items-center justify-center rounded-lg border hover:bg-gray-50"
+            className="w-11 h-11 inline-flex items-center justify-center rounded-lg border hover:bg-gray-50 transition-colors"
             title="Tải lại"
           >
             {loadingList ? <Loader2 className="animate-spin" size={18} /> : '↻'}
           </button>
         </div>
 
-        <div className="px-4 pb-3 text-sm text-gray-500 shrink-0">Phiên gần đây</div>
-        <div className="flex-1 overflow-y-auto px-3 space-y-2 min-h-0">
+        <div className="px-4 py-3 text-sm text-gray-500 shrink-0 border-b bg-gray-50 font-medium">Phiên gần đây</div>
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0 scrollbar-thin">
           {sessions.map((s) => {
             const sid = s._id || s.session_id;
             const active = activeSession === sid;
@@ -438,13 +449,19 @@ export default function AdminSuggestionsPage() {
                 key={sid}
                 onClick={() => openSession(sid)}
                 className={cls(
-                  'w-full text-left p-4 rounded-lg border transition',
-                  active ? 'border-orange-300 bg-orange-50' : 'border-gray-200 hover:bg-gray-50'
+                  'w-full text-left p-4 rounded-lg border transition-all duration-200',
+                  active 
+                    ? 'border-orange-400 bg-orange-50 shadow-sm' 
+                    : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm'
                 )}
               >
-                <div className="text-sm text-gray-500">{fmtTime(s.last_at)}</div>
-                <div className="text-base font-medium line-clamp-2 leading-tight mt-1">{s.last_question || 'Untitled'}</div>
-                <div className="text-sm text-gray-500 mt-1">Turns: {s.turns || 0} • {s.last_source || ''}</div>
+                <div className="text-xs text-gray-500 font-medium">{fmtTime(s.last_at)}</div>
+                <div className="text-sm font-semibold line-clamp-2 leading-snug mt-1.5 text-gray-800">{s.last_question || 'Untitled'}</div>
+                <div className="text-xs text-gray-500 mt-2 flex items-center gap-1.5">
+                  <span className="px-1.5 py-0.5 bg-gray-100 rounded">{s.turns || 0} turns</span>
+                  {s.last_source && <span className="text-gray-400">•</span>}
+                  {s.last_source && <span>{s.last_source}</span>}
+                </div>
               </button>
             );
           })}
@@ -457,17 +474,17 @@ export default function AdminSuggestionsPage() {
       </aside>
 
       {/* Chat area */}
-      <main className="flex-1 flex flex-col bg-[#fafafa] min-w-0">
+      <main className="flex-1 flex flex-col bg-white min-w-0">
         {/* Header - Fixed */}
-        <div className="h-14 px-6 border-b bg-white flex items-center justify-between shrink-0">
-          <div className="font-semibold text-lg">Chat gợi ý du lịch</div>
-          <div className="text-sm text-gray-500 truncate ml-2">
+        <div className="h-16 px-6 border-b bg-white flex items-center justify-between shrink-0 shadow-sm">
+          <div className="font-semibold text-xl text-gray-800">Chat gợi ý du lịch</div>
+          <div className="text-sm text-gray-500 truncate ml-4 max-w-xs">
             {activeSession ? `Session: ${activeSession.slice(0, 8)}...` : 'Chưa chọn phiên'}
           </div>
         </div>
 
-        {/* Messages - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5 min-h-0">
+        {/* Messages - Scrollable with custom scrollbar */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5 min-h-0 bg-gradient-to-b from-gray-50 to-white scrollbar-thin">
           {loadingMsgs && !messages.length && (
             <div className="text-gray-500 text-base">Đang tải hội thoại…</div>
           )}
@@ -493,7 +510,7 @@ export default function AdminSuggestionsPage() {
                 {/* USER bubble */}
                 {userText && (
                   <div className="flex justify-end">
-                    <div className="max-w-[min(800px,85%)] w-fit px-5 py-3 rounded-2xl bg-orange-600 text-white text-base leading-relaxed">
+                    <div className="max-w-[min(800px,85%)] w-fit px-5 py-3 rounded-2xl bg-orange-600 text-white text-base leading-relaxed shadow-md">
                       {userText}
                     </div>
                   </div>
@@ -502,12 +519,17 @@ export default function AdminSuggestionsPage() {
                 {/* ASSISTANT bubble */}
                 {(hasAssistantText || hasAssistantPayload) && (
                   <div className="flex justify-start">
-                    <div className="max-w-[min(800px,85%)] w-fit px-5 py-4 rounded-2xl bg-white shadow border">
-                      <div className="text-xs text-gray-500 mb-3 flex items-center gap-2">
-                        <span>{fmtTime(m.created_at)}</span>
-                        {m.source && <span>• {m.source}</span>}
+                    <div className="max-w-[min(800px,85%)] w-fit px-5 py-4 rounded-2xl bg-white shadow-md border border-gray-200">
+                      <div className="text-xs text-gray-500 mb-3 flex items-center gap-2 pb-2 border-b border-gray-100">
+                        <span className="font-medium">{fmtTime(m.created_at)}</span>
+                        {m.source && (
+                          <>
+                            <span className="text-gray-300">•</span>
+                            <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">{m.source}</span>
+                          </>
+                        )}
                         {m.isDedupe && (
-                          <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-xs font-medium">
+                          <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">
                             🔄 Cached
                           </span>
                         )}
@@ -522,8 +544,9 @@ export default function AdminSuggestionsPage() {
 
           {sending && (
             <div className="flex justify-start">
-              <div className="max-w-[75%] px-5 py-3 rounded-2xl bg-white shadow border text-gray-600 flex items-center gap-2 text-base">
-                <Loader2 className="animate-spin" size={18} /> Đang suy nghĩ…
+              <div className="max-w-[75%] px-5 py-3 rounded-2xl bg-white shadow-md border border-gray-200 text-gray-600 flex items-center gap-2 text-base">
+                <Loader2 className="animate-spin text-orange-600" size={18} /> 
+                <span className="font-medium">Đang suy nghĩ…</span>
               </div>
             </div>
           )}
@@ -533,7 +556,7 @@ export default function AdminSuggestionsPage() {
         </div>
 
         {/* Composer - Fixed */}
-        <div className="border-t bg-white p-4 flex gap-3 shrink-0">
+        <div className="border-t bg-white p-5 flex gap-3 shrink-0 shadow-lg">
           <input
             ref={inputRef}
             value={msg}
@@ -545,7 +568,7 @@ export default function AdminSuggestionsPage() {
               }
             }}
             placeholder="Nhập câu hỏi… (VD: Top 5 khách sạn Đà Nẵng / Voucher khách sạn Hồ Chí Minh tháng 9)"
-            className="flex-1 h-12 px-4 rounded-lg border text-base focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            className="flex-1 h-12 px-4 rounded-lg border border-gray-300 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-shadow"
             disabled={sending}
             autoFocus
           />
@@ -553,10 +576,10 @@ export default function AdminSuggestionsPage() {
             onClick={onSend}
             disabled={sending || !msg.trim()}
             className={cls(
-              'h-12 px-5 rounded-lg inline-flex items-center gap-2 text-base font-medium transition-all',
+              'h-12 px-6 rounded-lg inline-flex items-center gap-2 text-base font-medium transition-all shadow-sm',
               sending || !msg.trim()
                 ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                : 'bg-orange-600 text-white hover:bg-orange-700 active:scale-95'
+                : 'bg-orange-600 text-white hover:bg-orange-700 hover:shadow-md active:scale-95'
             )}
           >
             {sending ? (

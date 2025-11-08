@@ -148,14 +148,16 @@ const HotelOwnerLayout = () => {
                 <div key={link.name} className="space-y-1">
                     <Link 
                         to={link.path} 
-                        className={`flex items-center text-sm font-medium px-4 py-2.5 rounded-lg transition-colors ${
-                            isMainActive ? 'bg-blue-100 text-blue-600' : 'text-gray-700 hover:bg-gray-100'
+                        className={`flex items-center text-sm font-medium px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                            isMainActive 
+                                ? 'bg-blue-100 text-blue-600 shadow-sm' 
+                                : 'text-gray-700 hover:bg-gray-100 hover:shadow-sm'
                         }`}
                     >
                         {link.icon}
                         <span className="ml-3">{link.name}</span>
                         {link.badge && (
-                            <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                            <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-sm">
                                 {link.badge}
                             </span>
                         )}
@@ -185,14 +187,16 @@ const HotelOwnerLayout = () => {
             <Link 
                 key={link.name} 
                 to={link.path} 
-                className={`flex items-center text-sm font-medium px-4 py-2.5 rounded-lg transition-colors ${
-                    isMainActive ? 'bg-blue-100 text-blue-600' : 'text-gray-700 hover:bg-gray-100'
+                className={`flex items-center text-sm font-medium px-4 py-2.5 rounded-lg transition-all duration-200 ${
+                    isMainActive 
+                        ? 'bg-blue-100 text-blue-600 shadow-sm' 
+                        : 'text-gray-700 hover:bg-gray-100 hover:shadow-sm'
                 }`}
             >
                 {link.icon}
                 <span className="ml-3">{link.name}</span>
                 {link.badge && (
-                    <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                    <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center shadow-sm">
                         {link.badge}
                     </span>
                 )}
@@ -203,53 +207,64 @@ const HotelOwnerLayout = () => {
     return (
         <div className="flex bg-gray-50 h-screen font-sans overflow-hidden">
             {/* Sidebar */}
-            <aside className="w-72 bg-white border-r border-gray-200 flex flex-col">
+            <aside className="w-72 bg-white border-r border-gray-200 flex flex-col shadow-sm">
                 {/* Header cố định */}
-                <div className="p-4 border-b border-gray-200 shrink-0">
-                    <div className="text-2xl font-bold text-blue-600 mb-4">
-                        <Building2 className="inline-block mr-2" size={28} />
-                        Hotel Manager
-                    </div>
-                    
-                    <div className="flex border border-gray-200 rounded-lg p-1">
-                        <button className="flex-1 text-sm font-semibold bg-blue-500 text-white rounded-md py-2">
-                            Chủ khách sạn
-                        </button>
+                <div className="p-5 border-b border-gray-200 shrink-0">
+                    {/* Logo */}
+                    <div className="text-2xl font-bold text-blue-600 flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                            <Building2 size={22} className="text-white" />
+                        </div>
+                        <div>
+                            <div className="leading-tight">Bookflow</div>
+                            <div className="text-sm font-medium text-gray-500">Manager</div>
+                        </div>
                     </div>
                 </div>
                 
                 {/* Navigation - có thể scroll */}
-                <nav className="flex-1 overflow-y-auto p-4 space-y-1 min-h-0">
-                    <p className="text-xs font-semibold text-gray-400 uppercase px-4 mb-2">Tổng quan</p>
+                <nav className="flex-1 overflow-y-auto p-4 space-y-1 min-h-0 scrollbar-thin">
+                    <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Tổng quan</p>
                     {navLinks.slice(0, 1).map(renderMenuItem)}
                     
-                    <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Quản lý khách sạn</p>
+                    <div className="my-4 border-t border-gray-200"></div>
+                    <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Quản lý khách sạn</p>
                     {navLinks.slice(1, 3).map(renderMenuItem)}
                     
-                    <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Kinh doanh</p>
+                    <div className="my-4 border-t border-gray-200"></div>
+                    <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Kinh doanh</p>
                     {navLinks.slice(3, 6).map(renderMenuItem)}
                     
-                    <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Nhân sự & Khách hàng</p>
+                    <div className="my-4 border-t border-gray-200"></div>
+                    <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Nhân sự & Khách hàng</p>
                     {navLinks.slice(6, 10).map(renderMenuItem)}
                     
-                    <p className="text-xs font-semibold text-gray-400 uppercase px-4 mt-4 mb-2">Báo cáo & Hợp đồng</p>
+                    <div className="my-4 border-t border-gray-200"></div>
+                    <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Báo cáo & Hợp đồng</p>
                     {navLinks.slice(10).map(renderMenuItem)}
                 </nav>
 
-                {/* Footer cố định - nút đăng xuất */}
-                <div className="p-4 border-t border-gray-200 shrink-0">
-                    <div className="flex items-center px-4 py-2 mb-3">
-                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                            <User size={16} className="text-white" />
+                {/* Footer cố định */}
+                <div className="p-4 border-t border-gray-200 shrink-0 bg-gray-50">
+                    {/* User info nhỏ */}
+                    <div className="flex items-center gap-3 mb-3 px-2">
+                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-sm">
+                            <User size={20} className="text-white" />
                         </div>
-                        <div className="ml-3">
-                            <p className="text-sm font-medium text-gray-900">{user?.name || 'Hotel Owner'}</p>
-                            <p className="text-xs text-gray-500">{user?.email}</p>
+                        <div className="flex-1 min-w-0">
+                            <div className="text-sm font-semibold text-gray-800 truncate">
+                                {user?.fullName || user?.name || 'Hotel Owner'}
+                            </div>
+                            <div className="text-xs text-gray-500 truncate">
+                                {user?.email || 'hotel@bookflow.com'}
+                            </div>
                         </div>
                     </div>
+                    
+                    {/* Logout button */}
                     <button
                         onClick={handleLogout}
-                        className="w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition duration-300"
+                        className="w-full px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all duration-300 font-medium shadow-sm hover:shadow-md active:scale-95"
                     >
                         Đăng xuất
                     </button>
@@ -258,10 +273,10 @@ const HotelOwnerLayout = () => {
             
             {/* Phần nội dung chính */}
             <div className="flex-1 flex flex-col min-w-0">
-                <header className="bg-white border-b border-gray-200 p-4 flex justify-between items-center shrink-0">
+                <header className="bg-white border-b border-gray-200 p-4 flex justify-between items-center shrink-0 shadow-sm z-10">
                     <h1 className="text-xl font-bold text-gray-800">Quản lý khách sạn</h1>
                     <div className="flex items-center gap-4">
-                        <button className="relative text-gray-600 hover:text-gray-800">
+                        <button className="relative text-gray-600 hover:text-gray-800 transition-colors">
                             <Bell size={22} />
                             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
                                 3
@@ -280,9 +295,8 @@ const HotelOwnerLayout = () => {
                         </div>
                     </div>
                 </header>
-                
-                <main className="flex-1 bg-gray-50 overflow-auto">
-                   <AmenityProvider>
+                <main className="flex-1 bg-gray-50 overflow-hidden relative">
+                    <AmenityProvider>
                         <HotelAmenityProvider>
                             <Outlet />
                         </HotelAmenityProvider>
