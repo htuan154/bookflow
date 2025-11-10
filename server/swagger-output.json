@@ -1301,6 +1301,26 @@
         }
       }
     },
+    "/api/v1/contracts/hotels/{hotelId}/contracts/active": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/contracts/": {
       "post": {
         "description": "",
@@ -1558,6 +1578,33 @@
         "responses": {
           "default": {
             "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/user/{userId}/no_show": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Forbidden"
           }
         }
       }
@@ -6779,9 +6826,6 @@
                     "example": "any"
                   },
                   "hotelId": {
-                    "example": "any"
-                  },
-                  "amount": {
                     "example": "any"
                   },
                   "description": {

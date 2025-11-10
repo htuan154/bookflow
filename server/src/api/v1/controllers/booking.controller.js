@@ -4,7 +4,24 @@ const BookingService = require('../services/booking.service');
 const { successResponse } = require('../../../utils/response');
 
 class BookingController {
-
+    /**
+     * Lấy tất cả booking no_show của một user
+     * GET /api/v1/bookings/user/:userId/no_show
+     */
+    async getUserNoShowBookings(req, res, next) {
+        try {
+            const { userId } = req.params;
+            // Cho phép admin hoặc chính user xem
+            if (req.user.role !== 'admin' && req.user.id !== userId) {
+                return res.status(403).json({ message: 'Forbidden' });
+            }
+            const bookings = await BookingService.findNoShowBookingsByUser(userId);
+            successResponse(res, bookings);
+        } catch (error) {
+            next(error);
+        }
+    }
+    
     /**
      * Lấy tất cả các booking đã hoàn thành của một user
      * GET /api/v1/bookings/user/:userId/completed

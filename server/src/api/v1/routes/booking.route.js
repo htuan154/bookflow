@@ -9,6 +9,11 @@ const router = express.Router();
 
 router.use(authenticate);
 
+router.get(
+    '/user/:userId/no_show',
+    bookingController.getUserNoShowBookings
+);
+
 router.post('/', validate(createBookingSchema), bookingController.createBooking);
 
 router.get('/:bookingId', bookingController.getBookingDetails);

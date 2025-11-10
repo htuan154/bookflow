@@ -6,6 +6,7 @@ import '../../services/user_service.dart';
 import '../../classes/user_model.dart';
 import '../../classes/hotel_model.dart';
 import 'chat_detail_screen.dart';
+import '../home/payment/payment_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -576,6 +577,48 @@ class _ChatScreenState extends State<ChatScreen> {
                   _buildPaymentStatusChip(paymentStatus),
                 ],
               ),
+              // Nút thanh toán nếu payment_status là pending
+              if (paymentStatus.toString().toLowerCase() == 'pending') ...[
+                SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: Icon(Icons.qr_code, size: 18),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () {
+                      // Điều hướng sang màn payment
+                      double parsedAmount = 0;
+                      if (totalPrice is double) {
+                        parsedAmount = totalPrice;
+                      } else if (totalPrice is int) {
+                        parsedAmount = (totalPrice as int).toDouble();
+                      } else if (totalPrice is String) {
+                        parsedAmount = double.tryParse(totalPrice) ?? 0;
+                      }
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PaymentScreen(
+                            bookingId: bookingId,
+                            hotelId: booking['hotel_id'] ?? booking['hotelId'],
+                            amount: parsedAmount,
+                            paymentMethod: 'payos',
+                            paymentType: 'booking',
+                          ),
+                        ),
+                      );
+                    },
+                    label: Text('Thanh toán ngay'),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

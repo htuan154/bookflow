@@ -11,6 +11,7 @@ import '../../../classes/user_model.dart';
 import '../../../classes/hotel_model.dart';
 import '../../../classes/booking_nightly_price_model.dart';
 import 'promotion_screen.dart';
+import '../payment/payment_screen.dart';
 
 class BookingDetailScreen extends StatefulWidget {
   final Hotel hotel; // Thêm dòng này
@@ -1276,7 +1277,37 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             await _saveBookingDiscount(bookingId);
           }
 
-          _showSuccessDialog(bookingId);
+          // 6. Nếu chọn phương thức thanh toán thẻ tín dụng, mở màn hình thanh toán
+          if (_selectedPaymentMethod == 'credit_card') {
+            final paymentResult = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PaymentScreen(
+                  bookingId: bookingId,
+                  hotelId: hotelId,
+                  amount: totalPrice,
+                  paymentMethod: 'payos', // Sử dụng PayOS cho thẻ tín dụng
+                  paymentType: 'booking',
+                ),
+              ),
+            );
+
+            if (paymentResult == true) {
+              // Thanh toán thành công
+              _showSuccessDialog(bookingId);
+            } else {
+              // Thanh toán chưa hoàn thành hoặc bị hủy
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Đặt phòng thành công. Vui lòng hoàn tất thanh toán.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          } else {
+            // Các phương thức khác: hiển thị dialog thành công ngay
+            _showSuccessDialog(bookingId);
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

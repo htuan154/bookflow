@@ -7,6 +7,16 @@ const roomTypeRepository = require('../repositories/roomType.repository');
 const { AppError } = require('../../../utils/errors');
 
 class BookingService {
+
+    /**
+     * Lấy tất cả booking có status 'no_show' của một user.
+     * @param {string} userId
+     * @returns {Promise<Booking[]>}
+     */
+    async findNoShowBookingsByUser(userId) {
+        return await bookingRepository.findNoShowByUserId(userId);
+    }
+
     /**
      * Lấy tất cả các booking đã hoàn thành của một user
      * @param {string} userId
@@ -47,12 +57,19 @@ class BookingService {
             await client.query('BEGIN');
 
             // --- Logic nghiệp vụ ---
-            // 1. Kiểm tra xem có chi tiết phòng nào được cung cấp không
+            
+            // 1. Kiểm tra xem user có booking no_show không
+            const noShowBookings = await bookingRepository.findNoShowByUserId(userId);
+            const defaultStatus = noShowBookings.length > 0 ? 'pending' : 'confirmed';
+            
+            console.log(`📋 User ${userId} has ${noShowBookings.length} no_show bookings -> default status: ${defaultStatus}`);
+
+            // 2. Kiểm tra xem có chi tiết phòng nào được cung cấp không
             // if (!room_details || room_details.length === 0) {
             //     throw new AppError('Booking must include at least one room detail', 400);
             // }
 
-            // 2. Tính toán tổng giá và kiểm tra phòng
+            // 3. Tính toán tổng giá và kiểm tra phòng
             // let calculatedTotalPrice = 0;
             // for (const detail of room_details) {
             //     const roomType = await roomTypeRepository.findById(detail.room_type_id);
@@ -67,16 +84,17 @@ class BookingService {
             //     calculatedTotalPrice += detail.subtotal;
             // }
 
-            // 3. Tạo bản ghi chính (master booking)
+            // 4. Tạo bản ghi chính (master booking) với status động
             const masterBookingData = {
                 ...bookingData,
                 user_id: userId,
+                booking_status: defaultStatus, // Động: 'confirmed' hoặc 'pending'
                 //total_price: total_price, // hoặc bạn có thể thay thế bằng giá cố định/tạm thời nếu cần
                 // total_price: calculatedTotalPrice,
             };
             const newBooking = await bookingRepository.create(masterBookingData, client);
 
-            // 4. Tạo các bản ghi chi tiết (booking details)
+            // 5. Tạo các bản ghi chi tiết (booking details)
             // const newBookingDetails = await bookingDetailRepository.createMany(room_details, newBooking.bookingId, client);
 
             // --- Kết thúc giao dịch ---

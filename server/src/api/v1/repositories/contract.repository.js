@@ -284,6 +284,28 @@ const sendForApproval = async (contractId, userId) => {
     }
 };
 
+/**
+ * Lấy hợp đồng đang hoạt động của một khách sạn (status = 'active' và ngày hiện tại nằm trong khoảng hợp đồng)
+ * @param {string} hotelId
+ * @returns {Promise<Contract|null>}
+ */
+const findActiveContractByHotel = async (hotelId) => {
+    const query = `
+        SELECT c.*, h.name AS hotel_name
+        FROM contracts c
+        LEFT JOIN hotels h ON c.hotel_id = h.hotel_id
+        WHERE c.hotel_id = $1
+          AND c.status = 'active'
+          AND CURRENT_DATE BETWEEN c.start_date AND c.end_date
+        LIMIT 1
+    `;
+    const result = await pool.query(query, [hotelId]);
+    if (!result.rows[0]) return null;
+    const contract = new Contract(result.rows[0]);
+    contract.hotelName = result.rows[0].hotel_name;
+    return contract;
+};
+
 module.exports = {
     create,
     findById,
@@ -293,6 +315,7 @@ module.exports = {
     deleteById,
     findAll,
     findByStatus,
-    sendForApproval
+    sendForApproval,
+    findActiveContractByHotel
 };
 

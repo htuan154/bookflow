@@ -16,6 +16,15 @@ class VietQRService {
          RETURNING *`,
         [status, paidAt || null, paymentId || txRef]
       );
+      
+      // ✅ Nếu status = 'paid', cập nhật luôn booking payment_status
+      if (status === 'paid' && q.rows[0]?.booking_id) {
+        await client.query(
+          `UPDATE bookings SET payment_status='paid', last_updated_at=now() WHERE booking_id=$1`,
+          [q.rows[0].booking_id]
+        );
+      }
+      
       return q.rows[0];
     } finally {
       client.release();
@@ -45,9 +54,36 @@ class VietQRService {
       'x-api-key': process.env.PAYOS_API_KEY,
       'Content-Type': 'application/json'
     };
-    const body = { orderCode, amount, description, returnUrl, cancelUrl };
+    
+    // PayOS yêu cầu phải có items array
+    const body = { 
+      orderCode, 
+      amount, 
+      description: description || 'Thanh toan don',
+      items: [
+        {
+          name: description || 'Thanh toan don',
+          quantity: 1,
+          price: amount
+        }
+      ],
+      returnUrl: returnUrl || process.env.REDIRECT_URL || 'http://localhost:5173/payment/result',
+      cancelUrl: cancelUrl || process.env.REDIRECT_URL || 'http://localhost:5173/payment/result'
+    };
+    
+    console.log('📤 Sending to PayOS:', JSON.stringify(body, null, 2));
+    
     const { data } = await axios.post(`${base}/v2/payment-requests`, body, { headers, timeout: 15000 });
+    
+    console.log('📥 PayOS Response:', JSON.stringify(data, null, 2));
+    
     if (!data) throw new Error('payOS create: empty response');
+    
+    // Check error code
+    if (data.code && data.code !== '00') {
+      throw new Error(`PayOS Error ${data.code}: ${data.desc || 'Unknown error'}`);
+    }
+    
     return data.data || data;
   }
 
