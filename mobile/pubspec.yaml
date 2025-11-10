@@ -29,3 +29,21 @@ flutter:
     - assets/welcome/welcome-image.png
     - assets/welcome/welcome-image-1.png
     - assets/login_form/google.png
+    - assets/banking/ACBank_logo.svg.png
+    - assets/banking/Agribank_logo.png
+    - assets/banking/BIDV_logo.png
+    - assets/banking/HDBank_logo.jpg
+    - assets/banking/HSBC_logo.jpg
+    - assets/banking/LPBank_logo.png
+    - assets/banking/MB_logo.png
+    - assets/banking/Sacombank_logo.png
+    - assets/banking/SHB_logo.png
+    - assets/banking/ShinhanBank_logo.png
+    - assets/banking/StandardCharteredVietnam_logo.jpg
+    - assets/banking/Techcombank_logo.png
+    - assets/banking/TPBank_logo.png
+    - assets/banking/VIB_logo.png
+    - assets/banking/Vietcombank_logo.png
+    - assets/banking/ViettinBank_logo.png
+    - assets/banking/VPB_logo.jpg
+    - assets/banking/WooriBankVietnam_logo.jpg
