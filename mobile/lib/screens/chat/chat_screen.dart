@@ -236,13 +236,13 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Text(
           'Chat & Booking',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white),
+            icon: Icon(Icons.refresh, color: Colors.black),
             onPressed: _refreshBookings,
           ),
         ],
@@ -449,6 +449,7 @@ class _ChatScreenState extends State<ChatScreen> {
       margin: EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Colors.white,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
@@ -478,7 +479,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
               SizedBox(height: 8),
-
               // Hotel info với tên thật
               Row(
                 children: [
@@ -498,7 +498,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
               SizedBox(height: 4),
-
               // Room type info
               Row(
                 children: [
@@ -521,7 +520,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
               SizedBox(height: 4),
-
               // Date range
               Row(
                 children: [
@@ -538,7 +536,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
               SizedBox(height: 4),
-
               // Guests and price
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -567,7 +564,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
               SizedBox(height: 8),
-
               // Payment status
               Row(
                 children: [
@@ -683,6 +679,14 @@ class _ChatScreenState extends State<ChatScreen> {
   String _formatDate(String dateString) {
     if (dateString.isEmpty) return '';
     try {
+      // Nếu là YYYY-MM-DD, chỉ cần format lại
+      if (dateString.contains('-') && !dateString.contains('T')) {
+        final parts = dateString.split('-');
+        if (parts.length == 3) {
+          return '${parts[2]}/${parts[1]}/${parts[0]}'; // DD/MM/YYYY
+        }
+      }
+      // Fallback: parse datetime nếu là ISO string
       final date = DateTime.parse(dateString);
       return '${date.day}/${date.month}/${date.year}';
     } catch (e) {

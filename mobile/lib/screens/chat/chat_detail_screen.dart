@@ -683,6 +683,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   String _formatDate(String dateString) {
     if (dateString.isEmpty) return '';
     try {
+      // Nếu là YYYY-MM-DD, chỉ cần format lại
+      if (dateString.contains('-') && !dateString.contains('T')) {
+        final parts = dateString.split('-');
+        if (parts.length == 3) {
+          return '${parts[2]}/${parts[1]}/${parts[0]}'; // DD/MM/YYYY
+        }
+      }
+      // Fallback: parse datetime nếu là ISO string
       final date = DateTime.parse(dateString);
       return '${date.day}/${date.month}/${date.year}';
     } catch (e) {

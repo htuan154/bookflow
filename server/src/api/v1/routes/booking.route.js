@@ -13,6 +13,8 @@ router.post('/', validate(createBookingSchema), bookingController.createBooking)
 
 router.get('/:bookingId', bookingController.getBookingDetails);
 
+router.get('/user/:userId/completed', bookingController.getUserCompletedBookings);
+
 router.get('/user/:userId', bookingController.getUserBookings);
 
 router.get('/hotel/:hotelId', authorize(['hotel_owner', 'admin']), bookingController.getBookingsByHotelId);

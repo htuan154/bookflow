@@ -877,11 +877,11 @@ class HotelService {
   }
 
   /// Lấy tất cả hình ảnh của một loại phòng
-  /// GET /api/v1/roomtypes/:roomTypeId/images
+  /// GET /api/v1/room-types/:roomTypeId/images
   Future<Map<String, dynamic>> getRoomTypeImages(String roomTypeId) async {
     try {
       final url = Uri.parse(
-        '${ApiConfig.baseUrl}/roomtypes/$roomTypeId/images',
+        '${ApiConfig.baseUrl}/room-types/$roomTypeId/images',
       );
       // Lấy token từ TokenService
       final token = await TokenService.getToken();
@@ -918,11 +918,11 @@ class HotelService {
   }
 
   /// Lấy hình ảnh thumbnail của một loại phòng
-  /// GET /api/v1/roomtypes/:roomTypeId/thumbnail
+  /// GET /api/v1/room-types/:roomTypeId/thumbnail
   Future<Map<String, dynamic>> getRoomTypeThumbnail(String roomTypeId) async {
     try {
       final url = Uri.parse(
-        '${ApiConfig.baseUrl}/roomtypes/$roomTypeId/thumbnail',
+        '${ApiConfig.baseUrl}/room-types/$roomTypeId/thumbnail',
       );
       // Lấy token từ TokenService
       final token = await TokenService.getToken();

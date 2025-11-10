@@ -153,6 +153,19 @@ const update = async (bookingId, updateData) => {
     return new Booking(result.rows[0]);
 };
 
+/**
+ * Lấy tất cả các booking đã hoàn thành của một user.
+ * @param {string} userId - ID của người dùng.
+ * @returns {Promise<Booking[]>}
+ */
+const findCompletedByUserId = async (userId) => {
+    const result = await pool.query(
+        `SELECT * FROM bookings WHERE booking_status = 'completed' AND user_id = $1 ORDER BY booked_at DESC`,
+        [userId]
+    );
+    return result.rows.map(row => new Booking(row));
+};
+
 module.exports = {
     create,
     findById,
@@ -161,4 +174,5 @@ module.exports = {
     updateStatus,
     update,
     findBookingsByHotelId,
+    findCompletedByUserId,
 };

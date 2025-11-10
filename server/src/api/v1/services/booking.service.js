@@ -8,6 +8,14 @@ const { AppError } = require('../../../utils/errors');
 
 class BookingService {
     /**
+     * Lấy tất cả các booking đã hoàn thành của một user
+     * @param {string} userId
+     * @returns {Promise<Booking[]>}
+     */
+    async findCompletedBookingsByUser(userId) {
+        return await bookingRepository.findCompletedByUserId(userId);
+    }
+    /**
      * Lấy tất cả các booking của một user
      * @param {string} userId
      * @returns {Promise<Booking[]>}

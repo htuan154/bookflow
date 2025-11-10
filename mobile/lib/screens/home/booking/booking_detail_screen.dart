@@ -1374,7 +1374,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     }
     
     try {
-      print('🎫 Saving promotion usage for booking: $bookingId');
+      print('🎫 [CALL START] Saving promotion usage for booking: $bookingId');
+      print('📍 [TIMESTAMP] ${DateTime.now().toIso8601String()}');
       
       final promotionId = _selectedPromotion!['promotion']['promotionId'];
       final userId = _user!.userId;
@@ -1390,6 +1391,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       );
       
       print('📦 Promotion usage result: $result');
+      print('📍 [CALL END] ${DateTime.now().toIso8601String()}');
       
       if (result['success']) {
         print('✅ Promotion usage saved successfully');
@@ -1410,7 +1412,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     }
     
     try {
-      print('💰 Saving booking discount for booking: $bookingId');
+      print('💰 [CALL START] Saving booking discount for booking: $bookingId');
+      print('📍 [TIMESTAMP] ${DateTime.now().toIso8601String()}');
       
       final promotion = _selectedPromotion!['promotion'];
       final details = _selectedPromotion!['details'];
@@ -1449,6 +1452,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       final result = await BookingDiscountService().create(discountData);
       
       print('📦 Booking discount result: $result');
+      print('📍 [CALL END] ${DateTime.now().toIso8601String()}');
       
       if (result['success']) {
         print('✅ Booking discount saved successfully');
@@ -1466,6 +1470,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
         icon: Icon(Icons.check_circle, color: Colors.green, size: 64),
         title: Text(
           'Đặt phòng thành công!',

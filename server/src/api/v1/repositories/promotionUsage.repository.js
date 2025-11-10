@@ -40,12 +40,15 @@ const findByPromotionId = async (promotionId) => {
     return result.rows.map(row => new PromotionUsage(row));
 };
 const incrementUsageCount = async (promotionId, client) => {
+    console.log(`🔢 Incrementing used_count for promotion: ${promotionId}`);
     const query = `
         UPDATE promotions
         SET used_count = used_count + 1
-        WHERE promotion_id = $1;
+        WHERE promotion_id = $1
+        RETURNING used_count;
     `;
-    await client.query(query, [promotionId]);
+    const result = await client.query(query, [promotionId]);
+    console.log(`✅ New used_count: ${result.rows[0]?.used_count}`);
 };
 module.exports = {
     create,

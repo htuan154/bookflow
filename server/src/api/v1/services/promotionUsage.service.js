@@ -15,7 +15,7 @@ class PromotionUsageService {
         // Bước 1: Ghi lại lịch sử sử dụng
         const newUsage = await promotionUsageRepository.create(usageData, client);
         // Bước 2: Tăng số lượt dùng
-        await promotionUsageRepository.incrementUsageCount(usageData.promotion_id, client);
+        //await promotionUsageRepository.incrementUsageCount(usageData.promotion_id, client);
         return newUsage;
     }
 

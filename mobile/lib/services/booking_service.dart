@@ -92,6 +92,38 @@ class BookingService {
     }
   }
 
+  /// Lấy danh sách booking đã hoàn thành của user
+  /// GET /api/v1/bookings/user/:userId/completed
+  Future<Map<String, dynamic>> getCompletedBookingsByUserId(String userId) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/bookings/user/$userId/completed');
+      final token = await TokenService.getToken();
+      if (token == null) {
+        return {
+          'success': false,
+          'message': 'Vui lòng đăng nhập để xem danh sách đặt phòng',
+        };
+      }
+      final response = await http.get(url, headers: _headersWithToken(token));
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Lấy danh sách đặt phòng thành công',
+          'data': responseData['data'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Không tìm thấy đặt phòng',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
   /// Lấy chi tiết booking
   /// GET /api/v1/bookings/:bookingId
   Future<Map<String, dynamic>> getBookingById(String bookingId) async {
