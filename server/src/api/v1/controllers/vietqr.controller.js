@@ -5,8 +5,10 @@ const makeTxRef = () => `PAY-${Date.now()}`;
 
 // ✅ Helper: Tính toán payment amounts từ booking
 async function calculatePaymentAmounts(client, bookingId, hotelId) {
-  // 1. Tính base_amount và surcharge_amount từ booking_nightly_prices
-  // Cả 2 đều lấy tổng gross_nightly_total (theo yêu cầu của bạn)
+  console.log('\n💰 ========== BẮT ĐẦU TÍNH TOÁN PAYMENT AMOUNTS ==========');
+  console.log('📌 Input:', { bookingId, hotelId });
+  
+  // 1. Tính base_amount từ booking_nightly_prices
   const nightlyPrices = await client.query(
     `SELECT COALESCE(SUM(gross_nightly_total), 0) as total_price
      FROM booking_nightly_prices
@@ -16,7 +18,8 @@ async function calculatePaymentAmounts(client, bookingId, hotelId) {
   
   const total_price = Number(nightlyPrices.rows[0]?.total_price || 0);
   const base_amount = total_price;
-  const surcharge_amount = total_price; // Giống base_amount (theo yêu cầu)
+  
+  console.log('📊 Nightly Prices:', { total_price, base_amount });
 
   // 2. Tính discount_amount từ booking_discounts (nếu có promotion_id)
   const bookingInfo = await client.query(
@@ -34,15 +37,26 @@ async function calculatePaymentAmounts(client, bookingId, hotelId) {
       [bookingId]
     );
     discount_amount = Number(discountInfo.rows[0]?.discount || 0);
+    console.log('🎁 Có promotion:', { promotion_id: bookingInfo.rows[0].promotion_id, discount_amount });
+  } else {
+    console.log('🎁 Không có promotion');
   }
 
-  // 3. pg_fee_amount = 0
+  // 3. ✅ FIX: surcharge_amount = 0 (không cộng 2 lần)
+  const surcharge_amount = 0;
   const pg_fee_amount = 0;
 
-  // 4. Tính admin_fee_amount từ contract
-  // final_amount = base_amount + surcharge_amount - discount_amount
-  const final_amount = base_amount + surcharge_amount - discount_amount;
+  // 4. Tính final_amount ĐÚNG: base_amount - discount_amount (KHÔNG cộng surcharge nữa)
+  const final_amount = base_amount - discount_amount;
   
+  console.log('🧮 Tính final_amount:', {
+    formula: 'base_amount - discount_amount',
+    base_amount,
+    discount_amount,
+    final_amount
+  });
+  
+  // 5. Tính admin_fee_amount từ contract
   const contractInfo = await client.query(
     `SELECT c.contract_value
      FROM contracts c
@@ -56,17 +70,16 @@ async function calculatePaymentAmounts(client, bookingId, hotelId) {
   const contract_value = Number(contractInfo.rows[0]?.contract_value || 0);
   const admin_fee_amount = (final_amount * contract_value) / 100;
 
-  console.log('💰 [calculatePaymentAmounts]', {
-    bookingId,
-    hotelId,
+  console.log('� Contract info:', { contract_value, admin_fee_amount });
+  console.log('✅ KẾT QUẢ CUỐI CÙNG:', {
     base_amount,
     surcharge_amount,
     discount_amount,
     pg_fee_amount,
     admin_fee_amount,
-    final_amount,
-    contract_value
+    final_amount
   });
+  console.log('💰 ========== KẾT THÚC TÍNH TOÁN ==========\n');
 
   return {
     base_amount,
@@ -304,6 +317,9 @@ exports.checkPaymentStatus = async (req, res) => {
 
 // === PayOS: tạo đơn thanh toán (POLLING, không webhook) ===
 exports.createPayOSPayment = async (req, res) => {
+  console.log('\n🚀 ========== [PayOS] TẠO ĐƠN THANH TOÁN ==========');
+  console.log('📥 Request body:', JSON.stringify(req.body, null, 2));
+  
   const client = await db.connect();
   try {
     // chấp nhận camelCase / snake_case
@@ -311,12 +327,16 @@ exports.createPayOSPayment = async (req, res) => {
     let   hotel_id   = req.body.hotel_id   ?? req.body.hotelId; // có thể không gửi từ FE
     const description = req.body.description || 'Thanh toan don';
 
+    console.log('📌 Parsed params:', { booking_id, hotel_id, description });
+
     if (!booking_id) {
+      console.log('❌ Thiếu bookingId');
       return res.status(400).json({ ok:false, message:'bookingId là bắt buộc' });
     }
 
     // ⬇️ Lookup hotel_id từ booking nếu FE không gửi
     if (!hotel_id) {
+      console.log('🔍 Tìm hotel_id từ booking...');
       // TH1: bookings có cột hotel_id
       const q1 = await client.query(
         `select hotel_id from bookings where booking_id = $1 limit 1`,
@@ -337,21 +357,30 @@ exports.createPayOSPayment = async (req, res) => {
         hotel_id = q2.rows?.[0]?.hotel_id;
       }
       if (!hotel_id) {
+        console.log('❌ Không tìm thấy hotel_id');
         return res.status(404).json({ ok:false, message:'Không tìm thấy hotel_id cho booking này' });
       }
+      console.log('✅ Tìm thấy hotel_id:', hotel_id);
     }
 
     // Tính toán amounts từ booking_nightly_prices, booking_discounts, contract
+    console.log('🧮 Bắt đầu tính toán amounts...');
     const amounts = await calculatePaymentAmounts(client, booking_id, hotel_id);
     
+    console.log('💵 Final amount to charge:', amounts.final_amount);
+    
     if (amounts.final_amount <= 0) {
+      console.log('❌ Số tiền không hợp lệ:', amounts.final_amount);
       return res.status(400).json({ ok:false, message:'Tổng tiền không hợp lệ' });
     }
 
     const makeOrderCode = () => Number(String(Date.now()).slice(-9));
     const orderCode = makeOrderCode();
+    
+    console.log('🔑 Generated orderCode:', orderCode);
 
     // 1) Gọi payOS tạo payment request (polling: KHÔNG webhookUrl)
+    console.log('📡 Calling PayOS API...');
     const data = await vietqrService.payosCreate({
       orderCode,
       amount: amounts.final_amount,
@@ -360,12 +389,15 @@ exports.createPayOSPayment = async (req, res) => {
       cancelUrl: process.env.REDIRECT_URL
     });
     
-    console.log('📦 PayOS API Response:', JSON.stringify(data, null, 2));
+    console.log('� PayOS API Response:', JSON.stringify(data, null, 2));
     
     const checkoutUrl = data.checkoutUrl || data.checkoutUrlWeb || data.checkoutUrlApp;
     const qrCode = data.qrCode || data.qrCodeUrl || data.qrDataURL;
+    
+    console.log('🔗 Extracted:', { checkoutUrl, qrCode: qrCode ? 'Có QR' : 'Không có QR' });
 
     // 2) Lưu PENDING vào DB với amounts đã tính
+    console.log('💾 Saving payment to DB...');
     await client.query(
       `INSERT INTO payments (
          booking_id, hotel_id,
@@ -385,6 +417,9 @@ exports.createPayOSPayment = async (req, res) => {
         String(orderCode)
       ]
     );
+    
+    console.log('✅ Payment saved to DB');
+    console.log('🚀 ========== [PayOS] HOÀN TẤT ==========\n');
 
     return res.json({ 
       ok: true, 
@@ -393,7 +428,10 @@ exports.createPayOSPayment = async (req, res) => {
       qrCode: qrCode || null 
     });
   } catch (err) {
-    console.error('❌ [PayOS create] Error:', err?.response?.data || err.message);
+    console.error('❌ ========== [PayOS] LỖI ==========');
+    console.error('Error:', err?.response?.data || err.message);
+    console.error('Stack:', err.stack);
+    console.error('❌ =====================================\n');
     return res.status(500).json({ ok:false, message:'create payment failed' });
   } finally {
     client.release();
@@ -403,39 +441,68 @@ exports.createPayOSPayment = async (req, res) => {
 // === PayOS: kiểm tra trạng thái (PAID -> update DB) ===
 exports.checkPayOSStatus = async (req, res) => {
   const { orderCode } = req.params;
-  if (!orderCode) return res.status(400).json({ ok:false, message:'orderCode required' });
+  
+  console.log('\n🔍 ========== [PayOS] KIỂM TRA TRẠNG THÁI ==========');
+  console.log('📌 OrderCode:', orderCode);
+  
+  if (!orderCode) {
+    console.log('❌ Thiếu orderCode');
+    return res.status(400).json({ ok:false, message:'orderCode required' });
+  }
 
   const client = await db.connect();
   try {
     // 1) hỏi PayOS
+    console.log('📡 Calling PayOS status API...');
     const status = await vietqrService.payosGetStatus(orderCode);
     const gatewayStatus = String(status.status || status.payment?.status || '').toUpperCase();
+    
+    console.log('📥 PayOS status response:', JSON.stringify(status, null, 2));
+    console.log('🔖 Gateway status:', gatewayStatus);
 
     // 2) nếu PAID -> update DB (idempotent)
     if (gatewayStatus === 'PAID') {
-      await client.query(
+      console.log('✅ Status = PAID, updating DB...');
+      
+      const updatePaymentResult = await client.query(
         `UPDATE payments
            SET status='paid', paid_at=now(), note=concat(coalesce(note,''),' | payOS txn ', $1)
-         WHERE tx_ref=$1 AND status <> 'paid'`,
+         WHERE tx_ref=$1 AND status <> 'paid'
+         RETURNING payment_id, booking_id`,
         [String(orderCode)]
       );
+      
+      console.log('💾 Updated payment rows:', updatePaymentResult.rowCount);
 
       // ✅ Cập nhật payment_status của booking
-      await client.query(
+      const updateBookingResult = await client.query(
         `UPDATE bookings
             SET payment_status='paid', last_updated_at=now()
-         WHERE booking_id IN (SELECT booking_id FROM payments WHERE tx_ref=$1)`,
+         WHERE booking_id IN (SELECT booking_id FROM payments WHERE tx_ref=$1)
+         RETURNING booking_id`,
         [String(orderCode)]
       );
+      
+      console.log('📋 Updated booking rows:', updateBookingResult.rowCount);
+      
+      if (updateBookingResult.rows.length > 0) {
+        console.log('✅ Booking IDs updated:', updateBookingResult.rows.map(r => r.booking_id));
+      }
+    } else {
+      console.log('⏳ Status chưa PAID:', gatewayStatus);
     }
 
     // 3) đọc trạng thái hiện tại trong DB
+    console.log('📖 Reading current DB status...');
     const q = await client.query(
       `SELECT payment_id, booking_id, status, paid_at, tx_ref
          FROM payments WHERE tx_ref=$1 LIMIT 1`,
       [String(orderCode)]
     );
     const row = q.rows[0] || null;
+    
+    console.log('💾 DB payment record:', row);
+    console.log('🔍 ========== [PayOS] HOÀN TẤT KIỂM TRA ==========\n');
 
     return res.json({
       ok: true,
@@ -446,7 +513,10 @@ exports.checkPayOSStatus = async (req, res) => {
       booking_id: row?.booking_id || null
     });
   } catch (err) {
-    console.error('❌ [PayOS status] Error:', err?.response?.data || err.message);
+    console.error('❌ ========== [PayOS] LỖI KIỂM TRA ==========');
+    console.error('Error:', err?.response?.data || err.message);
+    console.error('Stack:', err.stack);
+    console.error('❌ ==========================================\n');
     return res.status(500).json({ ok:false, message:'check status failed' });
   } finally {
     client.release();

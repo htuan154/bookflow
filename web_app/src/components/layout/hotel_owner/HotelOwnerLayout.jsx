@@ -295,7 +295,7 @@ const HotelOwnerLayout = () => {
                         </div>
                     </div>
                 </header>
-                <main className="flex-1 bg-gray-50 overflow-hidden relative">
+                <main className="flex-1 bg-gray-50 overflow-y-auto overflow-x-hidden relative">
                     <AmenityProvider>
                         <HotelAmenityProvider>
                             <Outlet />

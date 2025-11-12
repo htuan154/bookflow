@@ -139,11 +139,18 @@ class VietQRService {
   // PayOS (create + polling status)
   // ================================
   async createPayOSPayment({ bookingId, hotelId, amount, description }) {
+    console.log('\n💳 [VietQR Service] createPayOSPayment');
+    console.log('📤 Request:', { bookingId, hotelId, amount, description });
+    
     const payload = { bookingId, hotelId, amount, description };
     const res = await axiosClient.post(API_ENDPOINTS.PAYOS.CREATE, payload);
+    
+    console.log('📥 Response status:', res.status);
+    console.log('📥 Response data:', JSON.stringify(res.data, null, 2));
+    
     // BE trả: { ok, orderId, checkoutUrl, qrCode }
     const d = res.data || {};
-    return {
+    const result = {
       ok: !!d.ok,
       // Chuẩn hóa để UI cũ dùng được:
       tx_ref: d.orderId,               // dùng làm khóa để poll
@@ -151,13 +158,23 @@ class VietQRService {
       checkout_url: d.checkoutUrl || null,
       raw: d
     };
+    
+    console.log('✅ Parsed result:', result);
+    return result;
   }
 
   async checkPayOSStatus(orderCode) {
+    console.log('\n🔍 [VietQR Service] checkPayOSStatus');
+    console.log('📤 OrderCode:', orderCode);
+    
     const res = await axiosClient.get(API_ENDPOINTS.PAYOS.STATUS(orderCode));
+    
+    console.log('📥 Response status:', res.status);
+    console.log('📥 Response data:', JSON.stringify(res.data, null, 2));
+    
     // BE trả: { ok, orderId, gatewayStatus, dbStatus, paid_at }
     const d = res.data || {};
-    return {
+    const result = {
       ok: !!d.ok,
       tx_ref: d.orderId,
       status: d.dbStatus === 'paid' ? 'paid' : (d.gatewayStatus || 'PENDING'),
@@ -165,6 +182,9 @@ class VietQRService {
       gatewayStatus: d.gatewayStatus,
       dbStatus: d.dbStatus
     };
+    
+    console.log('✅ Parsed result:', result);
+    return result;
   }
 }
 

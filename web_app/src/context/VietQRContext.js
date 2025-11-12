@@ -161,8 +161,12 @@ export function VietQRProvider({ children }) {
 
   /** Tạo payment PayOS cho booking (polling, không webhook) */
   const createPayOSForBooking = useCallback(async (bookingId, { hotelId, amount, description }) => {
+    console.log('\n🚀 [Context] createPayOSForBooking START');
+    console.log('📌 Input:', { bookingId, hotelId, amount, description });
+    
     if (!bookingId || !hotelId || !amount || amount <= 0) {
       const msg = 'bookingId/hotelId/amount là bắt buộc và amount > 0';
+      console.log('❌ Validation failed:', msg);
       setError(msg);
       throw new Error(msg);
     }
@@ -172,25 +176,36 @@ export function VietQRProvider({ children }) {
     setValidationErrors({});
 
     try {
+      console.log('📡 Calling vietqrService.createPayOSPayment...');
       const resp = await vietqrService.createPayOSPayment({ bookingId, hotelId, amount, description });
-      if (!resp?.ok) throw new Error('Tạo đơn PayOS thất bại');
+      console.log('📥 Service response:', resp);
+      
+      if (!resp?.ok) {
+        console.log('❌ Service returned ok=false');
+        throw new Error('Tạo đơn PayOS thất bại');
+      }
 
       // Chuẩn hóa state để UI cũ dùng được
-      setQrData({
+      const qrDataObj = {
         tx_ref: resp.tx_ref,
         qr_image: resp.qr_image || null,     // có thể null -> dùng checkout_url
         checkout_url: resp.checkout_url || null,
         amount
-      });
+      };
+      console.log('💾 Setting qrData:', qrDataObj);
+      setQrData(qrDataObj);
 
-      setCurrentPayment({
+      const paymentObj = {
         tx_ref: resp.tx_ref,
         bookingId, hotelId, amount, description,
         paymentType: 'booking',
         paymentProvider: 'payos',
         createdAt: new Date().toISOString()
-      });
+      };
+      console.log('💾 Setting currentPayment:', paymentObj);
+      setCurrentPayment(paymentObj);
 
+      console.log('⏳ Setting status to pending');
       setPaymentStatus('pending');
       startCountdown();
 
@@ -203,9 +218,12 @@ export function VietQRProvider({ children }) {
         createdAt: new Date().toISOString()
       }, ...prev]);
 
+      console.log('✅ [Context] createPayOSForBooking SUCCESS\n');
       return resp;
     } catch (err) {
       const errorMsg = err?.response?.data?.error || err?.message || 'Lỗi tạo PayOS payment';
+      console.error('❌ [Context] createPayOSForBooking ERROR:', errorMsg);
+      console.error('Stack:', err.stack);
       setError(errorMsg);
       setPaymentStatus('error');
       throw err;
@@ -446,40 +464,58 @@ export function VietQRProvider({ children }) {
   useEffect(() => {
     // Chỉ poll khi đang pending và có tx_ref
     if (paymentStatus !== 'pending' || !qrData?.tx_ref) {
+      console.log('⏸️ [Polling] Skipped - status:', paymentStatus, 'tx_ref:', qrData?.tx_ref);
       return;
     }
 
-    // Poll mỗi 3 giây
+    console.log('🔄 [Polling] START - tx_ref:', qrData.tx_ref, 'provider:', currentPayment?.paymentProvider);
+
+    // Poll mỗi 5 giây (tăng từ 3s để giảm tải)
     const pollInterval = setInterval(async () => {
       try {
         if (currentPayment?.paymentProvider === 'payos') {
+          console.log('🔍 [Polling PayOS] Checking status for:', qrData.tx_ref);
           // Poll trạng thái payOS từ BE
           const result = await vietqrService.checkPayOSStatus(qrData.tx_ref);
+          console.log('📥 [Polling PayOS] Result:', result);
+          
           if (result?.dbStatus === 'paid') {
+            console.log('✅ [Polling PayOS] PAID! Updating state...');
             setPaymentStatus('paid');
             setCountdown(null);
             setPaymentHistory(prev => prev.map(p =>
               p.tx_ref === qrData.tx_ref ? { ...p, status: 'paid', paid_at: result.paid_at } : p
             ));
+          } else {
+            console.log('⏳ [Polling PayOS] Still pending - dbStatus:', result?.dbStatus);
           }
         } else {
+          console.log('🔍 [Polling VietQR] Checking status for:', qrData.tx_ref);
           // Luồng VietQR cũ
           const status = await vietqrService.checkPaymentStatus(qrData.tx_ref);
+          console.log('📥 [Polling VietQR] Result:', status);
+          
           if (status?.status === 'paid') {
+            console.log('✅ [Polling VietQR] PAID! Updating state...');
             setPaymentStatus('paid');
             setCountdown(null);
             setPaymentHistory(prev => prev.map(p =>
               p.tx_ref === qrData.tx_ref ? { ...p, status: 'paid', paid_at: status.paid_at } : p
             ));
+          } else {
+            console.log('⏳ [Polling VietQR] Still pending - status:', status?.status);
           }
         }
       } catch (error) {
-        console.error('Lỗi kiểm tra trạng thái thanh toán:', error);
+        console.error('❌ [Polling] Error:', error.message);
         // Không set error để không làm gián đoạn polling
       }
-    }, 3000);
+    }, 5000);
 
-    return () => clearInterval(pollInterval);
+    return () => {
+      console.log('🛑 [Polling] STOP');
+      clearInterval(pollInterval);
+    };
   }, [paymentStatus, qrData, currentPayment]);
 
   // =========================================

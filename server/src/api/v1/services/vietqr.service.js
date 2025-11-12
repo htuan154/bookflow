@@ -48,12 +48,20 @@ class VietQRService {
   }
     // === PayOS: tạo payment-request (polling, không webhook) ===
   async payosCreate({ orderCode, amount, description, returnUrl, cancelUrl }) {
+    console.log('\n💳 ========== [PayOS Service] CREATE PAYMENT ==========');
+    
     const base = process.env.PAYOS_BASE_URL || 'https://api-merchant.payos.vn';
     const headers = {
       'x-client-id': process.env.PAYOS_CLIENT_ID,
       'x-api-key': process.env.PAYOS_API_KEY,
       'Content-Type': 'application/json'
     };
+    
+    console.log('🔑 PayOS Config:', {
+      base,
+      clientId: process.env.PAYOS_CLIENT_ID,
+      hasApiKey: !!process.env.PAYOS_API_KEY
+    });
     
     // PayOS yêu cầu phải có items array
     const body = { 
@@ -71,31 +79,55 @@ class VietQRService {
       cancelUrl: cancelUrl || process.env.REDIRECT_URL || 'http://localhost:5173/payment/result'
     };
     
-    console.log('📤 Sending to PayOS:', JSON.stringify(body, null, 2));
+    console.log('📤 Request to PayOS:', JSON.stringify(body, null, 2));
     
     const { data } = await axios.post(`${base}/v2/payment-requests`, body, { headers, timeout: 15000 });
     
-    console.log('📥 PayOS Response:', JSON.stringify(data, null, 2));
+    console.log('📥 Response from PayOS:', JSON.stringify(data, null, 2));
     
-    if (!data) throw new Error('payOS create: empty response');
+    if (!data) {
+      console.log('❌ Empty response from PayOS');
+      throw new Error('payOS create: empty response');
+    }
     
     // Check error code
     if (data.code && data.code !== '00') {
+      console.log('❌ PayOS Error:', { code: data.code, desc: data.desc });
       throw new Error(`PayOS Error ${data.code}: ${data.desc || 'Unknown error'}`);
     }
+    
+    console.log('✅ PayOS payment created successfully');
+    console.log('💳 ========== [PayOS Service] DONE ==========\n');
     
     return data.data || data;
   }
 
   // === PayOS: lấy trạng thái theo orderCode ===
   async payosGetStatus(orderCode) {
+    console.log('\n🔍 ========== [PayOS Service] GET STATUS ==========');
+    console.log('📌 OrderCode:', orderCode);
+    
     const base = process.env.PAYOS_BASE_URL || 'https://api-merchant.payos.vn';
     const headers = {
       'x-client-id': process.env.PAYOS_CLIENT_ID,
       'x-api-key': process.env.PAYOS_API_KEY
     };
-    const { data } = await axios.get(`${base}/v2/payment-requests/${orderCode}`, { headers, timeout: 15000 });
-    if (!data) throw new Error('payOS status: empty response');
+    
+    const url = `${base}/v2/payment-requests/${orderCode}`;
+    console.log('📡 GET', url);
+    
+    const { data } = await axios.get(url, { headers, timeout: 15000 });
+    
+    console.log('📥 Response from PayOS:', JSON.stringify(data, null, 2));
+    
+    if (!data) {
+      console.log('❌ Empty response from PayOS');
+      throw new Error('payOS status: empty response');
+    }
+    
+    console.log('✅ Status retrieved successfully');
+    console.log('🔍 ========== [PayOS Service] DONE ==========\n');
+    
     return data.data || data;
   }
 
