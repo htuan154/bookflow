@@ -308,7 +308,7 @@ const BlogCommentList = ({
                                   <Person sx={{ fontSize: 12, color: '#FF6B35' }} />
                                 </Avatar>
                                 <Typography variant="caption" color="#64748b" fontWeight="500">
-                                  {blog.authorId || blog.author_id || '-'}
+                                  {blog.username || blog.authorId || blog.author_id || '-'}
                                 </Typography>
                                 <Chip 
                                   label={blog.status || 'published'} 

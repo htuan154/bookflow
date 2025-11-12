@@ -1,9 +1,42 @@
 import React, { createContext, useCallback, useMemo, useState } from 'react';
 import BankAccountService from '../api/bankAccount.service';
-
 export const BankAccountContext = createContext(null);
 
 export function BankAccountProvider({ children }) {
+  /**
+   * Fetch tất cả tài khoản ngân hàng trong hệ thống (admin)
+   */
+  const fetchAllBankAccounts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await BankAccountService.getAllBankAccountsAdmin();
+      console.log('🏦 Admin fetchAllBankAccounts RAW response:', response);
+      console.log('🏦 Response.data:', response.data);
+      console.log('🏦 Response.data type:', typeof response.data);
+      console.log('🏦 Response.data.data:', response.data?.data);
+      
+      // Check if data is nested in response.data.data (common API pattern)
+      let data = response.data?.data || response.data;
+      if (!Array.isArray(data)) data = [];
+      console.log('🏦 Admin bank accounts FINAL data:', data);
+      console.log('🏦 Admin bank accounts count:', data.length);
+      setAccounts(data);
+      return response;
+    } catch (err) {
+      console.error('❌ Admin fetchAllBankAccounts error:', err);
+      const errorMsg = err?.response?.data?.message || err?.message || 'Lỗi khi tải tất cả tài khoản ngân hàng';
+      setError(errorMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  // =========================================
+  // STATE MANAGEMENT
+  // =========================================
+  // (Already declared above, remove duplicate declarations)
+
   // =========================================
   // STATE MANAGEMENT
   // =========================================
@@ -15,10 +48,10 @@ export function BankAccountProvider({ children }) {
   
   // UI State
   const [loading, setLoading] = useState(false);
-  const [loadingDefault, setLoadingDefault] = useState(false);
+  const [loadingDefault] = useState(false);
   const [loadingBanks, setLoadingBanks] = useState(false);
   const [loadingStats, setLoadingStats] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [creating] = useState(false);
   const [updating, setUpdating] = useState({});
   const [deleting, setDeleting] = useState({});
   
@@ -31,101 +64,23 @@ export function BankAccountProvider({ children }) {
   // =========================================
 
   /**
-   * Fetch danh sách tài khoản ngân hàng của user hoặc hotel
+   * Fetch danh sách tài khoản ngân hàng của user
    */
-  const fetchUserAccounts = useCallback(async (hotelIdOrFilters = {}) => {
+  const fetchUserAccounts = useCallback(async (filters = {}) => {
     setLoading(true);
     setError(null);
-    
     try {
-      let response;
-      
-      // Check if first parameter is a string (hotelId) or object (filters)
-      if (typeof hotelIdOrFilters === 'string') {
-        // Fetch hotel accounts
-        response = await BankAccountService.getHotelBankAccounts(hotelIdOrFilters);
-      } else {
-        // Fetch user accounts with filters
-        response = await BankAccountService.getUserBankAccounts(hotelIdOrFilters);
-      }
-      
-      setAccounts(response.data || []);
+      const response = await BankAccountService.getUserBankAccounts(filters);
+      let data = response;
+      if (!Array.isArray(data)) data = [];
+      setAccounts(data);
       return response;
     } catch (err) {
-      const errorMsg = err?.response?.data?.message || err?.message || 'Lỗi khi tải danh sách tài khoản';
+      const errorMsg = err?.response?.data?.message || err?.message || 'Lỗi khi tải danh sách tài khoản người dùng';
       setError(errorMsg);
       throw err;
     } finally {
       setLoading(false);
-    }
-  }, []);
-
-  /**
-   * Fetch tài khoản mặc định
-   */
-  const fetchDefaultAccount = useCallback(async (hotelId = null) => {
-    setLoadingDefault(true);
-    setError(null);
-    
-    try {
-      const response = await BankAccountService.getDefaultBankAccount(hotelId);
-      setDefaultAccount(response.data);
-      return response;
-    } catch (err) {
-      const errorMsg = err?.response?.data?.message || err?.message || 'Lỗi khi tải tài khoản mặc định';
-      setError(errorMsg);
-      throw err;
-    } finally {
-      setLoadingDefault(false);
-    }
-  }, []);
-
-  /**
-   * Tạo tài khoản ngân hàng mới
-   */
-  const createBankAccount = useCallback(async (accountData) => {
-    // Validate data
-    const validation = BankAccountService.validateBankAccountData(accountData);
-    if (!validation.isValid) {
-      setValidationErrors(validation.errors);
-      throw new Error('Dữ liệu không hợp lệ');
-    }
-
-    setCreating(true);
-    setError(null);
-    setValidationErrors({});
-
-    try {
-      const response = await BankAccountService.createBankAccount(accountData);
-      
-      // Update local state
-      const newAccount = response.data;
-      setAccounts(prev => [newAccount, ...prev]);
-      
-      // If this is set as default, update default account
-      if (newAccount.isDefault) {
-        setDefaultAccount(newAccount);
-        // Reset other default accounts in local state
-        setAccounts(prev => prev.map(acc => 
-          acc.bankAccountId === newAccount.bankAccountId 
-            ? acc 
-            : { ...acc, isDefault: false }
-        ));
-      }
-
-      return response;
-    } catch (err) {
-      const errorMsg = err?.response?.data?.message || err?.message || 'Lỗi khi tạo tài khoản';
-      setError(errorMsg);
-      
-      // Handle validation errors from server
-      if (err?.response?.data?.errors) {
-        setValidationErrors(err.response.data.errors);
-      }
-      
-      throw err;
-    } finally {
-      setCreating(false);
     }
   }, []);
 
@@ -243,10 +198,13 @@ export function BankAccountProvider({ children }) {
   const fetchHotelAccounts = useCallback(async (hotelId, filters = {}) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await BankAccountService.getHotelBankAccounts(hotelId, filters);
-      // Don't update main accounts state for hotel accounts
+      console.log('🏦 fetchHotelAccounts response:', response);
+      let data = response.data;
+      if (!Array.isArray(data)) data = [];
+      setAccounts(data); // <-- Update state so UI can render
       return response;
     } catch (err) {
       const errorMsg = err?.response?.data?.message || err?.message || 'Lỗi khi tải danh sách tài khoản khách sạn';
@@ -356,12 +314,13 @@ export function BankAccountProvider({ children }) {
     validationErrors,
     
     // Actions - User accounts
-    fetchUserAccounts,
-    fetchDefaultAccount,
-    createBankAccount,
-    updateBankAccount,
+  fetchUserAccounts,
+  updateBankAccount,
     setAccountAsDefault,
     deleteBankAccount,
+
+    // Actions - Admin
+    fetchAllBankAccounts,
     
     // Actions - Hotel accounts
     fetchHotelAccounts,
@@ -384,9 +343,9 @@ export function BankAccountProvider({ children }) {
     accounts, defaultAccount, popularBanks, statistics,
     loading, loadingDefault, loadingBanks, loadingStats, creating, updating, deleting,
     error, validationErrors,
-    fetchUserAccounts, fetchDefaultAccount, createBankAccount, updateBankAccount,
+    fetchUserAccounts, updateBankAccount,
     setAccountAsDefault, deleteBankAccount, fetchHotelAccounts,
-    fetchPopularBanks, fetchBankAccountStatistics, clearError, resetState
+    fetchPopularBanks, fetchBankAccountStatistics, fetchAllBankAccounts, clearError, resetState
   ]);
 
   return (

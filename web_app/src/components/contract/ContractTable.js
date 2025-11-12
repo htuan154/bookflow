@@ -299,6 +299,13 @@ const ContractTable = ({
     // Format currency with enhanced formatting
     const formatCurrency = (amount, currency = 'VND') => {
         if (!amount) return '0 ₫';
+        
+        // Nếu là phần trăm (%), hiển thị số với ký hiệu %
+        if (currency === '%' || currency === 'Phần trăm' || currency === 'percent') {
+            return `${parseFloat(amount).toFixed(2)}%`;
+        }
+        
+        // Format tiền tệ bình thường
         const formatted = new Intl.NumberFormat('vi-VN', {
             style: 'currency',
             currency: currency,
@@ -867,15 +874,19 @@ const ContractTable = ({
                                             <h4 className="text-sm font-semibold text-gray-700 mb-3">Thông tin tài chính</h4>
                                             <div className="space-y-3">
                                                 <div>
-                                                    <label className="text-xs text-gray-500">Giá trị hợp đồng</label>
+                                                    <label className="text-xs text-gray-500">
+                                                        {editingContract.currency === '%' || editingContract.currency === 'Phần trăm' ? 'Hoa hồng' : 'Giá trị hợp đồng'}
+                                                    </label>
                                                     <p className="text-sm font-bold text-emerald-700">
                                                         {formatCurrency(editingContract.contractValue, editingContract.currency)}
                                                     </p>
                                                 </div>
-                                                <div>
-                                                    <label className="text-xs text-gray-500">Đơn vị tiền tệ</label>
-                                                    <p className="text-sm font-medium text-gray-900">{editingContract.currency || 'VND'}</p>
-                                                </div>
+                                                {(editingContract.currency !== '%' && editingContract.currency !== 'Phần trăm') && (
+                                                    <div>
+                                                        <label className="text-xs text-gray-500">Đơn vị tiền tệ</label>
+                                                        <p className="text-sm font-medium text-gray-900">{editingContract.currency || 'VND'}</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 

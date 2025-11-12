@@ -4,13 +4,25 @@ const bankAccountRepository = require('../repositories/bank_account.repository')
 const BankAccount = require('../../../models/bank_account.model');
 
 class BankAccountService {
+  /**
+   * Lấy tất cả tài khoản ngân hàng trong hệ thống (Admin only)
+   */
+  async getAllBankAccountsAdmin() {
+    return await bankAccountRepository.getAll();
+  }
 
   /**
    * Tạo tài khoản ngân hàng mới
    */
   async createBankAccount(userId, bankAccountData) {
     // Validate input
-    this._validateBankAccountData(bankAccountData);
+    try {
+      this._validateBankAccountData(bankAccountData);
+    } catch (validationError) {
+      console.error('❌ Bank account validation failed:', validationError.message);
+      console.error('📋 Data received:', JSON.stringify(bankAccountData, null, 2));
+      throw validationError;
+    }
 
     const { 
       hotel_id, 

@@ -36,4 +36,10 @@ router.get(
     roomAssignmentController.getAssignmentsForBooking
 );
 
+// GET /api/v1/assignments/available-rooms?roomTypeId=...&checkInDate=...&checkOutDate=...&limit=...
+router.get(
+    '/available-rooms',
+    roomAssignmentController.getAvailableRooms
+);
+
 module.exports = router;

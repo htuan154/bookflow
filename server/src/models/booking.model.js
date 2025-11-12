@@ -37,16 +37,31 @@ class Booking {
     this.lastUpdatedAt = last_updated_at;
   }
 
+  // Helper to format date to YYYY-MM-DD only (no timezone conversion)
+  _formatDateOnly(date) {
+    if (!date) return null;
+    if (typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      // Already in YYYY-MM-DD format
+      return date;
+    }
+    // If it's a Date object or ISO string, extract date part only
+    const dateObj = date instanceof Date ? date : new Date(date);
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   toJSON() {
     return {
       bookingId: this.bookingId,
       userId: this.userId,
       hotelId: this.hotelId,
-      checkInDate: this.checkInDate,
-      checkOutDate: this.checkOutDate,
+      checkInDate: this._formatDateOnly(this.checkInDate),
+      checkOutDate: this._formatDateOnly(this.checkOutDate),
       nights: this.nights,
-      actualCheckInDate: this.actualCheckInDate,
-      actualCheckOutDate: this.actualCheckOutDate,
+      actualCheckInDate: this._formatDateOnly(this.actualCheckInDate),
+      actualCheckOutDate: this._formatDateOnly(this.actualCheckOutDate),
       totalGuests: this.totalGuests,
       totalPrice: this.totalPrice,
       bookingStatus: this.bookingStatus,

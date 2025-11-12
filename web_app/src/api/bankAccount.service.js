@@ -5,6 +5,13 @@ import { API_ENDPOINTS } from '../config/apiEndpoints';
  * Service để quản lý tài khoản ngân hàng
  */
 const BankAccountService = {
+  /**
+   * Lấy tất cả tài khoản ngân hàng trong hệ thống (admin)
+   */
+  getAllBankAccountsAdmin: async () => {
+    const response = await axiosClient.get('/admin/bank-accounts');
+    return response;
+  },
   
   // =========================================
   // PUBLIC ENDPOINTS

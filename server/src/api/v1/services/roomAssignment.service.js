@@ -1,5 +1,5 @@
 // src/api/v1/services/roomAssignment.service.js
-
+const RoomAvailable = require('../../../models/roomAvailable.model');
 const roomAssignmentRepository = require('../repositories/roomAssignment.repository');
 const RoomRepository = require('../repositories/room.repository');
 const roomRepository = new RoomRepository();
@@ -83,6 +83,19 @@ class RoomAssignmentService {
 
         // Sau khi hủy gán, cập nhật lại trạng thái phòng thành 'available' (hoặc 'cleaning')
         await roomRepository.updateStatus(assignment.roomId, 'available');
+    }
+
+    /**
+     * Lấy danh sách phòng trống để xếp phòng cho một booking theo loại phòng.
+     * @param {string} roomTypeId
+     * @param {string|Date} checkInDate
+     * @param {string|Date} checkOutDate
+     * @param {number} limit
+     * @returns {Promise<RoomAvailable[]>}
+     */
+    async getAvailableRooms(roomTypeId, checkInDate, checkOutDate, limit = 10000) {
+        const rooms = await roomAssignmentRepository.findAvailableRooms(roomTypeId, checkInDate, checkOutDate, limit);
+        return rooms.map(r => new RoomAvailable(r));
     }
 }
 

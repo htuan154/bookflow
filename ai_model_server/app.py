@@ -77,6 +77,22 @@ CORS(app)
 app.config["SWAGGER"] = {"title": "AI Comment Classifier", "uiversion": 3}
 swagger = Swagger(app)
 
+def preprocess_text(text: str) -> str:
+    """
+    Chuẩn hóa text trước khi phân loại:
+    - Loại bỏ khoảng trắng thừa
+    - Tự động thêm dấu chấm cuối câu nếu thiếu
+    - Chuẩn hóa các ký tự đặc biệt
+    """
+    # Loại bỏ khoảng trắng thừa
+    text = re.sub(r'\s+', ' ', text.strip())
+    
+    # Nếu câu không kết thúc bằng dấu câu (. ! ? ...), tự động thêm dấu chấm
+    if text and not re.search(r'[.!?…]$', text):
+        text = text + '.'
+    
+    return text
+
 def extract_features(text: str):
     """Light features for logging/analysis (not changing label unless you add a meta-classifier later)."""
     feats_cfg = cfg.get("features", {})
@@ -140,6 +156,10 @@ def check_comment():
     if not text:
         return jsonify({"error": "Text rỗng."}), 400
 
+    # Chuẩn hóa text trước khi phân loại (thêm dấu chấm nếu thiếu)
+    original_text = text
+    text = preprocess_text(text)
+    
     # temperature scaling
     T = float(cfg.get("temperature", 1.0))
 
@@ -178,7 +198,9 @@ def check_comment():
         "classification": final_label,
         "confidence": round(confidence, 4),
         "top": topk,
-        "features": extract_features(text)
+        "features": extract_features(text),
+        "original_text": original_text,
+        "preprocessed_text": text
     })
 
 if __name__ == "__main__":

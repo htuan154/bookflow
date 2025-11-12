@@ -3,9 +3,15 @@ import 'package:intl/intl.dart';
 import '../../../classes/room_type_model.dart';
 import '../../../classes/season_pricing_model.dart';
 import '../../../services/booking_service.dart';
-import '../../../services/user_service.dart'; // Thêm dòng này
-import '../../../classes/user_model.dart'; // Thêm dòng này
-import '../../../classes/hotel_model.dart'; // Thêm dòng này
+import '../../../services/user_service.dart';
+import '../../../services/booking_nightly_price_service.dart';
+import '../../../services/booking_discount_service.dart';
+import '../../../services/promotion_usage_service.dart';
+import '../../../classes/user_model.dart';
+import '../../../classes/hotel_model.dart';
+import '../../../classes/booking_nightly_price_model.dart';
+import 'promotion_screen.dart';
+import '../payment/payment_screen.dart';
 
 class BookingDetailScreen extends StatefulWidget {
   final Hotel hotel; // Thêm dòng này
@@ -44,6 +50,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   bool _agreeToTerms = false;
 
   User? _user;
+  List<BookingNightlyPrice> _nightlyPrices = [];
+  Map<String, dynamic>? _selectedPromotion;
 
   String _selectedPaymentMethod = 'credit_card'; // Mặc định
 
@@ -51,6 +59,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   void initState() {
     super.initState();
     _loadUserInfo();
+    _calculateNightlyPrices();
   }
 
   @override
@@ -76,6 +85,60 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     } catch (e) {
       print('Error loading user info: $e');
     }
+  }
+
+  /// Tính giá từng đêm dựa vào seasonal pricing
+  void _calculateNightlyPrices() {
+    final checkInDate = widget.searchParams?['checkInDate'];
+    final checkOutDate = widget.searchParams?['checkOutDate'];
+    final roomCount = widget.calculatedRoom?['requiredRooms'] ?? 1;
+
+    if (checkInDate == null || checkOutDate == null) return;
+
+    final checkIn = DateTime.parse(checkInDate);
+    final checkOut = DateTime.parse(checkOutDate);
+    final nights = checkOut.difference(checkIn).inDays;
+
+    List<BookingNightlyPrice> prices = [];
+
+    for (int i = 0; i < nights; i++) {
+      final stayDate = checkIn.add(Duration(days: i));
+      final baseRate = widget.roomType.basePrice;
+      
+      // Tìm seasonal pricing áp dụng cho ngày này
+      SeasonalPricing? applicableSeason;
+      if (widget.seasonalPricings != null) {
+        for (var season in widget.seasonalPricings!) {
+          if (season.isDateInRange(stayDate)) {
+            applicableSeason = season;
+            break;
+          }
+        }
+      }
+
+      final seasonMultiplier = applicableSeason?.priceModifier ?? 1.0;
+      final grossNightlyPrice = baseRate * seasonMultiplier;
+      final grossNightlyTotal = grossNightlyPrice * roomCount;
+
+      // Tạo temporary model để hiển thị (chưa có priceId vì chưa lưu DB)
+      prices.add(BookingNightlyPrice(
+        priceId: '', // Temporary
+        bookingId: '', // Temporary
+        roomTypeId: widget.roomType.roomTypeId ?? '',
+        stayDate: stayDate,
+        quantity: roomCount,
+        baseRate: baseRate,
+        seasonPricingId: applicableSeason?.pricingId,
+        seasonMultiplier: seasonMultiplier,
+        grossNightlyPrice: grossNightlyPrice,
+        grossNightlyTotal: grossNightlyTotal,
+        createdAt: DateTime.now(),
+      ));
+    }
+
+    setState(() {
+      _nightlyPrices = prices;
+    });
   }
 
   Widget _buildHotelInfo() {
@@ -206,6 +269,10 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                     _buildHotelInfo(),
                     _buildBookingSummary(),
                     SizedBox(height: 24),
+                    _buildNightlyPricesBreakdown(),
+                    SizedBox(height: 24),
+                    _buildPromotionSection(),
+                    SizedBox(height: 24),
                     _buildUserInfoForm(),
                     SizedBox(height: 24),
                     _buildPaymentMethodSelector(), // Thêm dòng này
@@ -308,22 +375,64 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             if (widget.seasonalPricings != null &&
                 widget.seasonalPricings!.isNotEmpty) ...[
               SizedBox(height: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: widget.seasonalPricings!.map((pricing) {
-                  final priceAfterSeason =
-                      widget.roomType.basePrice * pricing.priceModifier;
-                  return Text(
-                    'Giá phòng theo mùa: ${_formatPrice(priceAfterSeason)} / đêm'
-                    ' (${pricing.name}: ${DateFormat('dd/MM/yyyy').format(pricing.startDate)} - ${DateFormat('dd/MM/yyyy').format(pricing.endDate)})',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.orange,
-                      fontStyle: FontStyle.italic,
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.local_fire_department, size: 16, color: Colors.orange[700]),
+                        SizedBox(width: 4),
+                        Text(
+                          'Giá theo mùa (áp dụng cho thời gian đặt)',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange[700],
+                          ),
+                        ),
+                      ],
                     ),
-                  );
-                }).toList(),
+                    SizedBox(height: 8),
+                    ...widget.seasonalPricings!.map((pricing) {
+                      final priceAfterSeason =
+                          widget.roomType.basePrice * pricing.priceModifier;
+                      return Padding(
+                        padding: EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '• ${pricing.name}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '${_formatPrice(priceAfterSeason)}/đêm',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.orange[800],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ),
               ),
+              SizedBox(height: 8),
             ],
             _buildPriceRow('Số phòng', 'x $roomCount'),
             if (checkInDate != null && checkOutDate != null) ...[
@@ -401,6 +510,351 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNightlyPricesBreakdown() {
+    if (_nightlyPrices.isEmpty) {
+      return SizedBox.shrink();
+    }
+
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.calendar_today, color: Colors.teal, size: 24),
+              SizedBox(width: 8),
+              Text(
+                'Chi tiết giá từng đêm',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          ..._nightlyPrices.asMap().entries.map((entry) {
+            final index = entry.key;
+            final price = entry.value;
+            final nextDate = price.stayDate.add(Duration(days: 1));
+            final isLastNight = index == _nightlyPrices.length - 1;
+            
+            return Container(
+              margin: EdgeInsets.only(bottom: isLastNight ? 0 : 12),
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: price.hasSeasonalPricing 
+                  ? Colors.orange.withOpacity(0.1)
+                  : Colors.grey.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: price.hasSeasonalPricing
+                    ? Colors.orange.withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.2),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${price.formattedDate} → ${nextDate.day.toString().padLeft(2, '0')}/${nextDate.month.toString().padLeft(2, '0')}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              price.weekdayName,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            _formatPrice(price.grossNightlyTotal),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: price.hasSeasonalPricing 
+                                ? Colors.orange[700]
+                                : Colors.black87,
+                            ),
+                          ),
+                          if (price.quantity > 1) ...[
+                            SizedBox(height: 2),
+                            Text(
+                              '${price.quantity} phòng x ${_formatPrice(price.grossNightlyPrice)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (price.hasSeasonalPricing) ...[
+                    SizedBox(height: 8),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.local_fire_department, size: 14, color: Colors.orange[800]),
+                          SizedBox(width: 4),
+                          Text(
+                            'Giá mùa (x${price.seasonMultiplier.toStringAsFixed(2)})',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.orange[800],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }).toList(),
+          if (_nightlyPrices.isNotEmpty) ...[
+            Divider(height: 24, color: Colors.grey[300]),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Tổng (${_nightlyPrices.length} đêm)',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                Text(
+                  _formatPrice(_nightlyPrices.fold(0.0, (sum, price) => sum + price.grossNightlyTotal)),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPromotionSection() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.local_offer, color: Colors.orange, size: 24),
+              SizedBox(width: 8),
+              Text(
+                'Mã giảm giá',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          
+          if (_selectedPromotion == null)
+            ElevatedButton.icon(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PromotionScreen(
+                      hotelId: widget.hotel.hotelId ?? '',
+                      roomTypeId: widget.roomType.roomTypeId ?? '',
+                      bookingTotal: widget.calculatedPrice ?? widget.roomType.basePrice,
+                    ),
+                  ),
+                );
+
+                if (result != null) {
+                  setState(() {
+                    _selectedPromotion = result;
+                  });
+                }
+              },
+              icon: Icon(Icons.add_circle_outline),
+              label: Text('Áp mã giảm giá'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            )
+          else
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange, width: 2),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Code promotion
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.orange,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _selectedPromotion!['promotion']['code'],
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            // Giảm giá
+                            Text(
+                              _formatPromotionDiscount(_selectedPromotion!),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            // Tên promotion
+                            Text(
+                              _selectedPromotion!['promotion']['name'],
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            if (_selectedPromotion!['promotion']['description'] != null && 
+                                _selectedPromotion!['promotion']['description'].toString().isNotEmpty) ...[
+                              SizedBox(height: 4),
+                              Text(
+                                _selectedPromotion!['promotion']['description'],
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                            SizedBox(height: 8),
+                            // Thông tin điều kiện
+                            if (_selectedPromotion!['promotion']['minBookingPrice'] != null)
+                              Row(
+                                children: [
+                                  Icon(Icons.check_circle, size: 16, color: Colors.green),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Đơn tối thiểu: ${_formatPrice(_parseDouble(_selectedPromotion!['promotion']['minBookingPrice']))}',
+                                    style: TextStyle(fontSize: 13, color: Colors.green),
+                                  ),
+                                ],
+                              ),
+                            if (_selectedPromotion!['promotion']['maxDiscountAmount'] != null) ...[
+                              SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(Icons.arrow_downward, size: 16, color: Colors.grey[600]),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Giảm tối đa: ${_formatPrice(_parseDouble(_selectedPromotion!['promotion']['maxDiscountAmount']))}',
+                                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _selectedPromotion = null;
+                          });
+                        },
+                        icon: Icon(Icons.close, color: Colors.red, size: 28),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -627,6 +1081,10 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
   }
 
   Widget _buildBottomBookingBar() {
+    final double originalPrice = widget.calculatedPrice ?? widget.roomType.basePrice;
+    final double discountAmount = _calculateDiscountAmount();
+    final double finalPrice = _getFinalPrice();
+    
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -646,14 +1104,36 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (discountAmount > 0) ...[
+                  Text(
+                    'Giá gốc',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  ),
+                  Text(
+                    _formatPrice(originalPrice),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[500],
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Giảm ${_formatPrice(discountAmount)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.green,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                ],
                 Text(
                   'Tổng tiền',
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
                 Text(
-                  widget.calculatedPrice != null
-                      ? _formatPrice(widget.calculatedPrice!)
-                      : _formatPrice(widget.roomType.basePrice),
+                  _formatPrice(finalPrice),
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -743,7 +1223,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         throw Exception('Thiếu thông tin đặt phòng cần thiết');
       }
 
-      final totalPrice = widget.calculatedPrice ?? widget.roomType.basePrice;
+      final totalPrice = _getFinalPrice(); // Sử dụng giá sau khi giảm
 
       // 1. Tạo booking master
       final result = await BookingService().createBooking(
@@ -756,7 +1236,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         bookingStatus: 'pending',
         paymentStatus: 'pending',
         paymentMethod: _selectedPaymentMethod,
-        promotionId: null,
+        promotionId: _selectedPromotion != null ? _selectedPromotion!['promotion']['promotionId'] : null,
         specialRequests: _specialRequestsController.text.trim().isNotEmpty
             ? _specialRequestsController.text.trim()
             : null,
@@ -788,7 +1268,46 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
         );
 
         if (detailResult['success']) {
-          _showSuccessDialog(bookingId);
+          // 4. Lưu booking_nightly_prices
+          await _saveNightlyPrices(bookingId, roomTypeId, roomCount);
+
+          // 5. Nếu có promotion, lưu promotion_usage và booking_discount
+          if (_selectedPromotion != null) {
+            await _savePromotionUsage(bookingId);
+            await _saveBookingDiscount(bookingId);
+          }
+
+          // 6. Nếu chọn phương thức thanh toán thẻ tín dụng, mở màn hình thanh toán
+          if (_selectedPaymentMethod == 'credit_card') {
+            final paymentResult = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PaymentScreen(
+                  bookingId: bookingId,
+                  hotelId: hotelId,
+                  amount: totalPrice,
+                  paymentMethod: 'payos', // Sử dụng PayOS cho thẻ tín dụng
+                  paymentType: 'booking',
+                ),
+              ),
+            );
+
+            if (paymentResult == true) {
+              // Thanh toán thành công
+              _showSuccessDialog(bookingId);
+            } else {
+              // Thanh toán chưa hoàn thành hoặc bị hủy
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Đặt phòng thành công. Vui lòng hoàn tất thanh toán.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          } else {
+            // Các phương thức khác: hiển thị dialog thành công ngay
+            _showSuccessDialog(bookingId);
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -818,11 +1337,171 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     }
   }
 
+  /// Lưu giá từng đêm vào database
+  Future<void> _saveNightlyPrices(String bookingId, String roomTypeId, int roomCount) async {
+    try {
+      final checkInDate = widget.searchParams?['checkInDate'];
+      final checkOutDate = widget.searchParams?['checkOutDate'];
+
+      if (checkInDate == null || checkOutDate == null) return;
+
+      final checkIn = DateTime.parse(checkInDate);
+      final checkOut = DateTime.parse(checkOutDate);
+      final nights = checkOut.difference(checkIn).inDays;
+
+      print('🌙 Saving $nights nightly prices for booking: $bookingId');
+
+      for (int i = 0; i < nights; i++) {
+        final stayDate = checkIn.add(Duration(days: i));
+        final baseRate = widget.roomType.basePrice;
+        
+        // Tìm seasonal pricing áp dụng cho ngày này
+        SeasonalPricing? applicableSeason;
+        if (widget.seasonalPricings != null) {
+          for (var season in widget.seasonalPricings!) {
+            if (season.isDateInRange(stayDate)) {
+              applicableSeason = season;
+              break;
+            }
+          }
+        }
+
+        final seasonMultiplier = applicableSeason?.priceModifier ?? 1.0;
+
+        // Gọi API để lưu
+        final nightlyPriceData = {
+          'booking_id': bookingId,
+          'room_type_id': roomTypeId,
+          'stay_date': stayDate.toIso8601String().split('T')[0],
+          'quantity': roomCount,
+          'base_rate': baseRate,
+          'season_pricing_id': applicableSeason?.pricingId,
+          'season_multiplier': seasonMultiplier,
+        };
+
+        print('📤 Sending nightly price data for ${stayDate.toIso8601String().split('T')[0]}: $nightlyPriceData');
+
+        final result = await BookingNightlyPriceService().create(nightlyPriceData);
+        
+        if (result['success']) {
+          print('✅ Nightly price saved for ${stayDate.toIso8601String().split('T')[0]}');
+        } else {
+          print('❌ Failed to save nightly price: ${result['message']}');
+        }
+      }
+      
+      print('✅ All nightly prices saved successfully');
+    } catch (e) {
+      print('❌ Error saving nightly prices: $e');
+      // Không throw error để không block việc booking thành công
+    }
+  }
+
+  /// Lưu promotion usage vào database
+  Future<void> _savePromotionUsage(String bookingId) async {
+    if (_selectedPromotion == null || _user == null) {
+      print('⚠️ Cannot save promotion usage: _selectedPromotion=${_selectedPromotion != null}, _user=${_user != null}');
+      return;
+    }
+    
+    try {
+      print('🎫 [CALL START] Saving promotion usage for booking: $bookingId');
+      print('📍 [TIMESTAMP] ${DateTime.now().toIso8601String()}');
+      
+      final promotionId = _selectedPromotion!['promotion']['promotionId'];
+      final userId = _user!.userId;
+      
+      print('📋 PromotionId: $promotionId');
+      print('📋 UserId: $userId');
+      print('📋 BookingId: $bookingId');
+      
+      final result = await PromotionUsageService().usePromotion(
+        promotionId: promotionId,
+        userId: userId!,
+        bookingId: bookingId,
+      );
+      
+      print('📦 Promotion usage result: $result');
+      print('📍 [CALL END] ${DateTime.now().toIso8601String()}');
+      
+      if (result['success']) {
+        print('✅ Promotion usage saved successfully');
+      } else {
+        print('⚠️ Failed to save promotion usage: ${result['message']}');
+      }
+    } catch (e, stackTrace) {
+      print('❌ Error saving promotion usage: $e');
+      print('Stack trace: $stackTrace');
+    }
+  }
+
+  /// Lưu booking discount vào database
+  Future<void> _saveBookingDiscount(String bookingId) async {
+    if (_selectedPromotion == null) {
+      print('⚠️ Cannot save booking discount: _selectedPromotion is null');
+      return;
+    }
+    
+    try {
+      print('💰 [CALL START] Saving booking discount for booking: $bookingId');
+      print('📍 [TIMESTAMP] ${DateTime.now().toIso8601String()}');
+      
+      final promotion = _selectedPromotion!['promotion'];
+      final details = _selectedPromotion!['details'];
+      final double originalAmount = widget.calculatedPrice ?? widget.roomType.basePrice;
+      final double discountAmount = _calculateDiscountAmount();
+      
+      print('📋 Original amount: $originalAmount');
+      print('📋 Discount amount: $discountAmount');
+      
+      String discountType = 'percentage';
+      double discountValue = _parseDouble(promotion['discountValue']);
+      
+      // Xác định discount_type và discount_value
+      if (details != null && details.isNotEmpty) {
+        // Room-specific: lấy từ detail
+        final detail = details.first;
+        discountType = detail['discountType'] ?? 'percentage';
+        discountValue = _parseDouble(detail['discountValue']);
+        print('📋 Using room-specific detail: type=$discountType, value=$discountValue');
+      } else {
+        print('📋 Using general promotion: type=$discountType, value=$discountValue');
+      }
+      // General promotion: mặc định là percentage
+      
+      final discountData = {
+        'booking_id': bookingId,
+        'promotion_id': promotion['promotionId'],
+        'gross_amount_snapshot': originalAmount,
+        'discount_type': discountType,
+        'discount_value': discountValue,
+        'discount_applied': discountAmount,
+      };
+      
+      print('📤 Sending discount data: $discountData');
+      
+      final result = await BookingDiscountService().create(discountData);
+      
+      print('📦 Booking discount result: $result');
+      print('📍 [CALL END] ${DateTime.now().toIso8601String()}');
+      
+      if (result['success']) {
+        print('✅ Booking discount saved successfully');
+      } else {
+        print('⚠️ Failed to save booking discount: ${result['message']}');
+      }
+    } catch (e, stackTrace) {
+      print('❌ Error saving booking discount: $e');
+      print('Stack trace: $stackTrace');
+    }
+  }
+
   void _showSuccessDialog(String bookingId) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
         icon: Icon(Icons.check_circle, color: Colors.green, size: 64),
         title: Text(
           'Đặt phòng thành công!',
@@ -887,5 +1566,82 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
 
   String _formatPrice(double price) {
     return '${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} VNĐ';
+  }
+
+  double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      try {
+        return double.parse(value);
+      } catch (e) {
+        return 0.0;
+      }
+    }
+    return 0.0;
+  }
+
+  String _formatPromotionDiscount(Map<String, dynamic> selectedPromotion) {
+    final promotion = selectedPromotion['promotion'];
+    final details = selectedPromotion['details'];
+    
+    if (details != null && details.isNotEmpty) {
+      final detail = details.first;
+      final String discountType = detail['discountType'] ?? 'percentage';
+      final double detailValue = _parseDouble(detail['discountValue']);
+      
+      if (discountType == 'percentage') {
+        return 'Giảm ${detailValue.toStringAsFixed(0)}%';
+      } else {
+        return 'Giảm ${_formatPrice(detailValue)}';
+      }
+    }
+    
+    final double discountValue = _parseDouble(promotion['discountValue']);
+    return 'Giảm ${discountValue.toStringAsFixed(0)}%';
+  }
+
+  double _calculateDiscountAmount() {
+    if (_selectedPromotion == null) return 0.0;
+    
+    final promotion = _selectedPromotion!['promotion'];
+    final details = _selectedPromotion!['details'];
+    final double originalAmount = widget.calculatedPrice ?? widget.roomType.basePrice;
+    final double maxDiscount = _parseDouble(promotion['maxDiscountAmount']);
+    
+    double discountAmount = 0.0;
+    
+    if (details != null && details.isNotEmpty) {
+      // Room-specific promotion
+      final detail = details.first;
+      final String discountType = detail['discountType'] ?? 'percentage';
+      final double detailValue = _parseDouble(detail['discountValue']);
+      
+      if (discountType == 'percentage') {
+        discountAmount = originalAmount * (detailValue / 100);
+        if (maxDiscount > 0 && discountAmount > maxDiscount) {
+          discountAmount = maxDiscount;
+        }
+      } else {
+        // fixed_amount
+        discountAmount = detailValue;
+      }
+    } else {
+      // General promotion (always percentage)
+      final double discountValue = _parseDouble(promotion['discountValue']);
+      discountAmount = originalAmount * (discountValue / 100);
+      if (maxDiscount > 0 && discountAmount > maxDiscount) {
+        discountAmount = maxDiscount;
+      }
+    }
+    
+    return discountAmount;
+  }
+
+  double _getFinalPrice() {
+    final double originalAmount = widget.calculatedPrice ?? widget.roomType.basePrice;
+    final double discountAmount = _calculateDiscountAmount();
+    return originalAmount - discountAmount;
   }
 }

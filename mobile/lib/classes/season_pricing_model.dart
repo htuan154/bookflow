@@ -27,13 +27,48 @@ class SeasonalPricing {
   });
 
   factory SeasonalPricing.fromJson(Map<String, dynamic> json) {
+    // Debug: In ra giá trị gốc từ server
+    print('🔍 [SeasonalPricing.fromJson] Raw data:');
+    print('   name: ${json['name']}');
+    print('   startDate: ${json['startDate']}');
+    print('   endDate: ${json['endDate']}');
+    
+    // Parse ISO string với timezone, sau đó convert sang local time
+    // "2025-11-14T17:00:00.000Z" (UTC) -> 2025-11-15 00:00:00 (GMT+7)
+    final startDateUtc = DateTime.parse(json['startDate'].toString());
+    final endDateUtc = DateTime.parse(json['endDate'].toString());
+    
+    // Convert sang local time
+    final startDateLocal = startDateUtc.toLocal();
+    final endDateLocal = endDateUtc.toLocal();
+    
+    print('   UTC startDate: $startDateUtc');
+    print('   Local startDate: $startDateLocal');
+    
+    // Chỉ lấy phần date (năm, tháng, ngày) từ local time, bỏ giờ phút giây
+    final parsedStartDate = DateTime(
+      startDateLocal.year,
+      startDateLocal.month,
+      startDateLocal.day,
+    );
+    final parsedEndDate = DateTime(
+      endDateLocal.year,
+      endDateLocal.month,
+      endDateLocal.day,
+    );
+    
+    print('   ✅ Parsed startDate: $parsedStartDate');
+    print('   ✅ Parsed endDate: $parsedEndDate');
+    print('');
+    
     return SeasonalPricing(
       pricingId: json['pricingId'] ?? '',
       roomTypeId: json['roomTypeId'] ?? '',
       seasonId: json['seasonId'],
       name: json['name'] ?? '',
-      startDate: DateTime.parse(json['startDate']),
-      endDate: DateTime.parse(json['endDate']),
+      // Tạo DateTime từ year, month, day - không có timezone issue
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
       // Sửa phần này để parse string thành double
       priceModifier: _parseDouble(json['priceModifier']),
       roomType: json['roomType'] != null ? RoomType.fromJson(json['roomType']) : null,
@@ -122,13 +157,33 @@ class SeasonalPricing {
 
   /// Kiểm tra ngày cụ thể có nằm trong khoảng thời gian này không
   bool isDateInRange(DateTime date) {
-    // Chuyển về UTC để so sánh chính xác
-    final dateOnly = DateTime.utc(date.year, date.month, date.day);
-    final startOnly = DateTime.utc(startDate.year, startDate.month, startDate.day);
-    final endOnly = DateTime.utc(endDate.year, endDate.month, endDate.day);
+    // Chuyển về local date (chỉ so sánh ngày, bỏ giờ)
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final startOnly = DateTime(startDate.year, startDate.month, startDate.day);
+    final endOnly = DateTime(endDate.year, endDate.month, endDate.day);
     
-    return (dateOnly.isAfter(startOnly) || dateOnly.isAtSameMomentAs(startOnly)) &&
-           (dateOnly.isBefore(endOnly) || dateOnly.isAtSameMomentAs(endOnly));
+    print('      🔍 [isDateInRange] "$name"');
+    print('         Checking: $dateOnly (${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')})');
+    print('         Range: $startOnly to $endOnly');
+    print('         isBefore(start): ${dateOnly.isBefore(startOnly)}');
+    print('         isAfter(end): ${dateOnly.isAfter(endOnly)}');
+    
+    // So sánh: dateOnly >= startOnly && dateOnly <= endOnly
+    final result = !dateOnly.isBefore(startOnly) && !dateOnly.isAfter(endOnly);
+    print('         ➜ Result: ${result ? "✅ MATCH" : "❌ NO MATCH"}');
+    
+    return result;
+  }
+
+  /// Kiểm tra có overlap với khoảng thời gian cho trước không
+  bool overlapsWithDateRange(DateTime checkIn, DateTime checkOut) {
+    final checkInOnly = DateTime(checkIn.year, checkIn.month, checkIn.day);
+    final checkOutOnly = DateTime(checkOut.year, checkOut.month, checkOut.day);
+    final startOnly = DateTime(startDate.year, startDate.month, startDate.day);
+    final endOnly = DateTime(endDate.year, endDate.month, endDate.day);
+    
+    // Overlap nếu: start <= checkOut && end >= checkIn
+    return !startOnly.isAfter(checkOutOnly) && !endOnly.isBefore(checkInOnly);
   }
 
   /// Kiểm tra có đang trong thời gian áp dụng không

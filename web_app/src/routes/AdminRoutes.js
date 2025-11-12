@@ -55,6 +55,7 @@ import {
 import AdminReportsPage from '../pages/admin/Reports/AdminReportsPage';
 import AdminBankAccountsPage from '../pages/admin/BankAccounts/AdminBankAccountsPage';
 import SeasonManagementPage from '../pages/admin/Season/SeasonManagementPage';
+import ProfilePage from '../pages/shared/ProfilePage';
 
 const AdminRoutes = () => {
     const { isAuthenticated, user } = useAuth();
@@ -85,6 +86,7 @@ const AdminRoutes = () => {
                 <Route path="reports" element={<AdminReportsPage />} /> 
                 <Route path="bank-accounts" element={<AdminBankAccountsPage />} /> 
                 <Route path="seasons" element={<SeasonManagementPage />} />
+                <Route path="profile" element={<ProfilePage />} />
                 
                 {/* Customer Management - BỔ SUNG */}
                 <Route

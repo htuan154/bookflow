@@ -9,6 +9,7 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/user.controller');
 const { authenticate, authorize } = require('../middlewares/auth.middleware');
+const upload = require('../middlewares/upload.middleware');
 
 // Áp dụng middleware xác thực và phân quyền cho tất cả các route bên dưới
 router.use(authenticate);
@@ -25,5 +26,8 @@ router.route('/:id')
     .get(userController.getUser)
     .patch(userController.updateUser)
     .delete(userController.deleteUser);
+
+// Upload profile image
+router.post('/:id/profile-image', upload.single('profileImage'), userController.uploadProfileImage);
 
 module.exports = router;

@@ -99,6 +99,8 @@ export const API_ENDPOINTS = {
         ASSIGN: `${API_BASE_URL}/assignments`,
         UNASSIGN: (assignmentId) => `${API_BASE_URL}/assignments/${assignmentId}`,
         GET_FOR_BOOKING: (bookingId) => `${API_BASE_URL}/assignments/bookings/${bookingId}`,
+        GET_AVAILABLE_ROOMS: ({ roomTypeId, checkInDate, checkOutDate, limit }) =>
+            `${API_BASE_URL}/assignments/available-rooms?roomTypeId=${encodeURIComponent(roomTypeId)}&checkInDate=${encodeURIComponent(checkInDate)}&checkOutDate=${encodeURIComponent(checkOutDate)}&limit=${limit}`,
     },
 
     // --- Room Type Endpoints ---
@@ -169,6 +171,7 @@ export const API_ENDPOINTS = {
         GET_HISTORY: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/history`,
         CREATE_HISTORY: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}/history`,
         GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/bookings/hotel/${hotelId}`,
+        UPDATE_BOOKING: (bookingId) => `${API_BASE_URL}/bookings/${bookingId}`,
     },
 
     // --- Booking Detail Endpoints ---
@@ -489,14 +492,14 @@ export const API_ENDPOINTS = {
     // --- Reports Endpoints ---
     REPORTS: {
         // Admin reports
-        ADMIN_SUMMARY: (params = '') => `${API_BASE_URL}/admin/reports/summary${params ? `?${params}` : ''}`,
-        ADMIN_PAYMENTS: (params = '') => `${API_BASE_URL}/admin/reports/payments${params ? `?${params}` : ''}`,
-        ADMIN_PAYOUTS: (params = '') => `${API_BASE_URL}/admin/reports/payouts${params ? `?${params}` : ''}`,
+        ADMIN_SUMMARY: `${API_BASE_URL}/admin/reports/summary`,
+        ADMIN_PAYMENTS: `${API_BASE_URL}/admin/reports/payments`,
+        ADMIN_PAYOUTS: `${API_BASE_URL}/admin/reports/payouts`,
         ADMIN_CREATE_PAYOUT: `${API_BASE_URL}/admin/reports/payouts`,
 
         // Hotel Owner reports
-        OWNER_PAYMENTS: (params = '') => `${API_BASE_URL}/owner/reports/payments${params ? `?${params}` : ''}`,
-        OWNER_PAYOUTS: (params = '') => `${API_BASE_URL}/owner/reports/payouts${params ? `?${params}` : ''}`,
+        OWNER_PAYMENTS: `${API_BASE_URL}/owner/reports/payments`,
+        OWNER_PAYOUTS: `${API_BASE_URL}/owner/reports/payouts`,
     },
 
     // --- Bank Accounts Endpoints ---
@@ -538,5 +541,9 @@ export const API_ENDPOINTS = {
         // Cập nhật status payment
         UPDATE_PAYMENT_STATUS: `${API_BASE_URL}/vietqr/payments/update-status`,
     },
-
+    // --- PayOS (VietQR qua payOS, dùng POLLING) ---
+    PAYOS: {
+        CREATE: `${API_BASE_URL}/vietqr/payos/create`,
+        STATUS: (orderCode) => `${API_BASE_URL}/vietqr/payos/status/${orderCode}`,
+    },
 };

@@ -6,6 +6,7 @@ import '../../services/user_service.dart';
 import '../../classes/user_model.dart';
 import '../../classes/hotel_model.dart';
 import 'chat_detail_screen.dart';
+import '../home/payment/payment_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -236,13 +237,13 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: Text(
           'Chat & Booking',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white),
+            icon: Icon(Icons.refresh, color: Colors.black),
             onPressed: _refreshBookings,
           ),
         ],
@@ -449,6 +450,7 @@ class _ChatScreenState extends State<ChatScreen> {
       margin: EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Colors.white,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
@@ -478,7 +480,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
               SizedBox(height: 8),
-
               // Hotel info với tên thật
               Row(
                 children: [
@@ -498,7 +499,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
               SizedBox(height: 4),
-
               // Room type info
               Row(
                 children: [
@@ -521,7 +521,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
               SizedBox(height: 4),
-
               // Date range
               Row(
                 children: [
@@ -538,7 +537,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
               SizedBox(height: 4),
-
               // Guests and price
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -567,7 +565,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
               SizedBox(height: 8),
-
               // Payment status
               Row(
                 children: [
@@ -580,6 +577,48 @@ class _ChatScreenState extends State<ChatScreen> {
                   _buildPaymentStatusChip(paymentStatus),
                 ],
               ),
+              // Nút thanh toán nếu payment_status là pending
+              if (paymentStatus.toString().toLowerCase() == 'pending') ...[
+                SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: Icon(Icons.qr_code, size: 18),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () {
+                      // Điều hướng sang màn payment
+                      double parsedAmount = 0;
+                      if (totalPrice is double) {
+                        parsedAmount = totalPrice;
+                      } else if (totalPrice is int) {
+                        parsedAmount = (totalPrice as int).toDouble();
+                      } else if (totalPrice is String) {
+                        parsedAmount = double.tryParse(totalPrice) ?? 0;
+                      }
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PaymentScreen(
+                            bookingId: bookingId,
+                            hotelId: booking['hotel_id'] ?? booking['hotelId'],
+                            amount: parsedAmount,
+                            paymentMethod: 'payos',
+                            paymentType: 'booking',
+                          ),
+                        ),
+                      );
+                    },
+                    label: Text('Thanh toán ngay'),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -683,6 +722,14 @@ class _ChatScreenState extends State<ChatScreen> {
   String _formatDate(String dateString) {
     if (dateString.isEmpty) return '';
     try {
+      // Nếu là YYYY-MM-DD, chỉ cần format lại
+      if (dateString.contains('-') && !dateString.contains('T')) {
+        final parts = dateString.split('-');
+        if (parts.length == 3) {
+          return '${parts[2]}/${parts[1]}/${parts[0]}'; // DD/MM/YYYY
+        }
+      }
+      // Fallback: parse datetime nếu là ISO string
       final date = DateTime.parse(dateString);
       return '${date.day}/${date.month}/${date.year}';
     } catch (e) {

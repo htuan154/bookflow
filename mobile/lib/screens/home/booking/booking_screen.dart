@@ -274,11 +274,27 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   Future<void> _loadSeasonalPricingsForSuitableRooms() async {
-    if (widget.suitableRoomsForHotel == null) return;
+    if (widget.suitableRoomsForHotel == null || widget.searchParams == null) return;
+    
+    // Lấy thời gian check-in và check-out từ searchParams
+    final String? checkInDateStr = widget.searchParams!['checkInDate'];
+    final String? checkOutDateStr = widget.searchParams!['checkOutDate'];
+    
+    if (checkInDateStr == null || checkOutDateStr == null) return;
+    
+    final DateTime checkInDate = DateTime.parse(checkInDateStr);
+    final DateTime checkOutDate = DateTime.parse(checkOutDateStr);
+    
     setState(() {
       isLoadingSeasonalPricings = true;
     });
 
+    print('=== LOAD SEASONAL PRICING ===');
+    print('Check-in: ${checkInDate.toLocal().toString().split(' ')[0]}');
+    print('Check-out: ${checkOutDate.toLocal().toString().split(' ')[0]}');
+    print('Total nights to check: ${checkOutDate.difference(checkInDate).inDays}');
+    print('');
+    
     for (var room in widget.suitableRoomsForHotel!) {
       final roomTypeId = room.roomTypeId;
       if (roomTypeId != null) {
@@ -287,18 +303,52 @@ class _BookingScreenState extends State<BookingScreen> {
             roomTypeId,
           );
           if (result['success'] && result['data'] != null) {
-            final List<SeasonalPricing> pricings = (result['data'] as List)
+            print('📦 Got ${(result['data'] as List).length} seasonal pricings for room $roomTypeId');
+            print('');
+            
+            final List<SeasonalPricing> allPricings = (result['data'] as List)
                 .map((json) => SeasonalPricing.fromJson(json))
                 .toList();
+            
+            print('🔍 Filtering seasonal pricings for room $roomTypeId...');
+            // Lọc seasonal pricing: kiểm tra từng ngày ở (từ check-in đến trước check-out)
+            // Vì check-out không tính là ngày ở
+            final List<SeasonalPricing> relevantPricings = allPricings.where((pricing) {
+              print('   Testing pricing: "${pricing.name}"');
+              // Duyệt qua từng đêm ở để xem có overlap không
+              final int totalDays = checkOutDate.difference(checkInDate).inDays;
+              
+              for (int dayOffset = 0; dayOffset < totalDays; dayOffset++) {
+                final DateTime nightDate = checkInDate.add(Duration(days: dayOffset));
+                print('      Night ${dayOffset + 1}: ${nightDate.year}-${nightDate.month.toString().padLeft(2, '0')}-${nightDate.day.toString().padLeft(2, '0')}');
+                
+                if (pricing.isDateInRange(nightDate)) {
+                  print('   ✅ MATCH! This pricing will be kept.');
+                  print('');
+                  return true; // Có ít nhất 1 ngày overlap
+                }
+              }
+              print('   ❌ NO MATCH! This pricing will be filtered out.');
+              print('');
+              return false;
+            }).toList();
+            
             setState(() {
-              seasonalPricingsByRoomType[roomTypeId] = pricings;
+              seasonalPricingsByRoomType[roomTypeId] = relevantPricings;
             });
+            
+            print('📊 Summary for $roomTypeId: Total=${allPricings.length}, Relevant=${relevantPricings.length}');
+            for (var pricing in relevantPricings) {
+              print('  ✓ ${pricing.name}: ${pricing.startDate.toString().split(' ')[0]} → ${pricing.endDate.toString().split(' ')[0]}');
+            }
+            print('');
           } else {
             setState(() {
               seasonalPricingsByRoomType[roomTypeId] = [];
             });
           }
         } catch (e) {
+          print('Error loading seasonal pricings for room $roomTypeId: $e');
           setState(() {
             seasonalPricingsByRoomType[roomTypeId] = [];
           });

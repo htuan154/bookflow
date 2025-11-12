@@ -4,15 +4,15 @@ import ReportsAdminService from '../api/reports.admin.service';
 export const AdminReportsContext = createContext(null);
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
-const yesterdayISO = () => {
-  const d = new Date(); d.setDate(d.getDate() - 1);
+ const daysAgoISO = (n) => {
+  const d = new Date(); d.setDate(d.getDate() - n);
   return d.toISOString().slice(0, 10);
 };
 
 export function AdminReportsProvider({ children }) {
   // ---- bộ lọc chung cho toàn trang Báo cáo thống kê (Admin)
   const [filters, setFilters] = useState({
-    date_from: yesterdayISO(),
+    date_from: daysAgoISO(14),   // 14 ngày gần nhất → chắc chắn bao trùm 10/17
     date_to: todayISO(),
     hotel_filter: 'ALL',       // Đổi tên từ 'hotels' thành 'hotel_filter' để khớp backend
     page: 1,
@@ -36,9 +36,16 @@ export function AdminReportsProvider({ children }) {
     setLoading(true); setError(null);
     try {
       const res = await ReportsAdminService.getSummary({ ...filters, ...overrides });
+      console.log('📊 Admin Summary Response:', res);
+      console.log('📊 Daily Summary Data:', res?.daily_summary);
+      if (res?.daily_summary?.length > 0) {
+        console.log('📊 First Row Keys:', Object.keys(res.daily_summary[0]));
+        console.log('📊 First Row Values:', res.daily_summary[0]);
+      }
       setSummary(res);
     } catch (err) {
       setError(err?.response?.data || err?.message || 'Fetch summary failed');
+      console.error('❌ Admin Summary Error:', err);
     } finally {
       setLoading(false);
     }
@@ -79,8 +86,26 @@ export function AdminReportsProvider({ children }) {
     setCreatingPayout(true); setError(null);
     try {
       const res = await ReportsAdminService.createPayout({ hotel_id, cover_date });
-      // sau khi tạo → refetch summary cho dòng tương ứng đổi badge
-      await fetchSummary();
+      
+      // Update local state immediately - mark as exists_in_payouts
+      setSummary(prevSummary => {
+        if (!prevSummary?.daily_summary) return prevSummary;
+        
+        return {
+          ...prevSummary,
+          daily_summary: prevSummary.daily_summary.map(row => {
+            // Find matching row by hotel_id and date
+            if (row.hotelId === hotel_id && row.bizDateVn === cover_date) {
+              return { ...row, exists_in_payouts: true };
+            }
+            return row;
+          })
+        };
+      });
+      
+      // Also refetch to get accurate data from server
+      setTimeout(() => fetchSummary(), 1000);
+      
       return res;
     } catch (err) {
       setError(err?.response?.data || err?.message || 'Create payout failed');

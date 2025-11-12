@@ -85,6 +85,13 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
   // Format currency
   const formatCurrency = (amount, currency = 'VND') => {
     if (!amount) return '0 ₫';
+    
+    // Nếu là phần trăm (%), hiển thị số với ký hiệu %
+    if (currency === '%' || currency === 'Phần trăm' || currency === 'percent') {
+      return `${parseFloat(amount).toFixed(2)}%`;
+    }
+    
+    // Format tiền tệ bình thường
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: currency
@@ -1003,7 +1010,12 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-6 rounded-xl border border-emerald-200">
                     <div className="flex items-center justify-between mb-3">
-                      <label className="text-sm font-semibold text-emerald-600 uppercase tracking-wider">Giá trị hợp đồng</label>
+                      <label className="text-sm font-semibold text-emerald-600 uppercase tracking-wider">
+                        {(() => {
+                          const currency = getFieldValue(displayContract, 'currency') || 'VND';
+                          return (currency === '%' || currency === 'Phần trăm') ? 'Hoa hồng (%)' : 'Giá trị hợp đồng';
+                        })()}
+                      </label>
                       <div className="w-8 h-8 bg-emerald-200 rounded-full flex items-center justify-center">
                         <svg className="w-4 h-4 text-emerald-700" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"/>
@@ -1020,20 +1032,26 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
                     </p>
                   </div>
                   
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Tiền tệ</label>
-                      <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center">
-                        <svg className="w-4 h-4 text-blue-700" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/>
-                        </svg>
+                  {(() => {
+                    const currency = getFieldValue(displayContract, 'currency') || 'VND';
+                    // Chỉ hiển thị card "Tiền tệ" nếu không phải là %
+                    if (currency === '%' || currency === 'Phần trăm') {
+                      return null;
+                    }
+                    return (
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Tiền tệ</label>
+                          <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-blue-700" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/>
+                            </svg>
+                          </div>
+                        </div>
+                        <p className="text-xl font-bold text-blue-900">{displayValue(currency, 'VND (mặc định)')}</p>
                       </div>
-                    </div>
-                    <p className="text-xl font-bold text-blue-900">{displayValue(
-                      getFieldValue(displayContract, 'currency'),
-                      'VND (mặc định)'
-                    )}</p>
-                  </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

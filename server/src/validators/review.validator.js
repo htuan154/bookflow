@@ -7,7 +7,7 @@ const Joi = require('joi');
  */
 const createReviewSchema = Joi.object({
     booking_id: Joi.string().uuid().required(),
-    rating: Joi.number().integer().min(1).max(5).required(),
+    //rating: Joi.number().integer().min(1).max(5).required(),
     comment: Joi.string().allow('').max(2000),
     cleanliness_rating: Joi.number().integer().min(1).max(5),
     comfort_rating: Joi.number().integer().min(1).max(5),

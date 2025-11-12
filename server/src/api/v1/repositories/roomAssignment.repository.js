@@ -2,6 +2,7 @@
 
 const pool = require('../../../config/db');
 const RoomAssignment = require('../../../models/roomAssignment.model');
+const RoomAvailable = require('../../../models/roomAvailable.model');
 
 /**
  * Gán một phòng cụ thể cho một chi tiết đặt phòng.
@@ -102,6 +103,23 @@ const findById = async (assignmentId) => {
     return new RoomAssignment(result.rows[0]);
 };
 
+/**
+ * Tìm các phòng trống để xếp phòng cho một booking theo roomTypeId.
+ * @param {string} roomTypeId - ID của loại phòng.
+ * @param {string|Date} checkInDate - Ngày check-in.
+ * @param {string|Date} checkOutDate - Ngày check-out.
+ * @param {number} limit - Số lượng phòng tối đa trả về.
+ * @returns {Promise<RoomAvailable[]>}
+ */
+const findAvailableRooms = async (roomTypeId, checkInDate, checkOutDate, limit = 10000) => {
+    const query = `SELECT * FROM find_available_rooms($1, $2, $3, $4)`;
+    const result = await pool.query(query, [roomTypeId, checkInDate, checkOutDate, limit]);
+    return result.rows.map(row => ({
+        room_id: row.room_id,
+        room_number: row.room_number
+    }));
+};
+
 module.exports = {
     create,
     findByBookingDetailId,
@@ -109,4 +127,5 @@ module.exports = {
     findHotelByRoomId,
     deleteById,
     findById,
+    findAvailableRooms,
 };

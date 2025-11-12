@@ -94,33 +94,7 @@ class HotelCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: GestureDetector(
-                    onTap:
-                        onFavoritePressed ??
-                        () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('$name added to favorites!'),
-                            ),
-                          );
-                        },
-                    child: Container(
-                      padding: EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.favorite_outline,
-                        color: Colors.grey[600],
-                        size: 16,
-                      ),
-                    ),
-                  ),
-                ),
+                // Đã xoá icon trái tim yêu thích
               ],
             ),
 

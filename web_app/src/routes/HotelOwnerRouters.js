@@ -49,15 +49,19 @@ import CustomerSupportPage from '../pages/hotel_owner/support/CustomerSupportPag
 
 // === Booking Pages
 import { BookingManagementPage, BookingDetailView, BookingEditPage } from '../pages/hotel_owner/bookings';
+import RoomAssignmentPage from '../pages/hotel_owner/bookings/RoomAssignmentPage';
+import BookingWrapper from '../pages/hotel_owner/bookings/BookingWrapper';
+import { RoomAssignmentProvider } from '../context/RoomAssignmentContext';
+import { BookingProvider } from '../context/BookingContext';
 
 import OwnerReportsPage from '../pages/hotel_owner/reports/OwnerReportsPage';
-import RevenuePage from '../pages/hotel_owner/reports/RevenuePage';
-import OccupancyPage from '../pages/hotel_owner/reports/OccupancyPage';
-import PromotionEffectivenessPage from '../pages/hotel_owner/reports/PromotionEffectivenessPage';
-import ReportsSummaryPage from '../pages/hotel_owner/reports/ReportsSummaryPage';
+
 
 // Bank Accounts
 import { HotelBankAccountsPage } from '../pages/hotel_owner/bank_accounts';
+
+// Profile
+import ProfilePage from '../pages/shared/ProfilePage';
 const HotelOwnerRoutes = () => {
   const { isAuthenticated, user } = useAuth();
 
@@ -77,14 +81,14 @@ const HotelOwnerRoutes = () => {
                 <Route path="dashboard" element={<HotelOwnerWelcomePage />} />
                 {/* Reports (Báo cáo & Thống kê) */}
                 <Route path="reports" element={<OwnerReportsPage />} />
-                <Route path="reports/summary" element={<ReportsSummaryPage />} />
-                <Route path="reports/revenue" element={<RevenuePage />} />
-                <Route path="reports/occupancy" element={<OccupancyPage />} />
-                <Route path="reports/promotions" element={<PromotionEffectivenessPage />} />
+
 
                 {/* Bank Accounts & Financial Management */}
                 <Route path="financial" element={<HotelBankAccountsPage />} />
                 <Route path="bank-accounts" element={<HotelBankAccountsPage />} />
+
+                {/* Profile */}
+                <Route path="profile" element={<ProfilePage />} />
 
                 {/* Hotel management */}
                 <Route path="hotel" element={<Navigate to="/hotel-owner/hotel/info" replace />} />
@@ -137,6 +141,11 @@ const HotelOwnerRoutes = () => {
                 <Route path="bookings/list" element={<BookingManagementPage />} />
                 <Route path="bookings/:bookingId" element={<BookingDetailView />} />
                 <Route path="bookings/:bookingId/edit" element={<BookingEditPage />} />
+                <Route path="bookings/:bookingId/assign-rooms" element={
+                  <RoomAssignmentProvider>
+                    <RoomAssignmentPage />
+                  </RoomAssignmentProvider>
+                } />
 
                 {/* ======================= CUSTOMER SUPPORT ======================= */}
                 <Route path="support" element={<CustomerSupportPage />} />

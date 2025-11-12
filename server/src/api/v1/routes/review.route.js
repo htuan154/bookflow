@@ -14,6 +14,8 @@ const router = express.Router();
 // Route này được đặt ở đây để gom nhóm, nhưng có thể được cấu trúc lại trong hotel.route.js
 router.get('/:hotelId', reviewController.getReviewsForHotel);
 
+// GET /api/v1/reviews/booking/:bookingId -> Lấy review theo bookingId (public)
+router.get('/booking/:bookingId', reviewController.getReviewByBookingId);
 
 // --- PROTECTED ROUTES (Yêu cầu đăng nhập) ---
 
@@ -32,5 +34,9 @@ router.delete(
     authenticate,
     reviewController.deleteReview
 );
+
+// PATCH /api/v1/reviews/:reviewId/ratings -> Cập nhật các trường rating phụ cho review (YÊU CẦU ĐĂNG NHẬP)
+router.patch('/:reviewId/ratings', authenticate, reviewController.updateSubRatings);
+
 
 module.exports = router;

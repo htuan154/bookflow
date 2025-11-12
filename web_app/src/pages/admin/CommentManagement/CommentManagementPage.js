@@ -338,12 +338,11 @@ const CommentManagementPage = () => {
               </Box>
               Quản lý bình luận bài viết
             </Typography>
-            <Typography variant="body1" color="#64748b" sx={{ ml: 8 }}>
-              {currentView === 'list' 
-                ? `Quản lý và theo dõi bình luận trên các bài viết blog của bạn (${blogs.length}/${allBlogs.length} bài viết)`
-                : `Quản lý bình luận cho: ${selectedBlog?.title}`
-              }
-            </Typography>
+            {currentView === 'list' && (
+              <Typography variant="body1" color="#64748b" sx={{ ml: 8 }}>
+                Quản lý và theo dõi bình luận trên các bài viết blog của bạn ({blogs.length}/{allBlogs.length} bài viết)
+              </Typography>
+            )}
           </Box>
 
           {currentView === 'detail' && (
@@ -429,25 +428,12 @@ const CommentManagementPage = () => {
             <Grid item xs={12}>
               <BlogCommentDetail
                 blogId={selectedBlog?.blogId || selectedBlog?.blog_id}
-                onReply={handleReplyComment}
                 onDataChanged={handleBlogDataChanged} // truyền callback này
               />
             </Grid>
           </Grid>
         </Card>
       )}
-
-      {/* Reply Dialog */}
-      <CommentReplyForm
-        open={replyDialog.open}
-        onClose={handleCloseReplyDialog}
-        onSubmit={handleSubmitReply}
-        content={replyDialog.content}
-        onContentChange={handleContentChange}
-        parentComment={replyDialog.parentComment}
-        blogInfo={selectedBlog}
-        loading={loading}
-      />
     </Container>
   );
 };

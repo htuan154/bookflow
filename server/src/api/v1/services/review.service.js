@@ -81,6 +81,15 @@ class ReviewService {
     }
 
     /**
+     * Lấy review theo bookingId (public API).
+     * @param {string} bookingId
+     * @returns {Promise<Review|null>}
+     */
+    async getReviewByBookingId(bookingId) {
+        return await reviewRepository.findByBookingIdPublic(bookingId);
+    }
+
+    /**
      * Xóa một đánh giá.
      * @param {string} reviewId - ID của đánh giá.
      * @param {object} currentUser - Thông tin người dùng hiện tại từ token.
@@ -104,6 +113,17 @@ class ReviewService {
 
         // Cập nhật lại rating của khách sạn sau khi xóa review
         await _updateHotelRating(review.hotelId);
+    }
+
+    /**
+     * Cập nhật các trường rating phụ (cleanliness_rating, comfort_rating, service_rating, location_rating, value_rating) cho review.
+     * YÊU CẦU: Chỉ cho phép người dùng đã đăng nhập (authenticate) sử dụng API này.
+     * @param {string} reviewId - ID của review cần cập nhật
+     * @param {object} ratings - Object chứa các trường rating phụ
+     * @returns {Promise<Review|null>}
+     */
+    async updateSubRatings(reviewId, ratings) {
+        return await reviewRepository.updateSubRatings(reviewId, ratings);
     }
 }
 
