@@ -3,9 +3,12 @@ import '../../services/booking_service.dart';
 import '../../services/hotel_service.dart';
 import '../../services/token_service.dart';
 import '../../services/user_service.dart';
+import '../../services/ai_service.dart';
+import '../../services/auth_service.dart';
 import '../../classes/user_model.dart';
 import '../../classes/hotel_model.dart';
 import 'chat_detail_screen.dart';
+import 'chatbot_detail_screen.dart';
 import '../home/payment/payment_screen.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -18,9 +21,14 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final BookingService _bookingService = BookingService();
   final HotelService _hotelService = HotelService();
+  final AiService _aiService = AiService(AuthService());
+  
   List<dynamic> _bookings = [];
   List<dynamic> _enrichedBookings = []; // Bookings với thông tin đầy đủ
+  List<Map<String, dynamic>> _chatSessions = []; // Chat sessions từ AI
+  
   bool _isLoading = true;
+  bool _isLoadingChats = true;
   String? _errorMessage;
   User? _currentUser;
 
@@ -28,6 +36,35 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _loadUserBookings();
+    _loadChatSessions();
+  }
+
+  Future<void> _loadChatSessions() async {
+    setState(() => _isLoadingChats = true);
+    
+    try {
+      final hasToken = await TokenService.hasToken();
+      if (!hasToken) {
+        setState(() {
+          _chatSessions = [];
+          _isLoadingChats = false;
+        });
+        return;
+      }
+
+      final sessions = await _aiService.getChatSessions(requireAuth: true);
+      
+      setState(() {
+        _chatSessions = sessions;
+        _isLoadingChats = false;
+      });
+    } catch (e) {
+      print('[ChatScreen] Error loading chat sessions: $e');
+      setState(() {
+        _chatSessions = [];
+        _isLoadingChats = false;
+      });
+    }
   }
 
   Future<void> _loadUserBookings() async {
@@ -101,6 +138,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _refreshBookings() async {
     await _loadUserBookings();
+    await _loadChatSessions();
   }
 
   // Enrich bookings với thông tin hotel và room type
@@ -249,41 +287,283 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header section
-          // Container(
-          //   width: double.infinity,
-          //   padding: EdgeInsets.all(16),
-          //   decoration: BoxDecoration(
-          //     color: Colors.orange.shade50,
-          //     borderRadius: BorderRadius.only(
-          //       bottomLeft: Radius.circular(20),
-          //       bottomRight: Radius.circular(20),
-          //     ),
-          //   ),
-          //   child: Column(
-          //     crossAxisAlignment: CrossAxisAlignment.start,
-          //     children: [
-          //       Text(
-          //         'Chào ${_currentUser?.fullName ?? _currentUser?.username ?? 'bạn'}!',
-          //         style: TextStyle(
-          //           fontSize: 18,
-          //           fontWeight: FontWeight.bold,
-          //           color: Colors.orange.shade800,
-          //         ),
-          //       ),
-          //       SizedBox(height: 4),
-          //       Text(
-          //         'Tổng cộng: ${_bookings.length} đặt phòng',
-          //         style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-          //       ),
-          //     ],
-          //   ),
-          // ),
-
-          // Body section
+          // PHẦN GỢI Ý ĐỊA ĐIỂM
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Gợi ý địa điểm',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange.shade800,
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ChatbotDetailScreen(),
+                      ),
+                    );
+                  },
+                  icon: Icon(Icons.chat_bubble_outline, size: 18),
+                  label: Text('Chat AI'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Danh sách chat sessions
+          _buildChatSessionsList(),
+          
+          SizedBox(height: 12),
+          // PHẦN BOOKING
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+              ),
+            ),
+            child: Text(
+              'Booking',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange.shade800,
+              ),
+            ),
+          ),
+          SizedBox(height: 8),
           Expanded(child: _buildBody()),
         ],
+      ),
+    );
+
+  }
+
+  Widget _buildChatSessionsList() {
+    if (_isLoadingChats) {
+      return Container(
+        height: 100,
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+            strokeWidth: 2,
+          ),
+        ),
+      );
+    }
+
+    if (_chatSessions.isEmpty) {
+      return Container(
+        height: 80,
+        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Center(
+          child: Text(
+            'Chưa có lịch sử chat AI. Nhấn "Chat AI" để bắt đầu!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 120,
+      margin: EdgeInsets.only(top: 8, bottom: 8),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _chatSessions.length,
+        itemBuilder: (context, index) {
+          final session = _chatSessions[index];
+          final sessionId = session['_id']?.toString() ?? '';
+          final lastQuestion = session['last_question'] ?? 'Chat session';
+          final turns = session['turns'] ?? 0;
+          final lastAt = session['last_at'] != null
+              ? DateTime.tryParse(session['last_at'].toString())
+              : null;
+
+          return _buildChatSessionCard(
+            sessionId: sessionId,
+            question: lastQuestion,
+            turns: turns,
+            timestamp: lastAt,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildChatSessionCard({
+    required String sessionId,
+    required String question,
+    required int turns,
+    DateTime? timestamp,
+  }) {
+    return Container(
+      width: 280,
+      margin: EdgeInsets.only(right: 12),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ChatbotDetailScreen(sessionId: sessionId),
+              ),
+            );
+          },
+          child: Padding(
+            padding: EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Colors.orange.shade100,
+                      child: Icon(
+                        Icons.chat_bubble_outline,
+                        size: 16,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        question,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.message_outlined,
+                      size: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      '$turns tin nhắn',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    Spacer(),
+                    Text(
+                      _formatSessionTime(timestamp),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatSessionTime(DateTime? timestamp) {
+    if (timestamp == null) return '';
+    
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inMinutes < 1) {
+      return 'Vừa xong';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}p trước';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours}h trước';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} ngày trước';
+    } else {
+      return '${timestamp.day}/${timestamp.month}';
+    }
+  }
+
+  Widget _buildSuggestionCard(String title) {
+    return Container(
+      margin: EdgeInsets.only(right: 12),
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.orange.shade100),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.shade100.withOpacity(0.2),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.orange.shade800,
+          ),
+        ),
       ),
     );
   }
