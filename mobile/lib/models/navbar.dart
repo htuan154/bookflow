@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/explore/explore_screen.dart';
 import '../screens/chat/chat_screen.dart';
-import '../screens/favourite/favourite_screen.dart';
+import '../screens/review/review_screen.dart';
 import '../screens/profile/profile_screen.dart';
 
 class NavBar extends StatefulWidget {
@@ -21,7 +21,7 @@ class _NavBarState extends State<NavBar> {
     HomeScreen(), // index 0 - Home (màn hình mặc định)
     ExploreScreen(), // index 1 - Explore
     ChatScreen(), // index 2 - Chat
-    FavouriteScreen(), // index 3 - Favourite
+    ReviewScreen(), // index 3 - Review
     ProfileScreen(), // index 4 - Profile
   ];
 
@@ -58,9 +58,9 @@ class _NavBarState extends State<NavBar> {
             label: 'Chat',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            activeIcon: Icon(Icons.favorite, color: Colors.orange),
-            label: 'Favourite',
+            icon: Icon(Icons.reviews),
+            activeIcon: Icon(Icons.reviews, color: Colors.orange),
+            label: 'Reviews',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

@@ -25,11 +25,20 @@ class _ReviewDetailScreenState extends State<ReviewDetailScreen> {
     try {
       final result = await HotelService().getReviewImages(widget.review.reviewId);
       if (result['success'] && result['data'] != null) {
-        setState(() {
-          imageUrls = (result['data'] as List)
-              .map((img) => img['imageUrl'] as String)
-              .toList();
-        });
+        final List data = result['data'] as List;
+        // Debug log
+        print('Review images data:');
+        for (final img in data) {
+          print(img);
+        }
+    setState(() {
+      imageUrls = data
+        .map((img) =>
+          (img['imageUrl'] ?? img['image_url'] ?? img['url'] ?? '').toString())
+        .where((url) => url.isNotEmpty)
+        .toList()
+        .cast<String>();
+    });
       }
     } catch (e) {
       setState(() => imageUrls = []);

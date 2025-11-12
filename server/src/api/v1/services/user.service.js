@@ -105,6 +105,20 @@ const getCustomerStatistics = async () => {
     return stats;
 };
 
+/**
+ * Cập nhật ảnh đại diện của người dùng
+ * @param {string} userId - ID của người dùng
+ * @param {string} profilePictureUrl - URL của ảnh đại diện
+ * @returns {Object} Updated user data
+ */
+const updateProfilePicture = async (userId, profilePictureUrl) => {
+    const updatedUser = await userRepository.updateProfilePicture(userId, profilePictureUrl);
+    if (!updatedUser) {
+        throw new AppError('Không tìm thấy người dùng để cập nhật ảnh', 404);
+    }
+    return updatedUser.toJSON();
+};
+
 module.exports = {
     getAllUsers,
     getUserById,
@@ -115,4 +129,5 @@ module.exports = {
     getHotelOwners,
     getUsersByRole,
     getCustomerStatistics,
+    updateProfilePicture,
 };

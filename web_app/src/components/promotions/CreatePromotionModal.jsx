@@ -505,7 +505,7 @@ const CreatePromotionModal = ({ isOpen, onClose, selectedHotel, onSuccess }) => 
                     value={formData.max_discount_amount}
                     onChange={handleInputChange}
                     min={calculateMinDiscountAmount()}
-                    step="1000"
+                    //step="1000"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="500000"
                   />

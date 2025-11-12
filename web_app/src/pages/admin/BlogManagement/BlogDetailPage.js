@@ -9,6 +9,7 @@ import {
     Tag,
     Globe,
     CheckCircle,
+    User,
     XCircle,
     Clock,
     AlertTriangle,
@@ -460,6 +461,16 @@ const BlogDetailPage = () => {
                                     <p className="text-sm text-gray-600">Ngày tạo</p>
                                     <p className="text-sm font-medium">
                                         {new Date(blog.createdAt).toLocaleDateString('vi-VN')}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center space-x-3">
+                                <User className="h-4 w-4 text-gray-500" />
+                                <div>
+                                    <p className="text-sm text-gray-600">Tác giả</p>
+                                    <p className="text-sm font-medium">
+                                        {blog.username || blog.authorId || 'Không rõ'}
                                     </p>
                                 </div>
                             </div>

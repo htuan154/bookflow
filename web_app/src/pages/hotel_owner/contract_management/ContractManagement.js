@@ -145,7 +145,7 @@ const ContractManagement = () => {
           description: contractData.description || '',
           contract_type: contractData.contract_type || contractData.contractType || 'service',
           contract_value: String(contractData.contract_value || contractData.contractValue || ''),
-          currency: contractData.currency || 'VND',
+          currency: contractData.currency || 'Phần trăm',
           start_date: contractData.start_date || contractData.startDate || '',
           end_date: contractData.end_date || contractData.endDate || '',
           payment_terms: contractData.payment_terms || contractData.paymentTerms || '',
@@ -205,8 +205,9 @@ const ContractManagement = () => {
       if (!formData.title?.trim()) {
         throw new Error('Tiêu đề không được để trống');
       }
-      if (!formData.contract_value || parseFloat(formData.contract_value) <= 0) {
-        throw new Error('Giá trị hợp đồng phải lớn hơn 0');
+      const commissionValue = parseFloat(formData.contract_value);
+      if (isNaN(commissionValue) || commissionValue < 0 || commissionValue > 100) {
+        throw new Error('Tỷ lệ hoa hồng phải từ 0 đến 100%');
       }
       if (!formData.start_date || !formData.end_date) {
         throw new Error('Vui lòng chọn ngày bắt đầu và kết thúc');

@@ -38,6 +38,36 @@ export const useBooking = (hotelId = null) => {
   }, [hotelId]);
 
   /**
+   * Cập nhật thông tin booking (generic update - nhiều fields)
+   */
+  const updateBooking = useCallback(async (bookingId, updateData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('🔄 [useBooking] Updating booking:', bookingId, updateData);
+      const response = await bookingApiService.updateBooking(bookingId, updateData);
+      // Cập nhật lại danh sách bookings
+      setBookings(prevBookings =>
+        prevBookings.map(booking =>
+          booking.bookingId === bookingId
+            ? { ...booking, ...updateData }
+            : booking
+        )
+      );
+      toast.success('Cập nhật thông tin booking thành công');
+      console.log('✅ [useBooking] Booking updated successfully');
+      return response.data;
+    } catch (err) {
+      console.error('❌ [useBooking] Error updating booking:', err);
+      setError(err.message || 'Không thể cập nhật thông tin booking');
+      toast.error('Không thể cập nhật thông tin booking');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /**
    * Lấy chi tiết booking
    */
   const fetchBookingDetail = useCallback(async (bookingId) => {
@@ -297,7 +327,8 @@ export const useBooking = (hotelId = null) => {
     checkIn,
     checkOut,
     fetchStatistics,
-    filterBookings
+    filterBookings,
+    updateBooking
   };
 };
 

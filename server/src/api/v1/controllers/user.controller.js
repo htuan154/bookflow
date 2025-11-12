@@ -86,11 +86,39 @@ const getHotelOwners = async (req, res, next) => {
     }
 };
 
+const uploadProfileImage = async (req, res, next) => {
+    try {
+        const userId = req.params.id;
+        
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vui lòng chọn file ảnh'
+            });
+        }
+
+        // Get image path relative to server
+        const imagePath = `/uploads/profiles/${req.file.filename}`;
+        
+        // Update user profile picture URL using dedicated method
+        const updatedUser = await userService.updateProfilePicture(userId, imagePath);
+
+        res.status(200).json({
+            success: true,
+            message: 'Cập nhật ảnh đại diện thành công',
+            data: updatedUser
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getAllUsers,
     getUser,
     createUser,
     updateUser,
     deleteUser,
-    getHotelOwners
+    getHotelOwners,
+    uploadProfileImage
 };

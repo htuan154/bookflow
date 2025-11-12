@@ -243,9 +243,27 @@ async function composeFromSQL(tag, params, rows, opts = {}) {
 // ====== Supabase RPC wrappers (LLM-enabled) ======
 
 async function getTopHotels(city, limit = 10, opts = undefined) {
-  const { data, error } = await supabase.rpc('top_hotels_by_city', {
+  console.log('[getTopHotels] Calling RPC with:', { city, limit });
+  
+  // Try original city name first
+  let { data, error } = await supabase.rpc('top_hotels_by_city', {
     p_city: city, p_limit: limit,
   });
+  console.log('[getTopHotels] RPC result (original):', { rowCount: data?.length || 0, error: error?.message });
+  
+  // If no data and city contains "Hồ Chí Minh", try "TP Hồ Chí Minh"
+  if ((!data || data.length === 0) && /h[oồ]\s*ch[ií]\s*minh/i.test(city)) {
+    console.log('[getTopHotels] Trying alternate name: TP Hồ Chí Minh');
+    const alt = await supabase.rpc('top_hotels_by_city', {
+      p_city: 'TP Hồ Chí Minh', p_limit: limit,
+    });
+    console.log('[getTopHotels] RPC result (alternate):', { rowCount: alt.data?.length || 0, error: alt.error?.message });
+    if (!alt.error && alt.data && alt.data.length > 0) {
+      data = alt.data;
+      error = null;
+    }
+  }
+  
   if (error) throw error;
   if (!wantLLM(opts)) return data;
   return composeFromSQL('top_hotels_by_city', { city, limit }, data, opts);
@@ -642,6 +660,8 @@ async function suggestHybrid(db, { message, context = {} }) {
     p.then(rows => ({ tag, name: tag, params: {}, rows }))
      .catch(e => { console.error('[suggestHybrid] RPC fail', tag, e.message); return { tag, name: tag, params: {}, rows: [] }; });
 
+  console.log('[suggestHybrid] Query analysis:', { city, intent, wantHotel, wantPromo, top_n });
+  
   if ((intent === 'hotels_top' || wantHotel) && city)
     sqlTasks.push(wrap('hotels_top', getTopHotels(city, top_n, { llm: false })));
   if ((intent === 'hotels_by_amenities' || (wantHotel && (filters?.amenities || context.filters?.amenities))) && city) {
@@ -657,7 +677,9 @@ async function suggestHybrid(db, { message, context = {} }) {
   if ((intent === 'promotions_by_city' || (wantPromo && !!city)) && city)
     sqlTasks.push(wrap('promotions_by_city', getPromotionsByCity(city, { llm: false })));
 
+  console.log('[suggestHybrid] SQL tasks count:', sqlTasks.length);
   const [docFirst, ...sqlDatasets] = await Promise.all([nosqlTask, ...sqlTasks]);
+  console.log('[suggestHybrid] SQL datasets received:', sqlDatasets.map(ds => ({ tag: ds.tag, rowCount: ds.rows?.length || 0 })));
 
   const doc = await findProvinceDoc(db, nlu, docFirst, message);
   const safeDoc = extractProvinceDoc(doc);

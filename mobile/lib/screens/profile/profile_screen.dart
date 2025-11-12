@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'edit_profile_screen.dart';
+import 'bank_accounts_screen.dart';
 import '../../classes/user_model.dart';
 import '../../services/user_service.dart';
 
@@ -212,6 +213,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         // Reload user data if profile was updated
                         _loadUserData();
                       }
+                    },
+                  ),
+                  _buildDivider(),
+                  _buildActionRow(
+                    icon: Icons.account_balance_wallet_outlined,
+                    title: 'Thông Tin Thanh Toán',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => BankAccountsScreen(),
+                        ),
+                      );
                     },
                   ),
                   _buildDivider(),

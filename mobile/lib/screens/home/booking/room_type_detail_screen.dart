@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../../classes/room_type_model.dart';
 import '../../../classes/room_type_image_model.dart';
 import '../../../classes/season_pricing_model.dart';
@@ -578,23 +579,68 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Giá theo mùa:',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.purple[700],
-            ),
+          Row(
+            children: [
+              Icon(Icons.calendar_month, color: Colors.purple[700], size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Giá theo mùa',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.purple[700],
+                ),
+              ),
+            ],
           ),
           SizedBox(height: 12),
           ...widget.seasonalPricings!.map(
-            (pricing) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Text(
-                '${pricing.name}: ${pricing.priceDescription} '
-                '(${pricing.startDate.toLocal().toString().split(' ')[0]} '
-                '- ${pricing.endDate.toLocal().toString().split(' ')[0]})',
-                style: TextStyle(fontSize: 14, color: Colors.purple[600]),
+            (pricing) => Container(
+              margin: EdgeInsets.only(bottom: 8),
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.purple.withOpacity(0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    pricing.name,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.purple[800],
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.trending_up, size: 16, color: Colors.orange),
+                      SizedBox(width: 4),
+                      Text(
+                        pricing.priceDescription,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.orange[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.date_range, size: 16, color: Colors.grey[600]),
+                      SizedBox(width: 4),
+                      Text(
+                        '${DateFormat('dd/MM/yyyy').format(pricing.startDate)} - ${DateFormat('dd/MM/yyyy').format(pricing.endDate)}',
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),

@@ -51,6 +51,43 @@ class ReviewController {
             next(error);
         }
     }
+
+    /**
+     * Lấy review theo bookingId (public API).
+     * GET /api/v1/reviews/booking/:bookingId
+     */
+    async getReviewByBookingId(req, res, next) {
+        try {
+            const { bookingId } = req.params;
+            const review = await ReviewService.getReviewByBookingId(bookingId);
+            if (!review) {
+                return successResponse(res, null, 'No review found for this booking', 200);
+            }
+            successResponse(res, review, 'Review retrieved successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
+
+
+    /**
+     * API cập nhật các trường rating phụ cho review (cleanliness_rating, comfort_rating, service_rating, location_rating, value_rating).
+     * YÊU CẦU: Người dùng phải đăng nhập (authenticate) mới được sử dụng.
+     * PATCH /api/v1/reviews/:reviewId/ratings
+     */
+    async updateSubRatings(req, res, next) {
+        try {
+            const { reviewId } = req.params;
+            const ratings = req.body;
+            const updated = await ReviewService.updateSubRatings(reviewId, ratings);
+            if (!updated) {
+                return successResponse(res, null, 'Review not found', 404);
+            }
+            successResponse(res, updated, 'Sub ratings updated successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new ReviewController();

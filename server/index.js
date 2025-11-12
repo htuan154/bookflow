@@ -59,20 +59,26 @@ const provincesRoutes = require('./src/api/v1/routes/provinces.routes');
 const reportsRoutes = require('./src/api/v1/routes/reports.route');
 const bankAccountRoutes = require('./src/api/v1/routes/bank_account.route');
 const vietqrRoutes = require('./src/api/v1/routes/vietqr.route');
-
+const bookingNightlyPriceRoutes = require('./src/api/v1/routes/bookingNightlyPrice.route');
+const bookingDiscountRoutes = require('./src/api/v1/routes/bookingDiscount.route');
 
 // --- App ---
 const app = express();
 const port = process.env.PORT || 8080;
 
 // --- Middlewares cơ bản ---
-app.use(cors({
-  origin: 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Id', 'X-User-Id', 'Last-Event-ID','x-use-llm' ]
-}));
+// app.use(cors({
+//   origin: 'http://localhost:3000',
+//   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+//   allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Id', 'X-User-Id', 'Last-Event-ID','x-use-llm' ]
+// }));
+app.use(cors());
 app.use(express.json({ limit: '30mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files (uploads)
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
 // Cho FE đọc header chẩn đoán
 app.use((req, res, next) => {
   res.set('Access-Control-Expose-Headers', 'X-Source, X-Latency-ms');
@@ -132,6 +138,8 @@ app.use('/api/v1', reportsRoutes);
 
 // Bank Accounts API
 app.use('/api/v1', bankAccountRoutes);
+app.use('/api/v1/booking-nightly-prices', bookingNightlyPriceRoutes);
+app.use('/api/v1/booking-discounts', bookingDiscountRoutes);
 
 // Debug endpoint to test routes
 app.get('/api/v1/test-bank', (req, res) => {

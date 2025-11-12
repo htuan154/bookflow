@@ -18,7 +18,9 @@ const BookingPaymentImmediate = ({ bookingId, amount, onSuccess, onError }) => {
         </div>
         
         <VietQRPayment
+          provider="payos"
           bookingId={bookingId}
+          //hotelId=
           amount={amount}
           paymentType="booking"
           onPaymentSuccess={onSuccess}

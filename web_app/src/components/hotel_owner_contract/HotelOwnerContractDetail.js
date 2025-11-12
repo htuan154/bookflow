@@ -35,6 +35,12 @@ const HotelOwnerContractDetail = ({ contract, onClose, isPage = false }) => {
   const statusInfo = getContractStatusLabel(displayContract.status);
 
   const formatCurrency = (value) => {
+    // Kiểm tra nếu currency là % (contract_value là hoa hồng %)
+    const currency = displayContract.currency || 'VND';
+    if (currency === '%' || currency === 'Phần trăm' || currency === 'percent') {
+      return `${parseFloat(value).toFixed(2)}%`;
+    }
+    // Format tiền tệ bình thường
     return new Intl.NumberFormat('vi-VN').format(value) + ' ₫';
   };
 
@@ -93,7 +99,9 @@ const HotelOwnerContractDetail = ({ contract, onClose, isPage = false }) => {
             <div className="flex items-start gap-3">
               <DollarSign className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-500 mb-1">Giá trị</p>
+                <p className="text-xs text-gray-500 mb-1">
+                  {(displayContract.currency === '%' || displayContract.currency === 'Phần trăm') ? 'Hoa hồng' : 'Giá trị'}
+                </p>
                 <p className="text-base font-semibold text-green-600 break-words">{formatCurrency(displayContract.contractValue)}</p>
               </div>
             </div>

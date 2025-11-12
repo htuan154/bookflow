@@ -29,7 +29,7 @@ export default function useBankAccount(options = {}) {
     defaultAccount,
     popularBanks,
     statistics,
-    
+
     // Loading states
     loading,
     loadingDefault,
@@ -38,11 +38,11 @@ export default function useBankAccount(options = {}) {
     creating,
     updating,
     deleting,
-    
+
     // Error states
     error,
     validationErrors,
-    
+
     // Actions
     fetchUserAccounts,
     fetchDefaultAccount,
@@ -53,9 +53,10 @@ export default function useBankAccount(options = {}) {
     fetchHotelAccounts,
     fetchPopularBanks,
     fetchBankAccountStatistics,
+    fetchAllBankAccounts,
     clearError,
     resetState,
-    
+
     // Helper functions
     formatAccountNumber,
     validateBankAccountData,
@@ -251,12 +252,13 @@ export default function useBankAccount(options = {}) {
     setDefaultBankAccount: setAccountAsDefault, // Alias cho compatibility
     setAccountAsDefault,
     deleteBankAccount,
-    fetchHotelAccounts,
-    fetchPopularBanks,
-    fetchBankAccountStatistics,
-    clearError,
-    resetState,
-    refreshAllData,
+  fetchHotelAccounts,
+  fetchPopularBanks,
+  fetchBankAccountStatistics,
+  fetchAllBankAccounts,
+  clearError,
+  resetState,
+  refreshAllData,
     
     // Helper functions
     formatAccountNumber,

@@ -11,7 +11,16 @@ const axiosClient = axios.create({
 // Interceptor request: tự động thêm token vào headers nếu có
 axiosClient.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        // Support different token key names because parts of the app sometimes
+        // write the token under different keys (token, accessToken, access_token, authToken, jwt)
+        const token =
+            localStorage.getItem('token') ||
+            localStorage.getItem('accessToken') ||
+            localStorage.getItem('access_token') ||
+            localStorage.getItem('authToken') ||
+            localStorage.getItem('jwt') ||
+            null;
+
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }

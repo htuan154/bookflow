@@ -69,6 +69,31 @@ const create = async (reviewData) => {
 };
 
 /**
+ * Cập nhật các trường rating phụ cho review.
+ * @param {string} reviewId
+ * @param {object} ratings
+ * @returns {Promise<Review|null>}
+ */
+const updateSubRatings = async (reviewId, ratings) => {
+    const query = `
+        UPDATE reviews
+        SET cleanliness_rating = $1, comfort_rating = $2, service_rating = $3, location_rating = $4, value_rating = $5
+        WHERE review_id = $6
+        RETURNING *;
+    `;
+    const values = [
+        ratings.cleanliness_rating,
+        ratings.comfort_rating,
+        ratings.service_rating,
+        ratings.location_rating,
+        ratings.value_rating,
+        reviewId
+    ];
+    const result = await pool.query(query, values);
+    return result.rows[0] ? new Review(result.rows[0]) : null;
+};
+
+/**
  * Tìm tất cả các đánh giá của một khách sạn (có phân trang).
  * @param {string} hotelId - ID của khách sạn.
  * @param {number} limit - Số lượng kết quả.
@@ -86,6 +111,16 @@ const findByHotelId = async (hotelId, limit = 10, offset = 0) => {
     `;
     const result = await pool.query(query, [hotelId, limit, offset]);
     return result.rows.map(row => new Review_custom(row));
+};
+
+/**
+ * Tìm review theo booking_id.
+ * @param {string} bookingId - UUID của booking.
+ * @returns {Promise<Review|null>}
+ */
+const findByBookingIdPublic = async (bookingId) => {
+    const result = await pool.query('SELECT * FROM reviews WHERE booking_id = $1', [bookingId]);
+    return result.rows[0] ? new Review(result.rows[0]) : null;
 };
 
 /**
@@ -149,6 +184,8 @@ module.exports = {
     findByHotelId,
     findById,
     findByBookingId,
+    findByBookingIdPublic,
     update,
+    updateSubRatings,
     deleteById,
 };

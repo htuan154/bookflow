@@ -7,6 +7,15 @@ import userService from '../../../api/user.service';
 import { toast } from 'react-toastify';
 import { useBookingStatusHistory } from '../../../hooks/useBookingStatusHistory';
 
+// Khai báo statusConfig để dùng cho màu và label trạng thái
+const statusConfig = {
+  pending: { label: 'Chờ xác nhận', color: 'bg-yellow-100 text-yellow-800' },
+  confirmed: { label: 'Đã xác nhận', color: 'bg-blue-100 text-blue-800' },
+  canceled: { label: 'Đã hủy', color: 'bg-red-100 text-red-800' },
+  completed: { label: 'Hoàn thành', color: 'bg-green-100 text-green-800' },
+  no_show: { label: 'Không đến', color: 'bg-gray-100 text-gray-800' },
+};
+
 const BookingEditPage = () => {
   const { bookingId } = useParams();
   const navigate = useNavigate();
@@ -358,9 +367,13 @@ const BookingEditPage = () => {
               {history.map((item, index) => (
                 <div key={item.historyId || index} className="text-sm border-l-2 border-blue-500 pl-3 py-2 bg-white rounded">
                   <div className="flex items-center gap-2 text-gray-600">
-                    <span className="font-medium">{item.oldStatus || 'Mới'}</span>
+                    <span className={`font-medium px-2 py-1 rounded ${statusConfig[item.oldStatus]?.color || 'bg-gray-200 text-gray-700'}`}>
+                      {statusConfig[item.oldStatus]?.label || item.oldStatus || 'Mới'}
+                    </span>
                     <span>→</span>
-                    <span className="font-medium text-blue-600">{item.newStatus}</span>
+                    <span className={`font-medium px-2 py-1 rounded ${statusConfig[item.newStatus]?.color || 'bg-blue-100 text-blue-700'}`}>
+                      {statusConfig[item.newStatus]?.label || item.newStatus}
+                    </span>
                     <span className="text-xs text-gray-400">
                       {item.changedAt ? new Date(item.changedAt).toLocaleString('vi-VN') : 'Invalid Date'}
                     </span>

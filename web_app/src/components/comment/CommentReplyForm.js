@@ -146,330 +146,169 @@ const CommentReplyForm = ({
     <Dialog 
       open={open} 
       onClose={handleClose}
-      maxWidth="md" 
+      maxWidth="sm" 
       fullWidth
       PaperProps={{
         sx: { 
-          borderRadius: 3,
-          boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
-          maxHeight: '92vh',
-          background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)'
+          borderRadius: 2,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+          minHeight: 'auto'
         }
       }}
     >
-      {/* Header */}
+      {/* Compact Header */}
       <Box sx={{
-        background: 'linear-gradient(135deg, #FF6B35 0%, #f7931e 100%)',
+        bgcolor: '#FF6B35',
         color: 'white',
-        p: 4,
-        position: 'relative',
-        borderRadius: '12px 12px 0 0'
+        px: 3,
+        py: 2,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
       }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Stack direction="row" alignItems="center" spacing={3}>
-            <Box sx={{ 
-              bgcolor: 'rgba(255,255,255,0.2)', 
-              p: 1.5, 
-              borderRadius: 2,
-              backdropFilter: 'blur(10px)'
-            }}>
-              <Reply sx={{ fontSize: 32 }} />
-            </Box>
-            <Box>
-              <Typography variant="h5" fontWeight="700" sx={{ mb: 0.5 }}>
-                Trả lời bình luận
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.95 }}>
-                {parentComment ? `Trả lời ${parentComment.user?.full_name || 'người dùng'}` : 'Thêm bình luận mới'}
-              </Typography>
-            </Box>
-          </Stack>
-          
-          <IconButton 
-            onClick={handleClose} 
-            sx={{ 
-              color: 'white',
-              bgcolor: 'rgba(255,255,255,0.15)',
-              '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' }
-            }}
-          >
-            <Close />
-          </IconButton>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <Reply sx={{ fontSize: 20 }} />
+          <Typography variant="subtitle1" fontWeight="600">
+            Trả lời bình luận
+          </Typography>
         </Stack>
+        
+        <IconButton 
+          onClick={handleClose} 
+          size="small"
+          sx={{ 
+            color: 'white',
+            '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
+          }}
+        >
+          <Close fontSize="small" />
+        </IconButton>
       </Box>
 
-      <DialogContent sx={{ p: 0 }}>
-        {/* Parent Comment Info */}
+      <DialogContent sx={{ p: 3 }}>
+        {/* Compact Parent Comment Info */}
         {parentComment && (
-          <Box sx={{ p: 4, bgcolor: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', borderBottom: '2px solid #e2e8f0' }}>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 3, fontWeight: 600 }}>
-              Bình luận gốc:
-            </Typography>
-            <Box sx={{ 
-              bgcolor: 'white', 
-              p: 3, 
-              borderRadius: 3,
-              border: '2px solid #e2e8f0',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-              position: 'relative',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 4,
-                bgcolor: '#FF6B35',
-                borderRadius: '0 4px 4px 0'
-              }
-            }}>
-              <Stack direction="row" spacing={3} alignItems="flex-start">
-                <Avatar sx={{ 
-                  width: 48, 
-                  height: 48,
-                  bgcolor: 'rgba(255,107,53,0.1)',
-                  border: '3px solid white',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                }}>
-                  <Person />
-                </Avatar>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-                    <Typography variant="h6" fontWeight="700" color="#1a202c">
-                      {/* SỬA: Ưu tiên full_name, rồi username, rồi full_name ngoài, cuối cùng là Ẩn danh */}
-                      {parentComment.user?.full_name?.trim()
-                        ? parentComment.user.full_name
-                        : (parentComment.user?.username?.trim()
-                          ? parentComment.user.username
-                          : (parentComment.full_name?.trim()
-                            ? parentComment.full_name
-                            : 'Ẩn danh'))}
-                    </Typography>
-                    {/* XÓA: Không render Chip role nữa */}
-                    {/* <Chip ... /> */}
-                  </Stack>
-                  <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                    {parentComment.content}
-                  </Typography>
-                </Box>
-              </Stack>
-            </Box>
+          <Box sx={{ 
+            p: 2, 
+            bgcolor: '#f8fafc', 
+            borderRadius: 1,
+            border: '1px solid #e2e8f0',
+            mb: 2
+          }}>
+            <Stack direction="row" spacing={2} alignItems="flex-start">
+              <Avatar sx={{ width: 32, height: 32, bgcolor: '#FF6B35' }}>
+                <Person sx={{ fontSize: 18 }} />
+              </Avatar>
+              <Box sx={{ flexGrow: 1 }}>
+                <Typography variant="body2" fontWeight="600" sx={{ mb: 0.5 }}>
+                  {parentComment.fullName?.trim() ||
+                   parentComment.user?.full_name?.trim() || 
+                   parentComment.full_name?.trim() || 
+                   parentComment.username?.trim() ||
+                   parentComment.user?.username?.trim() || 
+                   'Người dùng'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+                  {parentComment.content}
+                </Typography>
+              </Box>
+            </Stack>
           </Box>
         )}
 
-        {/* Reply Form */}
-        <Box sx={{ p: 4 }}>
-          {error && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                mb: 3,
-                borderRadius: 3,
-                border: '1px solid #fecaca',
-                '& .MuiAlert-icon': { color: '#dc2626' }
-              }} 
-              onClose={() => setError('')}
-            >
-              {error}
-            </Alert>
-          )}
+        {error && (
+          <Alert 
+            severity="error" 
+            sx={{ mb: 2, borderRadius: 1 }} 
+            onClose={() => setError('')}
+          >
+            {error}
+          </Alert>
+        )}
 
-          {/* Form Controls */}
-          <Stack spacing={4}>
-            {/* Content Input */}
-            <Box>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                <Typography variant="h6" fontWeight="700" color="#1a202c">
-                  Nội dung trả lời *
-                </Typography>
-                <Stack direction="row" alignItems="center" spacing={3}>
-                  <Typography 
-                    variant="body2" 
-                    color={getWordCountColor()}
-                    fontWeight="700"
-                    sx={{
-                      bgcolor: wordCount > maxLength ? '#fee2e2' : '#f0f9ff',
-                      px: 2,
-                      py: 0.5,
-                      borderRadius: 2,
-                      border: wordCount > maxLength ? '1px solid #fca5a5' : '1px solid #bfdbfe'
-                    }}
-                  >
-                    {wordCount}/{maxLength}
-                  </Typography>
-                  <Button
-                    size="medium"
-                    variant={showPreview ? "contained" : "outlined"}
-                    startIcon={<Preview />}
-                    onClick={() => setShowPreview(!showPreview)}
-                    sx={{ 
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      borderRadius: 3,
-                      px: 3
-                    }}
-                  >
-                    {showPreview ? 'Chỉnh sửa' : 'Xem trước'}
-                  </Button>
-                </Stack>
-              </Stack>
+        {/* Simple Text Input */}
+        <TextField
+          fullWidth
+          multiline
+          rows={3}
+          placeholder="Viết trả lời của bạn..."
+          value={replyContent}
+          onChange={handleContentChange}
+          error={wordCount > maxLength}
+          helperText={`${wordCount}/${maxLength}`}
+          sx={{ 
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 1,
+              fontSize: '0.9rem',
+              '& fieldset': {
+                borderColor: '#e2e8f0'
+              },
+              '&:hover fieldset': {
+                borderColor: '#FF6B35'
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#FF6B35'
+              }
+            }
+          }}
+        />
 
-              {!showPreview ? (
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={7}
-                  placeholder="Nhập nội dung trả lời của bạn..."
-                  value={replyContent}
-                  onChange={handleContentChange}
-                  error={wordCount > maxLength}
-                  helperText={wordCount > maxLength ? `Vượt quá ${wordCount - maxLength} ký tự` : ''}
-                  sx={{ 
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 3,
-                      fontSize: '1rem',
-                      bgcolor: 'white',
-                      '& fieldset': {
-                        borderWidth: 2,
-                        borderColor: '#e2e8f0'
-                      },
-                      '&:hover fieldset': {
-                        borderColor: '#FF6B35'
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#FF6B35',
-                        borderWidth: 2
-                      }
-                    }
-                  }}
-                />
-              ) : (
-                <Box sx={{ 
-                  minHeight: 200,
-                  p: 3,
-                  border: '2px solid #e2e8f0',
-                  borderRadius: 3,
-                  bgcolor: '#f8fafc',
-                  position: 'relative'
-                }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 600 }}>
-                    Xem trước nội dung:
-                  </Typography>
-                  <Box sx={{ 
-                    minHeight: 140,
-                    p: 3,
-                    bgcolor: 'white',
-                    borderRadius: 2,
-                    border: '1px solid #e2e8f0'
-                  }}>
-                    {replyContent ? (
-                      formatPreviewContent(replyContent)
-                    ) : (
-                      <Typography variant="body2" color="text.secondary" fontStyle="italic" sx={{ textAlign: 'center', py: 4 }}>
-                        Chưa có nội dung để xem trước
-                      </Typography>
-                    )}
-                  </Box>
-                </Box>
-              )}
-            </Box>
-
-            {/* Additional Options */}
-            <Box sx={{
-              bgcolor: '#f8fafc',
-              p: 3,
-              borderRadius: 3,
-              border: '1px solid #e2e8f0'
-            }}>
-              <Typography variant="h6" fontWeight="700" color="#1a202c" sx={{ mb: 3 }}>
-                Tùy chọn bổ sung
-              </Typography>
-              <Stack spacing={2}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={autoApprove}
-                      onChange={(e) => setAutoApprove(e.target.checked)}
-                      color="primary"
-                      size="medium"
-                    />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body1" fontWeight="600" color="#1a202c">
-                        Tự động duyệt bình luận
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                        Bình luận sẽ được hiển thị ngay lập tức mà không cần duyệt thủ công
-                      </Typography>
-                    </Box>
-                  }
-                />
-              </Stack>
-            </Box>
-          </Stack>
-        </Box>
+        {/* Simple Auto-approve option */}
+        <FormControlLabel
+          control={
+            <Switch
+              checked={autoApprove}
+              onChange={(e) => setAutoApprove(e.target.checked)}
+              color="primary"
+              size="small"
+            />
+          }
+          label={
+            <Typography variant="body2" color="text.secondary">
+              Tự động duyệt bình luận
+            </Typography>
+          }
+          sx={{ mt: 1 }}
+        />
       </DialogContent>
 
-      {/* Actions */}
-      <DialogActions sx={{ 
-        p: 4, 
-        pt: 2, 
-        bgcolor: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
-        borderRadius: '0 0 12px 12px'
-      }}>
+      {/* Compact Actions */}
+      <DialogActions sx={{ px: 3, pb: 3, pt: 0 }}>
         <Button 
           onClick={handleClose}
           variant="outlined"
-          disabled={submitLoading}
-          size="large"
+          size="small"
           sx={{ 
-            borderRadius: 3,
             textTransform: 'none',
-            fontWeight: 600,
-            px: 4,
-            py: 1.5,
             borderColor: '#e2e8f0',
-            color: '#475569',
-            borderWidth: 2,
+            color: '#64748b',
             '&:hover': {
               borderColor: '#FF6B35',
-              color: '#FF6B35',
-              bgcolor: 'rgba(255, 107, 53, 0.04)',
-              borderWidth: 2
+              color: '#FF6B35'
             }
           }}
         >
-          Hủy bỏ
+          Hủy
         </Button>
         
         <Button 
           onClick={handleSubmit}
           variant="contained"
+          size="small"
           disabled={!replyContent.trim() || wordCount > maxLength || submitLoading}
-          startIcon={submitLoading ? <CircularProgress size={18} color="inherit" /> : <Send />}
-          size="large"
+          startIcon={submitLoading ? <CircularProgress size={16} color="inherit" /> : <Send sx={{ fontSize: 16 }} />}
           sx={{ 
             bgcolor: '#FF6B35',
+            textTransform: 'none',
             '&:hover': { 
-              bgcolor: '#e55a2b',
-              transform: 'translateY(-2px)',
-              boxShadow: '0 8px 25px rgba(255, 107, 53, 0.4)'
+              bgcolor: '#e55a2b'
             },
             '&:disabled': {
-              bgcolor: '#cbd5e0',
-              color: '#9ca3af'
-            },
-            borderRadius: 3,
-            fontWeight: '700',
-            textTransform: 'none',
-            px: 5,
-            py: 1.5,
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            boxShadow: '0 4px 14px rgba(255, 107, 53, 0.25)'
+              bgcolor: '#cbd5e0'
+            }
           }}
         >
-          {submitLoading ? 'Đang gửi...' : 'Gửi trả lời'}
+          {submitLoading ? 'Đang gửi...' : 'Gửi'}
         </Button>
       </DialogActions>
     </Dialog>

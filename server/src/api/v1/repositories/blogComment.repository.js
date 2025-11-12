@@ -27,9 +27,25 @@ const create = async (commentData) => {
  */
 const findByBlogId = async (blogId) => {
     const query = 'SELECT blog_comments.*, users.username FROM blog_comments JOIN users On users.user_id = blog_comments.user_id WHERE blog_id = $1 AND status = \'approved\' ORDER BY created_at ASC';
-    const result = await pool.query(query, [blogId]);
-    // Đảm bảo trả về new BlogComment(row) để mapping sang camelCase
-    return result.rows.map(row => new BlogComment(row));
+        const result = await pool.query(query, [blogId]);
+
+        // Return plain objects with consistent camelCase fields so the
+        // controller / service returns JSON that the frontend can consume.
+        // Map DB columns: full_name -> fullName, username -> username
+        return result.rows.map(row => ({
+            commentId: row.comment_id,
+            blogId: row.blog_id,
+            userId: row.user_id,
+            parentCommentId: row.parent_comment_id,
+            content: row.content,
+            status: row.status,
+            likeCount: row.like_count,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            // user info
+            fullName: row.full_name || null,
+            username: row.username || null
+        }));
 };
 
 /**
@@ -138,7 +154,7 @@ const replyToComment = async (replyData) => {
     return new BlogComment(result.rows[0]);
 };
 
-//Thêm vào ngày 14
+//Thêm vào ngày 14 nhưng có chỉnh sửa lại ngày 6/11 để lấy cả tên người bình luận 
 
 // detail
 /**
@@ -166,11 +182,21 @@ const findCommentsWithUserByBlogId = async (blogId) => {
         ORDER BY bc.created_at ASC
     `;
     const result = await pool.query(query, [blogId]);
-    return result.rows.map(row => new BlogComment({
-        ...row,
-        full_name: row.full_name,
-        username: row.username,
-        created_at: row.created_at
+    
+    // Trả về plain objects với fullName để frontend có thể đọc được
+    return result.rows.map(row => ({
+        commentId: row.comment_id,
+        blogId: row.blog_id,
+        userId: row.user_id,
+        parentCommentId: row.parent_comment_id,
+        content: row.content,
+        status: row.status,
+        likeCount: row.like_count,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        // Thông tin user từ join
+        fullName: row.full_name,
+        username: row.username
     }));
 };
 
