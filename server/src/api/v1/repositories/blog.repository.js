@@ -43,12 +43,18 @@ const findBySlug = async (slug) => {
 /**
  * Tìm một bài blog bằng ID (dùng cho trang chi tiết).
  * @param {string} blogId - ID của bài blog.
- * @returns {Promise<Blog|null>}
+ * @returns {Promise<Blog_custom|null>}
  */
 const findById = async (blogId) => {
-    const result = await pool.query('SELECT * FROM blogs WHERE blog_id = $1', [blogId]);
-    // Trả về đầy đủ trường, bao gồm view_count, like_count, comment_count,...
-    return result.rows[0] ? new Blog(result.rows[0]) : null;
+    const query = `
+        SELECT blogs.*, users.username
+        FROM blogs
+        LEFT JOIN users ON users.user_id = blogs.author_id
+        WHERE blogs.blog_id = $1
+    `;
+    const result = await pool.query(query, [blogId]);
+    // Trả về đầy đủ trường, bao gồm view_count, like_count, comment_count, username
+    return result.rows[0] ? new Blog_custom(result.rows[0]) : null;
 };
 
 
@@ -147,7 +153,7 @@ const findByStatus = async (status, limit = 10, offset = 0, sortBy = 'created_at
 
     // Query để lấy blogs
     const blogQuery = `
-        SELECT b.*, u.full_name as author_name, h.name as hotel_name
+        SELECT b.*, u.username, u.full_name as author_name, h.name as hotel_name
         FROM blogs b
         LEFT JOIN users u ON b.author_id = u.user_id
         LEFT JOIN hotels h ON b.hotel_id = h.hotel_id
@@ -169,7 +175,7 @@ const findByStatus = async (status, limit = 10, offset = 0, sortBy = 'created_at
             pool.query(countQuery, [status])
         ]);
 
-        const blogs = blogResult.rows.map(row => new Blog(row));
+        const blogs = blogResult.rows.map(row => new Blog_custom(row));
         const total = parseInt(countResult.rows[0].total);
 
         return { blogs, total };
@@ -262,7 +268,11 @@ const updateStatus = async (blogId, newStatus, approvedBy = null) => {
     }
 
     const result = await pool.query(query, values);
-    return result.rows[0] ? new Blog(result.rows[0]) : null;
+    
+    if (result.rows[0]) {
+        return result.rows[0] ? new Blog(result.rows[0]) : null;
+    }
+    return null;
 };
 
 //thêm hàm tìm kiếm theo tiêu đè có phân trang 
@@ -301,9 +311,11 @@ const searchByTitleSimple = async (keyword, limit = 10, offset = 0, status) => {
     const offsetParamIndex = params.length + 2;
 
     const blogsQuery = `
-        SELECT * FROM blogs
+        SELECT blogs.*, users.username
+        FROM blogs
+        LEFT JOIN users ON users.user_id = blogs.author_id
         ${whereClause}
-        ORDER BY created_at DESC
+        ORDER BY blogs.created_at DESC
         LIMIT $${limitParamIndex}::int OFFSET $${offsetParamIndex}::int
     `;
 
@@ -320,12 +332,17 @@ const searchByTitleSimple = async (keyword, limit = 10, offset = 0, status) => {
         pool.query(countQuery, params)
     ]);
 
-    let blogs = blogsResult.rows.map(row => new Blog(row));
+    let blogs = blogsResult.rows.map(row => new Blog_custom(row));
     let total = parseInt(countResult.rows[0].total);
 
     // Tìm không dấu nếu không có kết quả
     if (blogs.length === 0 && keyword) {
-        let allQuery = `SELECT * FROM blogs ORDER BY created_at DESC`;
+        let allQuery = `
+            SELECT blogs.*, users.username
+            FROM blogs
+            LEFT JOIN users ON users.user_id = blogs.author_id
+            ORDER BY blogs.created_at DESC
+        `;
         const allResult = await pool.query(allQuery);
 
         const keywordNoSign = removeVietnameseTones(keyword.toLowerCase());
@@ -335,7 +352,7 @@ const searchByTitleSimple = async (keyword, limit = 10, offset = 0, status) => {
                 return removeVietnameseTones(row.title?.toLowerCase() || '').includes(keywordNoSign);
             })
             .slice(offset, offset + limit)
-            .map(row => new Blog(row));
+            .map(row => new Blog_custom(row));
 
         total = blogs.length;
     }
@@ -362,8 +379,10 @@ const searchByTitleSimple = async (keyword, limit = 10, offset = 0, status) => {
         b.tags,
         b.created_at::date AS created_at,
         b.like_count,
-        b.comment_count
+        b.comment_count,
+        u.username
         FROM blogs b
+        LEFT JOIN users u ON u.user_id = b.author_id
         WHERE b.status = $1
         ORDER BY b.created_at DESC;
     `;
@@ -375,6 +394,7 @@ const searchByTitleSimple = async (keyword, limit = 10, offset = 0, status) => {
         title: row.title,
         excerpt: row.excerpt,
         authorId: row.author_id,
+        username: row.username,
         status: row.status,
         tags: row.tags,
         createdAt: row.created_at,
@@ -400,9 +420,11 @@ const findByAuthorId = async (authorId, options = {}) => {
     const limitParamIndex = params.length + 1;
     const offsetParamIndex = params.length + 2;
     const blogsQuery = `
-        SELECT * FROM blogs
+        SELECT blogs.*, users.username 
+        FROM blogs
+        LEFT JOIN users ON users.user_id = blogs.author_id
         ${whereClause}
-        ORDER BY created_at DESC
+        ORDER BY blogs.created_at DESC
         LIMIT $${limitParamIndex}::int OFFSET $${offsetParamIndex}::int
     `;
     const countQuery = `
@@ -414,7 +436,7 @@ const findByAuthorId = async (authorId, options = {}) => {
         pool.query(blogsQuery, queryParams),
         pool.query(countQuery, params)
     ]);
-    const blogs = blogsResult.rows.map(row => new Blog(row));
+    const blogs = blogsResult.rows.map(row => new Blog_custom(row));
     const total = parseInt(countResult.rows[0].total);
     return { blogs, total };
 };
@@ -436,7 +458,7 @@ const findAdminBlogs = async (limit = 10, offset = 0, status, adminRole = 'admin
     const limitParamIndex = params.length + 1;
     const offsetParamIndex = params.length + 2;
     const query = `
-        SELECT b.*
+        SELECT b.*, u.username
         FROM blogs b
         JOIN users u ON b.author_id = u.user_id
         JOIN roles r ON u.role_id = r.role_id
@@ -445,7 +467,7 @@ const findAdminBlogs = async (limit = 10, offset = 0, status, adminRole = 'admin
         LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}
     `;
     const result = await pool.query(query, [...params, limit, offset]);
-    return result.rows.map(row => new Blog(row));
+    return result.rows.map(row => new Blog_custom(row));
 };
 
 module.exports = {

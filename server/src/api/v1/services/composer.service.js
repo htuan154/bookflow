@@ -16,8 +16,8 @@ Bạn là trợ lý du lịch tiếng Việt. CHỈ dùng dữ kiện có sẵn,
 Trả về duy nhất một JSON theo schema:
 {
   "province": string,
-  "places": [{ "name": string, "hint"?: string }],
-  "dishes": [{ "name": string, "where"?: string }],
+  "places": [{ "name": string, "hint": string }],
+  "dishes": [{ "name": string, "where": string }],
   "tips": string[],
   "source": "nosql+llm"
 }
@@ -28,11 +28,18 @@ ${places}
 Món ăn:
 ${dishes}
 
-Yêu cầu:
-- Luôn trả cả hai danh sách "places" và "dishes" (tối đa 5–7 mỗi loại) dù người dùng chỉ hỏi món ăn hay địa danh.
-- "hint"/"where" ngắn gọn (<= 16 từ).
-- Không thêm tên mới ngoài danh sách.
+Yêu cầu BẮT BUỘC:
+- Luôn trả cả hai danh sách "places" và "dishes" (tối đa 5–7 mỗi loại).
+- MỖI địa danh PHẢI có "hint" (gợi ý ngắn gọn 8-15 từ về đặc điểm, lịch sử, hoặc lý do nên đến).
+- MỖI món ăn PHẢI có "where" (gợi ý địa điểm thưởng thức, quán nổi tiếng, hoặc khu vực, 8-15 từ).
+- Không thêm tên mới ngoài danh sách đã cho.
 - Nếu một danh sách không có dữ liệu thì trả mảng rỗng [].
+- "hint" và "where" phải mang tính thông tin, hữu ích cho du khách.
+
+Ví dụ:
+- places: [{ "name": "Hồ Hoàn Kiếm", "hint": "Trung tâm Hà Nội, nơi thờ tướng Trần Hưng Đạo, đẹp vào buổi sáng sớm" }]
+- dishes: [{ "name": "Phở bò", "where": "Phở Thìn Bờ Hồ (13 Lò Đúc) hoặc Phở 10 Lý Quốc Sư" }]
+
 (intent gốc: ${intent})
 `;
 }
@@ -41,9 +48,15 @@ function fallbackFromDoc(doc, intent) {
   const pick = (arr) => Array.isArray(arr) ? arr.slice(0, 7) : [];
   return {
     province: doc.name,
-    // Luôn trả cả hai thay vì lọc theo intent
-    places: pick(doc.places).map(x => ({ name: x.name })),
-    dishes: pick(doc.dishes).map(x => ({ name: x.name })),
+    // Luôn trả cả hai thay vì lọc theo intent, giữ hint/where nếu có
+    places: pick(doc.places).map(x => ({ 
+      name: x.name, 
+      hint: x.hint || x.description || '' 
+    })),
+    dishes: pick(doc.dishes).map(x => ({ 
+      name: x.name,
+      where: x.where || x.location || ''
+    })),
     tips: doc.tips || [],
     source: 'fallback',
   };
@@ -226,12 +239,20 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
     const safe = validateResponse(raw, doc);
 
     const pickSlice = (arr, n = 7) => (Array.isArray(arr) ? arr.slice(0, n) : []);
+    
+    // Ưu tiên kết quả từ LLM (có hint/where), nếu không có thì lấy từ doc (chỉ có name)
     let places = (safe.places && safe.places.length)
       ? safe.places
-      : pickSlice(doc.places || [], 7).map(x => ({ name: x.name }));
+      : pickSlice(doc.places || [], 7).map(x => ({ 
+          name: x.name, 
+          hint: x.hint || x.description || '' // Giữ hint nếu có trong doc
+        }));
     let dishes = (safe.dishes && safe.dishes.length)
       ? safe.dishes
-      : pickSlice(doc.dishes || [], 7).map(x => ({ name: x.name }));
+      : pickSlice(doc.dishes || [], 7).map(x => ({ 
+          name: x.name,
+          where: x.where || x.location || '' // Giữ where nếu có trong doc
+        }));
     let tips = (safe.tips && safe.tips.length) ? safe.tips : (doc.tips || []);
 
     // Dedupe NoSQL

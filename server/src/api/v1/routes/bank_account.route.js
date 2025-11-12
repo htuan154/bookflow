@@ -281,6 +281,19 @@ router.get('/hotels/:hotelId/bank-accounts', authenticate, getHotelBankAccounts)
 
 // =========================================
 // ADMIN ENDPOINTS
+/**
+ * @swagger
+ * /api/v1/admin/bank-accounts:
+ *   get:
+ *     summary: Lấy tất cả tài khoản ngân hàng trong hệ thống (Admin only)
+ *     tags: [Admin Bank Accounts]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Danh sách tài khoản ngân hàng
+ */
+router.get('/admin/bank-accounts', authenticate, requireAdmin, require('../controllers/bank_account.controller').getAllBankAccountsAdmin);
 // =========================================
 
 /**

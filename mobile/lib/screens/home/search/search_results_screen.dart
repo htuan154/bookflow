@@ -258,13 +258,6 @@ class SearchResultsScreen extends StatelessWidget {
                     ),
                   );
                 },
-                onFavoritePressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Đã thêm ${hotel.name} vào yêu thích'),
-                    ),
-                  );
-                },
               );
             },
           ),

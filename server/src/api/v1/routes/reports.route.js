@@ -6,7 +6,9 @@ const {
   getAdminPayouts,
   getOwnerPayments,
   getOwnerPayouts,
-  createAdminPayout
+  createAdminPayout,
+  previewAdminPayout,
+  getHotelRevenueDates
 } = require('../controllers/reports.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
 const { requireAdmin, requireAdminOrOwner } = require('../middlewares/admin.middleware');
@@ -83,6 +85,28 @@ router.get('/admin/reports/payouts', authenticate, requireAdmin, getAdminPayouts
  *       - bearerAuth: []
  */
 router.post('/admin/reports/payouts', authenticate, requireAdmin, createAdminPayout);
+
+/**
+ * @swagger
+ * /api/v1/admin/reports/payouts/preview:
+ *   post:
+ *     summary: Preview payout - Lấy thông tin chi tiết TRƯỚC KHI tạo payout
+ *     tags: [Admin Reports]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/admin/reports/payouts/preview', authenticate, requireAdmin, previewAdminPayout);
+
+/**
+ * @swagger
+ * /api/v1/admin/reports/hotels/:hotelId/revenue-dates:
+ *   get:
+ *     summary: Lấy danh sách ngày có revenue (để chọn ngày payout)
+ *     tags: [Admin Reports]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/admin/reports/hotels/:hotelId/revenue-dates', authenticate, requireAdmin, getHotelRevenueDates);
 
 // =========================================
 // HOTEL OWNER REPORTS (cần authentication)

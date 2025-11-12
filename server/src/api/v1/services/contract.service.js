@@ -249,6 +249,15 @@ async sendForApproval(contractId, userId) {
     return updatedContract;
 }
 
+/**
+ * Lấy hợp đồng đang hoạt động của một khách sạn
+ * @param {string} hotelId
+ * @returns {Promise<Contract|null>}
+ */
+async getActiveContractByHotel(hotelId) {
+    return await contractRepository.findActiveContractByHotel(hotelId);
+}
+
 }
 
 module.exports = new ContractService();

@@ -185,6 +185,20 @@ async deleteContract(req, res, next) {
             next(error);
         }
     }
+
+    /**
+     * Lấy hợp đồng đang hoạt động của một khách sạn
+     * GET /api/v1/hotels/:hotelId/contracts/active
+     */
+    async getActiveContractByHotel(req, res, next) {
+        try {
+            const { hotelId } = req.params;
+            const contract = await ContractService.getActiveContractByHotel(hotelId);
+            successResponse(res, contract);
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new ContractController();

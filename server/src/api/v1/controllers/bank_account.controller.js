@@ -216,6 +216,24 @@ exports.getPopularBanks = async (req, res, next) => {
 // ADMIN ENDPOINTS
 // =========================================
 
+
+/**
+ * Lấy tất cả tài khoản ngân hàng trong hệ thống (Admin only)
+ * GET /api/v1/admin/bank-accounts
+ */
+exports.getAllBankAccountsAdmin = async (req, res, next) => {
+  try {
+    const userRole = req.user.role;
+    if (userRole !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied: Admin only' });
+    }
+    const accounts = await bankAccountService.getAllBankAccountsAdmin();
+    res.json({ success: true, data: accounts, total: accounts.length });
+  } catch (error) {
+    next(error);
+  }
+};
+
 /**
  * Lấy thống kê tài khoản ngân hàng (Admin only)
  * GET /api/v1/admin/bank-accounts/statistics
@@ -223,13 +241,8 @@ exports.getPopularBanks = async (req, res, next) => {
 exports.getBankAccountStatistics = async (req, res, next) => {
   try {
     const userRole = req.user.role;
-
     const stats = await bankAccountService.getBankAccountStatistics(userRole);
-
-    res.json({
-      success: true,
-      data: stats
-    });
+    res.json({ success: true, data: stats });
   } catch (error) {
     next(error);
   }

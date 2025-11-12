@@ -1,3 +1,4 @@
+import { useBookingStatusHistory } from '../../../hooks/useBookingStatusHistory';
 // src/pages/hotel_owner/bookings/BookingManagementPage.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
@@ -16,7 +17,10 @@ const BookingManagementPage = () => {
   const navigate = useNavigate();
   // States
   const [hotels, setHotels] = useState([]);
-  const [selectedHotelId, setSelectedHotelId] = useState(null);
+  const [selectedHotelId, setSelectedHotelId] = useState(() => {
+    // Khôi phục selectedHotelId từ sessionStorage nếu có
+    return sessionStorage.getItem('selectedHotelId') || null;
+  });
   const [loadingHotels, setLoadingHotels] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -30,12 +34,74 @@ const BookingManagementPage = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedBookingForPayment, setSelectedBookingForPayment] = useState(null);
 
+  // Check-in modal state
+  const [showCheckInModal, setShowCheckInModal] = useState(false);
+  const [selectedBookingForCheckIn, setSelectedBookingForCheckIn] = useState(null);
+
+  // Check-out modal state
+  const [showCheckOutModal, setShowCheckOutModal] = useState(false);
+  const [selectedBookingForCheckOut, setSelectedBookingForCheckOut] = useState(null);
+
   // Use booking hook
   const { 
     bookings, 
     loading: loadingBookings,
-    refetchBookings
+    refetchBookings,
+    updateBooking,
+    updateBookingStatus
   } = useBooking(selectedHotelId);
+
+  // Hook cho booking status history
+  const { addHistory } = useBookingStatusHistory(selectedBookingForCheckOut?.bookingId);
+
+  // State lưu trạng thái xếp phòng cho từng booking
+  const [roomAssignmentStatus, setRoomAssignmentStatus] = useState({});
+
+  useEffect(() => {
+    // Lấy trạng thái xếp phòng cho tất cả booking đã xác nhận (không phụ thuộc vào trạng thái thanh toán)
+    const fetchRoomAssignmentStatuses = async () => {
+      const statusMap = {};
+      for (const booking of bookings) {
+        if (booking.bookingStatus === 'confirmed') {
+          try {
+            // Lấy danh sách phòng đã xếp
+            const assignmentsRes = await import('../../../api/roomAssignment.service');
+            const roomAssignmentsData = await assignmentsRes.getRoomAssignmentsForBooking(booking.bookingId);
+            // Lấy chi tiết booking để lấy quantity
+            const bookingDetailRes = await import('../../../api/booking.service');
+            const bookingDetailData = await bookingDetailRes.default.getBookingById(booking.bookingId);
+            // Lấy đúng mảng details và room assignments từ response
+            const detailsArr = bookingDetailData?.data?.details || [];
+            const assignmentsArr = roomAssignmentsData?.data || [];
+            // Tổng quantity cần xếp = sum của tất cả detail.quantity
+            const totalQuantity = detailsArr.reduce((sum, d) => sum + (d.quantity || 0), 0);
+            // Debug log chi tiết
+            console.log('[RoomAssignment Debug]', {
+              bookingId: booking.bookingId,
+              roomAssignments: assignmentsArr,
+              roomAssignmentsCount: assignmentsArr.length,
+              bookingDetails: detailsArr,
+              totalQuantity,
+              isAssigned: assignmentsArr.length === totalQuantity && totalQuantity > 0
+            });
+            // Số phòng đã xếp = assignmentsArr.length
+            if (assignmentsArr.length === totalQuantity && totalQuantity > 0) {
+              statusMap[booking.bookingId] = 'assigned';
+            } else {
+              statusMap[booking.bookingId] = 'not_assigned';
+            }
+          } catch (err) {
+            console.error('[RoomAssignment Debug][Error]', booking.bookingId, err);
+            statusMap[booking.bookingId] = 'not_assigned';
+          }
+        }
+      }
+      setRoomAssignmentStatus(statusMap);
+    };
+    if (bookings && bookings.length > 0) {
+      fetchRoomAssignmentStatuses();
+    }
+  }, [bookings]);
 
   // Load danh sách khách sạn của owner
   useEffect(() => {
@@ -47,9 +113,11 @@ const BookingManagementPage = () => {
         const hotelData = response?.data || [];
         setHotels(hotelData);
         
-        // Auto select hotel đầu tiên nếu có
-        if (hotelData.length > 0) {
-          setSelectedHotelId(hotelData[0].hotelId);
+        // Auto select hotel đầu tiên nếu có (nhưng chỉ khi chưa có selectedHotelId từ sessionStorage)
+        if (hotelData.length > 0 && !selectedHotelId) {
+          const firstHotelId = hotelData[0].hotelId;
+          setSelectedHotelId(firstHotelId);
+          sessionStorage.setItem('selectedHotelId', firstHotelId);
         }
         
         console.log('✅ Hotels loaded:', hotelData.length);
@@ -63,6 +131,13 @@ const BookingManagementPage = () => {
 
     loadHotels();
   }, []);
+
+  // Lưu selectedHotelId vào sessionStorage mỗi khi thay đổi
+  useEffect(() => {
+    if (selectedHotelId) {
+      sessionStorage.setItem('selectedHotelId', selectedHotelId);
+    }
+  }, [selectedHotelId]);
 
   // Load user info cho bookings
   useEffect(() => {
@@ -295,6 +370,104 @@ const BookingManagementPage = () => {
     toast.error('Lỗi thanh toán: ' + error.message);
   };
 
+  // Handle assign room - Navigate to room assignment page
+  const handleAssignRoom = (booking) => {
+    navigate(`/hotel-owner/bookings/${booking.bookingId}/assign-rooms`, { 
+      state: { booking } 
+    });
+  };
+
+  // Handle open check-in modal
+  const handleOpenCheckIn = (booking) => {
+    setSelectedBookingForCheckIn(booking);
+    setShowCheckInModal(true);
+  };
+
+  // Handle close check-in modal
+  const handleCloseCheckIn = () => {
+    setShowCheckInModal(false);
+    setSelectedBookingForCheckIn(null);
+  };
+
+  // Handle check-in - Update actual_check_in_date
+  const handleCheckIn = async () => {
+    try {
+      if (!selectedBookingForCheckIn?.bookingId) return;
+
+      const now = new Date().toISOString();
+      
+      await bookingService.updateBooking(selectedBookingForCheckIn.bookingId, {
+        actualCheckInDate: now
+      });
+
+      toast.success('Check-in thành công!');
+      handleCloseCheckIn();
+      
+      // Refetch bookings để cập nhật UI
+      if (refetchBookings) {
+        await refetchBookings();
+      }
+    } catch (error) {
+      console.error('❌ Error checking in:', error);
+      toast.error('Lỗi khi check-in: ' + (error.message || 'Vui lòng thử lại'));
+    }
+  };
+
+  // Handle open check-out modal
+  const handleOpenCheckOut = (booking) => {
+    setSelectedBookingForCheckOut(booking);
+    setShowCheckOutModal(true);
+  };
+
+  // Handle close check-out modal
+  const handleCloseCheckOut = () => {
+    setShowCheckOutModal(false);
+    setSelectedBookingForCheckOut(null);
+  };
+
+  // Handle check-out - Update actual_check_out_date
+  const handleCheckOut = async () => {
+    try {
+      if (!selectedBookingForCheckOut?.bookingId) return;
+
+      const now = new Date().toISOString();
+      const bookingId = selectedBookingForCheckOut.bookingId;
+      const oldStatus = selectedBookingForCheckOut.bookingStatus || 'confirmed';
+      const newStatus = 'completed';
+
+      // 1. Update actualCheckOutDate
+      await updateBooking(bookingId, {
+        actualCheckOutDate: now
+      });
+
+      // 2. Update booking status
+      await updateBookingStatus(bookingId, newStatus);
+
+      // 3. Add booking history
+      try {
+        await addHistory({
+          old_status: oldStatus,
+          new_status: newStatus,
+          change_reason: 'Check-out',
+          notes: null
+        });
+      } catch (historyError) {
+        console.error('❌ Error creating booking history:', historyError);
+      }
+
+      toast.success('Check-out thành công!');
+      handleCloseCheckOut();
+
+      // Refetch bookings để cập nhật UI
+      if (refetchBookings) {
+        await refetchBookings();
+      }
+    } catch (error) {
+      console.error('❌ Error checking out:', error);
+      toast.error('Lỗi khi check-out: ' + (error.message || 'Vui lòng thử lại'));
+    }
+  };
+
   if (loadingHotels) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -521,6 +694,9 @@ const BookingManagementPage = () => {
                       Thanh toán
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Trạng thái xếp phòng
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Hành động
                     </th>
                   </tr>
@@ -613,6 +789,29 @@ const BookingManagementPage = () => {
                           </span>
                         </td>
 
+                        {/* Trạng thái xếp phòng */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {booking.bookingStatus === 'completed' ? (
+                            <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Đã xếp
+                            </span>
+                          ) : booking.bookingStatus === 'confirmed' ? (
+                            roomAssignmentStatus[booking.bookingId] === 'assigned' ? (
+                              <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Đã xếp
+                              </span>
+                            ) : (
+                              <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Chưa xếp
+                              </span>
+                            )
+                          ) : (
+                            <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              Chưa xếp
+                            </span>
+                          )}
+                        </td>
+
                         {/* Hành động */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
@@ -630,7 +829,7 @@ const BookingManagementPage = () => {
                             >
                               <Edit size={18} />
                             </button>
-                            
+
                             {/* Nút thanh toán cho booking đã xác nhận nhưng chưa thanh toán */}
                             {booking.bookingStatus === 'confirmed' && booking.paymentStatus === 'pending' && (
                               <button
@@ -639,6 +838,70 @@ const BookingManagementPage = () => {
                                 onClick={() => handleOpenPayment(booking)}
                               >
                                 Thanh toán
+                              </button>
+                            )}
+
+                            {/* Nút xếp phòng: booking đã xác nhận, chưa xếp phòng, đã thanh toán */}
+                            {booking.bookingStatus === 'confirmed' &&
+                              (!booking.roomAssignments || booking.roomAssignments.length === 0) &&
+                              booking.paymentStatus === 'paid' &&
+                              !booking.actualCheckInDate && (
+                                <button
+                                  className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                  title="Xếp phòng"
+                                  onClick={() => handleAssignRoom(booking)}
+                                  disabled={!!booking.actualCheckInDate}
+                                >
+                                  Xếp phòng
+                                </button>
+                              )
+                            }
+
+                            {/* Nút check-in: booking đã xác nhận, đúng ngày check-in */}
+                            {booking.bookingStatus === 'confirmed' && (() => {
+                              const today = new Date();
+                              const checkInDate = new Date(booking.checkInDate);
+                              return (
+                                today.getFullYear() === checkInDate.getFullYear() &&
+                                today.getMonth() === checkInDate.getMonth() &&
+                                today.getDate() === checkInDate.getDate()
+                              );
+                            })() && !booking.actualCheckInDate && (
+                              <button
+                                className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                title="Check-in"
+                                onClick={() => handleOpenCheckIn(booking)}
+                                disabled={!!booking.actualCheckInDate}
+                              >
+                                Check-in
+                              </button>
+                            )}
+                            {/* Nút check-out: chỉ hiển thị nếu đã check-in và đúng ngày check-out */}
+                            {booking.bookingStatus === 'confirmed' && booking.actualCheckInDate && !booking.actualCheckOutDate && (
+                              <button
+                                className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                                title="Check-out"
+                                onClick={() => handleOpenCheckOut(booking)}
+                              >
+                                Check-out
+                              </button>
+                            )}
+                            {/* Nút check-out: booking đã xác nhận, đúng ngày check-out */}
+                            {booking.bookingStatus === 'confirmed' && (() => {
+                              const today = new Date();
+                              const checkOutDate = new Date(booking.checkOutDate);
+                              return (
+                                today.getFullYear() === checkOutDate.getFullYear() &&
+                                today.getMonth() === checkOutDate.getMonth() &&
+                                today.getDate() === checkOutDate.getDate()
+                              );
+                            })() && (
+                              <button
+                                className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                                title="Check-out"
+                                onClick={() => {/* TODO: handleCheckOut(booking) */}}
+                              >
+                                Check-out
                               </button>
                             )}
                           </div>
@@ -700,6 +963,318 @@ const BookingManagementPage = () => {
             <div className="px-6 pb-6 text-xs text-gray-500 text-center">
               <p>💡 Hướng dẫn: Khách hàng quét mã QR bằng app ngân hàng để thanh toán</p>
               <p className="mt-1">Trạng thái booking sẽ tự động cập nhật sau khi thanh toán thành công</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Check-in Modal */}
+      {showCheckInModal && selectedBookingForCheckIn && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="relative bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Close button */}
+            <button
+              onClick={handleCloseCheckIn}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
+              aria-label="Đóng"
+            >
+              <XCircle size={24} />
+            </button>
+
+            {/* Header */}
+            <div className="p-6 border-b bg-gradient-to-r from-green-50 to-emerald-50">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">
+                Check-in Booking
+              </h3>
+              <p className="text-sm text-gray-600">
+                Booking ID: <span className="font-semibold">{selectedBookingForCheckIn.bookingId}</span>
+              </p>
+            </div>
+
+            {/* Booking & User Info */}
+            <div className="p-6 space-y-6">
+              {/* User Information */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <Users size={20} className="text-gray-600" />
+                  Thông tin khách hàng
+                </h4>
+                {(() => {
+                  const user = userCache[selectedBookingForCheckIn.userId];
+                  return user ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-600">Họ tên:</span>
+                        <p className="font-semibold text-gray-800">{user.fullName}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Email:</span>
+                        <p className="font-semibold text-gray-800 flex items-center gap-1">
+                          <Mail size={14} className="text-gray-400" />
+                          {user.email || 'Chưa có'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Số điện thoại:</span>
+                        <p className="font-semibold text-gray-800 flex items-center gap-1">
+                          <Phone size={14} className="text-gray-400" />
+                          {user.phoneNumber || 'Chưa có'}
+                        </p>
+                      </div>
+                      {/* <div>
+                        <span className="text-gray-600">Ngày sinh:</span>
+                        <p className="font-semibold text-gray-800">
+                          {user.dateOfBirth ? formatShortDate(user.dateOfBirth) : 'Chưa có'}
+                        </p>
+                      </div> */}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">Đang tải thông tin...</p>
+                  );
+                })()}
+              </div>
+
+              {/* Booking Details */}
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <Calendar size={20} className="text-gray-600" />
+                  Thông tin đặt phòng
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-600">Ngày đặt:</span>
+                    <p className="font-semibold text-gray-800">{formatDate(selectedBookingForCheckIn.bookedAt)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Trạng thái:</span>
+                    <p>
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig[selectedBookingForCheckIn.bookingStatus]?.color}`}>
+                        {statusConfig[selectedBookingForCheckIn.bookingStatus]?.label}
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Check-in:</span>
+                    <p className="font-semibold text-gray-800">{formatShortDate(selectedBookingForCheckIn.checkInDate)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Check-out:</span>
+                    <p className="font-semibold text-gray-800">{formatShortDate(selectedBookingForCheckIn.checkOutDate)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Số đêm:</span>
+                    <p className="font-semibold text-gray-800">{selectedBookingForCheckIn.nights} đêm</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Số khách:</span>
+                    <p className="font-semibold text-gray-800">{selectedBookingForCheckIn.totalGuests} khách</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Tổng tiền:</span>
+                    <p className="font-semibold text-lg text-blue-600">{formatCurrency(selectedBookingForCheckIn.totalPrice)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Thanh toán:</span>
+                    <p>
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${paymentStatusConfig[selectedBookingForCheckIn.paymentStatus]?.color}`}>
+                        {paymentStatusConfig[selectedBookingForCheckIn.paymentStatus]?.label}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Room Assignment Status */}
+              <div className="bg-yellow-50 rounded-lg p-4">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3">
+                  Trạng thái xếp phòng
+                </h4>
+                {roomAssignmentStatus[selectedBookingForCheckIn.bookingId] === 'assigned' ? (
+                  <div className="flex items-center gap-2 text-green-700">
+                    <CheckCircle size={20} />
+                    <span className="font-semibold">Đã xếp phòng</span>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-2 text-yellow-700 mb-3">
+                      <Clock size={20} />
+                      <span className="font-semibold">Chưa xếp phòng</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        handleCloseCheckIn();
+                        handleAssignRoom(selectedBookingForCheckIn);
+                      }}
+                      className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                    >
+                      Xếp phòng ngay
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-6 border-t bg-gray-50 flex gap-3 justify-end">
+              <button
+                onClick={handleCloseCheckIn}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleCheckIn}
+                className={`px-6 py-2 text-sm font-medium text-white rounded-lg transition-colors flex items-center gap-2 ${roomAssignmentStatus[selectedBookingForCheckIn.bookingId] !== 'assigned' ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                disabled={roomAssignmentStatus[selectedBookingForCheckIn.bookingId] !== 'assigned'}
+              >
+                <CheckCircle size={18} />
+                Xác nhận Check-in
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Check-out Modal */}
+      {showCheckOutModal && selectedBookingForCheckOut && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="relative bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={handleCloseCheckOut}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10"
+              aria-label="Đóng"
+            >
+              <XCircle size={24} />
+            </button>
+            <div className="p-6 border-b bg-gradient-to-r from-red-50 to-orange-50">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">
+                Check-out Booking
+              </h3>
+              <p className="text-sm text-gray-600">
+                Booking ID: <span className="font-semibold">{selectedBookingForCheckOut.bookingId}</span>
+              </p>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Thông tin khách hàng */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <Users size={20} className="text-gray-600" />
+                  Thông tin khách hàng
+                </h4>
+                {(() => {
+                  const user = userCache[selectedBookingForCheckOut.userId];
+                  if (!user) return <div>Loading...</div>;
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-600">Họ tên:</span>
+                        <p className="font-semibold text-gray-800">{user.fullName}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Email:</span>
+                        <p className="font-semibold text-gray-800">{user.email || 'Chưa có'}</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Số điện thoại:</span>
+                        <p className="font-semibold text-gray-800">{user.phoneNumber || 'Chưa có'}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              {/* Thông tin đặt phòng */}
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <Calendar size={20} className="text-gray-600" />
+                  Thông tin đặt phòng
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-600">Ngày đặt:</span>
+                    <p className="font-semibold text-gray-800">{formatDate(selectedBookingForCheckOut.bookedAt)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Trạng thái:</span>
+                    <p>
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig[selectedBookingForCheckOut.bookingStatus]?.color}`}>
+                        {statusConfig[selectedBookingForCheckOut.bookingStatus]?.label}
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Check-in:</span>
+                    <p className="font-semibold text-gray-800">{formatShortDate(selectedBookingForCheckOut.checkInDate)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Check-out:</span>
+                    <p className="font-semibold text-gray-800">{formatShortDate(selectedBookingForCheckOut.checkOutDate)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Số đêm:</span>
+                    <p className="font-semibold text-gray-800">{selectedBookingForCheckOut.nights} đêm</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Số khách:</span>
+                    <p className="font-semibold text-gray-800">{selectedBookingForCheckOut.totalGuests} khách</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Tổng tiền:</span>
+                    <p className="font-semibold text-lg text-blue-600">{formatCurrency(selectedBookingForCheckOut.totalPrice)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Thanh toán:</span>
+                    <p>
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${paymentStatusConfig[selectedBookingForCheckOut.paymentStatus]?.color}`}>
+                        {paymentStatusConfig[selectedBookingForCheckOut.paymentStatus]?.label}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              {/* Trạng thái thanh toán */}
+              <div className="bg-yellow-50 rounded-lg p-4">
+                <h4 className="text-lg font-semibold text-gray-800 mb-3">
+                  Trạng thái thanh toán
+                </h4>
+                {selectedBookingForCheckOut.paymentStatus === 'paid' ? (
+                  <div className="flex items-center gap-2 text-green-700">
+                    <CheckCircle size={20} />
+                    <span className="font-semibold">Đã thanh toán</span>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-2 text-yellow-700 mb-3">
+                      <Clock size={20} />
+                      <span className="font-semibold">Chờ thanh toán</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        handleCloseCheckOut();
+                        handleOpenPayment(selectedBookingForCheckOut);
+                      }}
+                      className="w-full px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors"
+                    >
+                      Thanh toán ngay
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="p-6 border-t bg-gray-50 flex gap-3 justify-end">
+              <button
+                onClick={handleCloseCheckOut}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleCheckOut}
+                className={`px-6 py-2 text-sm font-medium text-white rounded-lg transition-colors flex items-center gap-2 ${selectedBookingForCheckOut.paymentStatus !== 'paid' ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}
+                disabled={selectedBookingForCheckOut.paymentStatus !== 'paid'}
+              >
+                <CheckCircle size={18} />
+                Xác nhận Check-out
+              </button>
             </div>
           </div>
         </div>

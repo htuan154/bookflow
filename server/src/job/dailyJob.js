@@ -38,7 +38,7 @@ async function myDailyTask() {
 
     // 3. Cập nhật trạng thái khuyến mãi theo ngày
     console.log('- Đang cập nhật trạng thái khuyến mãi theo ngày...');
-    const promotionResult = await dailyJobService.updatePromotionStatusByDate();
+    const promotionResult = await dailyJobService.updatePromotionSttatusByDate();
     console.log('- Kết quả cập nhật trạng thái khuyến mãi:', promotionResult);
 
     // 4. Tìm hợp đồng sắp hết hạn và gửi thông báo
@@ -137,8 +137,8 @@ function startDailyJob() {
   // Chạy daily job vào 7h sáng mỗi ngày
   cron.schedule('0 7 * * *', myDailyTask, { timezone: 'Asia/Ho_Chi_Minh' });
   
-  // Chạy moderation worker mỗi 10 phút
-  //cron.schedule('*/10 * * * *', moderationTask, { timezone: 'Asia/Ho_Chi_Minh' });
+  // Chạy moderation worker mỗi 10 giây
+  //cron.schedule('*/10 * * * * *', moderationTask, { timezone: 'Asia/Ho_Chi_Minh' });
   
   //cron.schedule('*/10 * * * * *', myDailyTask); // mỗi 10 giây để test job chính
   //cron.schedule('*/10 * * * * *', testCreateSeasons); // mỗi 10 giây để test tạo season

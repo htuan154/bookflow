@@ -13,9 +13,13 @@ const Booking = require('../../../models/booking.model');
 const create = async (bookingData, client) => {
     const {
         user_id, hotel_id, check_in_date, check_out_date, total_guests,
-        total_price, booking_status = 'pending', payment_status = 'pending',
+        total_price, booking_status, payment_status = 'pending',
         payment_method, promotion_id, special_requests
     } = bookingData;
+
+    // booking_status giờ được truyền từ service (không còn default = 'pending')
+    // Nếu không có thì mới fallback về 'pending'
+    const finalBookingStatus = booking_status || 'pending';
 
     const query = `
         INSERT INTO bookings (
@@ -28,12 +32,25 @@ const create = async (bookingData, client) => {
     `;
     const values = [
         user_id, hotel_id, check_in_date, check_out_date, total_guests,
-        total_price, booking_status, payment_status, payment_method,
+        total_price, finalBookingStatus, payment_status, payment_method,
         promotion_id, special_requests
     ];
 
     const result = await client.query(query, values);
     return new Booking(result.rows[0]);
+};
+
+/**
+ * Lấy tất cả booking có status 'no_show' của một user.
+ * @param {string} userId
+ * @returns {Promise<Booking[]>}
+ */
+const findNoShowByUserId = async (userId) => {
+    const result = await pool.query(
+        `SELECT * FROM bookings WHERE user_id = $1 AND booking_status = 'no_show' ORDER BY booked_at DESC`,
+        [userId]
+    );
+    return result.rows.map(row => new Booking(row));
 };
 
 /**
@@ -118,7 +135,9 @@ const update = async (bookingId, updateData) => {
         paymentMethod: 'payment_method',
         specialRequests: 'special_requests',
         totalPrice: 'total_price',
-        totalGuests: 'total_guests'
+        totalGuests: 'total_guests',
+        actualCheckInDate: 'actual_check_in_date',
+        actualCheckOutDate: 'actual_check_out_date'
     };
 
     for (const [key, value] of Object.entries(updateData)) {
@@ -151,6 +170,19 @@ const update = async (bookingId, updateData) => {
     return new Booking(result.rows[0]);
 };
 
+/**
+ * Lấy tất cả các booking đã hoàn thành của một user.
+ * @param {string} userId - ID của người dùng.
+ * @returns {Promise<Booking[]>}
+ */
+const findCompletedByUserId = async (userId) => {
+    const result = await pool.query(
+        `SELECT * FROM bookings WHERE booking_status = 'completed' AND user_id = $1 ORDER BY booked_at DESC`,
+        [userId]
+    );
+    return result.rows.map(row => new Booking(row));
+};
+
 module.exports = {
     create,
     findById,
@@ -159,4 +191,6 @@ module.exports = {
     updateStatus,
     update,
     findBookingsByHotelId,
+    findCompletedByUserId,
+    findNoShowByUserId
 };

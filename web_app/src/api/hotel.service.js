@@ -49,17 +49,15 @@ export const hotelApiService = {
    */
   async getApprovedHotels(filters = {}) {
     try {
-      console.log('🔄 Fetching approved and active hotels separately...');
-      
-      // Gọi 2 API riêng biệt vì server không hỗ trợ multiple status
-      const [approvedResponse, activeResponse] = await Promise.all([
-        axiosClient.get(API_ENDPOINTS.ADMIN.GET_ALL_HOTELS, {
-          params: { ...filters, status: 'approved' }
-        }),
-        axiosClient.get(API_ENDPOINTS.ADMIN.GET_ALL_HOTELS, {
-          params: { ...filters, status: 'active' }
-        })
-      ]);
+      console.log('🔄 Fetching approved and active hotels for OWNER...');
+   const [approvedResponse, activeResponse] = await Promise.all([
+     axiosClient.get(API_ENDPOINTS.HOTELS.MY_HOTELS, {
+       params: { ...filters, status: 'approved' }
+     }),
+     axiosClient.get(API_ENDPOINTS.HOTELS.MY_HOTELS, {
+       params: { ...filters, status: 'active' }
+     })
+   ]);
 
       console.log('✅ Approved hotels response:', approvedResponse.data);
       console.log('✅ Active hotels response:', activeResponse.data);

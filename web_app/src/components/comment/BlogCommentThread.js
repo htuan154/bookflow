@@ -9,8 +9,25 @@ import {
   Person, AdminPanelSettings, Business, MoreVert,
   Flag, Delete, Edit, Visibility, VisibilityOff
 } from '@mui/icons-material';
-import { useComment} from '../../context/BlogCommentContextComment'; // Thêm dòng này
+import { useComment } from '../../context/BlogCommentContext';
 import { USER_ROLES } from '../../config/roles';
+
+// Helper functions
+const getUserRoleColor = (role) => {
+  switch (role) {
+    case 'admin': return '#FF6B35';
+    case 'hotel_owner': return '#2196F3';
+    default: return '#9E9E9E';
+  }
+};
+
+const getUserIcon = (role) => {
+  switch (role) {
+    case 'admin': return <AdminPanelSettings sx={{ fontSize: 20 }} />;
+    case 'hotel_owner': return <Business sx={{ fontSize: 20 }} />;
+    default: return <Person sx={{ fontSize: 20 }} />;
+  }
+};
 
 const BlogCommentThread = ({ 
   comment, 
@@ -102,7 +119,7 @@ const BlogCommentThread = ({
 
   const handleReplyClick = () => {
     if (onReply) {
-      onReply(comment.comment_id, comment.user?.full_name || 'Người dùng');
+      onReply(comment.comment_id, comment.fullName || comment.user?.full_name || comment.username || 'Người dùng');
     }
   };
 
@@ -186,7 +203,7 @@ const BlogCommentThread = ({
               {/* User Info */}
               <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
                 <Typography variant="subtitle2" fontWeight="600">
-                  {comment.user?.full_name || 'Ẩn danh'}
+                  {comment.fullName || comment.user?.full_name || comment.username || 'Người dùng'}
                 </Typography>
 
                 <Typography variant="caption" color="text.secondary">

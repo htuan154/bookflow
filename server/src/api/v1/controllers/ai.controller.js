@@ -39,7 +39,7 @@ const USE_LLM = String(process.env.USE_LLM || 'false').toLowerCase() === 'true';
 
 // ===== REQUEST DEDUPE MECHANISM =====
 const recentRequests = new Map(); // key: user_id + message hash -> { timestamp, payload }
-const REQUEST_DEDUPE_WINDOW_MS = 5000; // 5 seconds
+const REQUEST_DEDUPE_WINDOW_MS = 2000; // 2 seconds (reduced to allow more retries)
 
 function makeRequestKey(userId, message) {
   const msgHash = normalize(String(message || '')).slice(0, 100);
@@ -91,7 +91,9 @@ async function suggestHandler(req, res, next) {
       return res.json(cachedResponse);
     }
 
+    console.log('[AI] Processing new request:', msg);
     const nlu = analyze(msg);
+    console.log('[AI] NLU result:', { city: nlu.city, intent: nlu.intent, top_n: nlu.top_n });
     const limit = Number(top_n || nlu.top_n || 10);
 
     // Luôn bật LLM + truyền context chung cho composer
@@ -100,6 +102,13 @@ async function suggestHandler(req, res, next) {
 
     const t0 = process.hrtime.bigint();
     const payload = await suggestHybrid(db, { message: msg, context: ctx });
+    console.log('[AI] suggestHybrid result:', { 
+      source: payload.source, 
+      hasHotels: payload.hotels?.length || 0,
+      hasPlaces: payload.places?.length || 0,
+      hasDishes: payload.dishes?.length || 0,
+      summary: payload.summary?.slice(0, 100)
+    });
     const t1 = process.hrtime.bigint();
     const latency = Number(t1 - t0) / 1e6;
 

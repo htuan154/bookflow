@@ -6,6 +6,12 @@ const { createContractSchema, updateStatusSchema } = require('../../../validator
 
 const router = express.Router();
 
+// Lấy hợp đồng đang hoạt động của khách sạn
+router.get(
+    '/hotels/:hotelId/contracts/active',
+    contractController.getActiveContractByHotel
+);
+
 // --- Áp dụng middleware xác thực cho tất cả các route bên dưới ---
 router.use(authenticate);
 

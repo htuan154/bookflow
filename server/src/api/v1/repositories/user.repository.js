@@ -166,6 +166,25 @@ const findHotelOwners = async ({ page = 1, limit = 10 } = {}) => {
   };
 };
 
+/**
+ * Cập nhật ảnh đại diện của người dùng
+ * @param {string} userId - ID của người dùng
+ * @param {string} profilePictureUrl - URL của ảnh đại diện
+ * @returns {Promise<User|null>}
+ */
+const updateProfilePicture = async (userId, profilePictureUrl) => {
+  const result = await pool.query(
+    `UPDATE users 
+     SET profile_picture_url = $1
+     WHERE user_id = $2
+     RETURNING *`,
+    [profilePictureUrl, userId]
+  );
+
+  if (result.rowCount === 0) return null;
+  return new User(result.rows[0]);
+};
+
 module.exports = {
   findByEmailOrUsername,
   findByEmail,
@@ -175,5 +194,6 @@ module.exports = {
   findAll,
   update,
   remove,
-  findHotelOwners
+  findHotelOwners,
+  updateProfilePicture
 };

@@ -1,3 +1,5 @@
+// VietQRContext.js (updated with PayOS support)
+// Source base: :contentReference[oaicite:0]{index=0}
 import React, { createContext, useCallback, useMemo, useState, useEffect } from 'react';
 import vietqrService from '../api/vietqr.service';
 
@@ -7,19 +9,18 @@ export function VietQRProvider({ children }) {
   // =========================================
   // STATE MANAGEMENT
   // =========================================
-  
   const [qrData, setQrData] = useState(null);
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [currentPayment, setCurrentPayment] = useState(null);
-  
+
   // Payment Status: 'idle', 'pending', 'paid', 'expired', 'error'
   const [paymentStatus, setPaymentStatus] = useState('idle');
   const [countdown, setCountdown] = useState(null);
-  
+
   // UI State
   const [creating, setCreating] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  
+
   // Error State
   const [error, setError] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
@@ -28,20 +29,16 @@ export function VietQRProvider({ children }) {
   // UTILITY FUNCTIONS
   // =========================================
 
-  /**
-   * Đếm ngược thời gian hết hạn QR (10 phút)
-   */
+  /** Đếm ngược thời gian hết hạn QR (10 phút) */
   const startCountdown = useCallback((minutes = 10) => {
     setCountdown(minutes * 60); // Convert to seconds
   }, []);
 
   // =========================================
-  // ACTIONS - QR GENERATION
+  // ACTIONS - QR GENERATION (VietQR)
   // =========================================
 
-  /**
-   * UC01 & UC02: Tạo QR code cho booking có sẵn
-   */
+  /** UC01 & UC02: Tạo QR code cho booking có sẵn (VietQR cũ) */
   const createQRForBooking = useCallback(async (bookingId) => {
     if (!bookingId) {
       setError('Booking ID là bắt buộc');
@@ -54,13 +51,14 @@ export function VietQRProvider({ children }) {
 
     try {
       const response = await vietqrService.createQRForBooking(bookingId);
-      
+
       // Update state
       setQrData(response);
       setCurrentPayment({
         ...response,
         bookingId,
         paymentType: 'booking',
+        paymentProvider: 'vietqr',
         createdAt: new Date().toISOString()
       });
       setPaymentStatus('pending');
@@ -72,6 +70,7 @@ export function VietQRProvider({ children }) {
           ...response,
           bookingId,
           paymentType: 'booking',
+          paymentProvider: 'vietqr',
           createdAt: new Date().toISOString(),
           status: 'pending'
         },
@@ -83,20 +82,18 @@ export function VietQRProvider({ children }) {
       const errorMsg = err?.response?.data?.error || err?.message || 'Lỗi khi tạo QR cho booking';
       setError(errorMsg);
       setPaymentStatus('error');
-      
+
       if (err?.response?.data?.errors) {
         setValidationErrors(err.response.data.errors);
       }
-      
+
       throw err;
     } finally {
       setCreating(false);
     }
   }, [startCountdown]);
 
-  /**
-   * UC03: Tạo QR code cho walk-in tại quầy
-   */
+  /** UC03: Tạo QR code cho walk-in tại quầy (VietQR cũ) */
   const createQRAtCounter = useCallback(async (hotelId, payload) => {
     if (!hotelId) {
       setError('Hotel ID là bắt buộc');
@@ -114,13 +111,14 @@ export function VietQRProvider({ children }) {
 
     try {
       const response = await vietqrService.createQRAtCounter(hotelId, payload);
-      
+
       // Update state
       setQrData(response);
       setCurrentPayment({
         ...response,
         hotelId,
         paymentType: 'walk-in',
+        paymentProvider: 'vietqr',
         createdAt: new Date().toISOString(),
         ...payload
       });
@@ -133,6 +131,7 @@ export function VietQRProvider({ children }) {
           ...response,
           hotelId,
           paymentType: 'walk-in',
+          paymentProvider: 'vietqr',
           createdAt: new Date().toISOString(),
           status: 'pending',
           ...payload
@@ -145,11 +144,11 @@ export function VietQRProvider({ children }) {
       const errorMsg = err?.response?.data?.error || err?.message || 'Lỗi khi tạo QR tại quầy';
       setError(errorMsg);
       setPaymentStatus('error');
-      
+
       if (err?.response?.data?.errors) {
         setValidationErrors(err.response.data.errors);
       }
-      
+
       throw err;
     } finally {
       setCreating(false);
@@ -157,12 +156,69 @@ export function VietQRProvider({ children }) {
   }, [startCountdown]);
 
   // =========================================
-  // ACTIONS - PAYMENT CONFIRMATION
+  // ACTIONS - PayOS (VietQR qua PayOS, POLLING)
   // =========================================
 
-  /**
-   * Xác nhận thanh toán (webhook simulation hoặc thật)
-   */
+  /** Tạo payment PayOS cho booking (polling, không webhook) */
+  const createPayOSForBooking = useCallback(async (bookingId, { hotelId, amount, description }) => {
+    if (!bookingId || !hotelId || !amount || amount <= 0) {
+      const msg = 'bookingId/hotelId/amount là bắt buộc và amount > 0';
+      setError(msg);
+      throw new Error(msg);
+    }
+
+    setCreating(true);
+    setError(null);
+    setValidationErrors({});
+
+    try {
+      const resp = await vietqrService.createPayOSPayment({ bookingId, hotelId, amount, description });
+      if (!resp?.ok) throw new Error('Tạo đơn PayOS thất bại');
+
+      // Chuẩn hóa state để UI cũ dùng được
+      setQrData({
+        tx_ref: resp.tx_ref,
+        qr_image: resp.qr_image || null,     // có thể null -> dùng checkout_url
+        checkout_url: resp.checkout_url || null,
+        amount
+      });
+
+      setCurrentPayment({
+        tx_ref: resp.tx_ref,
+        bookingId, hotelId, amount, description,
+        paymentType: 'booking',
+        paymentProvider: 'payos',
+        createdAt: new Date().toISOString()
+      });
+
+      setPaymentStatus('pending');
+      startCountdown();
+
+      setPaymentHistory(prev => [{
+        tx_ref: resp.tx_ref,
+        bookingId, hotelId, amount, description,
+        paymentType: 'booking',
+        paymentProvider: 'payos',
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      }, ...prev]);
+
+      return resp;
+    } catch (err) {
+      const errorMsg = err?.response?.data?.error || err?.message || 'Lỗi tạo PayOS payment';
+      setError(errorMsg);
+      setPaymentStatus('error');
+      throw err;
+    } finally {
+      setCreating(false);
+    }
+  }, [startCountdown]);
+
+  // =========================================
+  // ACTIONS - PAYMENT CONFIRMATION (VietQR)
+  // =========================================
+
+  /** Xác nhận thanh toán (webhook simulation hoặc thật) */
   const confirmPayment = useCallback(async (payload) => {
     if (!payload?.tx_ref) {
       setError('Transaction reference là bắt buộc');
@@ -174,12 +230,12 @@ export function VietQRProvider({ children }) {
 
     try {
       const response = await vietqrService.confirmPayment(payload);
-      
+
       if (response.ok) {
         // Update current payment status
         setPaymentStatus('paid');
         setCountdown(null);
-        
+
         // Update current payment
         if (currentPayment && currentPayment.tx_ref === payload.tx_ref) {
           setCurrentPayment(prev => ({
@@ -214,9 +270,7 @@ export function VietQRProvider({ children }) {
     }
   }, [currentPayment]);
 
-  /**
-   * Giả lập xác nhận thanh toán (dùng cho demo)
-   */
+  /** Giả lập xác nhận thanh toán (demo) */
   const simulatePaymentConfirmation = useCallback(async (txRef, amount) => {
     if (!txRef) {
       throw new Error('Transaction reference là bắt buộc');
@@ -231,9 +285,7 @@ export function VietQRProvider({ children }) {
     }
   }, [confirmPayment]);
 
-  /**
-   * Cập nhật status payment
-   */
+  /** Cập nhật status payment (admin tools) */
   const updatePaymentStatus = useCallback(async ({ paymentId, txRef, status, paidAt }) => {
     setConfirming(true);
     setError(null);
@@ -245,7 +297,7 @@ export function VietQRProvider({ children }) {
         status,
         paidAt
       });
-      
+
       if (response.ok) {
         // Update current payment status
         if (status === 'paid') {
@@ -256,7 +308,7 @@ export function VietQRProvider({ children }) {
         } else if (status === 'refunded') {
           setPaymentStatus('refunded');
         }
-        
+
         // Update current payment
         if (currentPayment && (currentPayment.tx_ref === txRef || currentPayment.payment_id === paymentId)) {
           setCurrentPayment(prev => ({
@@ -288,9 +340,7 @@ export function VietQRProvider({ children }) {
   // ACTIONS - QR MANAGEMENT
   // =========================================
 
-  /**
-   * Reset QR và trạng thái thanh toán
-   */
+  /** Reset QR và trạng thái thanh toán */
   const resetQR = useCallback(() => {
     setQrData(null);
     setCurrentPayment(null);
@@ -300,9 +350,7 @@ export function VietQRProvider({ children }) {
     setValidationErrors({});
   }, []);
 
-  /**
-   * Tạo QR mới (regenerate)
-   */
+  /** Tạo QR mới (regenerate) – GIỮ LUỒNG CŨ */
   const regenerateQR = useCallback(async () => {
     if (!currentPayment) {
       throw new Error('Không có thông tin để tạo QR mới');
@@ -324,9 +372,7 @@ export function VietQRProvider({ children }) {
     }
   }, [currentPayment, createQRForBooking, createQRAtCounter]);
 
-  /**
-   * Download QR image
-   */
+  /** Download QR image */
   const downloadQRImage = useCallback((filename) => {
     if (!qrData?.qr_image) {
       throw new Error('Không có QR code để tải');
@@ -340,17 +386,13 @@ export function VietQRProvider({ children }) {
   // UTILITY ACTIONS
   // =========================================
 
-  /**
-   * Clear errors
-   */
+  /** Clear errors */
   const clearError = useCallback(() => {
     setError(null);
     setValidationErrors({});
   }, []);
 
-  /**
-   * Reset toàn bộ state
-   */
+  /** Reset toàn bộ state */
   const resetState = useCallback(() => {
     setQrData(null);
     setPaymentHistory([]);
@@ -361,19 +403,15 @@ export function VietQRProvider({ children }) {
     setValidationErrors({});
   }, []);
 
-  /**
-   * Check QR expired
-   */
+  /** Check QR expired */
   const checkQRExpired = useCallback((createdAt, ttlMinutes = 10) => {
     return vietqrService.isQRExpired(createdAt, ttlMinutes);
   }, []);
 
-  /**
-   * Format countdown time
-   */
+  /** Format countdown time */
   const formatCountdownTime = useCallback((seconds) => {
     if (!seconds || seconds <= 0) return '00:00';
-    
+
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
@@ -402,7 +440,7 @@ export function VietQRProvider({ children }) {
   }, [countdown, paymentStatus]);
 
   // =========================================
-  // EFFECTS - Payment Status Polling
+  // EFFECTS - Payment Status Polling (VietQR + PayOS)
   // =========================================
 
   useEffect(() => {
@@ -414,20 +452,26 @@ export function VietQRProvider({ children }) {
     // Poll mỗi 3 giây
     const pollInterval = setInterval(async () => {
       try {
-        const status = await vietqrService.checkPaymentStatus(qrData.tx_ref);
-        
-        if (status.status === 'paid') {
-          setPaymentStatus('paid');
-          setCountdown(null);
-          
-          // Update payment history
-          setPaymentHistory(prev => 
-            prev.map(p => 
-              p.tx_ref === qrData.tx_ref 
-                ? { ...p, status: 'paid', paid_at: status.paid_at }
-                : p
-            )
-          );
+        if (currentPayment?.paymentProvider === 'payos') {
+          // Poll trạng thái payOS từ BE
+          const result = await vietqrService.checkPayOSStatus(qrData.tx_ref);
+          if (result?.dbStatus === 'paid') {
+            setPaymentStatus('paid');
+            setCountdown(null);
+            setPaymentHistory(prev => prev.map(p =>
+              p.tx_ref === qrData.tx_ref ? { ...p, status: 'paid', paid_at: result.paid_at } : p
+            ));
+          }
+        } else {
+          // Luồng VietQR cũ
+          const status = await vietqrService.checkPaymentStatus(qrData.tx_ref);
+          if (status?.status === 'paid') {
+            setPaymentStatus('paid');
+            setCountdown(null);
+            setPaymentHistory(prev => prev.map(p =>
+              p.tx_ref === qrData.tx_ref ? { ...p, status: 'paid', paid_at: status.paid_at } : p
+            ));
+          }
         }
       } catch (error) {
         console.error('Lỗi kiểm tra trạng thái thanh toán:', error);
@@ -436,7 +480,7 @@ export function VietQRProvider({ children }) {
     }, 3000);
 
     return () => clearInterval(pollInterval);
-  }, [paymentStatus, qrData]);
+  }, [paymentStatus, qrData, currentPayment]);
 
   // =========================================
   // COMPUTED VALUES
@@ -449,36 +493,39 @@ export function VietQRProvider({ children }) {
     currentPayment,
     paymentStatus,
     countdown,
-    
+
     // Loading states
     creating,
     confirming,
-    
+
     // Error states
     error,
     validationErrors,
-    
-    // Actions - QR Generation
+
+    // Actions - QR Generation (VietQR)
     createQRForBooking,
     createQRAtCounter,
-    
-    // Actions - Payment Confirmation
+
+    // Actions - PayOS (mới)
+    createPayOSForBooking,
+
+    // Actions - Payment Confirmation (VietQR)
     confirmPayment,
     simulatePaymentConfirmation,
     updatePaymentStatus,
-    
+
     // Actions - QR Management
     startCountdown,
     resetQR,
     regenerateQR,
     downloadQRImage,
-    
+
     // Utility actions
     clearError,
     resetState,
     checkQRExpired,
     formatCountdownTime,
-    
+
     // Helper functions from service
     createWebhookPayload: vietqrService.createWebhookPayload,
     isQRExpired: vietqrService.isQRExpired,
@@ -487,6 +534,7 @@ export function VietQRProvider({ children }) {
     creating, confirming,
     error, validationErrors,
     createQRForBooking, createQRAtCounter,
+    createPayOSForBooking,
     confirmPayment, simulatePaymentConfirmation, updatePaymentStatus,
     startCountdown, resetQR, regenerateQR, downloadQRImage,
     clearError, resetState, checkQRExpired, formatCountdownTime
