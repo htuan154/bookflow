@@ -1,5 +1,6 @@
 // src/pages/admin/AdminDashboardPage.js - Fixed Version with Charts
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { useHotel } from '../../hooks/useHotel';
 import { useContract } from '../../hooks/useContract';
@@ -101,6 +102,7 @@ const ActivityItem = ({ icon, title, description, time, status }) => (
 // Main Dashboard Component
 const AdminDashboardContent = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [dateRange, setDateRange] = useState('month'); // Changed from 'today' to 'month' for better data visibility
     
     // Safe hook usage with error boundaries
@@ -122,6 +124,13 @@ const AdminDashboardContent = () => {
         getHotelStatistics ? getHotelStatistics() : {}, 
         [getHotelStatistics]
     );
+
+    const approvedHotelsCount = hotelStatistics?.allHotels?.approved ?? hotelStatistics?.approved ?? 0;
+    const pendingHotelsCount = hotelStatistics?.pending ?? hotelStatistics?.allHotels?.pending ?? 0;
+    const rejectedHotelsCount = hotelStatistics?.allHotels?.rejected ?? hotelStatistics?.rejected ?? 0;
+    const totalHotelsCount = hotelStatistics?.total 
+        ?? hotelStatistics?.allHotels?.total 
+        ?? approvedHotelsCount + pendingHotelsCount + rejectedHotelsCount;
     
     const {
         stats: contractStats = {},
@@ -362,11 +371,11 @@ const AdminDashboardContent = () => {
         }
         
         // Hotels activities
-        if (hotelStatistics?.pending > 0) {
+        if (pendingHotelsCount > 0) {
             activities.push({
                 icon: <Building className="w-4 h-4" />,
                 title: "Khách sạn chờ duyệt",
-                description: `${hotelStatistics.pending} khách sạn đang chờ phê duyệt`,
+                description: `${pendingHotelsCount} khách sạn đang chờ phê duyệt`,
                 time: "Hôm nay",
                 status: "warning"
             });
@@ -417,7 +426,7 @@ const AdminDashboardContent = () => {
         }
 
         setRecentActivities(activities.slice(0, 5));
-    }, [revenueStats, hotelStatistics, contractStats, blogStats, dateRange]);
+    }, [revenueStats, pendingHotelsCount, contractStats, blogStats, dateRange]);
 
     // Regenerate activities when any stat changes
     useEffect(() => {
@@ -428,20 +437,19 @@ const AdminDashboardContent = () => {
 
     // Quick action handlers
     const handleCreateBlog = () => {
-        console.log('Navigate to create blog');
+        navigate('/admin/blog-management/create');
     };
-
+    
     const handleProcessContracts = () => {
-        window.location.href = '/admin/contracts';
+        navigate('/admin/contracts');
     };
-
+    
     const handleCreatePromotion = () => {
-        window.location.href = '/admin/promotions/create';
+        navigate('/admin/promotions/create');
     };
-
+    
     const handleViewReports = () => {
-        console.log('Navigate to reports');
-        window.location.href = '/admin/reports';
+        navigate('/admin/reports');
     };
 
     if (isLoading) {
@@ -506,10 +514,10 @@ const AdminDashboardContent = () => {
                 <StatCard
                     icon={<Building size={24} />}
                     title="Tổng khách sạn"
-                    value={hotelStatistics?.approved || 0}
-                    subtitle={`${hotelStatistics?.pending || 0} chờ duyệt`}
+                    value={totalHotelsCount}
+                    subtitle={`${pendingHotelsCount} chờ duyệt`}
                     color="bg-blue-500"
-                    trend={hotelStatistics?.approved > 0 ? `${hotelStatistics.approved} đã duyệt` : null}
+                    trend={approvedHotelsCount > 0 ? `${approvedHotelsCount} đã duyệt` : null}
                 />
                 
                 <StatCard 
@@ -737,7 +745,7 @@ const AdminDashboardContent = () => {
                                 Xem 1 năm qua
                             </button>
                             <button
-                                onClick={() => window.location.href = '/admin/contracts'}
+                                onClick={() => navigate('/admin/contracts')}
                                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
                             >
                                 Quản lý hợp đồng
@@ -778,7 +786,7 @@ const AdminDashboardContent = () => {
                         </div>
                         <div className="text-center p-4 bg-orange-50 rounded-lg">
                             <Building className="w-8 h-8 mx-auto text-orange-500 mb-2" />
-                            <div className="text-2xl font-bold text-orange-600">{hotelStatistics?.approved || 0}</div>
+                            <div className="text-2xl font-bold text-orange-600">{approvedHotelsCount}</div>
                             <div className="text-sm text-gray-600">Khách sạn</div>
                         </div>
                     </div>
@@ -795,11 +803,11 @@ const AdminDashboardContent = () => {
                                     </span>
                                 </div>
                             )}
-                            {(hotelStatistics?.pending > 0) && (
+                            {(pendingHotelsCount > 0) && (
                                 <div className="flex justify-between items-center p-2 bg-yellow-50 rounded">
                                     <span className="text-sm text-gray-700">Khách sạn chờ duyệt</span>
                                     <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-medium">
-                                        {hotelStatistics.pending}
+                                        {pendingHotelsCount}
                                     </span>
                                 </div>
                             )}
@@ -819,7 +827,7 @@ const AdminDashboardContent = () => {
                                     </span>
                                 </div>
                             )}
-                            {(!reportsSummary?.payout_proposals?.length && !hotelStatistics?.pending && !contractStats?.pending && !blogStats?.pending) && (
+                            {(!reportsSummary?.payout_proposals?.length && !pendingHotelsCount && !contractStats?.pending && !blogStats?.pending) && (
                                 <div className="text-center py-4 text-gray-500">
                                     <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
                                     <p>Tất cả đã được xử lý</p>
@@ -873,9 +881,9 @@ const AdminDashboardContent = () => {
                         <PieChart>
                             <Pie
                                 data={[
-                                    { name: 'Đã duyệt', value: hotelStatistics?.approved || 0, color: '#10b981' },
-                                    { name: 'Chờ duyệt', value: hotelStatistics?.pending || 0, color: '#f59e0b' },
-                                    { name: 'Từ chối', value: hotelStatistics?.rejected || 0, color: '#ef4444' },
+                                    { name: 'Đã duyệt', value: approvedHotelsCount, color: '#10b981' },
+                                    { name: 'Chờ duyệt', value: pendingHotelsCount, color: '#f59e0b' },
+                                    { name: 'Từ chối', value: rejectedHotelsCount, color: '#ef4444' },
                                 ].filter(item => item.value > 0)}
                                 cx="50%"
                                 cy="50%"
@@ -886,9 +894,9 @@ const AdminDashboardContent = () => {
                                 dataKey="value"
                             >
                                 {[
-                                    { name: 'Đã duyệt', value: hotelStatistics?.approved || 0, color: '#10b981' },
-                                    { name: 'Chờ duyệt', value: hotelStatistics?.pending || 0, color: '#f59e0b' },
-                                    { name: 'Từ chối', value: hotelStatistics?.rejected || 0, color: '#ef4444' },
+                                    { name: 'Đã duyệt', value: approvedHotelsCount, color: '#10b981' },
+                                    { name: 'Chờ duyệt', value: pendingHotelsCount, color: '#f59e0b' },
+                                    { name: 'Từ chối', value: rejectedHotelsCount, color: '#ef4444' },
                                 ].filter(item => item.value > 0).map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={entry.color} />
                                 ))}
