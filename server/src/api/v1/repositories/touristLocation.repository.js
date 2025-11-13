@@ -10,13 +10,13 @@ const TouristLocation = require('../../../models/touristLocation.model');
  * @returns {Promise<TouristLocation>}
  */
 const create = async (locationData, createdBy) => {
-    const { name, description, city, image_url } = locationData;
+    const { name, description, city, image_url, latitude, longitude } = locationData;
     const query = `
-        INSERT INTO tourist_locations (name, description, city, image_url, created_by)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO tourist_locations (name, description, city, image_url, latitude, longitude, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *;
     `;
-    const values = [name, description, city, image_url, createdBy];
+    const values = [name, description, city, image_url, latitude, longitude, createdBy];
     const result = await pool.query(query, values);
     return new TouristLocation(result.rows[0]);
 };
@@ -61,14 +61,14 @@ const findByCity = async (city) => {
  * @returns {Promise<TouristLocation|null>}
  */
 const update = async (locationId, updateData) => {
-    const { name, description, city, image_url } = updateData;
+    const { name, description, city, image_url, latitude, longitude } = updateData;
     const query = `
         UPDATE tourist_locations
-        SET name = $1, description = $2, city = $3, image_url = $4
-        WHERE location_id = $5
+        SET name = $1, description = $2, city = $3, image_url = $4, latitude = $5, longitude = $6
+        WHERE location_id = $7
         RETURNING *;
     `;
-    const values = [name, description, city, image_url, locationId];
+    const values = [name, description, city, image_url, latitude, longitude, locationId];
     const result = await pool.query(query, values);
     if (!result.rows[0]) {
         return null;
@@ -86,11 +86,23 @@ const deleteById = async (locationId) => {
     return result.rowCount > 0;
 };
 
+/**
+ * Tìm các địa điểm du lịch theo đúng tên thành phố (phân biệt hoa thường, hỗ trợ tiếng Việt).
+ * @param {string} city - Tên thành phố.
+ * @returns {Promise<TouristLocation[]>}
+ */
+const findByCityVn = async (city) => {
+    const query = 'SELECT * FROM tourist_locations WHERE city = $1 ORDER BY name ASC';
+    const result = await pool.query(query, [city]);
+    return result.rows.map(row => new TouristLocation(row));
+};
+
 module.exports = {
     create,
     findAll,
     findById,
     findByCity,
+    findByCityVn,
     update,
     deleteById,
 };

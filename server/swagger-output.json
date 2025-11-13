@@ -2267,6 +2267,26 @@
         }
       }
     },
+    "/api/v1/tourist-locations/city-vn/{city}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "city",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/tourist-locations/{id}": {
       "put": {
         "description": "",
@@ -2959,6 +2979,26 @@
         "parameters": [
           {
             "name": "locationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/food-recommendations/city/{city}": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "city",
             "in": "path",
             "required": true,
             "schema": {

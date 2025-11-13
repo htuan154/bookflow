@@ -18,6 +18,13 @@ class FoodRecommendationService {
                 throw new AppError('Associated tourist location not found', 404);
             }
         }
+        // Nếu có latitude/longitude thì phải là số hợp lệ hoặc null
+        if (foodData.latitude !== undefined && foodData.latitude !== null && typeof foodData.latitude !== 'number') {
+            throw new AppError('Latitude must be a number or null', 400);
+        }
+        if (foodData.longitude !== undefined && foodData.longitude !== null && typeof foodData.longitude !== 'number') {
+            throw new AppError('Longitude must be a number or null', 400);
+        }
         return await foodRecommendationRepository.create(foodData);
     }
 
@@ -41,6 +48,13 @@ class FoodRecommendationService {
         if (!food) {
             throw new AppError('Food recommendation not found', 404);
         }
+        // Nếu updateData có latitude/longitude thì phải là số hợp lệ hoặc null
+        if (updateData.latitude !== undefined && updateData.latitude !== null && typeof updateData.latitude !== 'number') {
+            throw new AppError('Latitude must be a number or null', 400);
+        }
+        if (updateData.longitude !== undefined && updateData.longitude !== null && typeof updateData.longitude !== 'number') {
+            throw new AppError('Longitude must be a number or null', 400);
+        }
         return await foodRecommendationRepository.update(foodId, updateData);
     }
 
@@ -58,6 +72,17 @@ class FoodRecommendationService {
         if (!isDeleted) {
             throw new AppError('Failed to delete food recommendation', 500);
         }
+    }
+        /**
+     * Lấy tất cả các gợi ý món ăn theo thành phố.
+     * @param {string} city - Tên thành phố.
+     * @returns {Promise<FoodRecommendation[]>}
+     */
+    async getRecommendationsByCity(city) {
+        if (!city) {
+            throw new AppError('City parameter is required', 400);
+        }
+        return await foodRecommendationRepository.findByCity(city);
     }
 }
 

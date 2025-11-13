@@ -16,6 +16,9 @@ router.get('/', touristLocationController.getAllLocations);
 // GET /api/v1/tourist-locations/city/:city -> Lấy địa điểm theo thành phố
 router.get('/city/:city', touristLocationController.getLocationsByCity);
 
+// GET /api/v1/tourist-locations/city-vn/:city -> Lấy địa điểm theo đúng tên thành phố (phân biệt hoa thường, hỗ trợ tiếng Việt)
+router.get('/city-vn/:city', touristLocationController.getLocationsByCityVn);
+
 // --- ADMIN-ONLY ROUTES ---
 // Các route dưới đây yêu cầu phải đăng nhập với vai trò 'admin'
 

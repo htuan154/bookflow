@@ -11,6 +11,8 @@ class FoodRecommendation {
   final String? description;
   final String? imageUrl;
   final DateTime createdAt;
+  final double? latitude;
+  final double? longitude;
 
   // Quan hệ với tourist location
   final TouristLocation? location;
@@ -22,6 +24,8 @@ class FoodRecommendation {
     this.description,
     this.imageUrl,
     required this.createdAt,
+    this.latitude,
+    this.longitude,
     this.location,
   });
 
@@ -33,6 +37,8 @@ class FoodRecommendation {
       description: json['description'] as String?,
       imageUrl: json['image_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
+      latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
+      longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
       location: json['location'] != null ? TouristLocation.fromJson(json['location']) : null,
     );
   }
@@ -45,6 +51,8 @@ class FoodRecommendation {
       'description': description,
       'image_url': imageUrl,
       'created_at': createdAt.toIso8601String(),
+      'latitude': latitude,
+      'longitude': longitude,
       if (location != null) 'location': location!.toJson(),
     };
   }
@@ -56,6 +64,8 @@ class FoodRecommendation {
     String? description,
     String? imageUrl,
     DateTime? createdAt,
+    double? latitude,
+    double? longitude,
     TouristLocation? location,
   }) {
     return FoodRecommendation(
@@ -65,6 +75,8 @@ class FoodRecommendation {
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
       createdAt: createdAt ?? this.createdAt,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       location: location ?? this.location,
     );
   }
