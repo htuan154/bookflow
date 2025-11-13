@@ -138,6 +138,7 @@ export const API_ENDPOINTS = {
 
     // --- Review Image Endpoints ---
     REVIEW_IMAGES: {
+        GET_IMAGES: (reviewId) => `${API_BASE_URL}/reviews/${reviewId}/images`,
         UPLOAD: (reviewId) => `${API_BASE_URL}/reviews/${reviewId}/images`,
         DELETE: (imageId) => `${API_BASE_URL}/review-images/${imageId}`,
     },

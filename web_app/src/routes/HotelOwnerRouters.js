@@ -53,8 +53,11 @@ import RoomAssignmentPage from '../pages/hotel_owner/bookings/RoomAssignmentPage
 import BookingWrapper from '../pages/hotel_owner/bookings/BookingWrapper';
 import { RoomAssignmentProvider } from '../context/RoomAssignmentContext';
 import { BookingProvider } from '../context/BookingContext';
+import { ReviewProvider } from '../context/ReviewContext';
+import { ReviewImageProvider } from '../context/ReviewImageContext';
 
 import OwnerReportsPage from '../pages/hotel_owner/reports/OwnerReportsPage';
+import { ReviewsPage } from '../pages/hotel_owner/reviews';
 
 
 // Bank Accounts
@@ -69,12 +72,14 @@ const HotelOwnerRoutes = () => {
   if (user?.roleId !== USER_ROLES.HOTEL_OWNER) return <Navigate to="/unauthorized" replace />;
   // có chỉnh sửa ngày 19/09
   return (
-    <RoomTypeProvider>
-      <RoomProvider>
-        <RoomTypeImageProvider>
-          <HotelAmenityProvider>
-            <BankAccountProvider>
-              <Routes>
+    <ReviewProvider>
+      <ReviewImageProvider>
+        <RoomTypeProvider>
+          <RoomProvider>
+            <RoomTypeImageProvider>
+              <HotelAmenityProvider>
+                <BankAccountProvider>
+                  <Routes>
               <Route element={<HotelOwnerLayout />}>
                 {/* Dashboard */}
                 <Route index element={<HotelOwnerWelcomePage />} />
@@ -149,14 +154,19 @@ const HotelOwnerRoutes = () => {
 
                 {/* ======================= CUSTOMER SUPPORT ======================= */}
                 <Route path="support" element={<CustomerSupportPage />} />
+
+                {/* ======================= REVIEWS ======================= */}
+                <Route path="reviews" element={<ReviewsPage />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-            </BankAccountProvider>
-          </HotelAmenityProvider>
-        </RoomTypeImageProvider>
-      </RoomProvider>
-    </RoomTypeProvider>
+              </Routes>
+              </BankAccountProvider>
+            </HotelAmenityProvider>
+          </RoomTypeImageProvider>
+        </RoomProvider>
+      </RoomTypeProvider>
+      </ReviewImageProvider>
+    </ReviewProvider>
   );
 };
 

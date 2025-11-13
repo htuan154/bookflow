@@ -82,12 +82,12 @@ const HotelOwnerLayout = () => {
         { 
             name: 'Đánh giá', 
             icon: <Star size={20} />, 
-            path: '/hotel-owner/reviews',
-            subItems: [
-                { name: 'Tất cả đánh giá', path: '/hotel-owner/reviews/all' },
-                { name: 'Phản hồi đánh giá', path: '/hotel-owner/reviews/responses' },
-                { name: 'Thống kê đánh giá', path: '/hotel-owner/reviews/analytics' }
-            ]
+            path: '/hotel-owner/reviews'
+            // subItems: [
+            //     { name: 'Tất cả đánh giá', path: '/hotel-owner/reviews/all' },
+            //     { name: 'Phản hồi đánh giá', path: '/hotel-owner/reviews/responses' },
+            //     { name: 'Thống kê đánh giá', path: '/hotel-owner/reviews/analytics' }
+            // ]
         },
 
         // Hỗ trợ khách hàng
