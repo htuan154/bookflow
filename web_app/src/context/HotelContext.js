@@ -301,38 +301,18 @@ export const HotelProvider = ({ children }) => {
     }
   }, []);
 
-  // Fetch pending/rejected hotels
+  // Fetch pending/rejected hotels - TEMPORARILY DISABLED
   const fetchPendingRejectedHotels = useCallback(async (filters = {}) => {
-    if (loadingRefs.current.pendingRejectedHotels) {
-      console.log('Already loading pending/rejected hotels, skipping fetch');
-      return;
-    }
-
-    try {
-      loadingRefs.current.pendingRejectedHotels = true;
-      dispatch({ type: HOTEL_ACTIONS.SET_LOADING, payload: true });
-      console.log('🔄 Fetching pending/rejected hotels with filters:', filters);
-      
-      const response = await hotelService.getPendingRejectedHotels(filters);
-      console.log('✅ Pending/Rejected Hotels API Response:', response);
-      
-      if (!response) {
-        throw new Error('No response from server');
-      }
-
-      dispatch({
-        type: HOTEL_ACTIONS.FETCH_PENDING_REJECTED_HOTELS_SUCCESS,
-        payload: response
-      });
-    } catch (error) {
-      console.error('❌ Error fetching pending/rejected hotels:', error);
-      dispatch({
-        type: HOTEL_ACTIONS.SET_ERROR,
-        payload: error?.response?.data?.message || error.message || 'Không thể tải danh sách hotel chờ duyệt/từ chối'
-      });
-    } finally {
-      loadingRefs.current.pendingRejectedHotels = false;
-    }
+    // SKIP THIS API CALL - Endpoint doesn't exist on server
+    console.log('⚠️ Skipping pending/rejected hotels fetch - endpoint not implemented');
+    
+    // Return empty data to avoid errors
+    dispatch({
+      type: HOTEL_ACTIONS.FETCH_PENDING_REJECTED_HOTELS_SUCCESS,
+      payload: { data: [], total: 0 }
+    });
+    
+    return { data: [], total: 0 };
   }, []);
 
   // Get hotel by ID
