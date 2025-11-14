@@ -2373,26 +2373,6 @@
         }
       }
     },
-    "/api/v1/reviews/hotel/{hotelId}/all": {
-      "get": {
-        "description": "",
-        "parameters": [
-          {
-            "name": "hotelId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "default": {
-            "description": ""
-          }
-        }
-      }
-    },
     "/api/v1/reviews/booking/{bookingId}": {
       "get": {
         "description": "",
