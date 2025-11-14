@@ -6,6 +6,7 @@ import useAuth from '../hooks/useAuth';
 
 import HotelOwnerLayout from '../components/layout/hotel_owner/HotelOwnerLayout';
 import HotelOwnerWelcomePage from '../pages/hotel_owner/HotelOwnerWelcomePage';
+import HotelDashboardPage from '../pages/hotel_owner/HotelDashboardPage';
 import NotFoundPage from '../pages/shared/NotFoundPage';
 
 import HotelInfo from '../pages/hotel_owner/hotel_management/HotelInfo';
@@ -83,7 +84,8 @@ const HotelOwnerRoutes = () => {
               <Route element={<HotelOwnerLayout />}>
                 {/* Dashboard */}
                 <Route index element={<HotelOwnerWelcomePage />} />
-                <Route path="dashboard" element={<HotelOwnerWelcomePage />} />
+                <Route path="dashboard" element={<HotelDashboardPage />} />
+                <Route path="welcome" element={<HotelOwnerWelcomePage />} />
                 {/* Reports (Báo cáo & Thống kê) */}
                 <Route path="reports" element={<OwnerReportsPage />} />
 
