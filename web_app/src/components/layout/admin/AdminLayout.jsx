@@ -48,6 +48,7 @@ const AdminLayout = () => {
         },
         { name: 'Quản lý bình luận', icon: <MessageSquare size={20} />, path: '/admin/comments' },
         { name: 'Gợi ý địa danh', icon: <MapPin size={20} />, path: '/admin/suggestions' },
+        { name: 'Danh lam thắng cảnh', icon: <MapPin size={20} />, path: '/admin/tourist-locations' },
         
         // TIN NHẮN
         { name: 'Tin nhắn', icon: <MessageSquare size={20} />, path: '/admin/messages' },
@@ -153,20 +154,20 @@ const AdminLayout = () => {
                     <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Khách hàng</p>
                     {navLinks.slice(4, 7).map(renderMenuItem)}
                     
-                    {/* NỘI DUNG - 3 items (7-9) */}
+                    {/* NỘI DUNG - 4 items (7-10) */}
                     <div className="my-4 border-t border-gray-200"></div>
                     <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Nội dung</p>
-                    {navLinks.slice(7, 10).map(renderMenuItem)}
+                    {navLinks.slice(7, 11).map(renderMenuItem)}
                     
-                    {/* TIN NHẮN - 1 item (10) */}
+                    {/* TIN NHẮN - 1 item (11) */}
                     <div className="my-4 border-t border-gray-200"></div>
                     <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Tin nhắn</p>
-                    {navLinks.slice(10, 11).map(renderMenuItem)}
+                    {navLinks.slice(11, 12).map(renderMenuItem)}
                     
-                    {/* BÁO CÁO - 3 items (11-13) */}
+                    {/* BÁO CÁO - 3 items (12-14) */}
                     <div className="my-4 border-t border-gray-200"></div>
                     <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Báo cáo</p>
-                    {navLinks.slice(11).map(renderMenuItem)}
+                    {navLinks.slice(12).map(renderMenuItem)}
                 </nav>
 
                 {/* Footer cố định */}

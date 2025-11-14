@@ -7,6 +7,7 @@ export const CHAT_API_ENDPOINTS = {
     GET_CHAT_HISTORY: (bookingId) => `${API_BASE_URL}/chats/booking/${bookingId}`,
     SEND_MESSAGE: `${API_BASE_URL}/chats`,
 };
+
 export const API_ENDPOINTS = {
     IM: {
         CREATE_DM: `${API_BASE_URL}/im/conversations/dm`,
@@ -71,7 +72,8 @@ export const API_ENDPOINTS = {
     // --- Tourist Location Endpoints ---
     TOURIST_LOCATIONS: {
         GET_ALL: `${API_BASE_URL}/tourist-locations`,
-        GET_BY_CITY: (city) => `${API_BASE_URL}/tourist-locations/city/${city}`,
+        GET_BY_CITY: (city) => `${API_BASE_URL}/tourist-locations/city/${encodeURIComponent(city)}`,
+        GET_BY_CITY_VN: (city) => `${API_BASE_URL}/tourist-locations/city-vn/${encodeURIComponent(city)}`,
         CREATE: `${API_BASE_URL}/tourist-locations`,
         UPDATE: (id) => `${API_BASE_URL}/tourist-locations/${id}`,
         DELETE: (id) => `${API_BASE_URL}/tourist-locations/${id}`,
@@ -159,9 +161,15 @@ export const API_ENDPOINTS = {
 
     // --- Food Recommendation Endpoints ---
     FOOD_RECOMMENDATIONS: {
+        // Lấy gợi ý món ăn của một địa điểm
         GET_BY_LOCATION: (locationId) => `${API_BASE_URL}/food-recommendations/${locationId}/food-recommendations`,
+        // Lấy gợi ý món ăn theo thành phố
+        GET_BY_CITY: (city) => `${API_BASE_URL}/food-recommendations/city/${encodeURIComponent(city)}`,
+        // Tạo gợi ý mới (admin)
         CREATE: `${API_BASE_URL}/food-recommendations`,
+        // Cập nhật gợi ý (admin)
         UPDATE: (id) => `${API_BASE_URL}/food-recommendations/${id}`,
+        // Xóa gợi ý (admin)
         DELETE: (id) => `${API_BASE_URL}/food-recommendations/${id}`,
     },
     // --- Booking Endpoints ---

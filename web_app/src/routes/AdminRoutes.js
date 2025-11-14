@@ -29,7 +29,9 @@ import BlogListPage from '../pages/admin/BlogManagement/BlogListPage';
 import AdminSuggestionsPage from '../pages/admin/ChatBotAi/AdminSuggestionsPage';
 import ContractListPage from '../pages/admin/ContractManagement/ContractListPage';
 import HotelDetailPage from '../pages/admin/HotelManagement/HotelDetailPage';
-
+import TouristLocationsPage from '../pages/admin/TouristLocation/TouristLocationsPage';
+import TouristLocationDetailPage from '../pages/admin/TouristLocation/TouristLocationDetailPage';
+import FoodRecommendationDetailPage from '../pages/admin/TouristLocation/FoodRecommendationDetailPage';
 
 import CustomerManagement from '../pages/admin/CustomerManagement/CustomerManagement';
 import CommentManagementPage from '../pages/admin/CommentManagement/CommentManagementPage';
@@ -44,6 +46,8 @@ import { CustomerProvider }  from '../context/CustomerContext';
 import { BlogCommentProvider } from '../context/BlogCommentContext'; // Thêm dòng này
 import AdminMessagesPage from '../pages/admin/messages';
 import { IMProvider } from '../context/IMContext';
+import { TouristLocationProvider } from '../context/TouristLocationContext';
+import { FoodRecommendationProvider } from '../context/FoodRecommendationContext';
 // Promotion pages
 import {
     PromotionManagement,
@@ -214,6 +218,39 @@ const AdminRoutes = () => {
                     }
                 />
                 <Route path="suggestions" element={<AdminSuggestionsPage />} />
+                
+                {/* Tourist Locations Management */}
+                <Route
+                    path="tourist-locations"
+                    element={
+                        <TouristLocationProvider>
+                            <FoodRecommendationProvider>
+                                <TouristLocationsPage />
+                            </FoodRecommendationProvider>
+                        </TouristLocationProvider>
+                    }
+                />
+                <Route
+                    path="tourist-locations/:locationId"
+                    element={
+                        <TouristLocationProvider>
+                            <FoodRecommendationProvider>
+                                <TouristLocationDetailPage />
+                            </FoodRecommendationProvider>
+                        </TouristLocationProvider>
+                    }
+                />
+                <Route
+                    path="food-recommendations/:foodId"
+                    element={
+                        <TouristLocationProvider>
+                            <FoodRecommendationProvider>
+                                <FoodRecommendationDetailPage />
+                            </FoodRecommendationProvider>
+                        </TouristLocationProvider>
+                    }
+                />
+                
                 <Route path="*" element={<NotFoundPage />} />
             </Route>
         </Routes>
