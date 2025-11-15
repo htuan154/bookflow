@@ -164,8 +164,8 @@ export function VietQRProvider({ children }) {
     console.log('\n🚀 [Context] createPayOSForBooking START');
     console.log('📌 Input:', { bookingId, hotelId, amount, description });
     
-    if (!bookingId || !hotelId || !amount || amount <= 0) {
-      const msg = 'bookingId/hotelId/amount là bắt buộc và amount > 0';
+    if (!bookingId || !amount || amount <= 0) {
+      const msg = 'bookingId và amount > 0 là bắt buộc';
       console.log('❌ Validation failed:', msg);
       setError(msg);
       throw new Error(msg);
@@ -177,7 +177,12 @@ export function VietQRProvider({ children }) {
 
     try {
       console.log('📡 Calling vietqrService.createPayOSPayment...');
-      const resp = await vietqrService.createPayOSPayment({ bookingId, hotelId, amount, description });
+      const resp = await vietqrService.createPayOSPayment({
+        bookingId,
+        hotelId,
+        amount,
+        description
+      });
       console.log('📥 Service response:', resp);
       
       if (!resp?.ok) {
@@ -188,16 +193,21 @@ export function VietQRProvider({ children }) {
       // Chuẩn hóa state để UI cũ dùng được
       const qrDataObj = {
         tx_ref: resp.tx_ref,
+        qr_code: resp.qr_code || null,       // Raw EMVCo string for QRCodeSVG
         qr_image: resp.qr_image || null,     // có thể null -> dùng checkout_url
         checkout_url: resp.checkout_url || null,
-        amount
+        amount,
+        raw: resp.raw || resp                // Keep full response for fallback
       };
       console.log('💾 Setting qrData:', qrDataObj);
       setQrData(qrDataObj);
 
       const paymentObj = {
         tx_ref: resp.tx_ref,
-        bookingId, hotelId, amount, description,
+        bookingId,
+        hotelId: hotelId || null,
+        amount,
+        description,
         paymentType: 'booking',
         paymentProvider: 'payos',
         createdAt: new Date().toISOString()
@@ -211,7 +221,10 @@ export function VietQRProvider({ children }) {
 
       setPaymentHistory(prev => [{
         tx_ref: resp.tx_ref,
-        bookingId, hotelId, amount, description,
+        bookingId,
+        hotelId: hotelId || null,
+        amount,
+        description,
         paymentType: 'booking',
         paymentProvider: 'payos',
         status: 'pending',

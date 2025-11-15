@@ -1,5 +1,21 @@
 'use strict';
 const axios = require('axios');
+const crypto = require('crypto');
+
+const getEnv = (key, fallback = '') => {
+  const value = process.env[key];
+  if (value === undefined || value === null) return fallback;
+  return typeof value === 'string' ? value.trim() : value;
+};
+
+function makePayOSSignature({ amount, cancelUrl, description, orderCode, returnUrl }) {
+  const checksumKey = getEnv('PAYOS_CHECKSUM_KEY', '');
+  if (!checksumKey) {
+    throw new Error('PAYOS_CHECKSUM_KEY is not configured');
+  }
+  const payload = `amount=${amount}&cancelUrl=${cancelUrl}&description=${description}&orderCode=${orderCode}&returnUrl=${returnUrl}`;
+  return crypto.createHmac('sha256', checksumKey).update(payload).digest('hex');
+}
 
 class VietQRService {
   // Cập nhật status của payment
@@ -50,17 +66,20 @@ class VietQRService {
   async payosCreate({ orderCode, amount, description, returnUrl, cancelUrl }) {
     console.log('\n💳 ========== [PayOS Service] CREATE PAYMENT ==========');
     
-    const base = process.env.PAYOS_BASE_URL || 'https://api-merchant.payos.vn';
+    const base = getEnv('PAYOS_BASE_URL', 'https://api-merchant.payos.vn');
+    const clientId = getEnv('PAYOS_CLIENT_ID');
+    const apiKey = getEnv('PAYOS_API_KEY');
+    const redirectUrl = getEnv('REDIRECT_URL', 'http://localhost:5173/payment/result');
     const headers = {
-      'x-client-id': process.env.PAYOS_CLIENT_ID,
-      'x-api-key': process.env.PAYOS_API_KEY,
+      'x-client-id': clientId,
+      'x-api-key': apiKey,
       'Content-Type': 'application/json'
     };
     
     console.log('🔑 PayOS Config:', {
       base,
-      clientId: process.env.PAYOS_CLIENT_ID,
-      hasApiKey: !!process.env.PAYOS_API_KEY
+      clientId,
+      hasApiKey: !!apiKey
     });
     
     // PayOS yêu cầu phải có items array
@@ -75,11 +94,19 @@ class VietQRService {
           price: amount
         }
       ],
-      returnUrl: returnUrl || process.env.REDIRECT_URL || 'http://localhost:5173/payment/result',
-      cancelUrl: cancelUrl || process.env.REDIRECT_URL || 'http://localhost:5173/payment/result'
+      returnUrl: returnUrl || redirectUrl,
+      cancelUrl: cancelUrl || redirectUrl
     };
     
-    console.log('📤 Request to PayOS:', JSON.stringify(body, null, 2));
+    body.signature = makePayOSSignature({
+      amount: body.amount,
+      cancelUrl: body.cancelUrl,
+      description: body.description,
+      orderCode: body.orderCode,
+      returnUrl: body.returnUrl
+    });
+    
+    console.log('📤 Request to PayOS:', JSON.stringify({ ...body, signature: '[HMAC]' }, null, 2));
     
     const { data } = await axios.post(`${base}/v2/payment-requests`, body, { headers, timeout: 15000 });
     
@@ -93,7 +120,10 @@ class VietQRService {
     // Check error code
     if (data.code && data.code !== '00') {
       console.log('❌ PayOS Error:', { code: data.code, desc: data.desc });
-      throw new Error(`PayOS Error ${data.code}: ${data.desc || 'Unknown error'}`);
+      const err = new Error(`PayOS Error ${data.code}: ${data.desc || 'Unknown error'}`);
+      err.gatewayCode = data.code;
+      err.gatewayData = data;
+      throw err;
     }
     
     console.log('✅ PayOS payment created successfully');
@@ -107,10 +137,10 @@ class VietQRService {
     console.log('\n🔍 ========== [PayOS Service] GET STATUS ==========');
     console.log('📌 OrderCode:', orderCode);
     
-    const base = process.env.PAYOS_BASE_URL || 'https://api-merchant.payos.vn';
+    const base = getEnv('PAYOS_BASE_URL', 'https://api-merchant.payos.vn');
     const headers = {
-      'x-client-id': process.env.PAYOS_CLIENT_ID,
-      'x-api-key': process.env.PAYOS_API_KEY
+      'x-client-id': getEnv('PAYOS_CLIENT_ID'),
+      'x-api-key': getEnv('PAYOS_API_KEY')
     };
     
     const url = `${base}/v2/payment-requests/${orderCode}`;

@@ -303,6 +303,15 @@ exports.checkPaymentStatus = async (req, res) => {
   }
 };
 
+const buildPayOSDescription = (desc, orderCode) => {
+  const maxLen = 25;
+  const suffix = `#${orderCode}`;
+  const base = (desc || 'Thanh toan don').replace(/\s+/g, ' ').trim();
+  const allowed = Math.max(0, maxLen - suffix.length - 1);
+  const truncated = base.slice(0, allowed).trim() || 'Thanh toan';
+  return `${truncated} ${suffix}`.slice(0, maxLen).trim();
+};
+
 // === PayOS: tạo đơn thanh toán (POLLING, không webhook) ===
 exports.createPayOSPayment = async (req, res) => {
   const client = await db.connect();
@@ -349,22 +358,41 @@ exports.createPayOSPayment = async (req, res) => {
       return res.status(400).json({ ok:false, message:'Tổng tiền không hợp lệ' });
     }
 
-    const makeOrderCode = () => Number(String(Date.now()).slice(-9));
-    const orderCode = makeOrderCode();
+    const makeOrderCode = () => {
+      const ts = String(Date.now()).slice(-7);
+      const rand = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+      return Number(`${ts}${rand}`.slice(-11));
+    };
 
-    // 1) Gọi payOS tạo payment request (polling: KHÔNG webhookUrl)
-    const data = await vietqrService.payosCreate({
-      orderCode,
-      amount: amounts.final_amount,
-      description: `${description} #${orderCode}`,
-      returnUrl: process.env.REDIRECT_URL,
-      cancelUrl: process.env.REDIRECT_URL
-    });
+    let payosData = null;
+    let orderCode = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      orderCode = makeOrderCode();
+      try {
+        const safeDescription = buildPayOSDescription(description, orderCode);
+        payosData = await vietqrService.payosCreate({
+          orderCode,
+          amount: amounts.final_amount,
+          description: safeDescription
+        });
+        break;
+      } catch (err) {
+        if (err?.gatewayCode === '231' && attempt < 2) {
+          console.warn(`⚠️  PayOS orderCode trùng (#${orderCode}). Thử lại (lần ${attempt + 2}/3)...`);
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (!payosData) {
+      throw new Error('Không thể tạo PayOS order sau 3 lần thử');
+    }
     
-    console.log('📦 PayOS API Response:', JSON.stringify(data, null, 2));
+    console.log('📦 PayOS API Response:', JSON.stringify(payosData, null, 2));
     
-    const checkoutUrl = data.checkoutUrl || data.checkoutUrlWeb || data.checkoutUrlApp;
-    const qrCode = data.qrCode || data.qrCodeUrl || data.qrDataURL;
+    const checkoutUrl = payosData.checkoutUrl || payosData.checkoutUrlWeb || payosData.checkoutUrlApp;
+    const qrCode = payosData.qrCode || payosData.qrCodeUrl || payosData.qrDataURL;
 
     // 2) Lưu PENDING vào DB với amounts đã tính
     await client.query(
@@ -389,13 +417,22 @@ exports.createPayOSPayment = async (req, res) => {
 
     return res.json({ 
       ok: true, 
+      tx_ref: String(orderCode),  // Frontend expects tx_ref
       orderId: String(orderCode), 
-      checkoutUrl: checkoutUrl || null, 
-      qrCode: qrCode || null 
+      checkout_url: checkoutUrl || null,  // Frontend expects checkout_url
+      checkoutUrl: checkoutUrl || null,   // Keep for backward compatibility
+      qr_image: qrCode || null,  // Frontend expects qr_image
+      qrCode: qrCode || null     // Keep for backward compatibility
     });
   } catch (err) {
-    console.error('❌ [PayOS create] Error:', err?.response?.data || err.message);
-    return res.status(500).json({ ok:false, message:'create payment failed' });
+    const gatewayPayload = err?.gatewayData || err?.response?.data || null;
+    console.error('❌ [PayOS create] Error:', gatewayPayload || err.message);
+    return res.status(500).json({
+      ok:false,
+      message: err?.message || 'create payment failed',
+      gatewayCode: err?.gatewayCode || gatewayPayload?.code || null,
+      gatewayDesc: gatewayPayload?.desc || gatewayPayload?.message || null
+    });
   } finally {
     client.release();
   }

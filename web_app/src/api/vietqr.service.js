@@ -3,6 +3,28 @@ import axiosClient from '../config/axiosClient';
 import { API_ENDPOINTS } from '../config/apiEndpoints';
 
 class VietQRService {
+  normalizeQrImage(qrValue) {
+    console.log('🔧 normalizeQrImage input:', qrValue?.substring(0, 100));
+    
+    if (!qrValue) {
+      console.log('❌ No qrValue provided');
+      return null;
+    }
+    
+    const lower = qrValue.toLowerCase();
+    if (lower.startsWith('data:image') || lower.startsWith('http://') || lower.startsWith('https://')) {
+      console.log('✅ Already a URL/dataURL');
+      return qrValue;
+    }
+    
+    // EMVCo QR string -> convert to Google Charts API URL
+    const encoded = encodeURIComponent(qrValue);
+    const url = `https://chart.googleapis.com/chart?cht=qr&chs=400x400&chl=${encoded}`;
+    console.log('✅ Generated QR URL:', url.substring(0, 150) + '...');
+    
+    return url;
+  }
+
   /**
    * UC01 & UC02: Tạo QR code cho booking có sẵn
    * @param {string} bookingId - ID của booking
@@ -148,18 +170,39 @@ class VietQRService {
     console.log('📥 Response status:', res.status);
     console.log('📥 Response data:', JSON.stringify(res.data, null, 2));
     
-    // BE trả: { ok, orderId, checkoutUrl, qrCode }
+    // BE trả: { ok, orderId, checkoutUrl, qrCode, qr_image }
     const d = res.data || {};
+    
+    console.log('🔍 Backend response fields:', {
+      hasQrCode: !!d.qrCode,
+      hasQrImage: !!d.qr_image,
+      qrCodeLength: d.qrCode?.length,
+      qrImageLength: d.qr_image?.length
+    });
+    
+    // Prioritize qr_image (if backend already converted), fallback to qrCode
+    const rawQr = d.qr_image || d.qrCode || null;
+    console.log('🔍 Using rawQr:', rawQr?.substring(0, 100));
+    
     const result = {
       ok: !!d.ok,
       // Chuẩn hóa để UI cũ dùng được:
-      tx_ref: d.orderId,               // dùng làm khóa để poll
-      qr_image: d.qrCode || null,      // nếu BE trả base64; nếu không có sẽ dùng checkoutUrl để open tab
-      checkout_url: d.checkoutUrl || null,
+      tx_ref: d.tx_ref || d.orderId,   // dùng làm khóa để poll
+      qr_code: rawQr,  // Raw EMVCo QR string for QRCodeSVG component
+      qr_image: this.normalizeQrImage(rawQr),  // Google Charts URL (fallback)
+      checkout_url: d.checkout_url || d.checkoutUrl || null,
+      amount: d.amount,
       raw: d
     };
     
-    console.log('✅ Parsed result:', result);
+    console.log('✅ Parsed result:', {
+      ok: result.ok,
+      tx_ref: result.tx_ref,
+      has_qr_code: !!result.qr_code,
+      qr_code_preview: result.qr_code?.substring(0, 100),
+      has_qr_image: !!result.qr_image,
+      qr_image_preview: result.qr_image?.substring(0, 150)
+    });
     return result;
   }
 
