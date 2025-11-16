@@ -358,6 +358,22 @@ class HotelController {
       next(error);
     }
   }
+
+  /**
+   * Lấy loại phòng còn trống của 1 khách sạn chỉ định
+   * GET /api/v1/hotels/:hotelId/available-rooms?checkInDate=YYYY-MM-DD&checkOutDate=YYYY-MM-DD
+   */
+  async getAvailableRoomsByHotelId(req, res, next) {
+    try {
+      const { hotelId } = req.params;
+      const { checkInDate, checkOutDate } = req.query;
+      const result = await hotelService.getAvailableRoomsByHotelId(hotelId, checkInDate, checkOutDate);
+      successResponse(res, result.data, 'Lấy danh sách phòng còn trống thành công');
+    } catch (error) {
+      next(error);
+    }
+  }
+  
 }
 
 module.exports = new HotelController();

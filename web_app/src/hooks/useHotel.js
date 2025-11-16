@@ -91,6 +91,15 @@ export const useHotel = () => {
   }, [hotels]);
 
   /**
+   * Lấy danh sách loại phòng còn trống của 1 khách sạn
+   * @param {string} hotelId
+   * @param {string} checkInDate
+   * @param {string} checkOutDate
+   * @returns {Promise<Array>}
+   */
+  const getAvailableRoomsByHotelId = context.getAvailableRoomsByHotelId;
+
+  /**
    * NEW - Lọc approved hotels theo điều kiện
    * @param {Function} filterFn - Function để lọc
    * @returns {Array} Danh sách approved hotels đã lọc
@@ -252,7 +261,7 @@ export const useHotel = () => {
     totalCount,
     currentPage,
     pageSize,
-    
+
     // State - NEW
     approvedHotels,
     pendingRejectedHotels,
@@ -265,7 +274,7 @@ export const useHotel = () => {
     hasHotels,
     hotelCount,
     totalHotels,
-    
+
     // Computed state - NEW
     hasApprovedHotels,
     approvedHotelCount,
@@ -278,7 +287,7 @@ export const useHotel = () => {
     fetchAllHotels,
     setPage,
     clearError,
-    
+
     // Available actions - NEW
     fetchApprovedHotels,
     fetchPendingRejectedHotels,
@@ -290,7 +299,7 @@ export const useHotel = () => {
     getHotelCountByStatus,
     searchHotels,
     refreshHotels,
-    
+
     // Utility functions - NEW
     getFilteredApprovedHotels,
     getFilteredPendingRejectedHotels,
@@ -300,7 +309,8 @@ export const useHotel = () => {
     refreshPendingRejectedHotels,
     searchApprovedHotels,
     searchPendingRejectedHotels,
-    searchAllHotels
+    searchAllHotels,
+    getAvailableRoomsByHotelId
   };
 };
 

@@ -50,6 +50,13 @@ export const API_ENDPOINTS = {
         },
     
     },
+
+    // --- Booking Nightly Price Endpoints ---
+    BOOKING_NIGHTLY_PRICE: {
+    GET_BY_BOOKING_ID: (bookingId) => `${API_BASE_URL}/booking-nightly-prices/${bookingId}`,
+    CREATE: `${API_BASE_URL}/booking-nightly-prices`,
+    },
+
     // --- Season Endpoints ---
     SEASONS: {
         GET_ALL: `${API_BASE_URL}/seasons`,

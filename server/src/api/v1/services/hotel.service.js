@@ -350,6 +350,16 @@ class HotelService {
     };
   }
 
+  async getAvailableRoomsByHotelId(hotelId, checkInDate, checkOutDate) {
+  if (!hotelId || !checkInDate || !checkOutDate) {
+    throw new AppError('Thiếu thông tin hotelId, checkInDate hoặc checkOutDate', 400);
+  }
+  const rooms = await hotelRepository.findAvailableRoomsByHotelId(hotelId, checkInDate, checkOutDate);
+  return {
+    success: true,
+    data: rooms
+  };
+}
 }
 
 module.exports = new HotelService();

@@ -46,14 +46,30 @@ export const bookingDetailApiService = {
   /**
    * Tạo booking detail
    */
-  async createBookingDetail(detailData) {
+  async createBookingDetail(bookingId, detailData) {
     try {
       console.log('🔄 [BOOKING DETAIL SERVICE] Creating booking detail:', detailData);
-      const response = await axiosClient.post('/booking-details', detailData);
+      // Endpoint đúng là /booking-details/booking/{bookingId}
+      const response = await axiosClient.post(`/booking-details/booking/${bookingId}`, detailData);
       console.log('✅ [BOOKING DETAIL SERVICE] Booking detail created:', response.data);
       return response.data;
     } catch (error) {
       console.error('❌ [BOOKING DETAIL SERVICE] Error creating booking detail:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Tạo booking detail cho khách hàng (for-customer, không kiểm tra userId)
+   */
+  async createBookingDetailForCustomer(bookingId, detailData) {
+    try {
+      console.log('🔄 [BOOKING DETAIL SERVICE] Creating booking detail for customer:', detailData);
+      const response = await axiosClient.post(`/booking-details/booking/${bookingId}/for-customer`, detailData);
+      console.log('✅ [BOOKING DETAIL SERVICE] Booking detail for customer created:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [BOOKING DETAIL SERVICE] Error creating booking detail for customer:', error);
       throw error;
     }
   },

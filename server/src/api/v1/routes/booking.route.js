@@ -7,12 +7,16 @@ const historyRoutes = require('./bookingStatusHistory.route');
 
 const router = express.Router();
 
-router.use(authenticate);
-
+// Public route: getUserNoShowBookings
 router.get(
     '/user/:userId/no_show',
     bookingController.getUserNoShowBookings
 );
+
+router.use(authenticate);
+
+// Hotel owner create booking for customer
+router.post('/customer/:userId', authorize(['hotel_owner', 'admin', 'hotel_staff']), bookingController.createBookingForCustomer);
 
 router.post('/', validate(createBookingSchema), bookingController.createBooking);
 

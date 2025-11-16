@@ -5,16 +5,28 @@ const { successResponse } = require('../../../utils/response');
 
 class BookingController {
     /**
+     * Chủ khách sạn tạo booking cho khách hàng (userId truyền vào)
+     * POST /api/v1/bookings/customer/:userId
+     */
+    async createBookingForCustomer(req, res, next) {
+        try {
+            const { userId } = req.params;
+            const bookingData = req.body;
+            const result = await BookingService.createBookingForCustomer(bookingData, userId);
+            successResponse(res, result, 'Booking created for customer successfully', 201);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
      * Lấy tất cả booking no_show của một user
      * GET /api/v1/bookings/user/:userId/no_show
      */
     async getUserNoShowBookings(req, res, next) {
         try {
             const { userId } = req.params;
-            // Cho phép admin hoặc chính user xem
-            if (req.user.role !== 'admin' && req.user.id !== userId) {
-                return res.status(403).json({ message: 'Forbidden' });
-            }
+            // Route này public, không kiểm tra quyền
             const bookings = await BookingService.findNoShowBookingsByUser(userId);
             successResponse(res, bookings);
         } catch (error) {

@@ -3,6 +3,51 @@ import axiosClient from '../config/axiosClient';
 
 const bookingApiService = {
   /**
+   * Tạo booking mới
+   */
+  async createBooking(bookingData) {
+    try {
+      console.log('🔄 [BOOKING SERVICE] Creating booking:', bookingData);
+      const response = await axiosClient.post('/bookings', bookingData);
+      console.log('✅ [BOOKING SERVICE] Booking created:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [BOOKING SERVICE] Error creating booking:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Tạo booking cho khách hàng (userId truyền vào)
+   */
+  async createBookingForCustomer(userId, bookingData) {
+    try {
+      console.log('🔄 [BOOKING SERVICE] Creating booking for customer:', userId, bookingData);
+      const response = await axiosClient.post(`/bookings/customer/${userId}`, bookingData);
+      console.log('✅ [BOOKING SERVICE] Booking for customer created:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [BOOKING SERVICE] Error creating booking for customer:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách booking no_show của user
+   */
+  async getUserNoShowBookings(userId) {
+    try {
+      console.log('🔄 [BOOKING SERVICE] Fetching no_show bookings for user:', userId);
+      const response = await axiosClient.get(`/bookings/user/${userId}/no_show`);
+      console.log('✅ [BOOKING SERVICE] No_show bookings:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ [BOOKING SERVICE] Error fetching no_show bookings:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Lấy danh sách bookings theo hotelId
    */
   async getBookingsByHotelId(hotelId) {
@@ -170,5 +215,7 @@ const bookingApiService = {
   }
 };
 
+// Export thêm alias để tương thích với code mới
+export const bookingService = bookingApiService;
 export { bookingApiService };
 export default bookingApiService;

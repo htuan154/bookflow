@@ -31,6 +31,8 @@ const HOTEL_ACTIONS = {
   REJECT_HOTEL_SUCCESS: 'REJECT_HOTEL_SUCCESS',
   RESTORE_HOTEL_SUCCESS: 'RESTORE_HOTEL_SUCCESS',
   SET_PAGE: 'SET_PAGE',
+
+    // ...existing code...
   CLEAR_ERROR: 'CLEAR_ERROR',
   RESET_STATE: 'RESET_STATE'
 };
@@ -264,6 +266,16 @@ export const HotelProvider = ({ children }) => {
       });
     } finally {
       loadingRefs.current.allHotels = false;
+    }
+  }, []);
+
+    // Lấy danh sách loại phòng còn trống của 1 khách sạn
+  const getAvailableRoomsByHotelId = useCallback(async (hotelId, checkInDate, checkOutDate) => {
+    try {
+      return await hotelService.getAvailableRoomsByHotelId(hotelId, checkInDate, checkOutDate);
+    } catch (error) {
+      console.error('Error fetching available rooms by hotel ID:', error);
+      throw error;
     }
   }, []);
 
@@ -506,7 +518,7 @@ export const HotelProvider = ({ children }) => {
     pendingRejectedCount: state.pendingRejectedCount,       
     currentPage: state.currentPage,
     pageSize: state.pageSize,
-    
+
     // Actions
     fetchAllHotels,
     fetchApprovedHotels,           
@@ -520,7 +532,10 @@ export const HotelProvider = ({ children }) => {
     getHotelStatistics,
     setPage,
     clearError,
-    resetHotelState
+    resetHotelState,
+
+    // Thêm hàm lấy loại phòng còn trống của 1 khách sạn
+    getAvailableRoomsByHotelId
   };
 
   return (
