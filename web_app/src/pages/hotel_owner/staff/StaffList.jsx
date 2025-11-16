@@ -1,23 +1,39 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { 
     Users2, Plus, Edit, Trash2, Eye, Search, Filter,
     User, Mail, Phone, MapPin, Calendar, CheckCircle, 
-    XCircle, AlertCircle, MoreVertical, ChevronDown
+    XCircle, AlertCircle, MoreVertical, ChevronDown, Briefcase
 } from 'lucide-react';
 import { useHotelOwner } from '../../../hooks/useHotelOwner';
-import { staffApiService } from '../../../api/staff.service';
+import { useStaff } from '../../../context/StaffContext';
 
 const StaffList = () => {
     const { hotelData, fetchOwnerHotel } = useHotelOwner();
+    const navigate = useNavigate();
     
-    const [staff, setStaff] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
+    // Use StaffContext instead of local state
+    const {
+        staff,
+        loading,
+        error,
+        selectedHotel,
+        setSelectedHotel,
+        searchTerm,
+        setSearchTerm,
+        statusFilter,
+        setStatusFilter,
+        page,
+        setPage,
+        pageSize,
+        setPageSize,
+        updateStaffStatus,
+        deleteStaff
+    } = useStaff();
+    
+    const [searchParams, setSearchParams] = useSearchParams();
     const [selectedStaff, setSelectedStaff] = useState(null);
     const [showDetails, setShowDetails] = useState(false);
-    const [selectedHotel, setSelectedHotel] = useState(null); // Add hotel selection
 
     useEffect(() => {
         loadData();
@@ -45,69 +61,14 @@ const StaffList = () => {
                 console.log('Selected default hotel:', firstHotel);
             }
         }
-    }, [hotelData]);
-
-    // Load staff when selectedHotel changes
-    useEffect(() => {
-        if (selectedHotel) {
-            const hotelId = selectedHotel.hotelId || selectedHotel.hotel_id || selectedHotel.id || selectedHotel._id;
-            console.log('Loading staff for selected hotel:', hotelId);
-            loadStaff(hotelId);
-        }
-    }, [selectedHotel]);
-
-    const loadStaff = async (hotelId) => {
-        console.log('loadStaff called with:', hotelId);
-        
-        if (!hotelId) {
-            console.warn('No hotel ID provided');
-            setError('Không tìm thấy ID khách sạn');
-            return;
-        }
-        
-        try {
-            setLoading(true);
-            setError(null);
-            
-            console.log('API call - Loading staff for hotel:', hotelId);
-            const response = await staffApiService.getHotelStaff(hotelId);
-            
-            console.log('API Response:', response);
-            
-            // Handle different response formats
-            let staffList = [];
-            
-            if (response && response.data) {
-                // Format: { status: "success", data: [...] }
-                staffList = Array.isArray(response.data) ? response.data : [];
-            } else if (Array.isArray(response)) {
-                // Format: [...]  
-                staffList = response;
-            } else {
-                console.warn('Unexpected response format:', response);
-                staffList = [];
-            }
-            
-            console.log('Processed staff list:', staffList);
-            setStaff(staffList);
-            
-        } catch (error) {
-            console.error('Error loading staff:', error);
-            setError('Không thể tải danh sách nhân viên: ' + error.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [hotelData, selectedHotel, setSelectedHotel]);
 
     const handleStatusChange = async (staffId, newStatus) => {
-        try {
-            await staffApiService.updateStaffStatus(staffId, newStatus);
-            const hotelId = selectedHotel?.hotelId || selectedHotel?.hotel_id || selectedHotel?.id || selectedHotel?._id;
-            await loadStaff(hotelId); // Reload data
+        const result = await updateStaffStatus(staffId, newStatus);
+        if (result.success) {
             alert('Cập nhật trạng thái thành công!');
-        } catch (error) {
-            console.error('Error updating status:', error);
-            alert('Cập nhật trạng thái thất bại: ' + error.message);
+        } else {
+            alert('Cập nhật trạng thái thất bại: ' + result.error);
         }
     };
 
@@ -116,33 +77,52 @@ const StaffList = () => {
             return;
         }
 
-        try {
-            await staffApiService.deleteStaff(staffId);
-            const hotelId = selectedHotel?.hotelId || selectedHotel?.hotel_id || selectedHotel?.id || selectedHotel?._id;
-            await loadStaff(hotelId); // Reload data
+        const result = await deleteStaff(staffId);
+        if (result.success) {
             alert('Xóa nhân viên thành công!');
-        } catch (error) {
-            console.error('Error deleting staff:', error);
-            alert('Xóa nhân viên thất bại: ' + error.message);
+        } else {
+            alert('Xóa nhân viên thất bại: ' + result.error);
         }
     };
 
     // Filter staff based on search term and status only
     const filteredStaff = staff.filter(member => {
-        // Get staff info - using actual API response fields
         const position = member.jobPosition || member.position || '';
         const status = member.status || 'active';
         const staffId = member.staffId || member.staff_id || member.id || '';
-        
-        // Search filter - search by position and staff ID
         const matchesSearch = position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            staffId.toString().toLowerCase().includes(searchTerm.toLowerCase());
-        
-        // Status filter
+            staffId.toString().toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === 'all' || status === statusFilter;
-        
         return matchesSearch && matchesStatus;
     });
+
+    // Sync context state with URL params on mount
+    useEffect(() => {
+        const urlSearch = searchParams.get('search');
+        const urlStatus = searchParams.get('status');
+        const urlPage = searchParams.get('page');
+        const urlPageSize = searchParams.get('pageSize');
+        
+        if (urlSearch && urlSearch !== searchTerm) setSearchTerm(urlSearch);
+        if (urlStatus && urlStatus !== statusFilter) setStatusFilter(urlStatus);
+        if (urlPage && Number(urlPage) !== page) setPage(Number(urlPage));
+        if (urlPageSize && Number(urlPageSize) !== pageSize) setPageSize(Number(urlPageSize));
+    }, []);
+    
+    // Sync state to URL when changed
+    useEffect(() => {
+        const params = {};
+        if (searchTerm) params.search = searchTerm;
+        if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
+        if (page && page !== 1) params.page = page;
+        if (pageSize && pageSize !== 10) params.pageSize = pageSize;
+        setSearchParams(params, { replace: true });
+    }, [searchTerm, statusFilter, page, pageSize, setSearchParams]);
+    
+    const totalPages = Math.ceil(filteredStaff.length / pageSize) || 1;
+
+    // Paginated staff
+    const paginatedStaff = filteredStaff.slice((page - 1) * pageSize, page * pageSize);
 
     if (!hotelData || !Array.isArray(hotelData) || hotelData.length === 0) {
         return (
@@ -171,7 +151,7 @@ const StaffList = () => {
                     </div>
                     
                     <button 
-                        onClick={() => window.location.href = '/hotel-owner/staff/add'}
+                        onClick={() => navigate(`/hotel-owner/staff/add?${searchParams.toString()}`, { state: { selectedHotel } })}
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                         <Plus size={16} className="mr-2 inline" />
@@ -246,6 +226,8 @@ const StaffList = () => {
                             <option value="all">Tất cả trạng thái</option>
                             <option value="active">Hoạt động</option>
                             <option value="inactive">Tạm dừng</option>
+                            <option value="suspended">Đình chỉ</option>
+                            <option value="terminated">Đã nghỉ việc</option>
                         </select>
                     </div>
                 </div>
@@ -293,9 +275,9 @@ const StaffList = () => {
                         <p className="text-red-600">{error}</p>
                         <button 
                             onClick={() => {
-                                const hotelId = selectedHotel?.hotelId || selectedHotel?.hotel_id || selectedHotel?.id || selectedHotel?._id;
-                                if (hotelId) {
-                                    loadStaff(hotelId);
+                                if (selectedHotel) {
+                                    const hotelId = selectedHotel.hotelId || selectedHotel.hotel_id || selectedHotel.id || selectedHotel._id;
+                                    setSelectedHotel(selectedHotel); // Trigger reload via context
                                 } else {
                                     alert('Không tìm thấy Hotel ID');
                                 }
@@ -317,15 +299,16 @@ const StaffList = () => {
                                 : 'Thêm nhân viên đầu tiên cho khách sạn của bạn'
                             }
                         </p>
-                        <button 
-                            onClick={() => window.location.href = '/hotel-owner/staff/add'}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                        <button
+                            onClick={() => navigate(`/hotel-owner/staff/add?${searchParams.toString()}`, { state: { selectedHotel } })}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                         >
                             <Plus size={16} className="mr-2 inline" />
                             Thêm nhân viên
                         </button>
                     </div>
                 ) : (
+                    <>
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
@@ -348,11 +331,10 @@ const StaffList = () => {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {filteredStaff.map((member) => {
+                                {paginatedStaff.map((member) => {
                                     const staffId = member.staffId || member.staff_id || member.id;
                                     const position = member.jobPosition || member.position || 'Không xác định';
                                     const userId = member.userId || member.user_id;
-                                    
                                     return (
                                         <tr key={staffId} className="hover:bg-gray-50">
                                             {/* Staff Info */}
@@ -386,14 +368,23 @@ const StaffList = () => {
                                                 <select
                                                     value={member.status || 'active'}
                                                     onChange={(e) => handleStatusChange(staffId, e.target.value)}
+                                                    disabled={
+                                                        (member.jobPosition || member.position || '').toLowerCase() === 'hotel_owner'
+                                                    }
                                                     className={`text-sm rounded-full px-3 py-1 font-medium border-0 ${
-                                                        member.status === 'active' 
-                                                            ? 'bg-green-100 text-green-800' 
-                                                            : 'bg-red-100 text-red-800'
+                                                        member.status === 'active' ? 'bg-green-100 text-green-800' :
+                                                        member.status === 'inactive' ? 'bg-yellow-100 text-yellow-800' :
+                                                        member.status === 'suspended' ? 'bg-orange-100 text-orange-800' :
+                                                        member.status === 'terminated' ? 'bg-red-100 text-red-800' :
+                                                        'bg-gray-100 text-gray-800'
+                                                    } ${
+                                                        (member.jobPosition || member.position || '').toLowerCase() === 'hotel_owner' ? 'opacity-60 cursor-not-allowed' : ''
                                                     }`}
                                                 >
                                                     <option value="active">Hoạt động</option>
                                                     <option value="inactive">Tạm dừng</option>
+                                                    <option value="suspended">Đình chỉ</option>
+                                                    <option value="terminated">Đã nghỉ việc</option>
                                                 </select>
                                             </td>
 
@@ -412,10 +403,7 @@ const StaffList = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex items-center justify-end space-x-2">
                                                     <button
-                                                        onClick={() => {
-                                                            setSelectedStaff(member);
-                                                            setShowDetails(true);
-                                                        }}
+                                                        onClick={() => navigate(`/hotel-owner/staff/${staffId}?${searchParams.toString()}`)}
                                                         className="text-blue-600 hover:text-blue-900"
                                                         title="Xem chi tiết"
                                                     >
@@ -423,7 +411,7 @@ const StaffList = () => {
                                                     </button>
                                                     
                                                     <button
-                                                        onClick={() => window.location.href = `/hotel-owner/staff/edit/${staffId}`}
+                                                        onClick={() => navigate(`/hotel-owner/staff/edit/${staffId}?${searchParams.toString()}`)}
                                                         className="text-green-600 hover:text-green-900"
                                                         title="Chỉnh sửa"
                                                     >
@@ -445,79 +433,165 @@ const StaffList = () => {
                             </tbody>
                         </table>
                     </div>
+                    {/* Pagination controls */}
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-4 py-3 bg-white border-t border-gray-200">
+                        <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-700">Số dòng/trang:</span>
+                            <select
+                                value={pageSize}
+                                onChange={e => {
+                                    setPageSize(Number(e.target.value));
+                                    setPage(1);
+                                }}
+                                className="border border-gray-300 rounded px-2 py-1 text-sm"
+                            >
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <button
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                className="px-2 py-1 border rounded disabled:opacity-50"
+                            >
+                                &lt;
+                            </button>
+                            <span className="text-sm">Trang {page} / {totalPages}</span>
+                            <button
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages}
+                                className="px-2 py-1 border rounded disabled:opacity-50"
+                            >
+                                &gt;
+                            </button>
+                        </div>
+                    </div>
+                    </>
                 )}
             </div>
 
             {/* Staff Details Modal */}
             {showDetails && selectedStaff && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold">Chi tiết nhân viên</h3>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        {/* Header */}
+                        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                            <div className="flex items-center">
+                                <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                                    <User size={24} className="text-blue-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-semibold text-gray-900">Chi tiết nhân viên</h3>
+                                    <p className="text-sm text-gray-500">ID: {selectedStaff.staffId || selectedStaff.staff_id || selectedStaff.id}</p>
+                                </div>
+                            </div>
                             <button
                                 onClick={() => setShowDetails(false)}
-                                className="text-gray-400 hover:text-gray-600"
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
                             >
-                                ×
+                                <XCircle size={24} />
                             </button>
                         </div>
-                        
-                        <div className="space-y-3">
-                            <div>
-                                <label className="text-sm font-medium text-gray-500">Staff ID</label>
-                                <p className="text-gray-900">
-                                    {selectedStaff.staffId || selectedStaff.staff_id || selectedStaff.id}
-                                </p>
+
+                        {/* Body */}
+                        <div className="p-6 space-y-6">
+                            {/* Status Badge */}
+                            <div className="flex items-center justify-center">
+                                <span className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium ${
+                                    selectedStaff.status === 'active' ? 'bg-green-100 text-green-800' :
+                                    selectedStaff.status === 'inactive' ? 'bg-yellow-100 text-yellow-800' :
+                                    selectedStaff.status === 'suspended' ? 'bg-orange-100 text-orange-800' :
+                                    selectedStaff.status === 'terminated' ? 'bg-red-100 text-red-800' :
+                                    'bg-gray-100 text-gray-800'
+                                }`}>
+                                    {selectedStaff.status === 'active' ? '🟢 Hoạt động' :
+                                     selectedStaff.status === 'inactive' ? '🟡 Tạm dừng' :
+                                     selectedStaff.status === 'suspended' ? '🟠 Đình chỉ' :
+                                     selectedStaff.status === 'terminated' ? '🔴 Đã nghỉ việc' :
+                                     'Không xác định'}
+                                </span>
                             </div>
-                            
-                            <div>
-                                <label className="text-sm font-medium text-gray-500">User ID</label>
-                                <p className="text-gray-900">{selectedStaff.userId || selectedStaff.user_id}</p>
+
+                            {/* Job Information */}
+                            <div className="bg-blue-50 rounded-lg p-4">
+                                <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center">
+                                    <Briefcase size={16} className="mr-2" />
+                                    Thông tin công việc
+                                </h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs font-medium text-blue-700">Vị trí</label>
+                                        <p className="text-sm text-gray-900 mt-1">{selectedStaff.jobPosition || selectedStaff.position || 'Không xác định'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-medium text-blue-700">Ngày bắt đầu</label>
+                                        <p className="text-sm text-gray-900 mt-1 flex items-center">
+                                            <Calendar size={14} className="mr-1 text-gray-400" />
+                                            {(selectedStaff.start_date || selectedStaff.startDate) ? 
+                                                new Date(selectedStaff.start_date || selectedStaff.startDate).toLocaleDateString('vi-VN') : 
+                                                'N/A'
+                                            }
+                                        </p>
+                                    </div>
+                                    {(selectedStaff.end_date || selectedStaff.endDate) && (
+                                        <div>
+                                            <label className="text-xs font-medium text-blue-700">Ngày kết thúc</label>
+                                            <p className="text-sm text-gray-900 mt-1">
+                                                {new Date(selectedStaff.end_date || selectedStaff.endDate).toLocaleDateString('vi-VN')}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            
-                            <div>
-                                <label className="text-sm font-medium text-gray-500">Vị trí công việc</label>
-                                <p className="text-gray-900">{selectedStaff.jobPosition || selectedStaff.position || 'Không xác định'}</p>
-                            </div>
-                            
-                            <div>
-                                <label className="text-sm font-medium text-gray-500">Trạng thái</label>
-                                <p className={selectedStaff.status === 'active' ? 'text-green-600' : 'text-red-600'}>
-                                    {selectedStaff.status === 'active' ? 'Hoạt động' : 'Tạm dừng'}
-                                </p>
-                            </div>
-                            
-                            {(selectedStaff.start_date || selectedStaff.startDate) && (
-                                <div>
-                                    <label className="text-sm font-medium text-gray-500">Ngày bắt đầu</label>
-                                    <p className="text-gray-900">
-                                        {new Date(selectedStaff.start_date || selectedStaff.startDate).toLocaleDateString('vi-VN')}
-                                    </p>
+
+                            {/* Contact Information */}
+                            {selectedStaff.contact && (
+                                <div className="bg-gray-50 rounded-lg p-4">
+                                    <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                                        <Phone size={16} className="mr-2" />
+                                        Thông tin liên hệ
+                                    </h4>
+                                    <p className="text-sm text-gray-900">{selectedStaff.contact}</p>
                                 </div>
                             )}
 
-                            {selectedStaff.contact && (
-                                <div>
-                                    <label className="text-sm font-medium text-gray-500">Liên hệ</label>
-                                    <p className="text-gray-900">{selectedStaff.contact}</p>
+                            {/* Additional Info */}
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div className="bg-gray-50 rounded-lg p-3">
+                                    <label className="text-xs font-medium text-gray-500">User ID</label>
+                                    <p className="text-gray-900 mt-1 font-mono text-xs">{selectedStaff.userId || selectedStaff.user_id}</p>
                                 </div>
-                            )}
+                                <div className="bg-gray-50 rounded-lg p-3">
+                                    <label className="text-xs font-medium text-gray-500">Ngày tạo</label>
+                                    <p className="text-gray-900 mt-1">
+                                        {selectedStaff.createdAt ? 
+                                            new Date(selectedStaff.createdAt).toLocaleDateString('vi-VN') : 
+                                            'N/A'
+                                        }
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                        
-                        <div className="mt-6 flex justify-end space-x-3">
+
+                        {/* Footer */}
+                        <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3">
                             <button
                                 onClick={() => setShowDetails(false)}
-                                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                             >
                                 Đóng
                             </button>
                             <button
                                 onClick={() => {
                                     setShowDetails(false);
-                                    window.location.href = `/hotel-owner/staff/edit/${selectedStaff.staffId || selectedStaff.staff_id || selectedStaff.id}`;
+                                    navigate(`/hotel-owner/staff/edit/${selectedStaff.staffId || selectedStaff.staff_id || selectedStaff.id}?${searchParams.toString()}`);
                                 }}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
                             >
+                                <Edit size={16} className="mr-2" />
                                 Chỉnh sửa
                             </button>
                         </div>

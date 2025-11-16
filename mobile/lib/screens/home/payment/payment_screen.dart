@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../../services/vietqr_service.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -546,49 +547,75 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                qrImage,
-                width: 220,
-                height: 220,
-                fit: BoxFit.contain,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
+              child: qrImage.startsWith('http') 
+                ? Image.network(
+                    qrImage,
                     width: 220,
                     height: 220,
-                    color: Colors.grey[100],
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
-                        color: Colors.orange,
-                        strokeWidth: 2,
-                      ),
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  print('Error loading QR image: $error');
-                  return Container(
-                    width: 220,
-                    height: 220,
-                    color: Colors.grey[200],
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline, size: 40, color: Colors.red),
-                        SizedBox(height: 6),
-                        Text(
-                          'Không thể tải QR',
-                          style: TextStyle(color: Colors.red, fontSize: 12),
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 220,
+                        height: 220,
+                        color: Colors.grey[100],
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                            color: Colors.orange,
+                            strokeWidth: 2,
+                          ),
                         ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      print('Error loading QR image: $error');
+                      return Container(
+                        width: 220,
+                        height: 220,
+                        color: Colors.grey[200],
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 40, color: Colors.red),
+                            SizedBox(height: 6),
+                            Text(
+                              'Không thể tải QR',
+                              style: TextStyle(color: Colors.red, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  )
+                : QrImageView(
+                    data: qrImage,
+                    version: QrVersions.auto,
+                    size: 220.0,
+                    backgroundColor: Colors.white,
+                    errorStateBuilder: (context, error) {
+                      print('Error generating QR: $error');
+                      return Container(
+                        width: 220,
+                        height: 220,
+                        color: Colors.red[50],
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline, size: 40, color: Colors.red),
+                            SizedBox(height: 6),
+                            Text(
+                              'Không thể tạo QR',
+                              style: TextStyle(color: Colors.red, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
             ),
           ),
         ],

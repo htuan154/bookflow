@@ -27,33 +27,31 @@ const AddStaff = () => {
         phone: '',
         address: '',
         confirmPassword: '',
-        
         // Staff data  
-        position: '',
-        start_date: new Date().toISOString().split('T')[0],
-        salary: 0,
-        notes: ''
+        position: 'Staff',
+        start_date: new Date().toISOString().split('T')[0]
     });
     
     const [errors, setErrors] = useState({});
 
+    const location = typeof window !== 'undefined' ? require('react-router-dom').useLocation() : {};
     useEffect(() => {
         fetchOwnerHotel();
     }, []);
 
     // Set default hotel when hotelData is available
     useEffect(() => {
-        console.log('useEffect - Hotel data changed:', hotelData);
-        
-        if (hotelData && Array.isArray(hotelData) && hotelData.length > 0) {
-            // If no hotel is selected, select the first one by default
+        // Ưu tiên lấy selectedHotel từ location.state nếu có
+        if (location && location.state && location.state.selectedHotel) {
+            setSelectedHotel(location.state.selectedHotel);
+        } else if (hotelData && Array.isArray(hotelData) && hotelData.length > 0) {
+            // Nếu không có thì lấy hotel đầu tiên
             if (!selectedHotel) {
                 const firstHotel = hotelData[0];
                 setSelectedHotel(firstHotel);
-                console.log('Selected default hotel for AddStaff:', firstHotel);
             }
         }
-    }, [hotelData]);
+    }, [hotelData, location]);
 
     // Enhanced user ID detection with better fallbacks
     const getCurrentUserId = () => {
@@ -215,8 +213,7 @@ const AddStaff = () => {
                 job_position: formData.position,
                 start_date: formData.start_date,
                 contact: formData.phone,
-                hired_by: currentUserId,
-                notes: formData.notes || '' // Provide empty string for optional field
+                hired_by: currentUserId
             };
             
             // Try multiple API methods with better error handling
@@ -318,7 +315,7 @@ const AddStaff = () => {
                 </div>
 
                 {/* Hotel Selection */}
-                {hotelData.length > 1 && (
+                {hotelData.length > 1 && !selectedHotel && (
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Chọn khách sạn: *
@@ -471,14 +468,12 @@ const AddStaff = () => {
                                 </label>
                                 <input
                                     type="text"
-                                    value={formData.position}
-                                    onChange={(e) => handleInputChange('position', e.target.value)}
-                                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-                                        errors.position ? 'border-red-500' : 'border-gray-300'
-                                    }`}
-                                    placeholder="Ví dụ: Lễ tân, Housekeeping, Bảo vệ..."
+                                    value="Staff"
+                                    readOnly
+                                    disabled
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed focus:outline-none"
                                 />
-                                {errors.position && <p className="text-red-500 text-sm mt-1">{errors.position}</p>}
+                                <p className="text-xs text-gray-500 mt-1">Vị trí công việc cố định là Staff</p>
                             </div>
 
                             {/* Start Date */}
@@ -495,21 +490,6 @@ const AddStaff = () => {
                                     }`}
                                 />
                                 {errors.start_date && <p className="text-red-500 text-sm mt-1">{errors.start_date}</p>}
-                            </div>
-
-                            {/* Salary - Keep for UI but don't send to backend */}
-                            <div className="md:col-span-2">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Mức lương (VNĐ) - <span className="text-xs text-gray-500">(chỉ để tham khảo, không lưu vào DB)</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    value={formData.salary}
-                                    onChange={(e) => handleInputChange('salary', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                                    placeholder="Ví dụ: 15000000"
-                                    min="0"
-                                />
                             </div>
                         </div>
                     </div>
@@ -573,19 +553,7 @@ const AddStaff = () => {
                         </div>
                     </div>
 
-                    {/* Notes */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Ghi chú thêm
-                        </label>
-                        <textarea
-                            rows={4}
-                            value={formData.notes}
-                            onChange={(e) => handleInputChange('notes', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors resize-none"
-                            placeholder="Ghi chú về kỹ năng, kinh nghiệm, hoặc thông tin đặc biệt khác..."
-                        />
-                    </div>
+
 
                     {/* Submit Buttons */}
                     <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">

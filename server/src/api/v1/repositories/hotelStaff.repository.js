@@ -56,7 +56,7 @@ const addStaff = async (staffData) => {
             email,
             passwordHash,
             fullName: full_name,
-            roleId: 3, // Giả sử role_id = 3 là hotel staff
+            roleId: 6, // Giả sử role_id = 3 là hotel staff
             phoneNumber: phone_number || null,
             address: address || null
         };

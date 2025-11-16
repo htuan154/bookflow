@@ -8,6 +8,9 @@ import {
   Wifi, Car, Utensils, Dumbbell, Waves, Shield
 } from 'lucide-react';
 import { useHotelOwner } from '../../../hooks/useHotelOwner';
+import { staffApiService } from '../../../api/staff.service';
+import userService from '../../../api/user.service';
+import useAuth from '../../../hooks/useAuth';
 import { hotelApiService } from '../../../api/hotel.service';
 import { API_ENDPOINTS } from '../../../config/apiEndpoints';
 import axiosClient from '../../../config/axiosClient';
@@ -30,6 +33,7 @@ const getAmenityId = (a) =>
     : a ?? null);
 
 const HotelInfo = () => {
+  const { user } = useAuth();
   const location = useLocation();
   const {
     hotelData,
@@ -1037,7 +1041,46 @@ const HotelInfo = () => {
             return;
           }
           try {
-            await createOwnerHotel({ ...form, status: 'draft' });
+            // 1. Tạo khách sạn
+            const hotelRes = await createOwnerHotel({ ...form, status: 'draft' });
+            // 2. Lấy hotelId từ response (ưu tiên các trường phổ biến)
+            const hotelId = hotelRes?.hotelId || hotelRes?.hotel_id || hotelRes?.id || hotelRes?._id;
+            // 3. Lấy userId từ user context
+            const userId = user?.userId || user?.id || user?._id;
+            // 4. Lấy phoneNumber từ user profile (nếu chưa có thì fetch từ API)
+            let contact = user?.phoneNumber || user?.phone || '';
+            if (!contact && userId) {
+              try {
+                const userProfile = await userService.getUserById(userId);
+                contact = userProfile?.phoneNumber || userProfile?.phone || '';
+              } catch (err) {
+                // fallback: để trống nếu không lấy được
+                contact = '';
+              }
+            }
+            // 5. Gọi API tạo staff cho hotel_owner
+            if (hotelId && userId) {
+              const staffPayload = {
+                hotel_id: hotelId,
+                user_id: userId,
+                job_position: 'Hotel_owner',
+                start_date: new Date().toISOString(),
+                hired_by: userId,
+                contact,
+                status: 'active',
+              };
+              console.log('[DEBUG] addExistingUserAsStaff payload:', staffPayload);
+              try {
+                await staffApiService.addExistingUserAsStaff(hotelId, staffPayload);
+              } catch (err) {
+                if (err?.response) {
+                  console.log('[DEBUG] addExistingUserAsStaff error response:', err.response.data);
+                } else {
+                  console.log('[DEBUG] addExistingUserAsStaff error:', err);
+                }
+                throw err;
+              }
+            }
             setShowCreateModal(false);
             fetchOwnerHotel();
           } catch (e) {

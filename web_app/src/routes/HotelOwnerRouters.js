@@ -16,6 +16,9 @@ import HotelAmenities from '../pages/hotel_owner/hotel_management/HotelAmenities
 
 import StaffList from '../pages/hotel_owner/staff/StaffList';
 import AddStaff from '../pages/hotel_owner/staff/AddStaff';
+import StaffDetail from '../pages/hotel_owner/staff/StaffDetail';
+import EditStaff from '../pages/hotel_owner/staff/EditStaff';
+import StaffWrapper from '../pages/hotel_owner/staff/StaffWrapper';
 
 // === Quản lý phòng: Pages
 import RoomTypeListPage from '../pages/hotel_owner/roomtype_management/RoomTypeListPage';
@@ -106,9 +109,13 @@ const HotelOwnerRoutes = () => {
                 <Route path="hotel/settings" element={<div>Cài đặt chung</div>} />
 
                 {/* Staff */}
-                <Route path="staff" element={<Navigate to="/hotel-owner/staff/list" replace />} />
-                <Route path="staff/list" element={<StaffList />} />
-                <Route path="staff/add" element={<AddStaff />} />
+                <Route path="staff" element={<StaffWrapper />}>
+                  <Route index element={<Navigate to="/hotel-owner/staff/list" replace />} />
+                  <Route path="list" element={<StaffList />} />
+                  <Route path="add" element={<AddStaff />} />
+                  <Route path=":staffId" element={<StaffDetail />} />
+                  <Route path="edit/:staffId" element={<EditStaff />} />
+                </Route>
 
                 {/* ======================= QUẢN LÝ PHÒNG ======================= */}
                 <Route path="rooms/types" element={<RoomTypeListPage />} />

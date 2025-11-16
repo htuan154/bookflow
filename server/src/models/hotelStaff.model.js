@@ -21,7 +21,12 @@ class HotelStaff {
       hotelId: this.hotelId,
       userId: this.userId,
       jobPosition: this.jobPosition,
+      startDate: this.startDate,
+      endDate: this.endDate,
       status: this.status,
+      contact: this.contact,
+      hiredBy: this.hiredBy,
+      createdAt: this.createdAt
     };
   }
 }

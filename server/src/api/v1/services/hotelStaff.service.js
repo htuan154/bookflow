@@ -156,8 +156,8 @@ class HotelStaffService {
         }
 
         // Validate trạng thái nếu có
-        if (updateData.status && !['active', 'inactive', 'suspended'].includes(updateData.status)) {
-            throw new AppError('Invalid status. Must be one of: active, inactive, suspended', 400);
+        if (updateData.status && !['active', 'inactive', 'suspended', 'terminated'].includes(updateData.status)) {
+            throw new AppError('Invalid status. Must be one of: active, inactive, suspended, terminated', 400);
         }
 
         return await hotelStaffRepository.updateStaff(staffId, updateData);

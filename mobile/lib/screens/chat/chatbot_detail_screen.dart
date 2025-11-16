@@ -478,22 +478,57 @@ class _ChatbotDetailScreenState extends State<ChatbotDetailScreen> {
         );
       }
 
+      // Kiểm tra trường hợp không có dữ liệu (all empty)
+      final hotels = content['hotels'] as List? ?? [];
+      final promos = content['promotions'] as List? ?? [];
+      final places = content['places'] as List? ?? [];
+      final dishes = content['dishes'] as List? ?? [];
+      final foods  = content['foods'] as List? ?? [];
+      final tips   = content['tips'] as List? ?? [];
+      final allEmpty = hotels.isEmpty && promos.isEmpty && places.isEmpty && dishes.isEmpty && foods.isEmpty && tips.isEmpty
+        && (content.containsKey('hotels') || content.containsKey('promotions') || content.containsKey('places') || content.containsKey('dishes') || content.containsKey('foods'));
+      if (allEmpty) {
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.orange.shade100),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Xin lỗi, dữ liệu không có trên hệ thống',
+                style: TextStyle(
+                  color: Colors.orange.shade800,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text('Bạn có thể thử:', style: TextStyle(fontSize: 15, color: Colors.black87)),
+              const SizedBox(height: 4),
+              const Text('• Thay đổi địa điểm: "Top 5 khách sạn Hà Nội", "Voucher Đà Nẵng"…', style: TextStyle(fontSize: 14)),
+              const Text('• Thử từ khóa khác: "spa", "hồ bơi", "gần biển"…', style: TextStyle(fontSize: 14)),
+              const Text('• Kiểm tra chính tả tên tỉnh/thành phố', style: TextStyle(fontSize: 14)),
+            ],
+          ),
+        );
+      }
+
       // Hiển thị hotels
-      if (content.containsKey('hotels') &&
-          content['hotels'] is List &&
-          (content['hotels'] as List).isNotEmpty) {
-        return _buildHotelsList(content['hotels']);
+      if (hotels.isNotEmpty) {
+        return _buildHotelsList(hotels);
       }
 
       // Hiển thị promotions
-      if (content.containsKey('promotions') &&
-          content['promotions'] is List &&
-          (content['promotions'] as List).isNotEmpty) {
-        return _buildPromotionsList(content['promotions']);
+      if (promos.isNotEmpty) {
+        return _buildPromotionsList(promos);
       }
 
       // Hiển thị places/dishes
-      if (content.containsKey('places') || content.containsKey('dishes')) {
+      if (places.isNotEmpty || dishes.isNotEmpty) {
         return _buildPlacesAndDishes(content);
       }
 
