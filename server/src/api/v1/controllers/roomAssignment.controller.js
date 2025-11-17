@@ -5,6 +5,20 @@ const { successResponse } = require('../../../utils/response');
 
 class RoomAssignmentController {
     /**
+     * Cập nhật trạng thái phòng về available khi booking checkout.
+     * POST /api/v1/assignments/release-rooms/:bookingId
+     */
+    async releaseRoomsByBooking(req, res, next) {
+        try {
+            const { bookingId } = req.params;
+            const result = await RoomAssignmentService.releaseRoomsByBooking(bookingId);
+            successResponse(res, result, 'Rooms released successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
      * Lấy danh sách phòng trống để xếp phòng cho một booking theo loại phòng.
      * GET /api/v1/assignments/available-rooms
      */

@@ -151,10 +151,26 @@ const HotelOwnerRoutes = () => {
                 {/* ======================= MARKETING ======================= */}
                 <Route path="marketing" element={<MarketingPage />} />
                 {/* ======================= BOOKING MANAGEMENT ======================= */}
-                <Route path="bookings" element={<BookingManagementPage />} />
-                <Route path="bookings/list" element={<BookingManagementPage />} />
-                <Route path="bookings/:bookingId" element={<BookingDetailView />} />
-                <Route path="bookings/:bookingId/edit" element={<BookingEditPage />} />
+                <Route path="bookings" element={
+                  <RoomAssignmentProvider>
+                    <BookingManagementPage />
+                  </RoomAssignmentProvider>
+                } />
+                <Route path="bookings/list" element={
+                  <RoomAssignmentProvider>
+                    <BookingManagementPage />
+                  </RoomAssignmentProvider>
+                } />
+                <Route path="bookings/:bookingId" element={
+                  <RoomAssignmentProvider>
+                    <BookingDetailView />
+                  </RoomAssignmentProvider>
+                } />
+                <Route path="bookings/:bookingId/edit" element={
+                  <RoomAssignmentProvider>
+                    <BookingEditPage />
+                  </RoomAssignmentProvider>
+                } />
                 <Route path="bookings/:bookingId/assign-rooms" element={
                   <RoomAssignmentProvider>
                     <RoomAssignmentPage />

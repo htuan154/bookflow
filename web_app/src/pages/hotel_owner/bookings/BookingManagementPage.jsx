@@ -8,6 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { hotelApiService } from '../../../api/hotel.service';
 import { useBooking } from '../../../hooks/useBooking';
+import { useRoomAssignment } from '../../../hooks/useRoomAssignment';
 import userService from '../../../api/user.service';
 import { toast } from 'react-toastify';
 import { CheckInPayment } from '../../../components/payment/BookingPayment';
@@ -15,6 +16,7 @@ import bookingService from '../../../api/booking.service';
 
 const BookingManagementPage = () => {
   const navigate = useNavigate();
+  const { releaseRooms } = useRoomAssignment();
   // States
   const [hotels, setHotels] = useState([]);
   const [selectedHotelId, setSelectedHotelId] = useState(() => {
@@ -442,6 +444,14 @@ const BookingManagementPage = () => {
 
       // 2. Update booking status
       await updateBookingStatus(bookingId, newStatus);
+
+      // 2.5. Release all assigned rooms for this booking
+      try {
+        await releaseRooms(bookingId);
+      } catch (releaseError) {
+        console.error('❌ Error releasing rooms:', releaseError);
+        toast.error('Có lỗi khi trả phòng, vui lòng kiểm tra lại trạng thái phòng!');
+      }
 
       // 3. Add booking history
       try {
@@ -882,24 +892,6 @@ const BookingManagementPage = () => {
                                 className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
                                 title="Check-out"
                                 onClick={() => handleOpenCheckOut(booking)}
-                              >
-                                Check-out
-                              </button>
-                            )}
-                            {/* Nút check-out: booking đã xác nhận, đúng ngày check-out */}
-                            {booking.bookingStatus === 'confirmed' && (() => {
-                              const today = new Date();
-                              const checkOutDate = new Date(booking.checkOutDate);
-                              return (
-                                today.getFullYear() === checkOutDate.getFullYear() &&
-                                today.getMonth() === checkOutDate.getMonth() &&
-                                today.getDate() === checkOutDate.getDate()
-                              );
-                            })() && (
-                              <button
-                                className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-                                title="Check-out"
-                                onClick={() => {/* TODO: handleCheckOut(booking) */}}
                               >
                                 Check-out
                               </button>

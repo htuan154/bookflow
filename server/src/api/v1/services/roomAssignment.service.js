@@ -97,6 +97,15 @@ class RoomAssignmentService {
         const rooms = await roomAssignmentRepository.findAvailableRooms(roomTypeId, checkInDate, checkOutDate, limit);
         return rooms.map(r => new RoomAvailable(r));
     }
+
+    /**
+     * Cập nhật trạng thái phòng về available khi booking checkout.
+     * @param {string} bookingId
+     * @returns {Promise<any>}
+     */
+    async releaseRoomsByBooking(bookingId) {
+        return await roomAssignmentRepository.releaseRoomsByBooking(bookingId);
+    }
 }
 
 module.exports = new RoomAssignmentService();

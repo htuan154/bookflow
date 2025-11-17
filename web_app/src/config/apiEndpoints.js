@@ -110,6 +110,7 @@ export const API_ENDPOINTS = {
         GET_FOR_BOOKING: (bookingId) => `${API_BASE_URL}/assignments/bookings/${bookingId}`,
         GET_AVAILABLE_ROOMS: ({ roomTypeId, checkInDate, checkOutDate, limit }) =>
             `${API_BASE_URL}/assignments/available-rooms?roomTypeId=${encodeURIComponent(roomTypeId)}&checkInDate=${encodeURIComponent(checkInDate)}&checkOutDate=${encodeURIComponent(checkOutDate)}&limit=${limit}`,
+        RELEASE_ROOMS: (bookingId) => `${API_BASE_URL}/assignments/release-rooms/${bookingId}`,
     },
 
     // --- Room Type Endpoints ---

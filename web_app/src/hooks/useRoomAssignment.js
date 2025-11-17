@@ -35,5 +35,12 @@ export const useRoomAssignment = () => {
     return data;
   }, [setLoading, setAvailableRooms]);
 
-  return { assignments, loading, fetchAssignments, assign, unassign, availableRooms, fetchAvailableRooms };
+  const releaseRooms = useCallback(async (bookingId) => {
+    setLoading(true);
+    const result = await roomAssignmentService.releaseRoomsByBooking(bookingId);
+    setLoading(false);
+    return result;
+  }, [setLoading]);
+
+  return { assignments, loading, fetchAssignments, assign, unassign, availableRooms, fetchAvailableRooms, releaseRooms };
 };

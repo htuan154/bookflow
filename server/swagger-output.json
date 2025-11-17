@@ -1335,6 +1335,33 @@
         }
       }
     },
+    "/api/v1/assignments/release-rooms/{bookingId}": {
+      "post": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "bookingId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/contracts/hotels/{hotelId}/contracts/active": {
       "get": {
         "description": "",
