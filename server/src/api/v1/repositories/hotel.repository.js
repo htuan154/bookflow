@@ -529,6 +529,22 @@ const findAvailableRoomsByHotelId = async (hotelId, checkInDate, checkOutDate) =
   return result.rows;
 };
 
+/**
+ * Lấy khách sạn của chủ sở hữu với status 'active' hoặc 'approved'
+ * @param {string} ownerId
+ * @returns {Promise<Array<Hotel>>}
+ */
+const findActiveOrApprovedByOwner = async (ownerId) => {
+  const query = `
+    SELECT * FROM hotels
+    WHERE owner_id = $1
+      AND status IN ('active', 'approved')
+    ORDER BY created_at DESC
+  `;
+  const result = await pool.query(query, [ownerId]);
+  return result.rows.map(row => new Hotel(row));
+};
+
 module.exports = {
   // CRUD cơ bản
   create,
@@ -553,5 +569,6 @@ module.exports = {
   findByOwnerAndStatus,
   // Tiện ích
   countByStatus,
-  exists
+  exists,
+  findActiveOrApprovedByOwner
 };

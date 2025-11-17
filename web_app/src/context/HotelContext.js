@@ -7,11 +7,13 @@ const initialState = {
   hotels: [],
   approvedHotels: [],       
   pendingRejectedHotels: [], 
+  activeApprovedHotels: [],
   loading: false,
   error: null,
   currentHotel: null,
   totalCount: 0,
   approvedCount: 0,         
+  activeApprovedCount: 0,
   pendingRejectedCount: 0,   
   currentPage: 1,
   pageSize: 10
@@ -23,6 +25,7 @@ const HOTEL_ACTIONS = {
   SET_ERROR: 'SET_ERROR',
   FETCH_HOTELS_SUCCESS: 'FETCH_HOTELS_SUCCESS',
   FETCH_APPROVED_HOTELS_SUCCESS: 'FETCH_APPROVED_HOTELS_SUCCESS',    
+  FETCH_ACTIVE_APPROVED_HOTELS_SUCCESS: 'FETCH_ACTIVE_APPROVED_HOTELS_SUCCESS',
   FETCH_PENDING_REJECTED_HOTELS_SUCCESS: 'FETCH_PENDING_REJECTED_HOTELS_SUCCESS', 
   FETCH_HOTEL_SUCCESS: 'FETCH_HOTEL_SUCCESS',
   UPDATE_HOTEL_SUCCESS: 'UPDATE_HOTEL_SUCCESS',
@@ -69,6 +72,20 @@ const hotelReducer = (state, action) => {
                        Array.isArray(action.payload?.hotels) ? action.payload.hotels :
                        Array.isArray(action.payload) ? action.payload : [],
         approvedCount: action.payload?.totalCount || action.payload?.total || 
+                      action.payload?.pagination?.total ||
+                      (Array.isArray(action.payload?.data) ? action.payload.data.length : 
+                       Array.isArray(action.payload) ? action.payload.length : 0)
+      };
+
+    case HOTEL_ACTIONS.FETCH_ACTIVE_APPROVED_HOTELS_SUCCESS:
+      return {
+        ...state,
+        loading: false,
+        error: null,
+        activeApprovedHotels: Array.isArray(action.payload?.data) ? action.payload.data : 
+                       Array.isArray(action.payload?.hotels) ? action.payload.hotels :
+                       Array.isArray(action.payload) ? action.payload : [],
+        activeApprovedCount: action.payload?.totalCount || action.payload?.total || 
                       action.payload?.pagination?.total ||
                       (Array.isArray(action.payload?.data) ? action.payload.data.length : 
                        Array.isArray(action.payload) ? action.payload.length : 0)
@@ -220,7 +237,8 @@ export const HotelProvider = ({ children }) => {
   const loadingRefs = useRef({
     allHotels: false,
     approvedHotels: false,
-    pendingRejectedHotels: false
+    pendingRejectedHotels: false,
+    activeApprovedHotels: false
   });
 
   // Fetch all hotels
@@ -310,6 +328,40 @@ export const HotelProvider = ({ children }) => {
       });
     } finally {
       loadingRefs.current.approvedHotels = false;
+    }
+  }, []);
+
+  // Fetch active or approved hotels for owner
+  const fetchActiveApprovedHotels = useCallback(async (ownerId, filters = {}) => {
+    if (loadingRefs.current.activeApprovedHotels) {
+      console.log('Already loading active/approved hotels, skipping fetch');
+      return;
+    }
+
+    try {
+      loadingRefs.current.activeApprovedHotels = true;
+      dispatch({ type: HOTEL_ACTIONS.SET_LOADING, payload: true });
+      console.log('🔄 Fetching active/approved hotels for owner:', ownerId, filters);
+
+      const response = await hotelService.getActiveOrApprovedHotelsByOwner(ownerId, filters);
+      console.log('✅ Active/Approved Hotels API Response:', response);
+
+      if (!response) {
+        throw new Error('No response from server');
+      }
+
+      dispatch({
+        type: HOTEL_ACTIONS.FETCH_ACTIVE_APPROVED_HOTELS_SUCCESS,
+        payload: response
+      });
+    } catch (error) {
+      console.error('❌ Error fetching active/approved hotels:', error);
+      dispatch({
+        type: HOTEL_ACTIONS.SET_ERROR,
+        payload: error?.response?.data?.message || error.message || 'Không thể tải danh sách hotel active/approved'
+      });
+    } finally {
+      loadingRefs.current.activeApprovedHotels = false;
     }
   }, []);
 
@@ -509,12 +561,14 @@ export const HotelProvider = ({ children }) => {
     // State
     hotels: state.hotels,
     approvedHotels: state.approvedHotels,                   
+    activeApprovedHotels: state.activeApprovedHotels,
     pendingRejectedHotels: state.pendingRejectedHotels,     
     loading: state.loading,
     error: state.error,
     currentHotel: state.currentHotel,
     totalCount: state.totalCount,
     approvedCount: state.approvedCount,                     
+    activeApprovedCount: state.activeApprovedCount,
     pendingRejectedCount: state.pendingRejectedCount,       
     currentPage: state.currentPage,
     pageSize: state.pageSize,
@@ -522,6 +576,7 @@ export const HotelProvider = ({ children }) => {
     // Actions
     fetchAllHotels,
     fetchApprovedHotels,           
+    fetchActiveApprovedHotels,
     fetchPendingRejectedHotels,    
     fetchHotelById,
     updateHotel,

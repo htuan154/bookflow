@@ -360,6 +360,17 @@ class HotelService {
     data: rooms
   };
 }
+
+  /**
+   * Lấy khách sạn active hoặc approved của chủ sở hữu
+   */
+  async getActiveOrApprovedHotelsByOwner(ownerId) {
+    const hotels = await hotelRepository.findActiveOrApprovedByOwner(ownerId);
+    return {
+      success: true,
+      data: hotels
+    };
+  }
 }
 
 module.exports = new HotelService();

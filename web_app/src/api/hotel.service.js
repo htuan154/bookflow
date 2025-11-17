@@ -229,6 +229,21 @@ export const hotelApiService = {
       throw error;
     }
   },
+
+  /**
+   * Lấy danh sách hotels của 1 owner có status active hoặc approved
+   * GET /api/v1/hotels/owner/:ownerId/active-or-approved
+   */
+  async getActiveOrApprovedHotelsByOwner(ownerId, filters = {}) {
+    try {
+      const url = API_ENDPOINTS.HOTELS.GET_ACTIVE_OR_APPROVED_BY_OWNER(ownerId);
+      const response = await axiosClient.get(url, { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching active or approved hotels by owner:', error);
+      throw error;
+    }
+  },
   /**
    * Tạo hotel mới
    */

@@ -429,7 +429,7 @@ const ContractManagement = () => {
         {/* Form tạo/sửa hợp đồng */}
         {showCreateForm && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative max-h-[90vh] overflow-y-auto">
+            {/* <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative max-h-[90vh] overflow-y-auto"> */}
               <button
                 className="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-xl"
                 onClick={handleCancelCreate}
@@ -442,7 +442,7 @@ const ContractManagement = () => {
                 contract={editingContract}
                 hotels={approvedHotels}
               />
-            </div>
+            {/* </div> */}
           </div>
         )}
 
@@ -517,13 +517,13 @@ const ContractManagement = () => {
         {/* Modal chi tiết hợp đồng */}
         {showDetail && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative">
+            {/* <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative"> */}
               <ContractDetail
                 contract={selectedContract}
                 onClose={handleCloseDetail}
                 isPage={false}
               />
-            </div>
+            {/* </div> */}
           </div>
         )}
       </div>

@@ -231,6 +231,8 @@ export const API_ENDPOINTS = {
         MY_HOTELS: `${API_BASE_URL}/hotels/my-hotels`,
         // Thêm endpoint mới cho dropdown khách sạn đã duyệt ngày 28/8
         GET_APPROVED_HOTELS_DROPDOWN: `${API_BASE_URL}/hotels/my-hotels/dropdown`,
+        // Lấy hotels của owner với status active hoặc approved
+        GET_ACTIVE_OR_APPROVED_BY_OWNER: (ownerId) => `${API_BASE_URL}/hotels/owner/${ownerId}/active-or-approved`,
         UPDATE: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
         DELETE: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
     },

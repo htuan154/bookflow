@@ -77,6 +77,7 @@ router.use('/admin', adminRouter);
 // ===============================================
 
 // Owner routes
+router.get('/owner/:ownerId/active-or-approved', authenticate, hotelController.getActiveOrApprovedHotelsByOwner);
 router.get('/owner/:ownerId', authenticate, hotelController.getHotelsByOwner);
 
 // These MUST be at the very end

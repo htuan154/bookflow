@@ -1,5 +1,7 @@
 // src/pages/hotel_owner/contract_management/ContractForm.js
 import React, { useState, useEffect } from 'react';
+import useAuth from '../../hooks/useAuth';
+import useHotel from '../../hooks/useHotel';
 
 // Helper to get default start_date: today + 7 days
 const getDefaultStartDate = () => {
@@ -37,7 +39,7 @@ const initialState = {
   description: '',
   contract_type: 'Business',
   contract_value: '',
-  currency: 'VND',
+  currency: 'Phần trăm',
   start_date: getDefaultStartDate(), // Mặc định là hôm nay + 7
   end_date: '',
   payment_terms: '',
@@ -52,35 +54,54 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
   const [form, setForm] = useState(initialState);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { user } = useAuth();
+  const ownerId = user?.user_id || user?.id || user?.userId;
+  const { activeApprovedHotels, fetchActiveApprovedHotels } = useHotel();
 
   // FIXED useEffect - xử lý dữ liệu contract đúng cách
   useEffect(() => {
+    // Fetch owner's active/approved hotels for the dropdown
+    if (ownerId) {
+      try {
+        fetchActiveApprovedHotels(ownerId);
+      } catch (e) {
+        // ignore
+      }
+    }
     if (contract && typeof contract === 'object') {
       // Helper function để chuẩn hóa ngày
       const normalizeDate = (dateValue) => {
         if (!dateValue) return '';
-        if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
-          return dateValue;
+        if (typeof dateValue === 'string') {
+          // Nếu có 'T' thì lấy phần trước 'T', còn lại giữ nguyên chuỗi trả về từ server
+          return dateValue.includes('T') ? dateValue.split('T')[0] : dateValue;
         }
-        if (typeof dateValue === 'string' && dateValue.includes('T')) {
-          return dateValue.split('T')[0];
-        }
-        try {
-          const date = new Date(dateValue);
-          if (!isNaN(date.getTime())) {
-            return date.toISOString().split('T')[0];
-          }
-        } catch (e) {}
         return '';
       };
+      // Lấy ngày bắt đầu từ contract
+      let contractStartDate = normalizeDate(contract.start_date) || getDefaultStartDate();
+      // Nếu đang edit và ngày bắt đầu < hôm nay+7 thì tự động set về hôm nay+7
+      const minStartDate = getMinStartDate();
+      if (contractStartDate && contractStartDate < minStartDate) {
+        contractStartDate = minStartDate;
+      }
+      // Lấy ngày kết thúc từ contract
+      let contractEndDate = normalizeDate(contract.end_date);
+      // Nếu ngày kết thúc < ngày bắt đầu + 30 thì set về start_date + 30
+      if (contractEndDate && contractStartDate) {
+        const minEndDate = getMinEndDate(contractStartDate);
+        if (contractEndDate < minEndDate) {
+          contractEndDate = minEndDate;
+        }
+      }
       const formData = {
         title: contract.title || '',
         description: contract.description || '',
         contract_type: contract.contract_type || 'Business',
         contract_value: String(contract.contract_value || ''),
-        currency: contract.currency || 'VND',
-        start_date: normalizeDate(contract.start_date) || getDefaultStartDate(),
-        end_date: normalizeDate(contract.end_date),
+        currency: contract.currency || 'Phần trăm',
+        start_date: contractStartDate,
+        end_date: contractEndDate,
         payment_terms: contract.payment_terms || '',
         terms_and_conditions: contract.terms_and_conditions || '',
         notes: contract.notes || '',
@@ -93,10 +114,12 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
       // Reset form với start_date mặc định là hôm nay + 7
       setForm({ ...initialState, start_date: getDefaultStartDate() });
     }
-  }, [contract]);
+  }, [contract, ownerId, fetchActiveApprovedHotels]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    // Cho phép nhập tự do cho contract_value
+    setForm(prev => ({ ...prev, [name]: value }));
     if (name === 'start_date' && value) {
       // Chỉ cho chọn từ ngày hôm nay + 7 trở đi
       const minDate = new Date(getMinStartDate());
@@ -130,7 +153,19 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
         return;
       }
     }
-    setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Khi blur input hoa hồng thì kiểm tra và điều chỉnh về 5-20 nếu ngoài khoảng
+  const handleCommissionBlur = (e) => {
+    let val = e.target.value;
+    if (val === '') return;
+    let num = parseFloat(val);
+    if (isNaN(num)) num = 5;
+    if (num > 20) num = 20;
+    if (num < 5) num = 5;
+    if (num !== parseFloat(form.contract_value)) {
+      setForm(prev => ({ ...prev, contract_value: num }));
+    }
   };
 
   // Hàm lấy min cho ngày bắt đầu (hôm nay + 7)
@@ -144,7 +179,7 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
       // Nếu có ngày bắt đầu, min là start_date + 30 ngày
       return getMinEndDate(form.start_date);
     }
-    // Nếu chưa có ngày bắt đầu, min là ngày hiện tại + 7
+    // Nếu chưa có ngày bắt` đầu, min là ngày hiện tại + 7
     return getMinStartDate();
   };
 
@@ -153,10 +188,20 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
     setLoading(true);
     setError('');
     
-    // Kiểm tra tỷ lệ hoa hồng phải từ 0-100
-    const commissionValue = parseFloat(form.contract_value);
-    if (isNaN(commissionValue) || commissionValue < 0 || commissionValue > 100) {
-      setError('Tỷ lệ hoa hồng phải từ 0 đến 100%. Vui lòng nhập lại!');
+    // Kiểm tra tiêu đề hợp đồng phải dài ít nhất 5 ký tự
+    if (!form.title || form.title.trim().length < 5) {
+      setError('Tiêu đề hợp đồng phải dài ít nhất 5 ký tự!');
+      setLoading(false);
+      return;
+    }
+    // Kiểm tra tỷ lệ hoa hồng phải từ 5-20
+    let commissionValue = parseFloat(form.contract_value);
+    if (isNaN(commissionValue)) commissionValue = 5;
+    if (commissionValue < 5) commissionValue = 5;
+    if (commissionValue > 20) commissionValue = 20;
+    if (commissionValue !== parseFloat(form.contract_value)) {
+      setForm(prev => ({ ...prev, contract_value: commissionValue }));
+      setError('Tỷ lệ hoa hồng chỉ cho phép từ 5 đến 20%. Đã tự động điều chỉnh!');
       setLoading(false);
       return;
     }
@@ -174,7 +219,16 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
     }
     
     try {
-      await onSave(form);
+      // Ensure hotel_id is a trimmed string (backend expects a UUID string)
+      const cleaned = {
+        ...form,
+        hotel_id: form.hotel_id ? String(form.hotel_id).trim() : '',
+        // ensure numeric commission if backend expects number
+        contract_value: form.contract_value === '' || form.contract_value === null
+          ? null
+          : Number(form.contract_value),
+      };
+      await onSave(cleaned);
     } catch (err) {
       setError(err.message || 'Có lỗi xảy ra');
     } finally {
@@ -183,11 +237,22 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto max-h-[85vh] overflow-y-auto">
+    <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl mx-auto max-h-[85vh] overflow-y-auto relative">
+      {/* Nút tắt (X) ở góc trên phải */}
+      <button
+        type="button"
+        aria-label="Đóng"
+        onClick={onCancel}
+        className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 focus:outline-none z-10"
+        style={{ lineHeight: 0 }}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 6L14 14M14 6L6 14" stroke="#374151" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      </button>
       <h3 className="text-xl font-bold mb-4 text-blue-700">
         {contract?.contract_id ? 'Chỉnh sửa hợp đồng' : 'Tạo hợp đồng mới'}
       </h3>
-      
       {error && (
         <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
           {error}
@@ -241,17 +306,18 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
               name="contract_value"
               value={form.contract_value}
               onChange={handleChange}
+              onBlur={handleCommissionBlur}
               className="w-full border border-gray-300 rounded px-3 py-2 pr-10 focus:outline-none focus:border-blue-500"
               placeholder="10"
-              min="0"
-              max="100"
+              min="5"
+              max="20"
               step="0.1"
               required
             />
             <span className="absolute right-3 top-2 text-gray-500 font-semibold">%</span>
           </div>
           <small className="text-gray-500 text-xs mt-1 block">
-            Nhập tỷ lệ hoa hồng từ 0 đến 100%
+            Nhập tỷ lệ hoa hồng từ 5 đến 20%
           </small>
         </div>
 
@@ -299,26 +365,22 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
             onChange={handleChange}
             className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
             required
+            disabled={!!contract?.contract_id}
           >
             <option value="">-- Chọn khách sạn --</option>
-            {hotels.map(hotel => (
-              <option key={hotel.hotel_id} value={hotel.hotel_id}>
-                {hotel.name}
-              </option>
-            ))}
+            {(activeApprovedHotels && activeApprovedHotels.length > 0 ? activeApprovedHotels : hotels).map((hotel, idx) => {
+              const key = hotel?.hotel_id || hotel?.hotelId || hotel?.id || `hotel-${idx}`;
+              const value = hotel?.hotel_id || hotel?.hotelId || hotel?.id || '';
+              return (
+                <option key={key} value={value}>
+                  {`${hotel.name || hotel.title || ''}${hotel.city ? ' - ' + hotel.city : ''}${hotel.status ? ' (' + hotel.status + ')' : ''}`}
+                </option>
+              );
+            })}
           </select>
         </div>
 
-        <div className="mb-4">
-          <label className="block font-semibold mb-1 text-gray-700">Ngày ký hợp đồng</label>
-          <input
-            type="date"
-            name="signed_date"
-            value={form.signed_date}
-            onChange={handleChange}
-            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
-          />
-        </div>
+        {/* Đã xoá trường Ngày ký hợp đồng */}
 
         <div className="mb-4">
           <label className="block font-semibold mb-1 text-gray-700">Điều khoản thanh toán</label>

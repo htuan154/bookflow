@@ -373,6 +373,24 @@ class HotelController {
       next(error);
     }
   }
+
+    /**
+   * Lấy khách sạn active hoặc approved của chủ sở hữu
+   * GET /api/v1/hotels/owner/:ownerId/active-or-approved
+   */
+  async getActiveOrApprovedHotelsByOwner(req, res, next) {
+    try {
+      const { ownerId } = req.params;
+      // Chỉ admin hoặc chính chủ sở hữu mới được xem
+      if (req.user.role !== 'admin' && req.user.id !== ownerId) {
+        throw new AppError('Không có quyền truy cập', 403);
+      }
+      const result = await hotelService.getActiveOrApprovedHotelsByOwner(ownerId);
+      successResponse(res, result.data);
+    } catch (error) {
+      next(error);
+    }
+  }
   
 }
 
