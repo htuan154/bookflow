@@ -537,6 +537,7 @@ export const API_ENDPOINTS = {
         
         // Hotel accounts
         GET_HOTEL_ACCOUNTS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/bank-accounts`,
+        UNSET_DEFAULT_HOTEL_ACCOUNTS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/bank-accounts/unset-default`,
         
         // Admin
         ADMIN_STATISTICS: `${API_BASE_URL}/admin/bank-accounts/statistics`,

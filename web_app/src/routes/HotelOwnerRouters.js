@@ -27,6 +27,7 @@ import RoomsByTypePage from '../pages/hotel_owner/roomtype_management/RoomsByTyp
 import RoomManagementPage from '../pages/hotel_owner/roomtype_management/RoomManagementPage';
 import RoomTypeImagesPage from '../pages/hotel_owner/roomtype_management/RoomTypeImagesPage';
 import RoomTypeRoomsPage from '../pages/hotel_owner/roomtype_management/RoomTypeRoomsPage';
+import RoomManagementWrapper from '../pages/hotel_owner/roomtype_management/RoomManagementWrapper';
 
 // === Quản lý phòng: Providers (điều chỉnh path nếu bạn lưu khác)
 import { RoomTypeProvider } from '../context/RoomTypeContext';
@@ -44,6 +45,7 @@ import { PricingIndex } from '../pages/hotel_owner/pricing';
 import PromotionsPage from '../pages/hotel_owner/pricing/PromotionsPage';
 import SeasonalPricingPage from '../pages/hotel_owner/pricing/SeasonalPricingPage';
 import SeasonalPricingDetailPage from '../pages/hotel_owner/pricing/SeasonalPricingDetailPage';
+import PricingWrapper from '../pages/hotel_owner/pricing/PricingWrapper';
 
 // === Marketing Pages
 import MarketingPage from '../pages/hotel_owner/marketing/MarketingPage';
@@ -118,13 +120,17 @@ const HotelOwnerRoutes = () => {
                 </Route>
 
                 {/* ======================= QUẢN LÝ PHÒNG ======================= */}
+                <Route path="rooms" element={<Navigate to="/hotel-owner/rooms/types" replace />} />
                 <Route path="rooms/types" element={<RoomTypeListPage />} />
                 <Route path="rooms/types/:roomTypeId/detail" element={<RoomTypeDetailPage />} />
-                <Route path="rooms/types/:roomTypeId/rooms" element={<RoomTypeRoomsPage />} />
                 <Route path="rooms/list" element={<RoomsByTypePage />} />
-                <Route path="rooms/management" element={<RoomManagementPage />} />
                 <Route path="rooms/images" element={<RoomTypeImagesPage />} />
-                <Route path="rooms" element={<Navigate to="/hotel-owner/rooms/types" replace />} />
+                
+                {/* Wrap only management and room detail pages to preserve state */}
+                <Route element={<RoomManagementWrapper />}>
+                  <Route path="rooms/management" element={<RoomManagementPage />} />
+                  <Route path="rooms/types/:roomTypeId/rooms" element={<RoomTypeRoomsPage />} />
+                </Route>
 
    
                 {/* Quản lý hợp đồng khách sạn */}
@@ -143,8 +149,11 @@ const HotelOwnerRoutes = () => {
 
                 {/* ======================= PRICING MANAGEMENT ======================= */}
                 <Route path="pricing" element={<Navigate to="/hotel-owner/pricing/seasonal" replace />} />
-                <Route path="pricing/seasonal" element={<SeasonalPricingPage />} />
-                <Route path="pricing/seasonal/:roomTypeId" element={<SeasonalPricingDetailPage />} />
+                {/* Wrap pricing routes to preserve state */}
+                <Route element={<PricingWrapper />}>
+                  <Route path="pricing/seasonal" element={<SeasonalPricingPage />} />
+                  <Route path="pricing/seasonal/:roomTypeId" element={<SeasonalPricingDetailPage />} />
+                </Route>
                 <Route path="pricing/promotions" element={<PromotionsPage />} />
 
 

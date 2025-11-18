@@ -3,6 +3,28 @@
 const bankAccountService = require('../services/bank_account.service');
 
 /**
+ * Bỏ mặc định tất cả tài khoản ngân hàng của hotel
+ * PUT /api/v1/hotels/:hotelId/bank-accounts/unset-default
+ */
+exports.unsetDefaultBankAccountsByHotel = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { hotelId } = req.params;
+
+    const updatedAccounts = await bankAccountService.unsetDefaultByHotelId(hotelId, userId, userRole);
+
+    res.json({
+      success: true,
+      message: 'Unset all default bank accounts for hotel',
+      data: updatedAccounts
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Tạo tài khoản ngân hàng mới
  * POST /api/v1/bank-accounts
  */

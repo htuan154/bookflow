@@ -16,6 +16,14 @@ const BankAccountService = {
   // =========================================
   // PUBLIC ENDPOINTS
   // =========================================
+
+    /**
+   * Bỏ mặc định tất cả tài khoản ngân hàng của hotel
+   */
+  unsetDefaultBankAccountsByHotel: async (hotelId) => {
+    const response = await axiosClient.put(`${API_ENDPOINTS.BANK_ACCOUNTS.GET_HOTEL_ACCOUNTS(hotelId)}/unset-default`);
+    return response.data;
+  },
   
   /**
    * Lấy danh sách ngân hàng phổ biến

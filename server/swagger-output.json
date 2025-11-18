@@ -7980,6 +7980,33 @@
         }
       }
     },
+    "/api/v1/hotels/{hotelId}/bank-accounts/unset-default": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "hotelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/admin/bank-accounts": {
       "get": {
         "description": "",

@@ -7,15 +7,26 @@ import roomTypeService from '../../../api/roomType.service';
 import useSeason from '../../../hooks/useSeason';
 import useSeasonPricing from '../../../hooks/useSeasonPricing';
 import ActionButton from '../../../components/common/ActionButton';
+import { usePricingState } from './PricingWrapper';
 
 const SeasonalPricingDetailPage = () => {
   const { roomTypeId } = useParams();
   const navigate = useNavigate();
+  
+  // Get shared state from wrapper
+  const pricingState = usePricingState();
 
   // States
   const [roomType, setRoomType] = useState(null);
   const [seasonalPricings, setSeasonalPricings] = useState([]);
   const [loading, setLoading] = useState(false);
+  
+  // Save current path when mounting
+  useEffect(() => {
+    if (pricingState?.setLastVisitedPath) {
+      pricingState.setLastVisitedPath(window.location.pathname);
+    }
+  }, []);
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);

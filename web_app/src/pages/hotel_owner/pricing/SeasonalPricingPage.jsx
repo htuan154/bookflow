@@ -4,19 +4,40 @@ import { useNavigate } from 'react-router-dom';
 import { hotelApiService } from '../../../api/hotel.service';
 import roomTypeService from '../../../api/roomType.service';
 import ActionButton from '../../../components/common/ActionButton';
+import { usePricingState } from './PricingWrapper';
 
 const SeasonalPricingPage = () => {
   const navigate = useNavigate();
-
-  // States for dropdowns
-  const [hotels, setHotels] = useState([]);
-  const [selectedHotelId, setSelectedHotelId] = useState('');
-  const [roomTypes, setRoomTypes] = useState([]);
+  
+  // Get shared state from wrapper
+  const pricingState = usePricingState();
+  
+  // Use shared state if available, otherwise use local state
+  const [localHotels, setLocalHotels] = useState([]);
+  const [localSelectedHotelId, setLocalSelectedHotelId] = useState('');
+  const [localRoomTypes, setLocalRoomTypes] = useState([]);
+  
+  const hotels = pricingState?.hotels ?? localHotels;
+  const setHotels = pricingState?.setHotels ?? setLocalHotels;
+  const selectedHotelId = pricingState?.selectedHotelId ?? localSelectedHotelId;
+  const setSelectedHotelId = pricingState?.setSelectedHotelId ?? setLocalSelectedHotelId;
+  const roomTypes = pricingState?.roomTypes ?? localRoomTypes;
+  const setRoomTypes = pricingState?.setRoomTypes ?? setLocalRoomTypes;
+  
   const [loading, setLoading] = useState(false);
 
-  // Load hotels on mount
+  // Save current path when mounting
   useEffect(() => {
-    loadHotels();
+    if (pricingState?.setLastVisitedPath) {
+      pricingState.setLastVisitedPath(window.location.pathname);
+    }
+  }, []);
+
+  // Load hotels on mount (only if not already loaded)
+  useEffect(() => {
+    if (hotels.length === 0) {
+      loadHotels();
+    }
   }, []);
 
   // Load room types when hotel is selected

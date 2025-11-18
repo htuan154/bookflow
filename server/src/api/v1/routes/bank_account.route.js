@@ -11,7 +11,8 @@ const {
   deleteBankAccount,
   getPopularBanks,
   getBankAccountStatistics,
-  hardDeleteBankAccount
+  hardDeleteBankAccount,
+  unsetDefaultBankAccountsByHotel
 } = require('../controllers/bank_account.controller');
 const { authenticate } = require('../middlewares/auth.middleware');
 const { requireAdmin } = require('../middlewares/admin.middleware');
@@ -247,6 +248,7 @@ router.put('/bank-accounts/:id/set-default', authenticate, setAsDefault);
  */
 router.delete('/bank-accounts/:id', authenticate, deleteBankAccount);
 
+
 /**
  * @swagger
  * /api/v1/hotels/{hotelId}/bank-accounts:
@@ -278,6 +280,27 @@ router.delete('/bank-accounts/:id', authenticate, deleteBankAccount);
  *         description: Danh sách tài khoản ngân hàng của khách sạn
  */
 router.get('/hotels/:hotelId/bank-accounts', authenticate, getHotelBankAccounts);
+
+/**
+ * @swagger
+ * /api/v1/hotels/{hotelId}/bank-accounts/unset-default:
+ *   put:
+ *     summary: Bỏ mặc định tất cả tài khoản ngân hàng của khách sạn
+ *     tags: [Bank Accounts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: hotelId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID khách sạn
+ *     responses:
+ *       200:
+ *         description: Đã bỏ mặc định tất cả tài khoản ngân hàng của khách sạn
+ */
+router.put('/hotels/:hotelId/bank-accounts/unset-default', authenticate, unsetDefaultBankAccountsByHotel);
 
 // =========================================
 // ADMIN ENDPOINTS

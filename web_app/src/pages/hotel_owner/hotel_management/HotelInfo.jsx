@@ -22,8 +22,10 @@ import useRoom from '../../../hooks/useRoom';
 import { useRoomTypeContext } from '../../../context/RoomTypeContext';
 import { useRoomContext } from '../../../context/RoomContext';
 import { useRoomTypeImageContext } from '../../../context/RoomTypeImageContext';
-import { ActionButtonsGroup } from '../../../components/common/ActionButton';
+import ActionButton, { ActionButtonsGroup } from '../../../components/common/ActionButton';
 import EditHotelModal from '../../../components/hotel/EditHotelModal';
+import useBankAccount from '../../../hooks/useBankAccount';
+import { CreditCardIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 // helper: lấy id khách sạn/amenity an toàn
 const getId = (obj) => obj?.hotelId ?? obj?.hotel_id ?? obj?.id ?? obj?._id ?? null;
@@ -53,6 +55,10 @@ const HotelInfo = () => {
   const { rooms, fetchRooms: fetchRoomList, roomStatuses, roomImages, getRoomImages, getRoomStatuses } = useRoom();
   const { roomTypes } = useRoomType();
   const { imagesByType, getImages, loadingByType } = useRoomTypeImageContext();
+  const {
+    createBankAccount,
+    unsetDefaultBankAccountsByHotel,
+  } = useBankAccount();
 
   // Đếm tổng số hình ảnh của tất cả loại phòng (không dùng hook trong vòng lặp)
   const roomTypeImagesCount = useMemo(() => {
@@ -82,6 +88,15 @@ const HotelInfo = () => {
   const [hotelToSubmit, setHotelToSubmit] = useState(null);
   const [contractStatus, setContractStatus] = useState(null); // null | 'pending' | 'approved' | 'rejected'
   const [note, setNote] = useState('');
+  const [defaultBankAccount, setDefaultBankAccount] = useState(null);
+  const [isBankAccountFormOpen, setIsBankAccountFormOpen] = useState(false);
+  const [bankAccountFormData, setBankAccountFormData] = useState({
+    bankName: '',
+    accountNumber: '',
+    holderName: '',
+    branchName: '',
+    isDefault: true
+  });
 
   const draftHotels = useMemo(() => hotels.filter(h => h.status === 'draft'), [hotels]);
 
@@ -134,6 +149,31 @@ const HotelInfo = () => {
     };
     fetchImages();
   }, [selectedHotel, justUpdated]);
+
+  // Fetch default bank account when selectedHotel changes
+  useEffect(() => {
+    if (!selectedHotel) {
+      setDefaultBankAccount(null);
+      return;
+    }
+    const fetchDefaultBankAccount = async () => {
+      try {
+        const hotelId = getId(selectedHotel);
+        const response = await axiosClient.get(API_ENDPOINTS.BANK_ACCOUNTS.GET_DEFAULT, {
+          params: { hotel_id: hotelId }
+        });
+        if (response.data && response.data.success) {
+          setDefaultBankAccount(response.data.data);
+        } else {
+          setDefaultBankAccount(null);
+        }
+      } catch (error) {
+        console.error('Error fetching default bank account:', error);
+        setDefaultBankAccount(null);
+      }
+    };
+    fetchDefaultBankAccount();
+  }, [selectedHotel]);
 
   // Fetch amenities from API when selectedHotel changes
   useEffect(() => {
@@ -338,6 +378,7 @@ const HotelInfo = () => {
     isRoomListDone: false,
     isRoomStatusDone: false,
     isRoomImagesDone: false,
+    isBankAccountDone: false,
     allDone: false,
   });
 
@@ -361,7 +402,8 @@ const HotelInfo = () => {
       });
     }
 
-    const allDone = isInfoDone && isImagesDone && isAmenitiesDone && isRoomTypeDone && isRoomListDone && isRoomStatusDone && isRoomImagesDone;
+    const isBankAccountDone = !!defaultBankAccount;
+    const allDone = isInfoDone && isImagesDone && isAmenitiesDone && isRoomTypeDone && isRoomListDone && isRoomStatusDone && isRoomImagesDone && isBankAccountDone;
     setCompletionStatus({
       isInfoDone,
       isImagesDone,
@@ -370,9 +412,10 @@ const HotelInfo = () => {
       isRoomListDone,
       isRoomStatusDone,
       isRoomImagesDone,
+      isBankAccountDone,
       allDone,
     });
-  }, [selectedHotel, images, amenities, roomTypes, rooms, imagesByType]);
+  }, [selectedHotel, images, amenities, roomTypes, rooms, imagesByType, defaultBankAccount]);
 
   const isInfoDone = completionStatus.isInfoDone;
   const isImagesDone = completionStatus.isImagesDone;
@@ -381,6 +424,7 @@ const HotelInfo = () => {
   const isRoomListDone = completionStatus.isRoomListDone;
   const isRoomStatusDone = completionStatus.isRoomStatusDone;
   const isRoomImagesDone = completionStatus.isRoomImagesDone;
+  const isBankAccountDone = completionStatus.isBankAccountDone;
   const allDone = completionStatus.allDone;
 
   const handleSendContract = async () => {
@@ -397,6 +441,78 @@ const HotelInfo = () => {
   const handleAddRoomList = () => navigate('/hotel-owner/rooms/list');
   const handleAddRoomStatus = () => navigate('/hotel-owner/rooms/status');
   const handleAddRoomImages = () => navigate('/hotel-owner/rooms/images');
+  const handleAddBankAccount = () => setIsBankAccountFormOpen(true);
+
+  const handleBankAccountInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setBankAccountFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleBankAccountSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedHotel) {
+      alert('Vui lòng chọn khách sạn trước!');
+      return;
+    }
+
+    try {
+      const hotelId = getId(selectedHotel);
+      const accountData = {
+        bankName: bankAccountFormData.bankName,
+        accountNumber: bankAccountFormData.accountNumber,
+        holderName: bankAccountFormData.holderName,
+        branchName: bankAccountFormData.branchName,
+        isDefault: bankAccountFormData.isDefault,
+        hotelId: hotelId,
+        bank_name: bankAccountFormData.bankName,
+        account_number: bankAccountFormData.accountNumber,
+        holder_name: bankAccountFormData.holderName,
+        branch_name: bankAccountFormData.branchName,
+        is_default: bankAccountFormData.isDefault,
+        hotel_id: hotelId,
+      };
+
+      if (bankAccountFormData.isDefault) {
+        await unsetDefaultBankAccountsByHotel(hotelId);
+      }
+
+      await createBankAccount(accountData);
+      
+      // Fetch lại default bank account
+      const response = await axiosClient.get(API_ENDPOINTS.BANK_ACCOUNTS.GET_DEFAULT, {
+        params: { hotel_id: hotelId }
+      });
+      if (response.data && response.data.success) {
+        setDefaultBankAccount(response.data.data);
+      }
+
+      setBankAccountFormData({
+        bankName: '',
+        accountNumber: '',
+        holderName: '',
+        branchName: '',
+        isDefault: true
+      });
+      setIsBankAccountFormOpen(false);
+    } catch (error) {
+      console.error('Error saving bank account:', error);
+      alert('Có lỗi khi lưu tài khoản ngân hàng');
+    }
+  };
+
+  const handleBankAccountCancel = () => {
+    setIsBankAccountFormOpen(false);
+    setBankAccountFormData({
+      bankName: '',
+      accountNumber: '',
+      holderName: '',
+      branchName: '',
+      isDefault: true
+    });
+  };
 
   // Handler cho action buttons trong bảng
   const handleViewHotelDetail = (hotel) => {
@@ -738,20 +854,27 @@ const HotelInfo = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex gap-2 items-center">
-                      <ActionButtonsGroup
-                        onView={() => handleViewHotelDetail(hotel)}
-                        onEdit={() => handleEditHotel(hotel)}
-                        onDelete={() => handleDeleteHotel(hotel)}
-                      />
-                      {/* Nút Nộp cho khách sạn draft */}
-                      {hotel.status === 'draft' && (
-                        <button
-                          className="bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600 text-xs font-semibold"
-                          title="Nộp khách sạn để admin duyệt"
-                          onClick={() => handleOpenSubmitModal(hotel)}
-                        >
-                          Nộp
-                        </button>
+                      {hotel.status === 'draft' ? (
+                        <>
+                          <ActionButtonsGroup
+                            onView={() => handleViewHotelDetail(hotel)}
+                            onEdit={() => handleEditHotel(hotel)}
+                            onDelete={() => handleDeleteHotel(hotel)}
+                          />
+                          {/* Nút Nộp cho khách sạn draft */}
+                          <button
+                            className="bg-yellow-500 text-white px-3 py-1 rounded-lg hover:bg-yellow-600 text-xs font-semibold"
+                            title="Nộp khách sạn để admin duyệt"
+                            onClick={() => handleOpenSubmitModal(hotel)}
+                          >
+                            Nộp
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <ActionButton type="view" onClick={() => handleViewHotelDetail(hotel)} title="Xem" />
+                          <ActionButton type="delete" onClick={() => handleDeleteHotel(hotel)} title="Xoá" />
+                        </>
                       )}
                     </div>
                   </td>
@@ -966,6 +1089,32 @@ const HotelInfo = () => {
                               ❌ Thiếu
                             </span>
                         }
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">Tài khoản ngân hàng</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">Thêm ít nhất 1 tài khoản ngân hàng mặc định</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          {isBankAccountDone ? 
+                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                              ✅ Đã đủ
+                            </span> : 
+                            <>
+                              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                ❌ Thiếu
+                              </span>
+                              <button
+                                onClick={handleAddBankAccount}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                                title="Thêm tài khoản ngân hàng"
+                              >
+                                <PlusIcon className="h-3 w-3" />
+                                Thêm
+                              </button>
+                            </>
+                          }
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -1607,12 +1756,156 @@ const HotelInfo = () => {
                       )}
                     </td>
                   </tr>
+                  <tr>
+                    <td>
+                      Tài khoản ngân hàng
+                      <div className="text-xs text-gray-500">Thêm ít nhất 1 tài khoản ngân hàng mặc định</div>
+                    </td>
+                    <td>{isBankAccountDone ? <span className="text-green-600">Đã đủ</span> : <span className="text-red-600">Thiếu</span>}</td>
+                    <td>
+                      {!isBankAccountDone && (
+                        <button className="bg-blue-500 text-white px-2 py-1 rounded text-xs" onClick={handleAddBankAccount}>
+                          Bổ sung
+                        </button>
+                      )}
+                    </td>
+                  </tr>
                 </tbody>
               </table>
               
             </div>
           </div>
         </>
+      )}
+
+      {/* Bank Account Form Modal */}
+      {isBankAccountFormOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Thêm tài khoản ngân hàng</h3>
+                <button
+                  onClick={handleBankAccountCancel}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleBankAccountSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tên ngân hàng *
+                  </label>
+                  <select
+                    name="bankName"
+                    value={bankAccountFormData.bankName || ''}
+                    onChange={handleBankAccountInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">-- Chọn ngân hàng --</option>
+                    <option value="ACB">ACB</option>
+                    <option value="Agribank">Agribank</option>
+                    <option value="BIDV">BIDV</option>
+                    <option value="HDBank">HDBank</option>
+                    <option value="HSBC">HSBC</option>
+                    <option value="LPBank">LPBank</option>
+                    <option value="MB">MB</option>
+                    <option value="Sacombank">Sacombank</option>
+                    <option value="SHB">SHB</option>
+                    <option value="Shinhan Bank">Shinhan Bank</option>
+                    <option value="Standard Chartered">Standard Chartered</option>
+                    <option value="Techcombank">Techcombank</option>
+                    <option value="TPBank">TPBank</option>
+                    <option value="VIB">VIB</option>
+                    <option value="Vietcombank">Vietcombank</option>
+                    <option value="VietinBank">VietinBank</option>
+                    <option value="VPBank">VPBank</option>
+                    <option value="Woori Bank">Woori Bank</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Số tài khoản *
+                  </label>
+                  <input
+                    type="text"
+                    name="accountNumber"
+                    value={bankAccountFormData.accountNumber}
+                    onChange={handleBankAccountInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập số tài khoản"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tên chủ tài khoản *
+                  </label>
+                  <input
+                    type="text"
+                    name="holderName"
+                    value={bankAccountFormData.holderName}
+                    onChange={handleBankAccountInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Tên chủ tài khoản"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Chi nhánh
+                  </label>
+                  <input
+                    type="text"
+                    name="branchName"
+                    value={bankAccountFormData.branchName}
+                    onChange={handleBankAccountInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Tên chi nhánh"
+                  />
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isDefault"
+                    name="isDefault"
+                    checked={bankAccountFormData.isDefault}
+                    onChange={handleBankAccountInputChange}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="isDefault" className="ml-2 block text-sm text-gray-700">
+                    Đặt làm tài khoản mặc định
+                  </label>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={handleBankAccountCancel}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    Thêm mới
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
