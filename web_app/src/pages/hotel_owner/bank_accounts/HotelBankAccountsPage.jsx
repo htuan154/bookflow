@@ -388,13 +388,15 @@ const HotelBankAccountsPage = () => {
                   const accountNumber = account.accountNumber || '(Chưa có số TK)';
                   const holderName = account.holderName || '(Chưa có chủ TK)';
                   const branchName = account.branchName || '';
-                  
+
+                  const isDefault = !!account.isDefault;
+
                   return (
                     <div
                       key={account.bankAccountId || idx}
                       className={`border rounded-lg p-4 ${
-                        account.isDefault 
-                          ? 'border-yellow-300 bg-yellow-50' 
+                        isDefault
+                          ? 'border-yellow-300 bg-yellow-50'
                           : 'border-gray-200 bg-white'
                       }`}
                     >
@@ -402,7 +404,7 @@ const HotelBankAccountsPage = () => {
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <h3 className="font-semibold text-gray-900">{bankName}</h3>
-                            {account.isDefault && (
+                            {isDefault && (
                               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                 <StarIconSolid className="h-3 w-3" />
                                 Mặc định
@@ -418,11 +420,10 @@ const HotelBankAccountsPage = () => {
                           {branchName !== '' ? (
                             <p className="text-sm text-gray-500">Chi nhánh: {branchName}</p>
                           ) : null}
-                          {/* SWIFT and description removed from model */}
                         </div>
                         <div className="flex items-center gap-2 ml-4">
                           {/* Đặt làm mặc định */}
-                          {!account.isDefault && (
+                          {!isDefault && (
                             <button
                               onClick={() => handleSetDefault(account.bankAccountId)}
                               className="p-2 text-gray-400 hover:text-yellow-600 transition-colors"
@@ -434,8 +435,8 @@ const HotelBankAccountsPage = () => {
                           {/* Nút chỉnh sửa */}
                           <button
                             onClick={() => handleEdit(account)}
-                            className="p-2 rounded hover:bg-gray-100 focus:outline-none transition-colors text-blue-600"
-                            title="Sửa"
+                            className={`p-2 rounded focus:outline-none transition-colors text-blue-600 hover:bg-gray-100`}
+                            title={'Sửa'}
                           >
                             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -443,9 +444,10 @@ const HotelBankAccountsPage = () => {
                           </button>
                           {/* Nút xoá */}
                           <button
-                            onClick={() => handleDelete(account.bankAccountId)}
-                            className="p-2 rounded hover:bg-gray-100 focus:outline-none transition-colors text-red-600"
-                            title="Xoá"
+                            onClick={() => !isDefault && handleDelete(account.bankAccountId)}
+                            className={`p-2 rounded focus:outline-none transition-colors text-red-600 ${isDefault ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                            title={isDefault ? 'Không thể xoá tài khoản mặc định' : 'Xoá'}
+                            disabled={isDefault}
                           >
                             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

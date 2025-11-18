@@ -335,6 +335,7 @@ const StaffList = () => {
                                     const staffId = member.staffId || member.staff_id || member.id;
                                     const position = member.jobPosition || member.position || 'Không xác định';
                                     const userId = member.userId || member.user_id;
+
                                     return (
                                         <tr key={staffId} className="hover:bg-gray-50">
                                             {/* Staff Info */}
@@ -363,29 +364,21 @@ const StaffList = () => {
                                                 </span>
                                             </td>
 
-                                            {/* Status */}
+                                            {/* Status (read-only badge) */}
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <select
-                                                    value={member.status || 'active'}
-                                                    onChange={(e) => handleStatusChange(staffId, e.target.value)}
-                                                    disabled={
-                                                        (member.jobPosition || member.position || '').toLowerCase() === 'hotel_owner'
-                                                    }
-                                                    className={`text-sm rounded-full px-3 py-1 font-medium border-0 ${
-                                                        member.status === 'active' ? 'bg-green-100 text-green-800' :
-                                                        member.status === 'inactive' ? 'bg-yellow-100 text-yellow-800' :
-                                                        member.status === 'suspended' ? 'bg-orange-100 text-orange-800' :
-                                                        member.status === 'terminated' ? 'bg-red-100 text-red-800' :
-                                                        'bg-gray-100 text-gray-800'
-                                                    } ${
-                                                        (member.jobPosition || member.position || '').toLowerCase() === 'hotel_owner' ? 'opacity-60 cursor-not-allowed' : ''
-                                                    }`}
-                                                >
-                                                    <option value="active">Hoạt động</option>
-                                                    <option value="inactive">Tạm dừng</option>
-                                                    <option value="suspended">Đình chỉ</option>
-                                                    <option value="terminated">Đã nghỉ việc</option>
-                                                </select>
+                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                                    member.status === 'active' ? 'bg-green-100 text-green-800' :
+                                                    member.status === 'inactive' ? 'bg-yellow-100 text-yellow-800' :
+                                                    member.status === 'suspended' ? 'bg-orange-100 text-orange-800' :
+                                                    member.status === 'terminated' ? 'bg-red-100 text-red-800' :
+                                                    'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                    {member.status === 'active' ? 'Hoạt động' :
+                                                     member.status === 'inactive' ? 'Tạm dừng' :
+                                                     member.status === 'suspended' ? 'Đình chỉ' :
+                                                     member.status === 'terminated' ? 'Đã nghỉ việc' :
+                                                     'Không xác định'}
+                                                </span>
                                             </td>
 
                                             {/* Start Date */}

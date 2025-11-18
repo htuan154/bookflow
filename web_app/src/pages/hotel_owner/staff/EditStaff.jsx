@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useStaff } from '../../../context/StaffContext';
 import { 
     Users2, User, Mail, Phone, MapPin, Key, Calendar, 
     Save, ArrowLeft, Eye, EyeOff, Briefcase, AlertCircle
@@ -36,6 +37,9 @@ const EditStaff = () => {
     });
     
     const [errors, setErrors] = useState({});
+
+    // Lấy hàm refreshStaff từ context để reload danh sách khi cập nhật xong
+    const { refreshStaff } = useStaff();
 
     useEffect(() => {
         loadStaffData();
@@ -234,6 +238,10 @@ const EditStaff = () => {
             }
 
             alert('Cập nhật thông tin nhân viên thành công!');
+            // Sau khi cập nhật, gọi refreshStaff nếu có để reload danh sách
+            if (refreshStaff) {
+                refreshStaff();
+            }
             navigate('/hotel-owner/staff/list');
         } catch (error) {
             console.error('Error updating staff:', error);
