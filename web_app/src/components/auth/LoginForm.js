@@ -64,6 +64,13 @@ const LoginForm = () => {
     return (
         <>
             <div className="text-center mb-8">
+                {/* Logo */}
+                <div className="mb-6">
+                    <span className="inline-flex items-center space-x-1">
+                        <span className="text-orange-600 text-3xl font-extrabold tracking-tight">Book</span>
+                        <span className="text-orange-600 text-3xl font-light">Flow</span>
+                    </span>
+                </div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Sign In</h1>
                 <p className="text-gray-600 text-sm">Welcome back! Please enter your details.</p>
             </div>
@@ -84,11 +91,11 @@ const LoginForm = () => {
                     onChange={handleChange}
                     placeholder="Enter your password"
                 />
-                <div className="text-right">
+                {/* <div className="text-right">
                     <button type="button" className="text-sm text-orange-600 hover:text-orange-700 font-medium underline">
                         Forgot Password?
                     </button>
-                </div>
+                </div> */}
                 {error && <p className="text-sm text-red-600 text-center">{error}</p>}
                 <button
                     type="submit"
