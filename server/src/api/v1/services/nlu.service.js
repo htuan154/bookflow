@@ -35,6 +35,11 @@ function ngrams(normalized = '', maxN = 3) {
 /** Từ khoá (đã normalize) */
 const FOOD_KWS  = ['an','mon','dac san','dac trung','am thuc','an gi','an vat','quan','com','bun','pho','mi'];
 const PLACE_KWS = ['di dau','choi','tham quan','dia danh','dia diem','diem den','check in','checkin','chup anh','tham thien','leo nui','bien','vinh'];
+const CHITCHAT_KWS = [
+  'hom nay','hom nay','hom nay troi','troi mua','troi nang','troi mat','troi lanh',
+  'gio may gio','may gio','gioi thieu','ban la ai','ten gi','chao','hello','hi','how are you','toi dang choi','tam trang'
+];
+const WEATHER_KWS = ['thoi tiet','thời tiết','troi mua','troi nang','troi lanh','troi mat','du bao','thang nay','mua kho'];
 const REGION_DICT = [
   { code: 'DBSCL', name: 'Miền Tây (ĐBSCL)', keys: ['mien tay','dbscl','dong bang song cuu long'] },
   { code: 'MTR',   name: 'Miền Trung',        keys: ['mien trung'] },
@@ -50,11 +55,22 @@ function hasAny(normalized = '', kws = []) {
   return kws.some(k => normalized.includes(k));
 }
 
+/** true nếu là câu xã giao/chitchat (không liên quan dữ liệu) */
+function isChitchat(normalized = '', city = null) {
+  const toks = tokensOf(normalized);
+  if (!normalized) return true; // câu trống/blank vẫn xem là chitchat
+  if (!city && hasAny(normalized, CHITCHAT_KWS)) return true;
+  if (!city && toks.length <= 4 && !hasAny(normalized, FOOD_KWS) && !hasAny(normalized, PLACE_KWS)) return true;
+  return false;
+}
+
 /** Phân loại intent dựa trên chuỗi đã normalize */
-function detectIntent(message = '') {
+function detectIntent(message = '', city = null) {
   const msg = normalize(message);
   const wantFood  = hasAny(msg, FOOD_KWS);
   const wantPlace = hasAny(msg, PLACE_KWS);
+  if (hasAny(msg, WEATHER_KWS)) return 'ask_weather';
+  if (isChitchat(msg, city)) return 'chitchat';
   if (wantFood && !wantPlace) return 'ask_dishes';
   if (!wantFood && wantPlace) return 'ask_places';
   return 'ask_both';
@@ -144,11 +160,12 @@ function detectCity(normalized = '') {
 /** Hàm analyze DUY NHẤT (có city) */
 function analyze(message = '') {
   const normalized = normalize(message);
+  const city = detectCity(normalized);
   return {
     normalized,
-    intent: detectIntent(normalized),
+    intent: detectIntent(normalized, city),
     region: detectRegion(normalized),
-    city: detectCity(normalized),
+    city,
     top_n: extractTopN(normalized, 7),
     filters: extractFilters(normalized),
     tokens: tokensOf(normalized),

@@ -12,37 +12,99 @@
 
 const { analyze, normalize } = require('./nlu.service');
 const repo = require('../repositories/province.repo');        // findInText(db, nlu)
-const { compose } = require('./composer.service');            // LLM composer (guardrails/cache/fallback)
+const { compose, composeSmallTalk, composeCityFallback } = require('./composer.service');            // LLM composer (guardrails/cache/fallback)
 const { supabase } = require('../../../config/supabase');        // điều chỉnh path nếu dự án bạn khác
 
 const USE_LLM = String(process.env.USE_LLM || 'false').toLowerCase() === 'true';
 
 
-// ---- Canonical VN provinces - rút gọn tên chuẩn để đối chiếu ----
-const VN_PROVINCES = [
-  'An Giang','Bà Rịa Vũng Tàu','Bắc Giang','Bắc Kạn','Bạc Liêu','Bắc Ninh',
-  'Bến Tre','Bình Định','Bình Dương','Bình Phước','Bình Thuận','Cà Mau',
-  'Cần Thơ','Cao Bằng','Đà Nẵng','Đắk Lắk','Đắk Nông','Điện Biên','Đồng Nai',
-  'Đồng Tháp','Gia Lai','Hà Giang','Hà Nam','Hà Nội','Hà Tĩnh','Hải Dương',
-  'Hải Phòng','Hậu Giang','Hòa Bình','Hưng Yên','Khánh Hòa','Kiên Giang',
-  'Kon Tum','Lai Châu','Lâm Đồng','Lạng Sơn','Lào Cai','Long An','Nam Định',
-  'Nghệ An','Ninh Bình','Ninh Thuận','Phú Thọ','Phú Yên','Quảng Bình',
-  'Quảng Nam','Quảng Ngãi','Quảng Ninh','Quảng Trị','Sóc Trăng','Sơn La',
-  'Tây Ninh','Thái Bình','Thái Nguyên','Thanh Hóa','Thừa Thiên Huế','Tiền Giang',
-  'TP Hồ Chí Minh','Hồ Chí Minh','Trà Vinh','Tuyên Quang','Vĩnh Long','Vĩnh Phúc','Yên Bái'
-];
+// ---- IMPROVED Canonical Mapping for tricky provinces ----
+// Maps user input variations -> Exact DB Name (as stored in MongoDB)
+const CANONICAL_MAP = new Map([
+  // Hồ Chí Minh (most common variants)
+  ['hcm', 'Thành phố Hồ Chí Minh'],
+  ['hochiminh', 'Thành phố Hồ Chí Minh'],
+  ['ho chi minh', 'Thành phố Hồ Chí Minh'],
+  ['saigon', 'Thành phố Hồ Chí Minh'],
+  ['sai gon', 'Thành phố Hồ Chí Minh'],
+  ['tphcm', 'Thành phố Hồ Chí Minh'],
+  ['tp hcm', 'Thành phố Hồ Chí Minh'],
+  ['tp ho chi minh', 'Thành phố Hồ Chí Minh'],
+  ['thanh pho ho chi minh', 'Thành phố Hồ Chí Minh'],
+  
+  // Hà Nội
+  ['ha noi', 'Hà Nội'],
+  ['hanoi', 'Hà Nội'],
+  
+  // Huế / Thừa Thiên Huế
+  ['hue', 'Huế'],
+  ['thua thien hue', 'Huế'],
+  ['thuathienhue', 'Huế'],
+  
+  // Đà Nẵng
+  ['da nang', 'Đà Nẵng'],
+  ['danang', 'Đà Nẵng'],
+  
+  // Vũng Tàu / Bà Rịa Vũng Tàu
+  ['vung tau', 'Bà Rịa Vũng Tàu'],
+  ['vungtau', 'Bà Rịa Vũng Tàu'],
+  ['brvt', 'Bà Rịa Vũng Tàu'],
+  ['ba ria vung tau', 'Bà Rịa Vũng Tàu'],
+  ['bariavungtau', 'Bà Rịa Vũng Tàu'],
+  
+  // Đắk Lắk (fix critical issue)
+  ['dak lak', 'Đắk Lắk'],
+  ['daklak', 'Đắk Lắk'],
+  ['đak lak', 'Đắk Lắk'],
+  ['đaklak', 'Đắk Lắk'],
+  
+  // Other common variations
+  ['can tho', 'Cần Thơ'],
+  ['cantho', 'Cần Thơ'],
+  ['hai phong', 'Hải Phòng'],
+  ['haiphong', 'Hải Phòng'],
+  ['nha trang', 'Khánh Hòa'],
+  ['khanh hoa', 'Khánh Hòa'],
+  ['phu quoc', 'Kiên Giang'],
+  ['kien giang', 'Kiên Giang'],
+  ['da lat', 'Lâm Đồng'],
+  ['dalat', 'Lâm Đồng'],
+  ['lam dong', 'Lâm Đồng'],
+  ['sa pa', 'Lào Cai'],
+  ['sapa', 'Lào Cai'],
+  ['lao cai', 'Lào Cai'],
+  ['ha long', 'Quảng Ninh'],
+  ['halong', 'Quảng Ninh'],
+  ['quang ninh', 'Quảng Ninh'],
+  ['ninh binh', 'Ninh Bình'],
+  ['ninhbinh', 'Ninh Bình'],
+  ['phan thiet', 'Bình Thuận'],
+  ['mui ne', 'Bình Thuận'],
+  ['binh thuan', 'Bình Thuận'],
+  ['quy nhon', 'Bình Định'],
+  ['binh dinh', 'Bình Định'],
+]);
 
-const PROV_CANON = new Map(
-  VN_PROVINCES.map(n => [normalize(n), n])
-);
-
+/**
+ * Get canonical DB name from user input
+ * @param {string} text - User input (already normalized)
+ * @returns {string|null} - Exact DB name or null
+ */
 function canonicalFromText(text) {
   if (!text) return null;
-  const q = normalize(String(text));
-  const qNo = q.replace(/\s/g,'');
-  for (const [norm, name] of PROV_CANON) {
-    if (q === norm || qNo === norm.replace(/\s/g,'')) return name;
+  const normalized = normalize(String(text));
+  const noSpace = normalized.replace(/\s/g, '');
+  
+  // Try exact match first
+  if (CANONICAL_MAP.has(normalized)) {
+    return CANONICAL_MAP.get(normalized);
   }
+  
+  // Try no-space variant
+  if (CANONICAL_MAP.has(noSpace)) {
+    return CANONICAL_MAP.get(noSpace);
+  }
+  
   return null;
 }
 
@@ -92,9 +154,13 @@ function filterDocByProvince(doc, target) {
   ],
 
   // Một số tỉnh du lịch dễ lẫn với hàng xóm
+  // EXPANDED: Quảng Nam (hàng xóm của Đà Nẵng - filter out from Da Nang)
   'quang nam': [
-    'quang nam','hoi an','hoi-an','my son','thanh dia my son','cu lao cham'
+    'quang nam','hoi an','hoi-an','pho co hoi an','my son','thanh dia my son',
+    'cu lao cham','cau cua dai','rung dua bay mau','vinwonders nam hoi an',
+    'an bang','tra que','cam thanh'
   ],
+  
   'quang ninh': [
     'quang ninh','ha long','halong','yen tu','co to','quan lan','tuan chau'
   ],
@@ -107,21 +173,46 @@ function filterDocByProvince(doc, target) {
   'binh thuan': [
     'binh thuan','phan thiet','mui ne','bau trang','ta cu'
   ],
+  
+  // EXPANDED: Bà Rịa Vũng Tàu (hàng xóm của TP.HCM - filter out from HCM)
   'ba ria vung tau': [
-    'ba ria vung tau','vung tau','ba ria','long hai','binh chau','con dao','condao'
+    'ba ria vung tau','vung tau','ba ria','long hai','ho tram','ho coc',
+    'con dao','condao','bai sau','bai truoc','tuong chua kito','bach dinh',
+    'bai dau','binh chau','suoi nuoc nong','dat do'
   ],
+  
+  // EXPANDED: Bình Dương (hàng xóm của TP.HCM - filter out from HCM)
+  'binh duong': [
+    'binh duong','kdl dai nam','lac canh dai nam','chua ba thien hau',
+    'thanh pho moi','aeon mall binh duong','thu dau mot','di an','thuan an'
+  ],
+  
   'quang binh': [
     'quang binh','phong nha','ke bang','son doong','thien duong'
   ],
+  
+  // EXPANDED: Ninh Bình (hàng xóm của Hà Nam)
   'ninh binh': [
-    'ninh binh','trang an','tam coc','bai dinh','van long'
+    'ninh binh','trang an','tam coc','bich dong','bai dinh','chua bai dinh','hoa lu',
+    'thung nham','van long','hang mua','cuc phuong','non nuoc','kenh ga'
   ],
+  
+  // EXPANDED: Nam Định (hàng xóm của Hà Nam)
+  'nam dinh': [
+    'nam dinh','den tran','phu day','quat lam','thinh long','xuan thuy',
+    'nha tho do','nha tho phu nhai','nha tho keo','hai ly','hai hau','rung tram'
+  ],
+  
   'thua thien hue': [
     'thua thien hue','hue','kinh thanh hue','thien mu','truong tien','lang tam'
   ],
+  
+  // EXPANDED: Phú Yên (hàng xóm của Đắk Lắk - filter out from Dak Lak)
   'phu yen': [
-    'phu yen','ghenh da dia','ghe nh da dia','dam o loan','vuc hom'
+    'phu yen','ghenh da dia','ghanh da dia','ghe nh da dia','mui dien',
+    'bai xep','vung ro','dam o loan','vuc hom','mat ca ngu','tuy hoa'
   ],
+  
   'binh dinh': [
     'binh dinh','quy nhon','ky co','eo gio'
   ],
@@ -158,8 +249,31 @@ function filterDocByProvince(doc, target) {
   'soc trang': [
     'soc trang','chua doi'
   ],
+  
+  // EXPANDED: Bến Tre (hàng xóm của Vĩnh Long - filter out from Vinh Long)
   'ben tre': [
-    'ben tre','cai mon'
+    'ben tre','cai mon','con phung','con quy','keo dua','lang be',
+    'cho ben tre','rach mieu','chua vinh trang ben tre'
+  ],
+  
+  // EXPANDED: Trà Vinh (hàng xóm của Vĩnh Long - filter out from Vinh Long)
+  'tra vinh': [
+    'tra vinh','ao ba om','ba om','chua ang','bao tang khmer',
+    'bien ba dong','bun nuoc leo','cau ke gac','duyen hai'
+  ],
+  
+  // EXPANDED: Tiền Giang (hàng xóm của Đồng Tháp/Long An - filter out)
+  'tien giang': [
+    'tien giang','my tho','chua vinh trang','trai ran dong tam',
+    'con thoi son','cho noi cai be','tan thanh','go gong','cai be'
+  ],
+  
+  // EXPANDED: Đồng Nai (hàng xóm của Bình Phước)
+  'dong nai': [
+    'dong nai','bien hoa','kdl buu long','buu long','thac da han','da han',
+    'suoi mo dong nai','giang dien','vuon xao la','vuon du lich giang dien',
+    'song dong nai','chien khu d','vuon xoai','bo cap vang','nui chua chan',
+    'khu du lich tre nguyen','dat do','tan phu','dinh quan'
   ]
 };
 
@@ -518,87 +632,160 @@ async function listHotelCities(opts = undefined) {
 //   return payload;
 // }
 
-/* ========== REPLACED findProvinceDoc (repo-based, no file JSON fallback) ========== */
+/* ========== MULTI-STRATEGY SEARCH: Fix "Hồ Chí Minh" and "Đắk Lắk" failures ========== */
 async function findProvinceDoc(db, nlu, firstDoc, queryText) {
-  // 1) Doc tìm theo toàn câu (hoặc doc song song đã có)
-  let doc = firstDoc || await repo.findInText(db, nlu).catch(() => null);
+  console.log('[findProvinceDoc] START - Input:', {
+    nluCity: nlu?.city,
+    queryText,
+    hasFirstDoc: !!firstDoc
+  });
 
-  // 2) Luôn đoán city từ câu hỏi (ưu tiên hơn NLU nếu mâu thuẫn)
-  let targetCity = nlu.city;
-  let guess = null;
-  if (queryText) {
-    const msgN = normalize(String(queryText));
-    const byNorm  = await repo.findByNorm(db, msgN).catch(() => null);
-    const byAlias = byNorm ? null : await repo.findByAlias(db, msgN).catch(() => null);
-    guess = byNorm || byAlias || (repo.findByProvinceExact
-      ? await repo.findByProvinceExact(db, msgN).catch(() => null)
-      : null);
-  }
-  if (!targetCity && guess?.name) {
-    targetCity = guess.name;
-  } else if (targetCity && guess?.name && !sameProvince(targetCity, guess)) {
-    targetCity = guess.name;
-  } else if (!guess) {
-    // Nếu không match NoSQL, thử ép theo canonical 63 tỉnh
-    const canon = canonicalFromText(queryText);
-    if (canon) {
-      targetCity = canon;
+  // 1) Use firstDoc if provided (from parallel query)
+  let doc = firstDoc;
+  let targetCity = nlu?.city;
+
+  // 2) STRATEGY 1: Canonical Mapping (most reliable for tricky names)
+  const inputText = queryText || nlu?.city || '';
+  const canonicalName = canonicalFromText(inputText);
+  
+  if (canonicalName) {
+    console.log('[findProvinceDoc] STRATEGY 1 (Canonical): Found mapping:', {
+      input: inputText,
+      canonical: canonicalName
+    });
+    
+    targetCity = canonicalName;
+    
+    // Search by exact canonical name
+    const canonN = normalize(canonicalName);
+    doc = await repo.findByNorm(db, canonN).catch(() => null);
+    
+    if (!doc) {
+      // Try findByProvinceExact (checks name + aliases + merged_from)
+      doc = await repo.findByProvinceExact(db, canonN).catch(() => null);
+    }
+    
+    if (doc) {
+      console.log('[findProvinceDoc] ✓ Found via Canonical:', doc.name);
+      return doc;
     }
   }
 
-  // 3) Refetch chỉ theo targetCity nếu chưa có hoặc lệch
-  if (targetCity && (!doc || (doc?.name && !sameProvince(targetCity, doc)))) {
-    const nluCityOnly = analyze(targetCity);
-    doc = await repo.findInText(db, nluCityOnly).catch(() => null);
+  // 3) STRATEGY 2: Direct norm field match
+  if (!doc && queryText) {
+    const msgN = normalize(String(queryText));
+    console.log('[findProvinceDoc] STRATEGY 2 (Norm): Searching for:', msgN);
+    
+    doc = await repo.findByNorm(db, msgN).catch(() => null);
+    
+    if (doc) {
+      console.log('[findProvinceDoc] ✓ Found via Norm:', doc.name);
+      targetCity = doc.name;
+      return doc;
+    }
   }
 
-  // 4) Fallback exact (name / aliases / merged_from)
-  if (targetCity && (!doc || (doc?.name && !sameProvince(targetCity, doc))) && repo.findByProvinceExact) {
-    const exact = await repo.findByProvinceExact(db, targetCity).catch(() => null);
-    if (exact) doc = exact;
+  // 4) STRATEGY 3: Aliases array search (with/without spaces)
+  if (!doc && queryText) {
+    const msgN = normalize(String(queryText));
+    const msgNNo = msgN.replace(/\s/g, '');
+    
+    console.log('[findProvinceDoc] STRATEGY 3 (Aliases):', { msgN, msgNNo });
+    
+    // Try with spaces
+    doc = await repo.findByAlias(db, msgN).catch(() => null);
+    
+    // Try without spaces
+    if (!doc) {
+      doc = await repo.findByAlias(db, msgNNo).catch(() => null);
+    }
+    
+    if (doc) {
+      console.log('[findProvinceDoc] ✓ Found via Aliases:', doc.name);
+      targetCity = doc.name;
+      return doc;
+    }
   }
 
-  // 5) Nếu vẫn lệch -> skeleton đúng tỉnh
-  if (targetCity && doc?.name && !sameProvince(targetCity, doc)) {
-    doc = { name: targetCity, places: [], dishes: [], tips: [] };
+  // 5) STRATEGY 4: Province Exact (comprehensive: name + aliases + merged_from)
+  if (!doc && (queryText || nlu?.city)) {
+    const searchText = queryText || nlu?.city;
+    const normalized = normalize(String(searchText));
+    
+    console.log('[findProvinceDoc] STRATEGY 4 (ProvinceExact):', normalized);
+    
+    if (repo.findByProvinceExact) {
+      doc = await repo.findByProvinceExact(db, normalized).catch(() => null);
+      
+      if (doc) {
+        console.log('[findProvinceDoc] ✓ Found via ProvinceExact:', doc.name);
+        targetCity = doc.name;
+        return doc;
+      }
+    }
   }
 
-  // 6) Không tìm thấy gì nhưng có targetCity
+  // 6) STRATEGY 5: Full-text search using NLU (last resort)
+  if (!doc) {
+    console.log('[findProvinceDoc] STRATEGY 5 (FullText): Using repo.findInText');
+    
+    doc = await repo.findInText(db, nlu).catch(() => null);
+    
+    if (doc) {
+      console.log('[findProvinceDoc] ✓ Found via FullText:', doc.name);
+      
+      // Verify the doc matches the target city
+      if (targetCity && !sameProvince(targetCity, doc)) {
+        console.warn('[findProvinceDoc] FullText mismatch:', {
+          targetCity,
+          foundDoc: doc.name
+        });
+        
+        // Trust targetCity over full-text result
+        doc = { name: targetCity, places: [], dishes: [], tips: [] };
+      } else {
+        targetCity = doc.name;
+      }
+      
+      return doc;
+    }
+  }
+
+  // 7) FALLBACK: Create skeleton if we have targetCity but no doc
   if (!doc && targetCity) {
+    console.log('[findProvinceDoc] ✗ No doc found. Creating skeleton for:', targetCity);
     doc = { name: targetCity, places: [], dishes: [], tips: [] };
+    return doc;
   }
+
+  // 8) FINAL FALLBACK: Try canonical on NLU city as last attempt
+  if (!doc && nlu?.city) {
+    const finalCanon = canonicalFromText(nlu.city);
+    if (finalCanon) {
+      console.log('[findProvinceDoc] Final attempt with canonical from NLU city:', finalCanon);
+      targetCity = finalCanon;
+      doc = { name: finalCanon, places: [], dishes: [], tips: [] };
+      return doc;
+    }
+  }
+
+  console.log('[findProvinceDoc] END - Result:', {
+    found: !!doc,
+    docName: doc?.name,
+    targetCity
+  });
 
   return doc;
 }
 
-// ================= PATCH USE: suggest =================
+// ================= IMPROVED suggest: Better aliases matching =================
 async function suggest(db, { message, context = {} }) {
   const started = Date.now();
   const nlu = analyze(message);
   const { top_n = context.top_n || 10, filters = {} } = nlu;
 
-  // SỬA 2: Ưu tiên match đúng tỉnh/thành theo tên/alias trước
-  const targetCity = nlu?.city || null;
-  let doc = null;
-  if (targetCity) {
-    doc = await repo.findByProvinceExact(db, targetCity).catch(() => null);
-  }
-  doc = doc || await repo.findInText(db, nlu).catch(() => null);
-
-  // 2) Nếu có city nhưng doc KHÔNG chứa city qua name/alias/merged → refetch chỉ với city
-  if (nlu.city && doc?.name && !sameProvince(nlu.city, doc)) {
-    console.warn('[suggest] mismatch -> refetch city only', { query: message, nlu_city: nlu.city, doc_name: doc.name });
-    const nluCityOnly = analyze(nlu.city);
-    doc = await repo.findInText(db, nluCityOnly).catch(() => null);
-    // 3) Nếu vẫn lệch thật sự mới ép skeleton rỗng cho đúng tỉnh
-    if (doc?.name && !sameProvince(nlu.city, doc)) {
-      doc = { name: nlu.city, places: [], dishes: [], tips: [] };
-    }
-  }
-  // 4) Không tìm thấy gì nhưng user nêu city → skeleton
-  if (!doc && nlu.city) {
-    doc = { name: nlu.city, places: [], dishes: [], tips: [] };
-  }
+  // Use improved findProvinceDoc for better alias matching
+  const doc = await findProvinceDoc(db, nlu, null, message);
 
   const llmOn = typeof context.use_llm === 'boolean' ? context.use_llm : USE_LLM;
   // SỬA 1: Khi LLM tắt, vẫn trả đủ places + dishes + tips
@@ -647,9 +834,46 @@ async function suggest(db, { message, context = {} }) {
 async function suggestHybrid(db, { message, context = {} }) {
   const started = Date.now();
   const nlu = analyze(message);
-  const { intent, top_n = context.top_n || 10, filters = {}, city } = nlu;
+  const history = Array.isArray(context.history) ? context.history : [];
+  const historyCity = history.find(t => t?.nlu?.city)?.nlu?.city || null;
+  const monthMatch = String(message || '').match(/th[aá]ng\s*(\d{1,2})/i);
+  const askedMonth = monthMatch ? Math.max(1, Math.min(12, Number(monthMatch[1]))) : null;
+  const nluCtx = { ...nlu, city: nlu.city || historyCity, month: askedMonth };
+  const { intent, top_n = context.top_n || 10, filters = {}, city } = nluCtx;
 
-  const nosqlTask = repo.findInText(db, nlu).catch(() => null);
+  if (intent === 'chitchat') {
+    const payload = await composeSmallTalk({ message, nlu: nluCtx, history });
+    payload.latency_ms = Date.now() - started;
+    payload.province = null;
+    return payload;
+  }
+
+  if (intent === 'ask_weather') {
+    const cityTarget = nluCtx.city || historyCity || null;
+    let safeDoc = null;
+    if (cityTarget) {
+      try {
+        const docRaw = await findProvinceDoc(db, { ...nluCtx, city: cityTarget }, null, message);
+        const extracted = extractProvinceDoc(docRaw);
+        safeDoc = filterDocByProvince(extracted, cityTarget);
+      } catch (err) {
+        console.warn('[suggestHybrid] weather doc fetch failed:', err?.message || err);
+      }
+    }
+    const payload = await composeCityFallback({
+      city: cityTarget,
+      intent,
+      message,
+      history,
+      month: askedMonth,
+      doc: safeDoc
+    });
+    payload.latency_ms = Date.now() - started;
+    payload.province = safeDoc?.name || cityTarget || null;
+    return payload;
+  }
+
+  const nosqlTask = repo.findInText(db, nluCtx).catch(() => null);
 
   const sqlTasks = [];
   const raw = String(message || '').toLowerCase()
@@ -681,11 +905,11 @@ async function suggestHybrid(db, { message, context = {} }) {
   const [docFirst, ...sqlDatasets] = await Promise.all([nosqlTask, ...sqlTasks]);
   console.log('[suggestHybrid] SQL datasets received:', sqlDatasets.map(ds => ({ tag: ds.tag, rowCount: ds.rows?.length || 0 })));
 
-  const doc = await findProvinceDoc(db, nlu, docFirst, message);
+  const doc = await findProvinceDoc(db, nluCtx, docFirst, message);
   const safeDoc = extractProvinceDoc(doc);
-  const cityFinal = (nlu.city && sameProvince(nlu.city, safeDoc))
-    ? nlu.city
-    : (safeDoc?.name || nlu.city);
+  const cityFinal = (nluCtx.city && sameProvince(nluCtx.city, safeDoc))
+    ? nluCtx.city
+    : (safeDoc?.name || nluCtx.city);
 
   const safeSql = sqlDatasets.length
     ? sqlDatasets.map(ds => ({
@@ -697,7 +921,7 @@ async function suggestHybrid(db, { message, context = {} }) {
   const payload = await compose({
     doc: safeDoc,
     sql: safeSql,
-    nlu,
+    nlu: nluCtx,
     filters: { ...(filters || {}), ...(context.filters || {}) },
     user_ctx: { city: cityFinal, top_n, ...context }
   });

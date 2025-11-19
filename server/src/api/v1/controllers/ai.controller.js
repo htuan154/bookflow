@@ -9,7 +9,7 @@
  */
 
 const { analyze, normalize } = require('../services/nlu.service');
-const { saveTurn } = require('../services/chatHistory.service');
+const { saveTurn, recentTurns } = require('../services/chatHistory.service');
 
 const {
   // SQL search helpers / RPC
@@ -82,6 +82,7 @@ async function suggestHandler(req, res, next) {
     if (!msg) return res.status(400).json({ error: 'message is required (string)' });
 
     const userId = req.user?.id || 'anonymous';
+    const sessionId = req.headers['x-session-id'] || session_id || 'default';
     
     // Check for duplicate request
     const cachedResponse = checkDuplicateRequest(userId, msg);
@@ -93,15 +94,21 @@ async function suggestHandler(req, res, next) {
 
     console.log('[AI] Processing new request:', msg);
     const nlu = analyze(msg);
-    console.log('[AI] NLU result:', { city: nlu.city, intent: nlu.intent, top_n: nlu.top_n });
+    let history = [];
+    try {
+      history = await recentTurns({ userId, sessionId, limit: 5 });
+    } catch (e) {
+      console.warn('[AI] recentTurns failed:', e?.message || e);
+    }
+    console.log('[AI] NLU result:', { city: nlu.city, intent: nlu.intent, top_n: nlu.top_n, hist: history.length });
     const limit = Number(top_n || nlu.top_n || 10);
 
     // Luôn bật LLM + truyền context chung cho composer
-    const ctx = { use_llm: true, filters: typeof filters === 'object' ? filters : {} };
+    const ctx = { use_llm: true, filters: typeof filters === 'object' ? filters : {}, history };
     if (Number.isFinite(limit) && limit > 0 && limit <= 20) ctx.top_n = limit;
 
     const t0 = process.hrtime.bigint();
-    const payload = await suggestHybrid(db, { message: msg, context: ctx });
+    const payload = await suggestHybrid(db, { message: msg, context: { ...ctx, session_id: sessionId } });
     console.log('[AI] suggestHybrid result:', { 
       source: payload.source, 
       hasHotels: payload.hotels?.length || 0,

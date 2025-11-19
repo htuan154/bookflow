@@ -86,4 +86,21 @@ async function listMessages({ userId, sessionId, page = 1, pageSize = 20 }) {
   return { items, total, page, pageSize };
 }
 
-module.exports = { saveTurn, listSessions, listMessages };
+/** Lấy vài turn mới nhất để làm context hội thoại */
+async function recentTurns({ userId, sessionId, limit = 5 }) {
+  const db = getDb();
+  return db.collection(COLL)
+    .find({ user_id: userId, session_id: sessionId })
+    .sort({ created_at: -1 })
+    .limit(Math.max(1, limit))
+    .project({
+      message: 1,
+      reply: 1,
+      nlu: 1,
+      created_at: 1,
+      source: 1,
+    })
+    .toArray();
+}
+
+module.exports = { saveTurn, listSessions, listMessages, recentTurns };

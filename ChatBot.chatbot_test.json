@@ -1,0 +1,2103 @@
+[{
+  "_id": "province_an_giang",
+  "type": "province",
+  "name": "An Giang",
+  "norm": "an giang",
+  "aliases": [
+    "an giang",
+    "angiang",
+    "kien giang",
+    "kiengiang",
+    "phu quoc",
+    "dao phu quoc",
+    "nam du",
+    "ha tien",
+    "rach gia"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Kiên Giang",
+    "An Giang"
+  ],
+  "region": "ĐBSCL",
+  "places": [
+    {
+      "name": "Miếu Bà Chúa Xứ - Núi Sam"
+    },
+    {
+      "name": "Rừng tràm Trà Sư"
+    },
+    {
+      "name": "Chợ Châu Đốc"
+    },
+    {
+      "name": "Hà Tiên"
+    },
+    {
+      "name": "Phú Quốc"
+    },
+    {
+      "name": "Quần đảo Nam Du"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Bún cá Châu Đốc"
+    },
+    {
+      "name": "Mắm Châu Đốc"
+    },
+    {
+      "name": "Lẩu mắm"
+    },
+    {
+      "name": "Gỏi cá trích Phú Quốc"
+    },
+    {
+      "name": "Bún kèn Phú Quốc"
+    }
+  ]
+},
+{
+  "_id": "province_bac_ninh",
+  "type": "province",
+  "name": "Bắc Ninh",
+  "norm": "bac ninh",
+  "aliases": [
+    "bac giang",
+    "bac ninh",
+    "bacgiang",
+    "bacninh"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Bắc Giang",
+    "Bắc Ninh"
+  ],
+  "region": "Đồng bằng sông Hồng",
+  "places": [
+    {
+      "name": "Đền Đô"
+    },
+    {
+      "name": "Chùa Dâu"
+    },
+    {
+      "name": "Chùa Bút Tháp"
+    },
+    {
+      "name": "Làng quan họ Viêm Xá"
+    },
+    {
+      "name": "Chùa Vĩnh Nghiêm (Bắc Giang)"
+    },
+    {
+      "name": "Khu di tích Tây Yên Tử"
+    },
+    {
+      "name": "Làng gốm Phù Lãng"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Bánh phu thê"
+    },
+    {
+      "name": "Nem Bùi"
+    },
+    {
+      "name": "Bánh tẻ làng Chờ"
+    },
+    {
+      "name": "Mỳ Chũ"
+    },
+    {
+      "name": "Vải thiều Lục Ngạn"
+    },
+    {
+      "name": "Bánh đúc lạc"
+    }
+  ]
+},
+{
+  "_id": "province_cao_bang",
+  "type": "province",
+  "name": "Cao Bằng",
+  "norm": "cao bang",
+  "aliases": [
+    "cao bang",
+    "caobang"
+  ],
+  "status": "unchanged",
+  "merged_from": [],
+  "region": "Trung du & miền núi Bắc Bộ",
+  "places": [
+    {
+      "name": "Thác Bản Giốc"
+    },
+    {
+      "name": "Động Ngườm Ngao"
+    },
+    {
+      "name": "Khu di tích Pác Bó"
+    },
+    {
+      "name": "Hồ Thang Hen"
+    },
+    {
+      "name": "Đèo Mã Phục"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Vịt quay Cao Bằng"
+    },
+    {
+      "name": "Phở chua Cao Bằng"
+    },
+    {
+      "name": "Bánh áp chao"
+    },
+    {
+      "name": "Lạp xưởng hun khói"
+    },
+    {
+      "name": "Rau dạ hiến"
+    }
+  ]
+},
+{
+  "_id": "province_ca_mau",
+  "type": "province",
+  "name": "Cà Mau",
+  "norm": "ca mau",
+  "aliases": [
+    "bac lieu",
+    "baclieu",
+    "ca mau",
+    "camau"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Bạc Liêu",
+    "Cà Mau"
+  ],
+  "region": "ĐBSCL",
+  "places": [
+    {
+      "name": "Mũi Cà Mau"
+    },
+    {
+      "name": "Rừng U Minh Hạ"
+    },
+    {
+      "name": "Hòn Đá Bạc"
+    },
+    {
+      "name": "Nhà Công tử Bạc Liêu"
+    },
+    {
+      "name": "Điện gió Bạc Liêu"
+    },
+    {
+      "name": "Biển Nhà Mát"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Ba khía Rạch Gốc"
+    },
+    {
+      "name": "Tôm khô Cà Mau"
+    },
+    {
+      "name": "Lẩu mắm U Minh"
+    },
+    {
+      "name": "Bánh tằm cay Bạc Liêu"
+    },
+    {
+      "name": "Bún bò cay Bạc Liêu"
+    }
+  ]
+},
+{
+  "_id": "city_can_tho",
+  "type": "city",
+  "name": "Cần Thơ",
+  "norm": "can tho",
+  "aliases": [
+    "can tho",
+    "cantho",
+    "hau giang",
+    "haugiang",
+    "soc trang",
+    "soctrang",
+    "thanh pho can tho",
+    "tp can tho",
+    "cho noi cai rang",
+    "ben ninh kieu"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Sóc Trăng",
+    "Hậu Giang",
+    "Cần Thơ"
+  ],
+  "region": "ĐBSCL",
+  "places": [
+    {
+      "name": "Chợ nổi Cái Răng"
+    },
+    {
+      "name": "Bến Ninh Kiều"
+    },
+    {
+      "name": "Nhà cổ Bình Thủy"
+    },
+    {
+      "name": "Chùa Dơi (Sóc Trăng)"
+    },
+    {
+      "name": "Chùa Đất Sét (Sóc Trăng)"
+    },
+    {
+      "name": "Lung Ngọc Hoàng (Hậu Giang)"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Lẩu mắm"
+    },
+    {
+      "name": "Bánh pía Sóc Trăng"
+    },
+    {
+      "name": "Bún nước lèo"
+    },
+    {
+      "name": "Bánh cống"
+    },
+    {
+      "name": "Cá lóc nướng trui"
+    },
+    {
+      "name": "Cháo cá lóc rau đắng"
+    }
+  ]
+},
+{
+  "_id": "province_gia_lai",
+  "type": "province",
+  "name": "Gia Lai",
+  "norm": "gia lai",
+  "aliases": [
+    "binh đinh",
+    "binhđinh",
+    "gia lai",
+    "gialai"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Bình Định",
+    "Gia Lai"
+  ],
+  "region": "Tây Nguyên & Duyên hải",
+  "places": [
+    {
+      "name": "Biển Hồ (Pleiku)"
+    },
+    {
+      "name": "Thác Phú Cường"
+    },
+    {
+      "name": "Vườn quốc gia Kon Ka Kinh"
+    },
+    {
+      "name": "Eo Gió (Bình Định)"
+    },
+    {
+      "name": "Kỳ Co (Bình Định)"
+    },
+    {
+      "name": "Tháp Đôi Quy Nhơn"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Phở khô Gia Lai (phở hai tô)"
+    },
+    {
+      "name": "Bò một nắng Krông Pa"
+    },
+    {
+      "name": "Bún chả cá Quy Nhơn"
+    },
+    {
+      "name": "Bánh xèo tôm nhảy"
+    },
+    {
+      "name": "Nem chợ Huyện"
+    },
+    {
+      "name": "Tré Bình Định"
+    }
+  ]
+},
+{
+  "_id": "city_hue",
+  "type": "city",
+  "name": "Huế",
+  "norm": "hue",
+  "aliases": [
+    "hue",
+    "thanh pho hue",
+    "tp hue",
+    "co do hue",
+    "dai noi",
+    "thien mu",
+    "lang co"
+  ],
+  "status": "unchanged",
+  "merged_from": [],
+  "region": "Miền Trung",
+  "places": [
+    {
+      "name": "Đại Nội Huế"
+    },
+    {
+      "name": "Chùa Thiên Mụ"
+    },
+    {
+      "name": "Lăng Khải Định"
+    },
+    {
+      "name": "Lăng Minh Mạng"
+    },
+    {
+      "name": "Sông Hương"
+    },
+    {
+      "name": "Cầu Trường Tiền"
+    },
+    {
+      "name": "Đầm Lập An"
+    },
+    {
+      "name": "Bãi biển Lăng Cô"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Bún bò Huế"
+    },
+    {
+      "name": "Cơm hến"
+    },
+    {
+      "name": "Bánh bèo"
+    },
+    {
+      "name": "Bánh nậm"
+    },
+    {
+      "name": "Bánh lọc"
+    },
+    {
+      "name": "Nem lụi"
+    },
+    {
+      "name": "Bánh khoái"
+    },
+    {
+      "name": "Chè Huế"
+    }
+  ]
+},
+{
+  "_id": "city_ha_noi",
+  "type": "city",
+  "name": "Hà Nội",
+  "norm": "ha noi",
+  "aliases": [
+    "ha noi",
+    "hanoi",
+    "thanh pho ha noi",
+    "tp ha noi",
+    "pho co",
+    "ho guom",
+    "ho hoan kiem",
+    "van mieu",
+    "lang bac"
+  ],
+  "status": "unchanged",
+  "merged_from": [],
+  "region": "Bắc Bộ",
+  "places": [
+    {
+      "name": "Hồ Hoàn Kiếm"
+    },
+    {
+      "name": "Phố cổ Hà Nội"
+    },
+    {
+      "name": "Văn Miếu - Quốc Tử Giám"
+    },
+    {
+      "name": "Lăng Chủ tịch Hồ Chí Minh"
+    },
+    {
+      "name": "Chùa Một Cột"
+    },
+    {
+      "name": "Hoàng thành Thăng Long"
+    },
+    {
+      "name": "Cầu Long Biên"
+    },
+    {
+      "name": "Hồ Tây"
+    },
+    {
+      "name": "Nhà thờ Lớn Hà Nội"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Phở bò"
+    },
+    {
+      "name": "Bún chả"
+    },
+    {
+      "name": "Chả cá Lã Vọng"
+    },
+    {
+      "name": "Bún thang"
+    },
+    {
+      "name": "Bánh cuốn Thanh Trì"
+    },
+    {
+      "name": "Bún đậu mắm tôm"
+    },
+    {
+      "name": "Bánh tôm Hồ Tây"
+    },
+    {
+      "name": "Xôi xéo"
+    },
+    {
+      "name": "Cà phê trứng"
+    }
+  ]
+},
+{
+  "_id": "province_ha_tinh",
+  "type": "province",
+  "name": "Hà Tĩnh",
+  "norm": "ha tinh",
+  "aliases": [
+    "ha tinh",
+    "hatinh"
+  ],
+  "status": "unchanged",
+  "merged_from": [],
+  "region": "Bắc Trung Bộ",
+  "places": [
+    {
+      "name": "Biển Thiên Cầm"
+    },
+    {
+      "name": "Ngã ba Đồng Lộc"
+    },
+    {
+      "name": "KDL sinh thái Hải Thượng"
+    },
+    {
+      "name": "Chùa Hương Tích (Hà Tĩnh)"
+    },
+    {
+      "name": "Khu tưởng niệm Nguyễn Du"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Bánh mướt - ram"
+    },
+    {
+      "name": "Cháo canh Hà Tĩnh"
+    },
+    {
+      "name": "Mực một nắng Thiên Cầm"
+    },
+    {
+      "name": "Kẹo cu đơ"
+    },
+    {
+      "name": "Cá bống kho gừng"
+    }
+  ]
+},
+{
+  "_id": "province_hung_yen",
+  "type": "province",
+  "name": "Hưng Yên",
+  "norm": "hung yen",
+  "aliases": [
+    "hung yen",
+    "hungyen",
+    "thai binh",
+    "thaibinh"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Thái Bình",
+    "Hưng Yên"
+  ],
+  "region": "Đồng bằng sông Hồng",
+  "places": [
+    {
+      "name": "Phố Hiến"
+    },
+    {
+      "name": "Đền Chử Đồng Tử"
+    },
+    {
+      "name": "Làng tương Bần"
+    },
+    {
+      "name": "Chùa Keo (Thái Bình)"
+    },
+    {
+      "name": "Biển Đồng Châu"
+    },
+    {
+      "name": "Cồn Vành"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Nhãn lồng Hưng Yên"
+    },
+    {
+      "name": "Tương Bần"
+    },
+    {
+      "name": "Bánh cáy Thái Bình"
+    },
+    {
+      "name": "Canh cá Quỳnh Côi"
+    },
+    {
+      "name": "Ớt ngọt Hưng Yên muối"
+    }
+  ]
+},
+{
+  "_id": "city_hai_phong",
+  "type": "city",
+  "name": "Hải Phòng",
+  "norm": "hai phong",
+  "aliases": [
+    "hai duong",
+    "hai phong",
+    "haiduong",
+    "haiphong",
+    "thanh pho hai phong",
+    "tp hai phong"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Hải Dương",
+    "Hải Phòng"
+  ],
+  "region": "Đồng bằng sông Hồng",
+  "places": [
+    {
+      "name": "Đồ Sơn"
+    },
+    {
+      "name": "Cát Bà"
+    },
+    {
+      "name": "Vịnh Lan Hạ"
+    },
+    {
+      "name": "Nhà hát lớn Hải Phòng"
+    },
+    {
+      "name": "Hồ Tam Bạc"
+    },
+    {
+      "name": "Chùa Dư Hàng"
+    },
+    {
+      "name": "Côn Sơn - Kiếp Bạc (Hải Dương)"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Bánh đa cua"
+    },
+    {
+      "name": "Nem cua bể"
+    },
+    {
+      "name": "Bún cá cay"
+    },
+    {
+      "name": "Bánh mì que"
+    },
+    {
+      "name": "Bánh đậu xanh Hải Dương"
+    },
+    {
+      "name": "Rươi Tứ Kỳ"
+    }
+  ]
+},
+{
+  "_id": "province_khanh_hoa",
+  "type": "province",
+  "name": "Khánh Hòa",
+  "norm": "khanh hoa",
+  "aliases": [
+    "khanh hoa",
+    "khanhhoa",
+    "ninh thuan",
+    "ninhthuan",
+    "nha trang",
+    "vinh cam ranh",
+    "vinh van phong",
+    "hon mun",
+    "hon tam",
+    "cam ranh",
+    "van phong"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Ninh Thuận",
+    "Khánh Hòa"
+  ],
+  "region": "Duyên hải Nam Trung Bộ",
+  "places": [
+    {
+      "name": "Biển Nha Trang"
+    },
+    {
+      "name": "Tháp Bà Po Nagar"
+    },
+    {
+      "name": "Vịnh Cam Ranh"
+    },
+    {
+      "name": "Vịnh Vân Phong"
+    },
+    {
+      "name": "Hòn Mun"
+    },
+    {
+      "name": "Hang Rái (Ninh Thuận)"
+    },
+    {
+      "name": "Vườn nho Ninh Thuận"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Bún chả cá Nha Trang"
+    },
+    {
+      "name": "Nem nướng Ninh Hòa"
+    },
+    {
+      "name": "Gỏi cá mai"
+    },
+    {
+      "name": "Yến sào Khánh Hòa"
+    },
+    {
+      "name": "Bánh căn (Ninh Thuận)"
+    },
+    {
+      "name": "Bánh xèo mực"
+    }
+  ]
+},
+{
+  "_id": "province_lai_chau",
+  "type": "province",
+  "name": "Lai Châu",
+  "norm": "lai chau",
+  "aliases": [
+    "lai chau",
+    "laichau"
+  ],
+  "status": "unchanged",
+  "merged_from": [],
+  "region": "Trung du & miền núi Bắc Bộ",
+  "places": [
+    {
+      "name": "Đỉnh Putaleng"
+    },
+    {
+      "name": "Đèo Ô Quy Hồ"
+    },
+    {
+      "name": "Cao nguyên Sìn Hồ"
+    },
+    {
+      "name": "Thác Tác Tình"
+    },
+    {
+      "name": "Bản Vàng Ma Chải"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Thịt trâu gác bếp"
+    },
+    {
+      "name": "Lợn cắp nách"
+    },
+    {
+      "name": "Xôi nếp nương"
+    },
+    {
+      "name": "Cá suối nướng"
+    },
+    {
+      "name": "Rượu ngô men lá"
+    }
+  ]
+},
+{
+  "_id": "province_lao_cai",
+  "type": "province",
+  "name": "Lào Cai",
+  "norm": "lao cai",
+  "aliases": [
+    "lao cai",
+    "laocai",
+    "yen bai",
+    "yenbai",
+    "sapa",
+    "sa pa",
+    "fansipan",
+    "cat cat",
+    "ta van",
+    "bac ha"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Lào Cai",
+    "Yên Bái"
+  ],
+  "region": "Trung du & miền núi Bắc Bộ",
+  "places": [
+    {
+      "name": "Sa Pa"
+    },
+    {
+      "name": "Đỉnh Fansipan"
+    },
+    {
+      "name": "Bản Cát Cát"
+    },
+    {
+      "name": "Bản Tả Van"
+    },
+    {
+      "name": "Chợ Bắc Hà"
+    },
+    {
+      "name": "Thác Bạc"
+    },
+    {
+      "name": "Đèo Ô Quy Hồ"
+    },
+    {
+      "name": "Mù Cang Chải"
+    },
+    {
+      "name": "Tú Lệ"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Thắng cố"
+    },
+    {
+      "name": "Cá hồi Sa Pa"
+    },
+    {
+      "name": "Thịt lợn cắp nách"
+    },
+    {
+      "name": "Cốm Tú Lệ"
+    },
+    {
+      "name": "Xôi nếp nương"
+    },
+    {
+      "name": "Măng rừng"
+    },
+    {
+      "name": "Pa pỉnh tộp"
+    }
+  ]
+},
+{
+  "_id": "province_lam_đong",
+  "type": "province",
+  "name": "Lâm Đồng",
+  "norm": "lam đong",
+  "aliases": [
+    "binh thuan",
+    "binhthuan",
+    "lam đong",
+    "lamđong",
+    "đak nong",
+    "đaknong"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Đắk Nông",
+    "Bình Thuận",
+    "Lâm Đồng"
+  ],
+  "region": "Tây Nguyên & Duyên hải",
+  "places": [
+    {
+      "name": "Đà Lạt - Hồ Xuân Hương"
+    },
+    {
+      "name": "Langbiang"
+    },
+    {
+      "name": "Thung lũng Tình yêu"
+    },
+    {
+      "name": "Thiền viện Trúc Lâm"
+    },
+    {
+      "name": "Thác Datanla"
+    },
+    {
+      "name": "Mũi Né - Đồi cát (Bình Thuận)"
+    },
+    {
+      "name": "Bàu Trắng"
+    },
+    {
+      "name": "Công viên địa chất Đắk Nông"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Lẩu bò Ba Toa"
+    },
+    {
+      "name": "Bánh tráng nướng Đà Lạt"
+    },
+    {
+      "name": "Dâu tây Đà Lạt"
+    },
+    {
+      "name": "Bánh căn Phan Thiết"
+    },
+    {
+      "name": "Chả lụi La Gi"
+    },
+    {
+      "name": "Cà phê robusta Đắk Nông"
+    }
+  ]
+},
+{
+  "_id": "province_lang_son",
+  "type": "province",
+  "name": "Lạng Sơn",
+  "norm": "lang son",
+  "aliases": [
+    "lang son",
+    "langson"
+  ],
+  "status": "unchanged",
+  "merged_from": [],
+  "region": "Trung du & miền núi Bắc Bộ",
+  "places": [
+    {
+      "name": "Động Tam Thanh - Nhị Thanh"
+    },
+    {
+      "name": "Thành nhà Mạc"
+    },
+    {
+      "name": "Ải Chi Lăng"
+    },
+    {
+      "name": "Chợ Đông Kinh"
+    },
+    {
+      "name": "Núi Mẫu Sơn"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Vịt quay Lạng Sơn"
+    },
+    {
+      "name": "Lợn quay lá mắc mật"
+    },
+    {
+      "name": "Khâu nhục"
+    },
+    {
+      "name": "Phở chua Lạng Sơn"
+    },
+    {
+      "name": "Bánh ngải"
+    }
+  ]
+},
+{
+  "_id": "province_nghe_an",
+  "type": "province",
+  "name": "Nghệ An",
+  "norm": "nghe an",
+  "aliases": [
+    "nghe an",
+    "nghean"
+  ],
+  "status": "unchanged",
+  "merged_from": [],
+  "region": "Bắc Trung Bộ",
+  "places": [
+    {
+      "name": "Làng Sen - Quê Bác"
+    },
+    {
+      "name": "Biển Cửa Lò"
+    },
+    {
+      "name": "Vườn quốc gia Pù Mát"
+    },
+    {
+      "name": "Đảo chè Thanh Chương"
+    },
+    {
+      "name": "Thác Khe Kèm"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Cháo lươn Vinh"
+    },
+    {
+      "name": "Nhút Thanh Chương"
+    },
+    {
+      "name": "Mực nướng Cửa Lò"
+    },
+    {
+      "name": "Bánh đa xúc hến"
+    },
+    {
+      "name": "Cam Xã Đoài"
+    }
+  ]
+},
+{
+  "_id": "province_ninh_binh",
+  "type": "province",
+  "name": "Ninh Bình",
+  "norm": "ninh binh",
+  "aliases": [
+    "ha nam",
+    "hanam",
+    "nam đinh",
+    "namđinh",
+    "ninh binh",
+    "ninhbinh",
+    "trang an",
+    "tam coc",
+    "bich dong",
+    "bai dinh",
+    "hoa lu",
+    "chua bai dinh"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Hà Nam",
+    "Nam Định",
+    "Ninh Bình"
+  ],
+  "region": "Đồng bằng sông Hồng",
+  "places": [
+    {
+      "name": "Tràng An"
+    },
+    {
+      "name": "Tam Cốc - Bích Động"
+    },
+    {
+      "name": "Cố đô Hoa Lư"
+    },
+    {
+      "name": "Chùa Bái Đính"
+    },
+    {
+      "name": "Chùa Tam Chúc (Hà Nam)"
+    },
+    {
+      "name": "Nhà thờ Phát Diệm"
+    },
+    {
+      "name": "Đền Trần (Nam Định)"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Cơm cháy Ninh Bình"
+    },
+    {
+      "name": "Thịt dê núi"
+    },
+    {
+      "name": "Phở bò Nam Định"
+    },
+    {
+      "name": "Bánh cuốn Phủ Lý"
+    },
+    {
+      "name": "Nem nắm Giao Thủy"
+    },
+    {
+      "name": "Miến lươn Ninh Bình"
+    }
+  ]
+},
+{
+  "_id": "province_phu_tho",
+  "type": "province",
+  "name": "Phú Thọ",
+  "norm": "phu tho",
+  "aliases": [
+    "hoa binh",
+    "hoabinh",
+    "phu tho",
+    "phutho",
+    "vinh phuc",
+    "vinhphuc"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Vĩnh Phúc",
+    "Hòa Bình",
+    "Phú Thọ"
+  ],
+  "region": "Đồng bằng sông Hồng & Tây Bắc",
+  "places": [
+    {
+      "name": "Khu di tích Đền Hùng"
+    },
+    {
+      "name": "Vườn quốc gia Xuân Sơn"
+    },
+    {
+      "name": "Tam Đảo"
+    },
+    {
+      "name": "Hồ Hòa Bình"
+    },
+    {
+      "name": "Mai Châu"
+    },
+    {
+      "name": "Hồ Đại Lải"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Thịt chua Thanh Sơn"
+    },
+    {
+      "name": "Bánh tai"
+    },
+    {
+      "name": "Cá lăng sông Đà"
+    },
+    {
+      "name": "Rau sắn muối chua"
+    },
+    {
+      "name": "Gà đồi Phú Thọ"
+    }
+  ]
+},
+{
+  "_id": "province_quang_ngai",
+  "type": "province",
+  "name": "Quảng Ngãi",
+  "norm": "quang ngai",
+  "aliases": [
+    "kon tum",
+    "kontum",
+    "quang ngai",
+    "quangngai",
+    "ly son",
+    "dao ly son",
+    "son tinh",
+    "my khe quang ngai"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Kon Tum",
+    "Quảng Ngãi"
+  ],
+  "region": "Tây Nguyên & Duyên hải",
+  "places": [
+    {
+      "name": "Đảo Lý Sơn"
+    },
+    {
+      "name": "Khu chứng tích Sơn Mỹ"
+    },
+    {
+      "name": "Thác Pa Sỹ (Kon Tum)"
+    },
+    {
+      "name": "Nhà thờ gỗ Kon Tum"
+    },
+    {
+      "name": "Biển Sa Huỳnh"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Don Quảng Ngãi"
+    },
+    {
+      "name": "Cá bống sông Trà"
+    },
+    {
+      "name": "Tỏi Lý Sơn"
+    },
+    {
+      "name": "Gỏi lá Kon Tum"
+    },
+    {
+      "name": "Bánh xèo tôm nhảy"
+    }
+  ]
+},
+{
+  "_id": "province_quang_ninh",
+  "type": "province",
+  "name": "Quảng Ninh",
+  "norm": "quang ninh",
+  "aliases": [
+    "quang ninh",
+    "quangninh",
+    "ha long",
+    "vinh ha long",
+    "bai chay",
+    "yen tu",
+    "co to",
+    "van don",
+    "bao tang quang ninh"
+  ],
+  "status": "unchanged",
+  "merged_from": [],
+  "region": "Đồng bằng sông Hồng / Đông Bắc",
+  "places": [
+    {
+      "name": "Vịnh Hạ Long"
+    },
+    {
+      "name": "Bãi Cháy"
+    },
+    {
+      "name": "Yên Tử"
+    },
+    {
+      "name": "Đảo Cô Tô"
+    },
+    {
+      "name": "Đảo Quan Lạn"
+    },
+    {
+      "name": "Bảo tàng Quảng Ninh"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Chả mực Hạ Long"
+    },
+    {
+      "name": "Sá sùng Quan Lạn"
+    },
+    {
+      "name": "Ngán Quảng Yên"
+    },
+    {
+      "name": "Tu hài Vân Đồn"
+    },
+    {
+      "name": "Sam biển"
+    }
+  ]
+},
+{
+  "_id": "province_quang_tri",
+  "type": "province",
+  "name": "Quảng Trị",
+  "norm": "quang tri",
+  "aliases": [
+    "quang binh",
+    "quang tri",
+    "quangbinh",
+    "quangtri"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Quảng Bình",
+    "Quảng Trị"
+  ],
+  "region": "Bắc Trung Bộ",
+  "places": [
+    {
+      "name": "Phong Nha - Kẻ Bàng"
+    },
+    {
+      "name": "Hang Sơn Đoòng"
+    },
+    {
+      "name": "Động Thiên Đường"
+    },
+    {
+      "name": "Vĩ tuyến 17 - Cầu Hiền Lương"
+    },
+    {
+      "name": "Địa đạo Vịnh Mốc"
+    },
+    {
+      "name": "La Vang"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Cháo canh Quảng Bình"
+    },
+    {
+      "name": "Khoai deo"
+    },
+    {
+      "name": "Bánh bột lọc"
+    },
+    {
+      "name": "Bún thịt nướng Quảng Trị"
+    },
+    {
+      "name": "Mực một nắng"
+    }
+  ]
+},
+{
+  "_id": "province_son_la",
+  "type": "province",
+  "name": "Sơn La",
+  "norm": "son la",
+  "aliases": [
+    "son la",
+    "sonla"
+  ],
+  "status": "unchanged",
+  "merged_from": [],
+  "region": "Trung du & miền núi Bắc Bộ",
+  "places": [
+    {
+      "name": "Cao nguyên Mộc Châu"
+    },
+    {
+      "name": "Thác Dải Yếm"
+    },
+    {
+      "name": "Đồi chè Mộc Châu"
+    },
+    {
+      "name": "Hang Dơi"
+    },
+    {
+      "name": "Nhà tù Sơn La"
+    },
+    {
+      "name": "Thủy điện Sơn La"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Bê chao Mộc Châu"
+    },
+    {
+      "name": "Nậm pịa"
+    },
+    {
+      "name": "Cá suối nướng"
+    },
+    {
+      "name": "Pa pỉnh tộp"
+    },
+    {
+      "name": "Sữa chua Mộc Châu"
+    }
+  ]
+},
+{
+  "_id": "province_thanh_hoa",
+  "type": "province",
+  "name": "Thanh Hóa",
+  "norm": "thanh hoa",
+  "aliases": [
+    "thanh hoa",
+    "thanhhoa"
+  ],
+  "status": "unchanged",
+  "merged_from": [],
+  "region": "Bắc Trung Bộ",
+  "places": [
+    {
+      "name": "Thành nhà Hồ"
+    },
+    {
+      "name": "Biển Sầm Sơn"
+    },
+    {
+      "name": "Khu bảo tồn Pù Luông"
+    },
+    {
+      "name": "Suối cá thần Cẩm Lương"
+    },
+    {
+      "name": "Vườn quốc gia Bến En"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Nem chua Thanh Hóa"
+    },
+    {
+      "name": "Chả tôm Thanh Hóa"
+    },
+    {
+      "name": "Bánh răng bừa"
+    },
+    {
+      "name": "Hải sản Sầm Sơn"
+    },
+    {
+      "name": "Mắm tép Gia Miêu"
+    }
+  ]
+},
+{
+  "_id": "city_thanh_pho_ho_chi_minh",
+  "type": "city",
+  "name": "Thành phố Hồ Chí Minh",
+  "norm": "thanh pho ho chi minh",
+  "aliases": [
+    "ba ria - vung tau",
+    "baria-vungtau",
+    "binh duong",
+    "binhduong",
+    "hochiminh",
+    "sai gon",
+    "saigon",
+    "thanh pho ho chi minh",
+    "thanh pho thanh pho ho chi minh",
+    "thanhphohochiminh",
+    "tp ho chi minh",
+    "tp thanh pho ho chi minh",
+    "sg",
+    "cho lon",
+    "phu my hung"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Bà Rịa - Vũng Tàu",
+    "Bình Dương",
+    "Thành phố Hồ Chí Minh"
+  ],
+  "region": "Đông Nam Bộ",
+  "places": [
+    {
+      "name": "Nhà thờ Đức Bà"
+    },
+    {
+      "name": "Bưu điện trung tâm"
+    },
+    {
+      "name": "Chợ Bến Thành"
+    },
+    {
+      "name": "Phố đi bộ Nguyễn Huệ"
+    },
+    {
+      "name": "Dinh Độc Lập"
+    },
+    {
+      "name": "Bảo tàng Chứng tích Chiến tranh"
+    },
+    {
+      "name": "Phố người Hoa (Chợ Lớn)"
+    },
+    {
+      "name": "Tượng Chúa Kito - Vũng Tàu"
+    },
+    {
+      "name": "Chùa Bà Thiên Hậu (Thủ Dầu Một)"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Cơm tấm"
+    },
+    {
+      "name": "Hủ tiếu"
+    },
+    {
+      "name": "Bánh mì Sài Gòn"
+    },
+    {
+      "name": "Phá lấu"
+    },
+    {
+      "name": "Ốc Sài Gòn"
+    },
+    {
+      "name": "Bánh tráng trộn"
+    },
+    {
+      "name": "Bò lá lốt"
+    },
+    {
+      "name": "Bánh khọt Vũng Tàu"
+    },
+    {
+      "name": "Bánh bèo bì Bình Dương"
+    }
+  ]
+},
+{
+  "_id": "province_thai_nguyen",
+  "type": "province",
+  "name": "Thái Nguyên",
+  "norm": "thai nguyen",
+  "aliases": [
+    "bac kan",
+    "backan",
+    "thai nguyen",
+    "thainguyen"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Bắc Kạn",
+    "Thái Nguyên"
+  ],
+  "region": "Trung du & miền núi Bắc Bộ",
+  "places": [
+    {
+      "name": "Hồ Núi Cốc"
+    },
+    {
+      "name": "ATK Định Hóa"
+    },
+    {
+      "name": "Hồ Ba Bể"
+    },
+    {
+      "name": "Động Hua Mạ"
+    },
+    {
+      "name": "Thác Đầu Đẳng"
+    },
+    {
+      "name": "Đồi chè Tân Cương"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Chè Tân Cương"
+    },
+    {
+      "name": "Bánh trứng kiến"
+    },
+    {
+      "name": "Cá nướng Pác Ngòi"
+    },
+    {
+      "name": "Thịt lợn bản nướng"
+    },
+    {
+      "name": "Khâu nhục kiểu Tày - Nùng"
+    }
+  ]
+},
+{
+  "_id": "province_tuyen_quang",
+  "type": "province",
+  "name": "Tuyên Quang",
+  "norm": "tuyen quang",
+  "aliases": [
+    "ha giang",
+    "hagiang",
+    "tuyen quang",
+    "tuyenquang"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Hà Giang",
+    "Tuyên Quang"
+  ],
+  "region": "Trung du & miền núi Bắc Bộ",
+  "places": [
+    {
+      "name": "ATK Tân Trào"
+    },
+    {
+      "name": "Hồ Na Hang"
+    },
+    {
+      "name": "Sông Nho Quế"
+    },
+    {
+      "name": "Đèo Mã Pí Lèng"
+    },
+    {
+      "name": "Cột cờ Lũng Cú"
+    },
+    {
+      "name": "Phố cổ Đồng Văn"
+    },
+    {
+      "name": "Cổng trời Quản Bạ"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Thắng cố"
+    },
+    {
+      "name": "Cháo ấu tẩu"
+    },
+    {
+      "name": "Mèn mén"
+    },
+    {
+      "name": "Lợn cắp nách nướng"
+    },
+    {
+      "name": "Cá suối Na Hang nướng"
+    },
+    {
+      "name": "Rượu ngô men lá"
+    }
+  ]
+},
+{
+  "_id": "province_tay_ninh",
+  "type": "province",
+  "name": "Tây Ninh",
+  "norm": "tay ninh",
+  "aliases": [
+    "long an",
+    "longan",
+    "tay ninh",
+    "tayninh"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Long An",
+    "Tây Ninh"
+  ],
+  "region": "Đông Nam Bộ",
+  "places": [
+    {
+      "name": "Núi Bà Đen"
+    },
+    {
+      "name": "Tòa Thánh Cao Đài"
+    },
+    {
+      "name": "Hồ Dầu Tiếng"
+    },
+    {
+      "name": "Làng nổi Tân Lập (Long An)"
+    },
+    {
+      "name": "Cửa khẩu Mộc Bài"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Bánh tráng phơi sương"
+    },
+    {
+      "name": "Muối tôm Tây Ninh"
+    },
+    {
+      "name": "Bánh canh Trảng Bàng"
+    },
+    {
+      "name": "Bò tơ nướng"
+    },
+    {
+      "name": "Mắm ruốc chấm bánh tráng"
+    }
+  ]
+},
+{
+  "_id": "province_vinh_long",
+  "type": "province",
+  "name": "Vĩnh Long",
+  "norm": "vinh long",
+  "aliases": [
+    "ben tre",
+    "bentre",
+    "tra vinh",
+    "travinh",
+    "vinh long",
+    "vinhlong"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Bến Tre",
+    "Trà Vinh",
+    "Vĩnh Long"
+  ],
+  "region": "ĐBSCL",
+  "places": [
+    {
+      "name": "Cù lao An Bình"
+    },
+    {
+      "name": "Vàm Hồ (Bến Tre)"
+    },
+    {
+      "name": "Cồn Phụng"
+    },
+    {
+      "name": "Ao Bà Om (Trà Vinh)"
+    },
+    {
+      "name": "Chùa Âng (Trà Vinh)"
+    },
+    {
+      "name": "Làng kẹo dừa"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Kẹo dừa Bến Tre"
+    },
+    {
+      "name": "Bún nước lèo Trà Vinh"
+    },
+    {
+      "name": "Bánh xèo miền Tây"
+    },
+    {
+      "name": "Cá bống kho dừa"
+    },
+    {
+      "name": "Canh chua cá linh"
+    }
+  ]
+},
+{
+  "_id": "province_đien_bien",
+  "type": "province",
+  "name": "Điện Biên",
+  "norm": "đien bien",
+  "aliases": [
+    "đien bien",
+    "đienbien"
+  ],
+  "status": "unchanged",
+  "merged_from": [],
+  "region": "Trung du & miền núi Bắc Bộ",
+  "places": [
+    {
+      "name": "Bảo tàng Chiến thắng Điện Biên Phủ"
+    },
+    {
+      "name": "Đồi A1"
+    },
+    {
+      "name": "Hầm Đờ Cát"
+    },
+    {
+      "name": "Sở chỉ huy Mường Phăng"
+    },
+    {
+      "name": "Cánh đồng Mường Thanh"
+    },
+    {
+      "name": "Hồ Pá Khoang"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Xôi nếp Điện Biên"
+    },
+    {
+      "name": "Pa pỉnh tộp"
+    },
+    {
+      "name": "Thịt trâu gác bếp"
+    },
+    {
+      "name": "Gà đen nướng mắc khén"
+    },
+    {
+      "name": "Chẩm chéo"
+    }
+  ]
+},
+{
+  "_id": "city_đa_nang",
+  "type": "city",
+  "name": "Đà Nẵng",
+  "norm": "đa nang",
+  "aliases": [
+    "quang nam",
+    "quangnam",
+    "thanh pho đa nang",
+    "tp đa nang",
+    "đa nang",
+    "đanang",
+    "son tra",
+    "ban dao son tra",
+    "ba na",
+    "ba na hills",
+    "my khe",
+    "hoi an",
+    "my son",
+    "cau rong",
+    "cu lao cham",
+    "ngu hanh son",
+    "da nang",
+    "danang"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Quảng Nam",
+    "Đà Nẵng"
+  ],
+  "region": "Duyên hải Nam Trung Bộ",
+  "places": [
+    {
+      "name": "Bãi biển Mỹ Khê"
+    },
+    {
+      "name": "Bán đảo Sơn Trà"
+    },
+    {
+      "name": "Ngũ Hành Sơn"
+    },
+    {
+      "name": "Bà Nà Hills"
+    },
+    {
+      "name": "Cầu Rồng"
+    },
+    {
+      "name": "Phố cổ Hội An"
+    },
+    {
+      "name": "Thánh địa Mỹ Sơn"
+    },
+    {
+      "name": "Cù Lao Chàm"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Mì Quảng"
+    },
+    {
+      "name": "Bún chả cá"
+    },
+    {
+      "name": "Bánh tráng cuốn thịt heo"
+    },
+    {
+      "name": "Cao lầu Hội An"
+    },
+    {
+      "name": "Cơm gà Hội An"
+    },
+    {
+      "name": "Bánh xèo Đà Nẵng"
+    },
+    {
+      "name": "Ốc hút"
+    }
+  ]
+},
+{
+  "_id": "province_đak_lak",
+  "type": "province",
+  "name": "Đắk Lắk",
+  "norm": "đak lak",
+  "aliases": [
+    "phu yen",
+    "phuyen",
+    "đak lak",
+    "đaklak"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Phú Yên",
+    "Đắk Lắk"
+  ],
+  "region": "Tây Nguyên & Duyên hải",
+  "places": [
+    {
+      "name": "Buôn Đôn"
+    },
+    {
+      "name": "Hồ Lắk"
+    },
+    {
+      "name": "Thác Dray Nur"
+    },
+    {
+      "name": "Bảo tàng Cà phê"
+    },
+    {
+      "name": "Gành Đá Đĩa (Phú Yên)"
+    },
+    {
+      "name": "Mũi Điện (Phú Yên)"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Cà phê Buôn Ma Thuột"
+    },
+    {
+      "name": "Bánh hỏi lòng heo (Phú Yên)"
+    },
+    {
+      "name": "Mắt cá ngừ đại dương"
+    },
+    {
+      "name": "Sò huyết đầm Ô Loan"
+    },
+    {
+      "name": "Gà nướng bản địa"
+    }
+  ]
+},
+{
+  "_id": "province_đong_nai",
+  "type": "province",
+  "name": "Đồng Nai",
+  "norm": "đong nai",
+  "aliases": [
+    "binh phuoc",
+    "binhphuoc",
+    "đong nai",
+    "đongnai"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Bình Phước",
+    "Đồng Nai"
+  ],
+  "region": "Đông Nam Bộ",
+  "places": [
+    {
+      "name": "Vườn quốc gia Cát Tiên"
+    },
+    {
+      "name": "KDL Bửu Long"
+    },
+    {
+      "name": "Thác Đá Hàn"
+    },
+    {
+      "name": "Núi Bà Rá (Bình Phước)"
+    },
+    {
+      "name": "Vườn quốc gia Bù Gia Mập"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Điều rang muối Bình Phước"
+    },
+    {
+      "name": "Gà nướng mọi"
+    },
+    {
+      "name": "Heo rừng nướng"
+    },
+    {
+      "name": "Lẩu lá khổ qua rừng"
+    },
+    {
+      "name": "Cơm niêu Đồng Nai"
+    }
+  ]
+},
+{
+  "_id": "province_đong_thap",
+  "type": "province",
+  "name": "Đồng Tháp",
+  "norm": "đong thap",
+  "aliases": [
+    "tien giang",
+    "tiengiang",
+    "đong thap",
+    "đongthap"
+  ],
+  "status": "merged",
+  "merged_from": [
+    "Tiền Giang",
+    "Đồng Tháp"
+  ],
+  "region": "ĐBSCL",
+  "places": [
+    {
+      "name": "Vườn quốc gia Tràm Chim"
+    },
+    {
+      "name": "Làng hoa Sa Đéc"
+    },
+    {
+      "name": "Khu di tích Xẻo Quýt"
+    },
+    {
+      "name": "Chợ nổi Cái Bè (Tiền Giang)"
+    },
+    {
+      "name": "Chùa Vĩnh Tràng (Tiền Giang)"
+    },
+    {
+      "name": "Cù lao Thới Sơn"
+    }
+  ],
+  "dishes": [
+    {
+      "name": "Hủ tiếu Mỹ Tho"
+    },
+    {
+      "name": "Cá lóc nướng trui"
+    },
+    {
+      "name": "Lẩu cá linh bông điên điển"
+    },
+    {
+      "name": "Xoài Cao Lãnh"
+    },
+    {
+      "name": "Vịt nấu chao Sa Đéc"
+    }
+  ]
+},
+{
+  "_id": {
+    "$oid": "68ba8cf19417f98a8903f15b"
+  },
+  "type": "region",
+  "name": "Miền Tây (ĐBSCL)",
+  "norm": "mien tay",
+  "aliases": [
+    "mien tay",
+    "dbscl",
+    "dong bang song cuu long"
+  ],
+  "members": [
+    "An Giang",
+    "Cần Thơ",
+    "Vĩnh Long",
+    "Cà Mau",
+    "Đồng Tháp",
+    "Kiên Giang",
+    "Bạc Liêu",
+    "Sóc Trăng",
+    "Hậu Giang"
+  ]
+},
+{
+  "_id": {
+    "$oid": "68ba8cf19417f98a8903f15c"
+  },
+  "type": "region",
+  "name": "Miền Trung",
+  "norm": "mien trung",
+  "aliases": [
+    "mien trung"
+  ],
+  "members": [
+    "Đà Nẵng",
+    "Huế",
+    "Khánh Hòa",
+    "Quảng Nam",
+    "Quảng Ngãi",
+    "Bình Định",
+    "Phú Yên",
+    "Ninh Thuận",
+    "Bình Thuận"
+  ]
+},
+{
+  "_id": {
+    "$oid": "68ba8cf19417f98a8903f15d"
+  },
+  "type": "region",
+  "name": "Đông Nam Bộ",
+  "norm": "dong nam bo",
+  "aliases": [
+    "dong nam bo"
+  ],
+  "members": [
+    "Thành phố Hồ Chí Minh",
+    "Đồng Nai",
+    "Bà Rịa - Vũng Tàu",
+    "Bình Dương",
+    "Bình Phước",
+    "Tây Ninh",
+    "Long An"
+  ]
+},
+{
+  "_id": {
+    "$oid": "68ba8cf19417f98a8903f15e"
+  },
+  "type": "region",
+  "name": "Đồng bằng sông Hồng",
+  "norm": "dong bang song hong",
+  "aliases": [
+    "song hong",
+    "dbsh",
+    "dong bang song hong"
+  ],
+  "members": [
+    "Hà Nội",
+    "Hải Phòng",
+    "Hưng Yên",
+    "Ninh Bình",
+    "Phú Thọ",
+    "Quảng Ninh",
+    "Thái Bình",
+    "Hà Nam",
+    "Nam Định",
+    "Vĩnh Phúc",
+    "Hải Dương"
+  ]
+}]
