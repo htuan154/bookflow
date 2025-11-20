@@ -90,6 +90,37 @@ export const StaffProvider = ({ children, hotelId: initialHotelId }) => {
     }
   }, [selectedHotel, loadStaff]);
 
+    // Lấy staff theo userId (utility)
+  const loadStaffByUserId = useCallback(async (userId) => {
+    if (!userId) {
+      console.warn('No user ID provided to loadStaffByUserId');
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await staffApiService.getStaffByUserId(userId);
+      let staffList = [];
+      if (response && response.data) {
+        staffList = Array.isArray(response.data) ? response.data : [];
+      } else if (Array.isArray(response)) {
+        staffList = response;
+      }
+      setStaff(staffList);
+    } catch (error) {
+      console.error('Error loading staff by userId:', error);
+      setError('Không thể tải danh sách nhân viên: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Get current user's staff info (for HOTEL_STAFF role)
+  const getCurrentUserStaffInfo = useCallback(() => {
+    if (!staff || staff.length === 0) return null;
+    return staff[0]; // Return first staff record
+  }, [staff]);
+
   const value = {
     // Data
     staff,
@@ -110,8 +141,10 @@ export const StaffProvider = ({ children, hotelId: initialHotelId }) => {
     // Actions
     setSelectedHotel,
     loadStaff,
+    loadStaffByUserId,
     updateStaffStatus,
     deleteStaff,
+    getCurrentUserStaffInfo,
     refreshStaff: () => {
       const hotelId = selectedHotel?.hotelId || selectedHotel?.hotel_id || selectedHotel?.id || selectedHotel?._id;
       if (hotelId) {

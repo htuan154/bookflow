@@ -3,28 +3,61 @@ import { OwnerReportsProvider } from '../../../context/OwnerReportsContext';
 import { HotelProvider } from '../../../context/HotelContext';
 import useOwnerReports from '../../../hooks/useOwnerReports';
 import { useHotel } from '../../../hooks/useHotel';
+import useAuth from '../../../hooks/useAuth';
+import { USER_ROLES } from '../../../config/roles';
+import { staffApiService } from '../../../api/staff.service';
+import { hotelApiService } from '../../../api/hotel.service';
 
 function OwnerFilterBar() {
   const { filters, setFilters, setSelectedHotel,fetchPayments, fetchPayouts } = useOwnerReports(false);
   const { fetchApprovedHotels, approvedHotels } = useHotel();
+  const { user } = useAuth();
   const [loadingHotels, setLoadingHotels] = useState(false);
+  const [loadingStaffInfo, setLoadingStaffInfo] = useState(false);
+  const [staffHotel, setStaffHotel] = useState(null);
   
   const update = (k, v) => setFilters(prev => ({ ...prev, [k]: v }));
 
-  // Load hotels for dropdown
+  const isStaff = user?.roleId === USER_ROLES.HOTEL_STAFF;
+
+  // Load hotels for owner or staff hotel for staff
   useEffect(() => {
-    const loadHotels = async () => {
-      try {
-        setLoadingHotels(true);
-        await fetchApprovedHotels();
-      } catch (error) {
-        console.error('Error loading hotels:', error);
-      } finally {
-        setLoadingHotels(false);
+    const loadData = async () => {
+      if (isStaff) {
+        // Auto-load staff's hotel
+        try {
+          setLoadingStaffInfo(true);
+          const staffData = await staffApiService.getStaffByUserId(user.userId || user.user_id || user.id);
+          const staff = staffData?.data || staffData;
+          
+          if (staff?.hotel_id) {
+            const hotelData = await hotelApiService.getHotelById(staff.hotel_id);
+            const hotel = hotelData?.data || hotelData;
+            setStaffHotel(hotel);
+            
+            // Auto-set filters with staff's hotel
+            update('hotel_id', String(staff.hotel_id));
+            setSelectedHotel(hotel);
+          }
+        } catch (error) {
+          console.error('Error loading staff hotel:', error);
+        } finally {
+          setLoadingStaffInfo(false);
+        }
+      } else {
+        // Load hotels for owner
+        try {
+          setLoadingHotels(true);
+          await fetchApprovedHotels();
+        } catch (error) {
+          console.error('Error loading hotels:', error);
+        } finally {
+          setLoadingHotels(false);
+        }
       }
     };
-    loadHotels();
-  }, [fetchApprovedHotels]);
+    loadData();
+  }, [isStaff, user?.userId, user?.user_id, user?.id, fetchApprovedHotels]);
 
   const presets = useMemo(() => ([
     { label: 'Hôm qua', range: () => {
@@ -79,7 +112,22 @@ function OwnerFilterBar() {
           <input
             type="date"
             value={filters.date_from}
-            onChange={e => update('date_from', e.target.value)}
+            onChange={e => {
+              const newFrom = e.target.value;
+              let newTo = filters.date_to;
+              if (newTo && newFrom) {
+                const fromDate = new Date(newFrom);
+                const toDate = new Date(newTo);
+                // If toDate is not at least 1 day after fromDate, set toDate = fromDate + 1 day
+                if (toDate <= fromDate) {
+                  const nextDay = new Date(fromDate);
+                  nextDay.setDate(fromDate.getDate() + 1);
+                  newTo = nextDay.toISOString().slice(0, 10);
+                  update('date_to', newTo);
+                }
+              }
+              update('date_from', newFrom);
+            }}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
           />
         </div>
@@ -94,35 +142,37 @@ function OwnerFilterBar() {
           />
         </div>
         
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">🏨 Khách sạn</label>
-          <select
-            value={filters.hotel_id || ''}
-            onChange={e => handleHotelChange(e.target.value)}
-            disabled={loadingHotels}
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors disabled:bg-gray-100"
-          >
-            <option value="">Vui lòng chọn khách sạn</option>
-            <option value="ALL">Tất cả khách sạn của tôi</option>
-           {approvedHotels.map((hotel, idx) => {
-   const id =
-     hotel.hotel_id ??
-     hotel.hotelId ??
-     hotel.id ??
-     `tmp-${idx}`; // fallback cuối cùng để tránh trùng key
-   const name = hotel.name ?? hotel.hotel_name ?? 'Khách sạn';
-   const city = hotel.city ?? hotel.hotel_city ?? '';
-   return (
-     <option key={String(id)} value={String(id)}>
-       {name} - {city}
-     </option>
-   );
- })}
-          </select>
-          {loadingHotels && (
-            <p className="text-xs text-green-500 mt-1">Đang tải danh sách khách sạn...</p>
-          )}
-        </div>
+        {!isStaff && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">🏨 Khách sạn</label>
+            <select
+              value={filters.hotel_id || ''}
+              onChange={e => handleHotelChange(e.target.value)}
+              disabled={loadingHotels}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors disabled:bg-gray-100"
+            >
+              <option value="">Vui lòng chọn khách sạn</option>
+              <option value="ALL">Tất cả khách sạn của tôi</option>
+             {approvedHotels.map((hotel, idx) => {
+     const id =
+       hotel.hotel_id ??
+       hotel.hotelId ??
+       hotel.id ??
+       `tmp-${idx}`; // fallback cuối cùng để tránh trùng key
+     const name = hotel.name ?? hotel.hotel_name ?? 'Khách sạn';
+     const city = hotel.city ?? hotel.hotel_city ?? '';
+     return (
+       <option key={String(id)} value={String(id)}>
+         {name} - {city}
+       </option>
+     );
+   })}
+            </select>
+            {loadingHotels && (
+              <p className="text-xs text-green-500 mt-1">Đang tải danh sách khách sạn...</p>
+            )}
+          </div>
+        )}
         
         <div>
           <button 

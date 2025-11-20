@@ -16,7 +16,7 @@ router.use(authenticate);
 // Yêu cầu: Đã đăng nhập VÀ là 'hotel_owner' hoặc 'admin'
 router.post(
     '/',
-    authorize(['hotel_owner', 'admin']),
+    authorize(['hotel_owner', 'admin', 'hotel_staff']),
     validate(assignRoomSchema),
     roomAssignmentController.assignRoom
 );
@@ -25,7 +25,7 @@ router.post(
 // Yêu cầu: Đã đăng nhập VÀ là 'hotel_owner' hoặc 'admin'
 router.delete(
     '/:assignmentId',
-    authorize(['hotel_owner', 'admin']),
+    authorize(['hotel_owner', 'admin', 'hotel_staff']),
     roomAssignmentController.unassignRoom
 );
 

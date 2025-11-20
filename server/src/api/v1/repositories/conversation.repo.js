@@ -88,10 +88,12 @@ async function list({ hotel_id, type, limit = 50, skip = 0 }) {
 }
 
 /** Lấy các conversation theo hotel_id mà user là thành viên */
-async function listByHotelAndUser({ hotel_id, user_id }) {
+async function listByHotelAndUser({ hotel_id, user_id, type }) {
   const db = getDb();
-  // Lấy các conversation theo hotel_id
-  const conversations = await db.collection('conversations').find({ hotel_id }).toArray();
+  // Lấy các conversation theo hotel_id (và type nếu có)
+  const query = { hotel_id };
+  if (type) query.type = type;
+  const conversations = await db.collection('conversations').find(query).toArray();
   if (!conversations.length) return [];
   // Lấy các conversation_id
   const ids = conversations.map(c => c._id);
@@ -102,6 +104,16 @@ async function listByHotelAndUser({ hotel_id, user_id }) {
   return conversations.filter(c => memberIds.includes(c._id.toString()));
 }
 
+/** Tìm Group B theo hotel_id (không cần kiểm tra member) */
+async function findGroupB(hotel_id) {
+  const db = getDb();
+  return db.collection('conversations').findOne({
+    hotel_id,
+    type: 'group',
+    subtype: 'owner_all_staff'
+  });
+}
+
 module.exports = {
   upsertDM,
   createGroup,
@@ -109,4 +121,5 @@ module.exports = {
   updateLastMessage,
   list,
   listByHotelAndUser,
+  findGroupB,
 };

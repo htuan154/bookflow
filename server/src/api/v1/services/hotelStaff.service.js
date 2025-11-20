@@ -247,6 +247,16 @@ class HotelStaffService {
 
         return stats;
     }
+
+    /**
+     * Lấy tất cả staff record của một user (ở tất cả khách sạn)
+     * @param {string} userId
+     * @returns {Promise<HotelStaff[]>}
+     */
+    async getStaffByUserId(userId) {
+        return await hotelStaffRepository.findByUserId(userId);
+    }
+
 }
 
 module.exports = new HotelStaffService();

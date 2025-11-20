@@ -6,6 +6,20 @@ const { AppError } = require('../../../utils/errors');
 
 class HotelStaffController {
     /**
+     * Lấy tất cả staff record của một user (ở tất cả khách sạn)
+     * GET /api/v1/staff/user/:userId
+     */
+    async getStaffByUserId(req, res, next) {
+        try {
+            const { userId } = req.params;
+            const staffList = await HotelStaffService.getStaffByUserId(userId);
+            successResponse(res, staffList, 'Staff records by user_id retrieved successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
+    
+    /**
      * Thêm một nhân viên mới vào khách sạn (tự động tạo user).
      * POST /api/v1/hotels/:hotelId/staff/new
      */

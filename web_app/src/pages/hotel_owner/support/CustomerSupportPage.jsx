@@ -5,6 +5,10 @@ import {
 } from 'lucide-react';
 import { useHotelOwner } from '../../../hooks/useHotelOwner';
 import { useChat } from '../../../hooks/useChat';
+import { useContext } from 'react';
+import { AuthContext } from '../../../context/AuthContext';
+import { staffApiService } from '../../../api/staff.service';
+import { hotelApiService } from '../../../api/hotel.service';
 import { seasonPricingService } from '../../../api/seasonPricing.service';
 import { bookingNightlyPriceService } from '../../../api/bookingNightlyPrice.service';
 import { calculateBookingPrice, createBookingDetailMessage, createNoRoomAvailableMessage } from '../../../utils/bookingPriceCalculator';
@@ -14,9 +18,11 @@ import { useBookingDetail } from '../../../hooks/useBookingDetail';
 const CustomerSupportPage = () => {
         const [roomGuestError, setRoomGuestError] = useState('');
     const { fetchOwnerHotel, fetchBookingsByHotelId, loading, error } = useHotelOwner();
+    const { user } = useContext(AuthContext);
     const [selectedHotelId, setSelectedHotelId] = useState('');
     const [hotels, setHotels] = useState([]);
     const [bookings, setBookings] = useState([]);
+    const [loadingStaffInfo, setLoadingStaffInfo] = useState(false);
     const [selectedHotel, setSelectedHotel] = useState(null);
     const [chatOpen, setChatOpen] = useState(false);
     const [selectedBooking, setSelectedBooking] = useState(null);
@@ -52,19 +58,57 @@ const CustomerSupportPage = () => {
             setMessages,
         } = useChat();
 
+    // Load danh sách khách sạn của owner hoặc load staff info cho hotel_staff
     useEffect(() => {
-        const loadHotels = async () => {
-            const data = await fetchOwnerHotel();
-            if (Array.isArray(data)) {
-                setHotels(data);
-            } else if (data) {
-                setHotels([data]);
-            } else {
-                setHotels([]);
+        const loadHotelsOrStaffInfo = async () => {
+            try {
+                if (user?.roleId === 6) { // hotel_staff role_id = 6
+                    setLoadingStaffInfo(true);
+                    try {
+                        // Gọi API staff trực tiếp
+                        const response = await staffApiService.getStaffByUserId(user.userId);
+                        const staffData = response?.data || response;
+                        
+                        if (staffData && Array.isArray(staffData) && staffData.length > 0) {
+                            const firstStaff = staffData[0];
+                            const hotelId = firstStaff.hotelId || firstStaff.hotel_id;
+                            
+                            if (hotelId) {
+                                // Load hotel info
+                                const hotelRes = await hotelApiService.getHotelById(hotelId);
+                                const hotelData = hotelRes?.data || hotelRes;
+                                
+                                if (hotelData) {
+                                    setHotels([hotelData]);
+                                    setSelectedHotelId(hotelId);
+                                    setSelectedHotel(hotelData);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error loading staff info:', error);
+                    } finally {
+                        setLoadingStaffInfo(false);
+                    }
+                } else {
+                    // Owner: load tất cả khách sạn của owner
+                    const data = await fetchOwnerHotel();
+                    if (Array.isArray(data)) {
+                        setHotels(data);
+                    } else if (data) {
+                        setHotels([data]);
+                    } else {
+                        setHotels([]);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading hotels:', error);
             }
         };
-        loadHotels();
-    }, [fetchOwnerHotel]);
+        if (user?.userId) {
+            loadHotelsOrStaffInfo();
+        }
+    }, [user?.roleId, user?.userId, fetchOwnerHotel]);
 
     useEffect(() => {
         const loadBookings = async () => {
@@ -552,8 +596,32 @@ const CustomerSupportPage = () => {
         }
     };
 
-    // Nếu chưa chọn khách sạn, hiển thị màn hình chọn khách sạn
+    // Hiển thị loading khi đang load thông tin staff
+    if (loadingStaffInfo) {
+        return (
+            <div className="h-[calc(100vh-120px)] grid place-items-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Đang tải thông tin khách sạn...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Nếu chưa chọn khách sạn, hiển thị màn hình chọn khách sạn (chỉ cho owner)
     if (!selectedHotelId) {
+        // Nếu là staff mà chưa có hotel thì hiển thị thông báo
+        if (user?.roleId === 6) {
+            return (
+                <div className="h-[calc(100vh-120px)] grid place-items-center">
+                    <div className="text-center">
+                        <p className="text-gray-600">Không tìm thấy thông tin khách sạn của bạn.</p>
+                    </div>
+                </div>
+            );
+        }
+
+        // Owner: cho phép chọn khách sạn
         return (
             <div className="h-[calc(100vh-120px)] grid place-items-center">
                 <div className="w-[520px] bg-white border rounded-xl p-6 shadow-sm">
@@ -829,19 +897,21 @@ const CustomerSupportPage = () => {
                 ) : (
                     <>
                         <div className="p-3">
-                            {/* Hotel Selection Dropdown */}
-                            <select
-                                className="w-full mb-2 border rounded-lg px-3 py-2 bg-white"
-                                value={selectedHotelId}
-                                onChange={handleChange}
-                            >
-                                <option value="">Vui lòng chọn khách sạn</option>
-                                {hotels.map(hotel => (
-                                    <option key={hotel.hotelId} value={hotel.hotelId}>
-                                        {hotel.name || ''} • {hotel.city || ''}
-                                    </option>
-                                ))}
-                            </select>
+                            {/* Hotel Selection Dropdown - chỉ hiển thị cho owner */}
+                            {user?.roleId !== 6 && (
+                                <select
+                                    className="w-full mb-2 border rounded-lg px-3 py-2 bg-white"
+                                    value={selectedHotelId}
+                                    onChange={handleChange}
+                                >
+                                    <option value="">Vui lòng chọn khách sạn</option>
+                                    {hotels.map(hotel => (
+                                        <option key={hotel.hotelId} value={hotel.hotelId}>
+                                            {hotel.name || ''} • {hotel.city || ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
 
                             {/* Selected Hotel Info */}
                             {selectedHotel && (

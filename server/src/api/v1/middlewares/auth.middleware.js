@@ -19,9 +19,13 @@ const authenticate = async (req, res, next) => {
       throw new AppError('Không tìm thấy người dùng', 401);
     }
 
+    let role = 'user';
+    if (userRes.rows[0].role_id === 1) role = 'admin';
+    else if (userRes.rows[0].role_id === 2) role = 'hotel_owner';
+    else if (userRes.rows[0].role_id === 6) role = 'hotel_staff';
     req.user = {
       id: userRes.rows[0].user_id,
-      role: userRes.rows[0].role_id === 1 ? 'admin' : userRes.rows[0].role_id === 2 ? 'hotel_owner' : 'user',
+      role,
     };
 
     next();
@@ -54,9 +58,13 @@ const authenticateOptional = async (req, res, next) => {
         return next();
       }
 
+      let role = 'user';
+      if (userRes.rows[0].role_id === 1) role = 'admin';
+      else if (userRes.rows[0].role_id === 2) role = 'hotel_owner';
+      else if (userRes.rows[0].role_id === 6) role = 'hotel_staff';
       req.user = {
         id: userRes.rows[0].user_id,
-        role: userRes.rows[0].role_id === 1 ? 'admin' : userRes.rows[0].role_id === 2 ? 'hotel_owner' : 'user',
+        role,
         email: userRes.rows[0].email,
         name: userRes.rows[0].full_name
       };
@@ -85,10 +93,15 @@ const authorize = (roles) => {
         throw new AppError('Bạn cần đăng nhập trước', 401);
       }
 
+      // Debug log
+      console.log('[Authorize] user role:', req.user.role, '| allowed:', roles);
+
       if (!roles.includes(req.user.role)) {
+        console.log('[Authorize] BLOCKED:', req.user.role, '| allowed:', roles);
         throw new AppError('Bạn không có quyền truy cập', 403);
       }
 
+      console.log('[Authorize] ALLOWED:', req.user.role);
       next();
     } catch (error) {
       next(error);

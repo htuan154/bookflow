@@ -26,6 +26,7 @@ import ActionButton, { ActionButtonsGroup } from '../../../components/common/Act
 import EditHotelModal from '../../../components/hotel/EditHotelModal';
 import useBankAccount from '../../../hooks/useBankAccount';
 import { CreditCardIcon, PlusIcon } from '@heroicons/react/24/outline';
+import useIM from '../../../hooks/useIM';
 
 // helper: lấy id khách sạn/amenity an toàn
 const getId = (obj) => obj?.hotelId ?? obj?.hotel_id ?? obj?.id ?? obj?._id ?? null;
@@ -59,6 +60,7 @@ const HotelInfo = () => {
     createBankAccount,
     unsetDefaultBankAccountsByHotel,
   } = useBankAccount();
+  const { createGroup } = useIM();
 
   // Đếm tổng số hình ảnh của tất cả loại phòng (không dùng hook trong vòng lặp)
   const roomTypeImagesCount = useMemo(() => {
@@ -1228,6 +1230,19 @@ const HotelInfo = () => {
                   console.log('[DEBUG] addExistingUserAsStaff error:', err);
                 }
                 throw err;
+              }
+              // 6. Tạo Group B (Owner + All Staff) cho khách sạn
+              try {
+                await createGroup({
+                  hotel_id: hotelId,
+                  owner_id: userId,
+                  name: `Nhóm nội bộ ${form.name || 'Khách sạn'}`,
+                  staff_ids: [] // Mới tạo hotel chưa có staff
+                });
+                console.log('[DEBUG] Group B created for hotel:', hotelId);
+              } catch (err) {
+                console.warn('[DEBUG] Group B creation failed (non-critical):', err);
+                // Non-critical: không throw, chỉ log warning
               }
             }
             setShowCreateModal(false);

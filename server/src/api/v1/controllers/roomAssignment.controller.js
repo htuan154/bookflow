@@ -38,9 +38,10 @@ class RoomAssignmentController {
     async assignRoom(req, res, next) {
         try {
             const userId = req.user.id; // Lấy từ middleware 'authenticate'
+            const userRole = req.user.role; // Lấy role
             const assignmentData = req.body; // { booking_detail_id, room_id, notes }
 
-            const newAssignment = await RoomAssignmentService.assignRoomToBooking(assignmentData, userId);
+            const newAssignment = await RoomAssignmentService.assignRoomToBooking(assignmentData, userId, userRole);
             successResponse(res, newAssignment, 'Room assigned successfully', 201);
         } catch (error) {
             next(error);

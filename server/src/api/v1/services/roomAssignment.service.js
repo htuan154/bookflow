@@ -6,6 +6,7 @@ const roomRepository = new RoomRepository();
 const bookingDetailRepository = require('../repositories/bookingDetail.repository'); // Giả định đã có
 const hotelRepository = require('../repositories/hotel.repository'); // Giả định đã có
 const { AppError } = require('../../../utils/errors');
+const hotelStaffRepository = require('../repositories/hotelStaff.repository');
 
 class RoomAssignmentService {
     /**
@@ -14,7 +15,7 @@ class RoomAssignmentService {
      * @param {string} userId - ID của người dùng thực hiện (chủ khách sạn/nhân viên).
      * @returns {Promise<RoomAssignment>}
      */
-    async assignRoomToBooking(assignmentData, userId) {
+    async assignRoomToBooking(assignmentData, userId, userRole) {
         const { booking_detail_id, room_id } = assignmentData;
 
         // --- Kiểm tra nghiệp vụ ---
@@ -33,21 +34,35 @@ class RoomAssignmentService {
             throw new AppError(`Room ${room.roomNumber} is not available for assignment`, 400);
         }
 
-        // 3. Kiểm tra quyền sở hữu (người gán phòng phải có quyền trên khách sạn đó)
-        const hotelInfo = await roomAssignmentRepository.findHotelByRoomId(room_id);
-        if (!hotelInfo) {
-            throw new AppError('Hotel information not found for this room', 404);
+        // 3. Kiểm tra quyền role
+        console.log('User role in service:', userRole);
+        if (userRole !== 'hotel_owner' && userRole !== 'hotel_staff') {
+            throw new AppError('Forbidden', 403);
         }
-        if (hotelInfo.owner_id !== userId) {
-            throw new AppError('Forbidden: You do not have permission to assign rooms for this hotel', 403);
+
+        // 4. Kiểm tra quyền sở hữu hoặc staff thuộc khách sạn
+        if (userRole === 'hotel_owner' || userRole === 'hotel_staff') {
+            const hotelInfo = await roomAssignmentRepository.findHotelByRoomId(room_id);
+            if (!hotelInfo) {
+                throw new AppError('Hotel information not found for this room', 404);
+            }
+            if (userRole === 'hotel_owner') {
+                if (hotelInfo.owner_id !== userId) {
+                    throw new AppError('Forbidden: You do not have permission to assign rooms for this hotel', 403);
+                }
+            } else if (userRole === 'hotel_staff') {
+                // Kiểm tra staff có thuộc khách sạn này không
+                const staff = await hotelStaffRepository.findByUserIdAndHotelId(userId, hotelInfo.hotel_id);
+                if (!staff) {
+                    throw new AppError('Forbidden: You do not have permission to assign rooms for this hotel', 403);
+                }
+            }
         }
 
         // --- Thực hiện gán phòng và cập nhật trạng thái ---
         const assignment = await roomAssignmentRepository.create({ ...assignmentData, assigned_by: userId });
-        
         // Sau khi gán, cập nhật trạng thái của phòng thành 'occupied'
         await roomRepository.updateStatus(room_id, 'occupied');
-        
         return assignment;
     }
 

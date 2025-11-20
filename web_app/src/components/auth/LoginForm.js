@@ -15,15 +15,13 @@ const LoginForm = () => {
     // Navigate khi user và isAuthenticated được update
     useEffect(() => {
         if (isAuthenticated && user) {
-            if (
-                user.roleId === USER_ROLES.ADMIN ||
-                user.roleId === USER_ROLES.HOTEL_OWNER
-            ) {
-                if (user.roleId === USER_ROLES.ADMIN) {
-                    navigate('/admin/dashboard', { replace: true });
-                } else {
-                    navigate('/hotel-owner', { replace: true });
-                }
+            console.log('[LoginForm] Navigating user with roleId:', user.roleId);
+            
+            if (user.roleId === USER_ROLES.ADMIN) {
+                navigate('/admin/dashboard', { replace: true });
+            } else if (user.roleId === USER_ROLES.HOTEL_OWNER || user.roleId === USER_ROLES.HOTEL_STAFF) {
+                // Both hotel_owner and hotel_staff go to hotel-owner routes
+                navigate('/hotel-owner', { replace: true });
             } else {
                 navigate('/unauthorized', { replace: true });
             }
@@ -42,8 +40,13 @@ const LoginForm = () => {
         try {
             const response = await authService.login(formData.identifier, formData.password);
 
+            console.log('[LoginForm] Login response:', response.data);
+            
             const userData = response?.data?.data?.user;
             const token = response?.data?.data?.token;
+
+            console.log('[LoginForm] userData:', userData);
+            console.log('[LoginForm] userData.roleId:', userData?.roleId);
 
             if (!userData || !token) {
                 setError('Dữ liệu đăng nhập không hợp lệ');

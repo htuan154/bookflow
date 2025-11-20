@@ -78,7 +78,7 @@ class BookingController {
         try {
             const { hotelId } = req.params;
             // Chỉ cho phép chủ khách sạn hoặc admin xem
-            if (req.user.role !== 'admin' && req.user.role !== 'hotel_owner') {
+            if (req.user.role !== 'admin' && req.user.role !== 'hotel_owner' && req.user.role !== 'hotel_staff') {
                 return res.status(403).json({ message: 'Forbidden' });
             }
             const bookings = await BookingService.findBookingsByHotelId(hotelId);

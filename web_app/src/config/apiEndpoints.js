@@ -11,7 +11,9 @@ export const CHAT_API_ENDPOINTS = {
 export const API_ENDPOINTS = {
     IM: {
         CREATE_DM: `${API_BASE_URL}/im/conversations/dm`,
-        CREATE_GROUP: `${API_BASE_URL}/im/conversations/group`,
+        CREATE_GROUP: `${API_BASE_URL}/im/conversations/group-b`,
+        ADD_MEMBER: `${API_BASE_URL}/im/conversations/add-member`,
+        FIND_GROUP_B: `${API_BASE_URL}/im/conversations/find-group-b`,
         SEND_TEXT: `${API_BASE_URL}/im/messages/text`,
         UPLOAD_BASE64: `${API_BASE_URL}/im/uploads`,
         STREAM: (id) => `${API_BASE_URL}/im/stream?conversation_id=${encodeURIComponent(id)}`,
@@ -446,7 +448,9 @@ export const API_ENDPOINTS = {
         GET_HOTEL_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff`,
         SEARCH_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff/search`,
         GET_STAFF_STATISTICS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff/statistics`,
-        
+        GET_BY_USER_ID: (userId) => `${API_BASE_URL}/staff/user/${userId}`,
+
+
         // --- Add staff operations ---
         ADD_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff`, // Auto-detect method
         ADD_NEW_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff/new`, // Create new user + staff

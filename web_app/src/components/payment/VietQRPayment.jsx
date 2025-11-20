@@ -127,6 +127,16 @@ const VietQRPayment = ({
     }
   };
 
+  // Nút "Tôi đã thanh toán" (luôn hiển thị dưới nút tải QR)
+  const handlePaidButton = () => {
+    if (!qrData) {
+      toast.error('Không tìm thấy thông tin giao dịch');
+      return;
+    }
+    toast.success('Cảm ơn bạn đã thanh toán!');
+    onPaymentSuccess?.(qrData, { tx_ref: qrData.tx_ref, amount: qrData.amount });
+  };
+
   // Thành công
   useEffect(() => {
     if (paymentStatus === 'paid' && qrData) {
@@ -279,6 +289,18 @@ const VietQRPayment = ({
               </button>
             )}
           </div>
+
+          {/* Nút Tôi đã thanh toán luôn hiển thị dưới nút tải QR */}
+          {qrData && (
+            <div className="mt-3 flex">
+              <button
+                onClick={handlePaidButton}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+              >
+                Tôi đã thanh toán
+              </button>
+            </div>
+          )}
 
           {/* Hướng dẫn */}
           <div className="text-xs text-gray-500 text-center space-y-1">

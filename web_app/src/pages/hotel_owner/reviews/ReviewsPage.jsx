@@ -6,16 +6,22 @@ import ActionButton from '../../../components/common/ActionButton';
 import useHotel from '../../../hooks/useHotel';
 import useReview from '../../../hooks/useReview';
 import useReviewImage from '../../../hooks/useReviewImage';
+import useAuth from '../../../hooks/useAuth';
+import { USER_ROLES } from '../../../config/roles';
+import { staffApiService } from '../../../api/staff.service';
+import { hotelApiService } from '../../../api/hotel.service';
 
 const ReviewsPage = () => {
   const { approvedHotels: hotels, loading: hotelsLoading, fetchApprovedHotels } = useHotel();
   const { reviews, loading: reviewsLoading, fetchPagedByHotelId } = useReview();
   const { images, fetchImagesByReviewId, clearImages } = useReviewImage();
+  const { user } = useAuth();
 
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loadingStaffInfo, setLoadingStaffInfo] = useState(false);
   
   // Filter states
   const [filterRating, setFilterRating] = useState(null); // null = all, 1-5 = specific rating
@@ -26,10 +32,50 @@ const ReviewsPage = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedReview, setSelectedReview] = useState(null);
 
-  // Load danh sách khách sạn của owner khi component mount
+  // Load danh sách khách sạn của owner hoặc load staff info cho hotel_staff
   useEffect(() => {
-    fetchApprovedHotels();
-  }, [fetchApprovedHotels]);
+    const loadData = async () => {
+      // Nếu là HOTEL_STAFF, load thông tin staff trước để lấy hotel_id
+      if (user?.roleId === USER_ROLES.HOTEL_STAFF && user?.userId) {
+        try {
+          setLoadingStaffInfo(true);
+          const response = await staffApiService.getStaffByUserId(user.userId);
+
+          if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
+            const staff = response.data[0];
+            if (staff.hotelId) {
+              // Cố gắng fetch full hotel details từ API
+              try {
+                const hotelRes = await hotelApiService.getHotelById(staff.hotelId);
+                // hotelApiService may return { data: { ... } } or the object directly
+                const hotelObj = hotelRes?.data || hotelRes;
+                setSelectedHotel({
+                  hotelId: staff.hotelId,
+                  hotelName: hotelObj?.name || hotelObj?.hotelName || hotelObj?.hotel_name || 'Khách sạn',
+                  address: hotelObj?.address || hotelObj?.location || '',
+                  averageRating: Number(hotelObj?.averageRating || hotelObj?.average_rating || 0),
+                  totalReviews: hotelObj?.totalReviews || hotelObj?.total_reviews || 0
+                });
+              } catch (hErr) {
+                // Nếu fetch chi tiết khách sạn thất bại, vẫn set hotelId để load reviews
+                console.error('Error fetching hotel details for staff:', hErr);
+                setSelectedHotel({ hotelId: staff.hotelId, hotelName: 'Khách sạn', address: '', averageRating: 0, totalReviews: 0 });
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error loading staff hotel info:', error);
+        } finally {
+          setLoadingStaffInfo(false);
+        }
+      } else {
+        // Nếu là HOTEL_OWNER, load danh sách khách sạn
+        fetchApprovedHotels();
+      }
+    };
+
+    loadData();
+  }, [user?.roleId, user?.userId, fetchApprovedHotels]);
 
   // Load reviews khi chọn khách sạn hoặc thay đổi pagination
   useEffect(() => {
@@ -152,25 +198,30 @@ const ReviewsPage = () => {
         <p className="text-gray-600">Xem và quản lý các đánh giá từ khách hàng</p>
       </div>
 
-      {/* Hotel Selection */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Chọn khách sạn
-        </label>
-        <select
-          value={selectedHotel?.hotelId || ''}
-          onChange={handleHotelSelect}
-          className="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          disabled={hotelsLoading}
-        >
-          <option value="">-- Chọn khách sạn --</option>
-          {hotels.map(hotel => (
-            <option key={hotel.hotelId || hotel.hotel_id} value={hotel.hotelId || hotel.hotel_id}>
-              {hotel.name || hotel.hotelName || hotel.hotel_name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Hotel Selection - Hide for staff if auto-loaded */}
+      {(user?.roleId !== USER_ROLES.HOTEL_STAFF || !selectedHotel) && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Chọn khách sạn
+          </label>
+          <select
+            value={selectedHotel?.hotelId || ''}
+            onChange={handleHotelSelect}
+            className="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={hotelsLoading || loadingStaffInfo}
+          >
+            <option value="">-- Chọn khách sạn --</option>
+            {hotels.map(hotel => (
+              <option key={hotel.hotelId || hotel.hotel_id} value={hotel.hotelId || hotel.hotel_id}>
+                {hotel.name || hotel.hotelName || hotel.hotel_name}
+              </option>
+            ))}
+          </select>
+          {loadingStaffInfo && (
+            <p className="mt-2 text-sm text-gray-500">Đang tải thông tin khách sạn...</p>
+          )}
+        </div>
+      )}
 
       {/* Hotel Info & Statistics */}
       {selectedHotel && (
