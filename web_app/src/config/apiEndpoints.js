@@ -373,7 +373,7 @@ export const API_ENDPOINTS = {
 
         // Lấy thống kê bình luận của các blog đã xuất bản
         GET_PUBLISHED_STATS: `${API_BASE_URL}/blogs/admin/published/stats`,
-        GET_ALL: `${API_BASE_URL}/blogs`,//trang bài viết 
+        GET_ALL: `${API_BASE_URL}/blogs/all`,//trang bài viết 
         GET_PUBLISHED: `${API_BASE_URL}/blogs`, // ✅ SỬA: từ /blogs/published thành /blogs
         // Dùng GET_BY_ID để lấy chi tiết blog theo ID (dùng cho trang chi tiết)
         GET_BY_ID: (blogId) => `${API_BASE_URL}/blogs/id/${blogId}`,

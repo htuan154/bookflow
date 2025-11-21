@@ -333,24 +333,35 @@ const BlogDetailPage = () => {
                 </div>
 
                 <div className="flex items-center space-x-3">
-                    <button
-                        onClick={() => {
-                            const blogIdToUse = blog.blogId;
-                            navigate(`/admin/blog-management/edit/${blogIdToUse}`);
-                        }}
-                        className="flex items-center space-x-2 px-4 py-2 text-blue-700 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
-                    >
-                        <Edit className="h-4 w-4" />
-                        <span>Chỉnh sửa</span>
-                    </button>
-                    
-                    <button
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="flex items-center space-x-2 px-4 py-2 text-red-700 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                        <span>Xóa</span>
-                    </button>
+                    {/* Chỉ hiển thị Edit và Delete cho blog của admin (không có hotelId) */}
+                    {!blog.hotelId && !blog.hotel_id && (
+                        <>
+                            <button
+                                onClick={() => {
+                                    const blogIdToUse = blog.blogId;
+                                    navigate(`/admin/blog-management/edit/${blogIdToUse}`);
+                                }}
+                                className="flex items-center space-x-2 px-4 py-2 text-blue-700 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+                            >
+                                <Edit className="h-4 w-4" />
+                                <span>Chỉnh sửa</span>
+                            </button>
+                            
+                            <button
+                                onClick={() => setShowDeleteConfirm(true)}
+                                className="flex items-center space-x-2 px-4 py-2 text-red-700 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                                <span>Xóa</span>
+                            </button>
+                        </>
+                    )}
+                    {/* Hiển thị thông báo cho blog khách sạn */}
+                    {(blog.hotelId || blog.hotel_id) && (
+                        <div className="text-sm text-gray-600 italic">
+                            Blog của khách sạn - Chỉ xem
+                        </div>
+                    )}
                 </div>
             </div>
 

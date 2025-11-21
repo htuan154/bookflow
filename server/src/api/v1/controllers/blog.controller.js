@@ -5,6 +5,24 @@ const { successResponse } = require('../../../utils/response');
 const blogService = require('../services/blog.service');
 
 class BlogController {
+
+        /**
+         * Lấy tất cả các bài blog (không filter status, có phân trang).
+         * GET /api/v1/blogs/all
+         */
+        async getAllBlogs(req, res, next) {
+            try {
+                const { page = 1, limit = 1000 } = req.query;
+                const blogs = await BlogService.getAllBlogs({ page, limit });
+                res.status(200).json({
+                    status: 'success',
+                    message: 'Success',
+                    data: blogs
+                });
+            } catch (error) {
+                next(error);
+            }
+        }
     /**
      * Tạo một bài blog mới.
      * POST /api/v1/blogs

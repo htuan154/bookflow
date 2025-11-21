@@ -42,9 +42,9 @@ const AdminLayout = () => {
             name: 'Bài viết du lịch', 
             icon: <FileText size={20} />, 
             path: '/admin/blog-management',
-            subItems: [
-                { name: 'Tất cả bài viết', path: '/admin/blog-management' },
-            ]
+            // subItems: [
+            //     { name: 'Tất cả bài viết', path: '/admin/blog-management' },
+            // ]
         },
         { name: 'Quản lý bình luận', icon: <MessageSquare size={20} />, path: '/admin/comments' },
         { name: 'Gợi ý địa danh', icon: <MapPin size={20} />, path: '/admin/suggestions' },

@@ -5,6 +5,17 @@ const { AppError } = require('../../../utils/errors');
 const slugify = require('slugify'); // Cần cài đặt: npm install slugify
 
 class BlogService {
+
+        /**
+         * Lấy tất cả các bài blog (không filter status, có phân trang).
+         * @param {object} pagination - Tùy chọn phân trang.
+         * @returns {Promise<Blog[]>}
+         */
+        async getAllBlogs(pagination = {}) {
+            const { page = 1, limit = 1000 } = pagination;
+            const offset = (page - 1) * limit;
+            return await blogRepository.findAllBlogs(limit, offset);
+        }
     /**
      * Tạo một bài blog mới.
      * @param {object} blogData - Dữ liệu bài blog.

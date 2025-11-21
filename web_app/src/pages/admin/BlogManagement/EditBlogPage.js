@@ -171,7 +171,6 @@ const EditBlogPage = () => {
                     : (typeof formData.tags === 'string'
                         ? formData.tags
                         : ''),
-                hotel_id: formData.hotelId || null,
                 featured_image_url: formData.featuredImageUrl || null,
                 meta_description: formData.metaDescription || null,
             };

@@ -78,13 +78,15 @@ export const BlogProvider = ({ children }) => {
             setError(null);
             
             console.log('🔄 Fetching admin blog statistics...');
-            // Lấy tất cả blog của admin để tính thống kê
-            const response = await blogService.getBlogsByRoleAdmin({ 
-                role: 'admin',
+            // Lấy tất cả blog để tính thống kê (bao gồm cả admin và hotel)
+            const response = await blogService.getAllBlogs({ 
                 limit: 1000 // Lấy nhiều để đảm bảo có đủ dữ liệu tính thống kê
             });
 
-            if (response.success) {
+            console.log('📊 Statistics response:', response);
+
+            // Backend có thể trả về response.success hoặc response.message === "Success"
+            if (response.success === true || response.message === 'Success') {
                 const blogs = Array.isArray(response.data) ? response.data : response.data?.blogs || [];
                 
                 // Tính số lượng theo từng trạng thái
@@ -258,8 +260,16 @@ export const BlogProvider = ({ children }) => {
                 throw new Error('Nội dung bài viết là bắt buộc');
             }
 
-            if (!blogData.author_id) {
+            // ✅ Hỗ trợ nhiều field name cho author_id
+            const authorId = blogData.author_id || blogData.authorId || blogData.userId;
+            if (!authorId) {
+                console.error('❌ Missing author_id. Available fields:', Object.keys(blogData));
                 throw new Error('Không xác định được tác giả. Vui lòng đăng nhập lại.');
+            }
+            
+            // Ensure author_id is set
+            if (!blogData.author_id && authorId) {
+                blogData.author_id = authorId;
             }
 
             const response = await blogService.createBlog(blogData);
