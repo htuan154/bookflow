@@ -26,7 +26,7 @@ const create = async (commentData) => {
  * @returns {Promise<BlogComment[]>}
  */
 const findByBlogId = async (blogId) => {
-    const query = 'SELECT blog_comments.*, users.username FROM blog_comments JOIN users On users.user_id = blog_comments.user_id WHERE blog_id = $1 AND status = \'approved\' ORDER BY created_at ASC';
+    const query = 'SELECT blog_comments.*, users.username FROM blog_comments JOIN users On users.user_id = blog_comments.user_id WHERE blog_id = $1 ORDER BY created_at ASC';
         const result = await pool.query(query, [blogId]);
 
         // Return plain objects with consistent camelCase fields so the

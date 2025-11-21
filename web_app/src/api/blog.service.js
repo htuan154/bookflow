@@ -165,6 +165,35 @@ const blogService = {
     },
 
     /**
+     * Get a blog by ID and verify it belongs to a specific hotel
+     * @param {string} hotelId - Hotel ID to validate
+     * @param {string} blogId - Blog ID
+     * @returns {Promise<object>} - Blog data if belongs to hotel
+     */
+    getBlogByHotelID: async (hotelId, blogId) => {
+        if (!hotelId || !blogId) {
+            throw new Error('hotelId and blogId are required');
+        }
+
+        const result = await blogService.getBlogById(blogId);
+        const blog = result?.data || result;
+
+        // Some APIs return blog object directly, others wrap in data
+        const blogHotelId = blog?.hotel_id || blog?.hotelId || blog?.hotel || null;
+
+        if (blogHotelId == null) {
+            // If backend doesn't expose hotel id, just return the blog
+            return result;
+        }
+
+        if (String(blogHotelId) !== String(hotelId)) {
+            throw new Error('Blog does not belong to the specified hotel');
+        }
+
+        return result;
+    },
+
+    /**
      * Get blog by slug
      * @param {string} slug - Blog slug
      * @returns {Promise<object>} - Blog data

@@ -103,8 +103,8 @@ class BlogCommentService {
  */
     async replyToComment(blogId, parentCommentId, content, currentUser) {
         // --- Kiểm tra quyền ---
-        if (!['admin', 'hotel_owner'].includes(currentUser.role)) {
-            throw new AppError('Forbidden: Only admin or hotel owner can reply to comments', 403);
+        if (!['admin', 'hotel_owner', 'hotel_staff'].includes(currentUser.role)) {
+            throw new AppError('Forbidden: Only admin, hotel owner or hotel staff can reply to comments', 403);
         }
 
         // --- Kiểm tra blog ---
@@ -125,7 +125,7 @@ class BlogCommentService {
             user_id: currentUser.id,
             parent_comment_id: parentCommentId,
             content,
-            status: 'approved', // Admin/chủ KS trả lời thì duyệt ngay
+            status: 'approved', // Admin/chủ KS/nhân viên KS trả lời thì duyệt ngay
         };
 
         // --- Gọi repository ---

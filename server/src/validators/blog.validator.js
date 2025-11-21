@@ -16,7 +16,7 @@ const updateBlogSchema = Joi.object({
     content: Joi.string().min(50),
     hotel_id: Joi.string().uuid().allow(null),
     excerpt: Joi.string().allow('').max(1000),
-    featured_image_url: Joi.string().uri().allow(''),
+    featured_image_url: Joi.string().uri().allow(null),
     tags: Joi.string().allow(''),
     status: Joi.string().valid('draft', 'published', 'archived'),
 }).min(1);

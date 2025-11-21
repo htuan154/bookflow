@@ -354,6 +354,8 @@ export const API_ENDPOINTS = {
         GET_BLOGS_BY_STATUS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
         GET_REJECTED_BLOGS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
         UPDATE_STATUS_ADMIN: (blogId) => `${API_BASE_URL}/blogs/admin/${blogId}/status`,
+        // Thêm hàm lấy blog theo hotelId
+        GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/blogs/hotel/${hotelId}`,
         
         // Blog Bulk Operations
         BULK_APPROVE_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/approve`,

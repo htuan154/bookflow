@@ -470,6 +470,44 @@ const findAdminBlogs = async (limit = 10, offset = 0, status, adminRole = 'admin
     return result.rows.map(row => new Blog_custom(row));
 };
 
+/**
+ * Lấy danh sách blog theo hotel_id (có phân trang)
+ * @param {string} hotelId - ID của khách sạn
+ * @param {object} options - { limit, offset, status }
+ * @returns {Promise<{blogs: Blog[], total: number}>}
+ */
+const findByHotelId = async (hotelId, options = {}) => {
+    const { limit = 10, offset = 0, status } = options;
+    let whereClause = 'WHERE hotel_id = $1';
+    const params = [hotelId];
+    if (status) {
+        whereClause += ' AND status = $2';
+        params.push(status);
+    }
+    const limitParamIndex = params.length + 1;
+    const offsetParamIndex = params.length + 2;
+    const blogsQuery = `
+        SELECT blogs.*, users.username 
+        FROM blogs
+        LEFT JOIN users ON users.user_id = blogs.author_id
+        ${whereClause}
+        ORDER BY blogs.created_at DESC
+        LIMIT $${limitParamIndex}::int OFFSET $${offsetParamIndex}::int
+    `;
+    const countQuery = `
+        SELECT COUNT(*) as total FROM blogs
+        ${whereClause}
+    `;
+    const queryParams = [...params, parseInt(limit), parseInt(offset)];
+    const [blogsResult, countResult] = await Promise.all([
+        pool.query(blogsQuery, queryParams),
+        pool.query(countQuery, params)
+    ]);
+    const blogs = blogsResult.rows.map(row => new Blog_custom(row));
+    const total = parseInt(countResult.rows[0].total);
+    return { blogs, total };
+};
+
 module.exports = {
     create,
     findBySlug,
@@ -487,4 +525,5 @@ module.exports = {
     findBlogsWithStatsByStatus
     ,findByAuthorId // Thêm export hàm mới ngày 4/10/2025
     ,findAdminBlogs // Export hàm lấy blog do admin đăng thêm ngày 9/10
+    ,findByHotelId // Export hàm lấy blog theo hotel_id thêm ngày 9/10
 };

@@ -6,7 +6,9 @@ import { useHotel } from '../../../hooks/useHotel';
 import { hotelApiService } from '../../../api/hotel.service';
 import blogService from '../../../api/blog.service';
 import commentService from '../../../api/comment.service';
+import { staffApiService } from '../../../api/staff.service';
 import { AuthContext } from '../../../context/AuthContext';
+import { USER_ROLES } from '../../../config/roles';
 
 import useBlog from '../../../hooks/useBlog';
 
@@ -36,7 +38,20 @@ const MarketingPage = () => {
   const [loadingData, setLoadingData] = useState(true);
   const { loading: hotelLoading } = useHotel();
   const { user } = useContext(AuthContext); // Lấy thông tin user hiện tại
-  const { getOwnerBlogs } = useBlog(); // Sử dụng hook
+  const { getBlogsByHotel } = useBlog(); // Sử dụng hook
+
+  // State for create modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createThumbnail, setCreateThumbnail] = useState(''); // Ảnh thumbnail
+  const [createBlogImages, setCreateBlogImages] = useState([]); // Các ảnh blog_images
+  const [createTitle, setCreateTitle] = useState('');
+  const [createContent, setCreateContent] = useState('');
+  const [createExcerpt, setCreateExcerpt] = useState('');
+  const [createSlug, setCreateSlug] = useState('');
+  const [createTags, setCreateTags] = useState('');
+  const [createMetaDescription, setCreateMetaDescription] = useState('');
+  const [createThumbnailUrl, setCreateThumbnailUrl] = useState(''); // URL input for thumbnail
+  const [createBlogImageUrl, setCreateBlogImageUrl] = useState(''); // URL input for blog images
 
   // State for detail view
   const [selectedBlog, setSelectedBlog] = useState(null);
@@ -51,6 +66,10 @@ const MarketingPage = () => {
   const [editForm, setEditForm] = useState({
     title: '',
     content: '',
+    slug: '',
+    excerpt: '',
+    tags: '',
+    metaDescription: '',
     status: 'draft'
   });
   const [editLoading, setEditLoading] = useState(false);
@@ -162,129 +181,154 @@ const MarketingPage = () => {
     });
   };
 
-  // Hàm refresh posts dùng chung
+  // Hàm refresh posts dùng chung - load lại blogs của hotel hiện tại
   const refreshPosts = async () => {
-    console.log('🔄 Refreshing posts...');
-    await loadPosts();
-  };
-
-  // Gọi API lấy blog của hotel owner đang đăng nhập thông qua hook
-  const loadPosts = async () => {
-    setLoadingData(true);
+    if (!selectedHotel) return;
     try {
-      console.log('🔄 Loading hotel owner posts via hook...');
+      setLoadingData(true);
+      console.log('🔄 Loading blogs for hotel:', selectedHotel);
+      const resp = await getBlogsByHotel(selectedHotel, { page: currentPage, limit: postsPerPage });
+      console.log('📦 Response from getBlogsByHotel:', resp);
+      console.log('📦 resp.data:', resp?.data);
+      console.log('📦 resp.data.blogs:', resp?.data?.blogs);
       
-      const result = await getOwnerBlogs({
-        limit: 50,
-        sortBy: 'created_at',
-        sortOrder: 'desc'
-      });
-      
-      const blogs = result?.blogs || [];
-      console.log('📋 Owner blogs from hook:', blogs);
-      
-      // Normalize dữ liệu giống như logic cũ
-      const normalized = (Array.isArray(blogs) ? blogs : []).map(post => {
-        return {
-          // IDs
-          id: post.blogId || post.blog_id || post.id,
-          blogId: post.blogId || post.blog_id || post.id,
-          blog_id: post.blogId || post.blog_id || post.id,
-          
-          // Core fields
-          title: post.title || '',
-          slug: post.slug || '',
-          content: post.content || '',
-          excerpt: post.excerpt || '',
-          
-          // Images
-          featured_image_url: post.featuredImageUrl || post.featured_image_url || '',
-          featuredImageUrl: post.featuredImageUrl || post.featured_image_url || '',
-          
-          // Meta
-          meta_description: post.metaDescription || post.meta_description || '',
-          metaDescription: post.metaDescription || post.meta_description || '',
-          tags: post.tags || '',
-          
-          // Hotel info
-          hotel_id: post.hotelId || post.hotel_id || '',
-          hotelId: post.hotelId || post.hotel_id || '',
-          hotelName: post.hotel_name || post.hotelName || '',
-          
-          // Status
-          status: post.status || 'draft',
-          
-          // Stats
-          view_count: post.viewCount || post.view_count || 0,
-          viewCount: post.viewCount || post.view_count || 0,
-          like_count: post.likeCount || post.like_count || 0,
-          likeCount: post.likeCount || post.like_count || 0,
-          comment_count: post.commentCount || post.comment_count || 0,
-          commentCount: post.commentCount || post.comment_count || 0,
-          
-          // Dates
-          created_at: post.createdAt || post.created_at,
-          createdAt: post.createdAt || post.created_at,
-          
-          // Author
-          author: post.author || post.username || 'Ẩn danh',
-          
-          // Additional fields
-          images: post.blog_images?.map(img => img.image_url) || 
-                  (post.featuredImageUrl || post.featured_image_url ? [post.featuredImageUrl || post.featured_image_url] : []),
-          postType: post.post_type || 'general',
-        };
-      });
-      
-      console.log('✅ Normalized owner blogs:', normalized);
-      setPosts(normalized);
-      
-      // Update stats
-      setStats({
-        totalPosts: normalized.length,
-        totalInteractions: normalized.reduce((sum, b) => sum + (b.likeCount || 0), 0),
-        totalComments: normalized.reduce((sum, b) => sum + (b.commentCount || 0), 0),
-      });
-
-      // Load ảnh cho tất cả blog sau khi có posts
-      if (normalized.length > 0) {
-        // Truyền normalized posts để không phụ thuộc vào state
-        loadAllBlogImages(normalized);
+      // Extract blogs from response - handle multiple response formats
+      let blogsList = [];
+      if (resp?.data?.blogs) {
+        // Format: { data: { blogs: [...], pagination: {...} } }
+        blogsList = resp.data.blogs;
+        console.log('✅ Extracted from resp.data.blogs');
+      } else if (resp?.blogs) {
+        // Format: { blogs: [...], pagination: {...} }
+        blogsList = resp.blogs;
+        console.log('✅ Extracted from resp.blogs');
+      } else if (Array.isArray(resp?.data)) {
+        // Format: { data: [...] }
+        blogsList = resp.data;
+        console.log('✅ Extracted from resp.data (array)');
+      } else if (Array.isArray(resp)) {
+        // Format: [...]
+        blogsList = resp;
+        console.log('✅ Extracted from resp (array)');
       }
-    } catch (error) {
-      console.error('❌ Error loading hotel owner posts via hook:', error);
+      
+      console.log('📊 Total blogs extracted:', blogsList.length);
+      console.log('📊 Blogs data:', blogsList);
+      console.log('✅ Extracted blogs:', blogsList);
+      console.log('✅ About to setPosts with:', blogsList.length, 'blogs');
+      setPosts(Array.isArray(blogsList) ? blogsList : []);
+      setStats(prev => ({ ...prev, totalPosts: Array.isArray(blogsList) ? blogsList.length : 0 }));
+    } catch (err) {
+      console.error('❌ Failed to refresh posts:', err);
       setPosts([]);
-      setStats({ totalPosts: 0, totalInteractions: 0, totalComments: 0 });
     } finally {
       setLoadingData(false);
     }
   };
 
   useEffect(() => {
-    // Gọi API lấy tất cả khách sạn đã duyệt cho dropdown
-    const loadApprovedHotels = async () => {
+    // Load hotels for the current owner/staff and default to the first hotel, then load its blogs
+    const loadHotelsForOwner = async () => {
       try {
-        console.log('🔄 Loading all approved hotels for dropdown...');
-        const response = await hotelApiService.getApprovedHotelsDropdown();
-        console.log('✅ All approved hotels loaded:', response);
+        setLoadingData(true);
         
-        // Extract hotels from response - lấy tất cả khách sạn đã duyệt
-        const hotelList = response?.data || response?.hotels || response || [];
-        console.log('🟢 DEBUG Hotels data from API:', hotelList);
-        console.log('🟢 DEBUG First hotel object:', hotelList[0]);
+        // Nếu là HOTEL_STAFF, load thông tin staff để lấy hotel_id
+        if (user?.roleId === USER_ROLES.HOTEL_STAFF && user?.userId) {
+          try {
+            const response = await staffApiService.getStaffByUserId(user.userId);
+            if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
+              const staff = response.data[0];
+              if (staff.hotelId) {
+                // Load thông tin hotel từ hotelId
+                const hotelResponse = await hotelApiService.getHotelById(staff.hotelId);
+                const hotel = hotelResponse?.data || hotelResponse;
+                if (hotel) {
+                  setHotels([hotel]);
+                  const defaultHotelId = hotel.hotel_id || hotel.hotelId || hotel.id || hotel._id;
+                  setSelectedHotel(defaultHotelId);
+                  
+                  // Load blogs cho hotel của staff
+                  try {
+                    const resp = await getBlogsByHotel(defaultHotelId, { page: 1, limit: postsPerPage });
+                    let blogsList = [];
+                    if (resp?.data?.blogs) {
+                      blogsList = resp.data.blogs;
+                    } else if (resp?.blogs) {
+                      blogsList = resp.blogs;
+                    } else if (Array.isArray(resp?.data)) {
+                      blogsList = resp.data;
+                    } else if (Array.isArray(resp)) {
+                      blogsList = resp;
+                    }
+                    setPosts(Array.isArray(blogsList) ? blogsList : []);
+                    setStats(prev => ({ ...prev, totalPosts: Array.isArray(blogsList) ? blogsList.length : 0 }));
+                  } catch (err) {
+                    console.error('❌ Failed to load blogs for staff hotel:', err);
+                    setPosts([]);
+                  }
+                }
+              }
+            }
+            setLoadingData(false);
+            return;
+          } catch (error) {
+            console.error('❌ Error loading staff hotel info:', error);
+          }
+        }
+        
+        // Nếu là HOTEL_OWNER, load danh sách khách sạn
+        const ownerId = user?.id || user?.user_id || null;
+        const response = await hotelApiService.getHotelsForOwner({ ownerId });
+        const hotelList = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : response?.hotels || [];
         setHotels(hotelList);
+
+        if (hotelList.length > 0) {
+          const defaultHotelId = hotelList[0].hotel_id || hotelList[0].hotelId || hotelList[0].id || hotelList[0]._id;
+          setSelectedHotel(defaultHotelId);
+          console.log('🏨 Default hotel selected:', defaultHotelId);
+
+          // Load blogs for the selected/default hotel
+          try {
+            const resp = await getBlogsByHotel(defaultHotelId, { page: 1, limit: postsPerPage });
+            console.log('📦 Initial blogs response:', resp);
+            console.log('📦 Initial resp.data:', resp?.data);
+            console.log('📦 Initial resp.data.blogs:', resp?.data?.blogs);
+            
+            // Extract blogs - same logic as refreshPosts
+            let blogsList = [];
+            if (resp?.data?.blogs) {
+              blogsList = resp.data.blogs;
+            } else if (resp?.blogs) {
+              blogsList = resp.blogs;
+            } else if (Array.isArray(resp?.data)) {
+              blogsList = resp.data;
+            } else if (Array.isArray(resp)) {
+              blogsList = resp;
+            }
+            
+            console.log('✅ Initial blogs loaded:', blogsList.length);
+            setPosts(Array.isArray(blogsList) ? blogsList : []);
+            setStats(prev => ({ ...prev, totalPosts: Array.isArray(blogsList) ? blogsList.length : 0 }));
+          } catch (err) {
+            console.error('❌ Failed to load blogs for default hotel:', err);
+            setPosts([]);
+          }
+        }
       } catch (error) {
-        console.error('❌ Error loading approved hotels:', error);
+        console.error('❌ Error loading owner hotels:', error);
         setHotels([]);
+      } finally {
+        setLoadingData(false);
       }
     };
-    
-    loadApprovedHotels();
+
+    loadHotelsForOwner();
   }, []); // Chỉ chạy 1 lần khi component mount
 
   // useEffect riêng cho loadPosts, chỉ cần gọi 1 lần khi mount
   useEffect(() => {
-    loadPosts();
+    // Previously used loadPosts(); now use refreshPosts() which loads blogs for the selected/default hotel
+    refreshPosts();
   }, []); // Chỉ chạy 1 lần khi component mount
 
   // useEffect riêng cho event listeners
@@ -324,6 +368,48 @@ const MarketingPage = () => {
       };
       reader.readAsDataURL(file);
     });
+  };
+
+  // Khi người dùng đổi khách sạn trên selector (ở header)
+  const handleHotelChange = async (hotelId) => {
+    setSelectedHotel(hotelId);
+    console.log('🔄 Hotel changed to:', hotelId);
+    try {
+      setLoadingData(true);
+      const resp = await getBlogsByHotel(hotelId, { page: 1, limit: postsPerPage });
+      console.log('📦 Blogs response for hotel change:', resp);
+      console.log('📦 resp.data:', resp?.data);
+      console.log('📦 resp.data.blogs:', resp?.data?.blogs);
+      
+      // Extract blogs - same logic as refreshPosts
+      let blogsList = [];
+      if (resp?.data?.blogs) {
+        blogsList = resp.data.blogs;
+        console.log('✅ Extracted from resp.data.blogs');
+      } else if (resp?.blogs) {
+        blogsList = resp.blogs;
+        console.log('✅ Extracted from resp.blogs');
+      } else if (Array.isArray(resp?.data)) {
+        blogsList = resp.data;
+        console.log('✅ Extracted from resp.data (array)');
+      } else if (Array.isArray(resp)) {
+        blogsList = resp;
+        console.log('✅ Extracted from resp (array)');
+      }
+      
+      console.log('📊 Total blogs extracted:', blogsList.length);
+      console.log('📊 Blogs data:', blogsList);
+      console.log('✅ Blogs loaded for hotel:', blogsList.length);
+      setPosts(Array.isArray(blogsList) ? blogsList : []);
+      setCurrentPage(1);
+      setStats(prev => ({ ...prev, totalPosts: Array.isArray(blogsList) ? blogsList.length : 0 }));
+    } catch (err) {
+      console.error('❌ Failed to load posts for selected hotel:', err);
+      setModalNotification({ message: err.message || 'Không thể tải bài viết', type: 'error' });
+      setPosts([]);
+    } finally {
+      setLoadingData(false);
+    }
   };
 
   const handleAddImageFromUrl = () => {
@@ -382,32 +468,48 @@ const MarketingPage = () => {
 
   // Handle form submit
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!postContent.trim() || !selectedHotel) {
-      setModalNotification({ message: 'Vui lòng nhập nội dung và chọn khách sạn!', type: 'error' });
+    if (e) e.preventDefault();
+    
+    if (!createTitle.trim() || !createContent.trim() || !selectedHotel) {
+      setModalNotification({ message: 'Vui lòng nhập đầy đủ tiêu đề, nội dung và chọn khách sạn!', type: 'error' });
       return;
     }
 
     try {
       setLoadingData(true);
       
-      // Tìm hotel ID từ tên được chọn
-      const selectedHotelObj = hotels.find(h => h.name === selectedHotel);
-      const hotelIdToSend = selectedHotelObj?.hotelId || selectedHotelObj?.hotel_id;
-      
-      if (!hotelIdToSend) {
-        setModalNotification({ message: 'Không tìm thấy thông tin khách sạn. Vui lòng chọn lại!', type: 'error' });
-        return;
-      }
+      // Prepare all blog images (thumbnail + blog_images)
+      const allImages = [];
+      if (createThumbnail) allImages.push(createThumbnail);
+      allImages.push(...createBlogImages);
+
+      // Auto-generate slug if not provided
+      const finalSlug = createSlug.trim() || createTitle.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
 
       // Chuẩn bị dữ liệu blog theo cấu trúc database
+      // Nếu là staff thì tạo blog với status = draft, nếu là owner thì pending
+      const initialStatus = user?.roleId === USER_ROLES.HOTEL_STAFF ? 'draft' : 'pending';
+      
       const blogData = {
-        hotel_id: hotelIdToSend,
-        title: postContent.substring(0, 100) + (postContent.length > 100 ? '...' : ''), // Auto generate title from content
-        content: postContent,
-        featured_image_url: images.length > 0 ? images[0] : null,
-        status: 'published', // Tạo luôn ở trạng thái published
-        blog_images: images.map((url, index) => ({
+        hotel_id: selectedHotel,
+        title: createTitle.trim(),
+        slug: finalSlug,
+        content: createContent.trim(),
+        excerpt: createExcerpt.trim() || null,
+        tags: createTags.trim() || null,
+        meta_description: createMetaDescription.trim() || null,
+        featured_image_url: createThumbnail || null,
+        status: initialStatus,
+        author_id: user?.userId || user?.id || user?.user_id,
+        blog_images: allImages.map((url, index) => ({
           image_url: url,
           order_index: index,
           caption: ''
@@ -420,17 +522,38 @@ const MarketingPage = () => {
       const response = await blogService.createBlog(blogData);
       console.log('✅ Blog created successfully:', response);
       
-      // Refresh danh sách posts bằng cách gọi lại refreshPosts()
-      console.log('🔄 Refreshing posts after blog creation...');
+      // Lưu blog_images vào database nếu có
+      if (response?.data?.blogId && allImages.length > 0) {
+        console.log('📸 Saving blog images to database...');
+        try {
+          const imageData = allImages.map((url, index) => ({
+            image_url: url,
+            caption: '',
+            order_index: index
+          }));
+          await blogService.addBlogImages(response.data.blogId, imageData);
+          console.log('✅ Blog images saved successfully');
+        } catch (imgError) {
+          console.error('⚠️ Error saving blog images:', imgError);
+          // Không throw error vì blog đã được tạo thành công
+        }
+      }
+      
+      // Refresh danh sách posts
       await refreshPosts();
       
-      // Reset form
-      setPostContent('');
-      setImages([]);
-      setSelectedHotel('');
-      setShowCreateForm(false);
-      setShowAllImages(false);
-      setCurrentPage(1);
+      // Reset form and close modal
+      setCreateTitle('');
+      setCreateContent('');
+      setCreateExcerpt('');
+      setCreateSlug('');
+      setCreateTags('');
+      setCreateMetaDescription('');
+      setCreateThumbnail(null);
+      setCreateBlogImages([]);
+      setCreateThumbnailUrl('');
+      setCreateBlogImageUrl('');
+      setShowCreateModal(false);
       setModalNotification({ message: '✅ Tạo bài viết thành công!', type: 'success' });
     } catch (error) {
       console.error('❌ Error creating blog post:', error);
@@ -456,35 +579,32 @@ const MarketingPage = () => {
     all: 0,
     published: 0,
     draft: 0,
-    archived: 0
+    pending: 0,
+    archived: 0,
+    rejected: 0
   };
 
-  // Đếm số lượng bài viết theo từng trạng thái (chỉ của hotel owner, không bao gồm admin)
+  // Đếm số lượng bài viết theo từng trạng thái
+  // NOTE: Không filter theo admin nữa, vì tất cả blog đã được filter theo hotel_id từ API
   posts.forEach(post => {
-    // Loại bỏ bài viết của admin
-    if (post.roleId && post.roleId === 1) return;
-    if (post.author === 'admin') return;
-    if (post.authorRole && post.authorRole === 1) return;
-    if (post.userRole && post.userRole === 1) return;
-    
     // Đếm tổng số
     statusCounts.all++;
     
     // Đếm theo từng trạng thái
-    if (post.status === 'published') statusCounts.published++;
-    else if (post.status === 'draft') statusCounts.draft++;
-    else if (post.status === 'archived') statusCounts.archived++;
+    const status = post.status?.toLowerCase();
+    if (status === 'published') statusCounts.published++;
+    else if (status === 'draft') statusCounts.draft++;
+    else if (status === 'pending') statusCounts.pending++;
+    else if (status === 'archived') statusCounts.archived++;
+    else if (status === 'rejected') statusCounts.rejected++;
   });
 
   // Filter and sort posts
   const filteredAndSortedPosts = posts
     .filter(post => {
-      // Loại bỏ bài viết của admin - CHỈ LẤY BLOG CỦA CHỦ KHÁCH SẠN
-      // Kiểm tra nhiều trường để đảm bảo không lấy blog admin
-      if (post.roleId && post.roleId === 1) return false; // Loại bỏ nếu roleId = 1 (admin)
-      if (post.author === 'admin') return false; // Loại bỏ nếu author = 'admin'  
-      if (post.authorRole && post.authorRole === 1) return false; // Loại bỏ nếu authorRole = 1
-      if (post.userRole && post.userRole === 1) return false; // Loại bỏ nếu userRole = 1
+      // NOTE: Không lọc theo author/username nữa vì đã lọc theo hotel_id rồi
+      // Tất cả blog trả về từ API getBlogsByHotel đều thuộc về khách sạn này
+      // Chỉ cần lọc theo statusFilter và searchTerm
       
       // Lọc theo trạng thái
       if (statusFilter !== 'all' && post.status !== statusFilter) return false;
@@ -658,9 +778,40 @@ const MarketingPage = () => {
 
   const handleStatusChangeDetail = async (newStatus) => {
     if (!selectedBlog) return;
-    // Phân quyền FE: admin (roleId=1) luôn được đổi, chủ khách sạn (roleId=2) chỉ được đổi nếu là người tạo
+    
+    const currentStatus = selectedBlog.status;
+    
+    // Kiểm tra logic chuyển trạng thái
+    // draft, rejected không được chuyển trạng thái từ detail view
+    if (['draft', 'rejected'].includes(currentStatus)) {
+      setModalNotification({ message: 'Bài viết này không thể thay đổi trạng thái!', type: 'error' });
+      return;
+    }
+    
+    // pending chỉ có thể -> published hoặc rejected
+    if (currentStatus === 'pending' && !['published', 'rejected'].includes(newStatus)) {
+      setModalNotification({ message: 'Bài viết chờ duyệt chỉ có thể Xuất bản hoặc Từ chối!', type: 'error' });
+      return;
+    }
+    
+    // published chỉ có thể -> archived hoặc rejected
+    if (currentStatus === 'published' && !['archived', 'rejected'].includes(newStatus)) {
+      setModalNotification({ message: 'Bài viết đã xuất bản chỉ có thể chuyển sang Lưu trữ hoặc Từ chối!', type: 'error' });
+      return;
+    }
+    
+    // archived chỉ có thể -> published
+    if (currentStatus === 'archived' && newStatus !== 'published') {
+      setModalNotification({ message: 'Bài viết đã lưu trữ chỉ có thể chuyển sang Xuất bản!', type: 'error' });
+      return;
+    }
+    
+    // ✅ FIX: Phân quyền - bỏ qua các giá trị undefined
     const isAdmin = user && user.roleId === 1;
-    const isHotelOwner = user && user.roleId === 2 && (user.id === selectedBlog.authorId || user.id === selectedBlog.author || user.username === selectedBlog.author);
+    const isAuthorOfBlog = (selectedBlog.authorId && user?.userId && selectedBlog.authorId === user.userId) ||
+                          (selectedBlog.author_id && user?.userId && selectedBlog.author_id === user.userId) ||
+                          (selectedBlog.authorId && user?.id && selectedBlog.authorId === user.id);
+    const isHotelOwner = user && user.roleId === 2 && isAuthorOfBlog;
     if (!user || (!isAdmin && !isHotelOwner)) {
       setDetailError('Bạn không có quyền đổi trạng thái bài viết này.');
       return;
@@ -730,6 +881,10 @@ const MarketingPage = () => {
     setEditForm({
       title: normalizedBlog.title,
       content: normalizedBlog.content,
+      slug: blog.slug || '',
+      excerpt: blog.excerpt || '',
+      tags: blog.tags || '',
+      metaDescription: blog.metaDescription || blog.meta_description || '',
       status: normalizedBlog.status
     });
     
@@ -808,6 +963,10 @@ const MarketingPage = () => {
       const updateData = {
         title: editForm.title.trim(),
         content: editForm.content.trim(),
+        slug: editForm.slug.trim() || null,
+        excerpt: editForm.excerpt.trim() || null,
+        tags: editForm.tags.trim() || null,
+        meta_description: editForm.metaDescription.trim() || null,
         status: editForm.status,
         featured_image_url: editImages.length > 0 ? editImages[0].imageUrl : null
       };
@@ -839,10 +998,30 @@ const MarketingPage = () => {
   const handleCloseEditModal = () => {
     setShowEditModal(false);
     setEditingBlog(null);
-    setEditForm({ title: '', content: '', status: 'draft' });
+    setEditForm({ 
+      title: '', 
+      content: '', 
+      slug: '',
+      excerpt: '',
+      tags: '',
+      metaDescription: '',
+      status: 'draft' 
+    });
     setEditImages([]);
     setShowEditImageUrlDialog(false);
     setEditImageUrl('');
+  };
+
+  // Hàm submit blog từ draft sang pending (cho staff)
+  const handleSubmitBlogForReview = async (blog) => {
+    try {
+      await blogService.updateBlogStatus(blog.blogId || blog.blog_id || blog.id, 'pending');
+      setModalNotification({ message: '✅ Đã nộp bài viết để chờ duyệt!', type: 'success' });
+      refreshPosts();
+    } catch (error) {
+      console.error('❌ Error submitting blog:', error);
+      setModalNotification({ message: '❌ Lỗi nộp bài viết!', type: 'error' });
+    }
   };
 
   // Hàm xử lý thêm ảnh từ URL trong edit modal
@@ -938,9 +1117,22 @@ const MarketingPage = () => {
   };
   // Tự động load lại ảnh khi danh sách posts thay đổi
   useEffect(() => {
+    console.log('📊 [Main] Posts state changed!');
+    console.log('📊 [Main] Total posts:', posts.length);
+    console.log('📊 [Main] Posts data:', posts);
     if (posts.length > 0) {
       console.log('🔄 [Main] Posts changed, loading images for', posts.length, 'posts');
+      posts.forEach((post, idx) => {
+        console.log(`📋 Post ${idx + 1}:`, {
+          id: post.blogId || post.id,
+          title: post.title,
+          author: post.username,
+          status: post.status
+        });
+      });
       loadAllBlogImages(posts);
+    } else {
+      console.log('⚠️ [Main] Posts array is empty!');
     }
   }, [posts]);
 
@@ -1011,11 +1203,23 @@ const MarketingPage = () => {
   const handleShowComments = async (blog) => {
     console.log('🚀 [handleShowComments] Starting to load comments for blog:', blog);
     
+    // Reset TOÀN BỘ state trước khi mở panel mới
+    console.log('🔄 Resetting all comment states before opening new panel');
+    setComments([]);
+    setNewComment('');
+    setReplyingTo(null);
+    setReplyContent('');
+    setExpandedComments(new Set());
+    setCommentsPage(1);
+    setTotalComments(0);
+    setHasMoreComments(false);
+    setLoadingMoreComments(false);
+    setCommentSortBy('newest');
+    setCommentFilter('all');
+    
     setSelectedBlogForComments(blog);
     setShowCommentsPanel(true);
     setCommentsLoading(true);
-    setCommentsPage(1);
-    setComments([]);
     
     try {
       await loadCommentsData(blog, 1, true); // true = reset comments
@@ -1039,19 +1243,26 @@ const MarketingPage = () => {
     // Parse response data
     let commentsData = [];
     let total = 0;
+    let parentTotal = 0; // Số lượng parent comments (không tính replies)
     
     if (Array.isArray(response)) {
       commentsData = response;
-      total = response.length;
+      // Đếm chỉ parent comments (không có parentCommentId)
+      parentTotal = response.filter(c => !c.parentCommentId && !c.parent_comment_id).length;
+      total = parentTotal;
     } else if (response?.data && Array.isArray(response.data)) {
       commentsData = response.data;
-      total = response.total || response.data.length;
+      // Đếm chỉ parent comments
+      parentTotal = response.data.filter(c => !c.parentCommentId && !c.parent_comment_id).length;
+      total = response.totalParents || response.parentTotal || parentTotal;
     } else if (response?.comments && Array.isArray(response.comments)) {
       commentsData = response.comments;
-      total = response.total || response.comments.length;
+      // Đếm chỉ parent comments
+      parentTotal = response.comments.filter(c => !c.parentCommentId && !c.parent_comment_id).length;
+      total = response.totalParents || response.parentTotal || parentTotal;
     }
     
-    const organizedComments = organizeCommentsTree(commentsData);
+    const organizedComments = organizeCommentsTree(commentsData, commentFilter);
     
     if (resetComments) {
       setComments(organizedComments);
@@ -1060,7 +1271,9 @@ const MarketingPage = () => {
     }
     
     setTotalComments(total);
-    setHasMoreComments(commentsData.length >= commentsPerPage);
+    // Check if there are more comments: current page results >= perPage AND we haven't loaded all yet
+    const currentLoadedCount = resetComments ? organizedComments.length : comments.length + organizedComments.length;
+    setHasMoreComments(organizedComments.length >= commentsPerPage && currentLoadedCount < total);
     setCommentsPage(page);
     
     return { commentsData, total };
@@ -1085,6 +1298,7 @@ const MarketingPage = () => {
 
   // Hàm đóng panel bình luận
   const handleCloseCommentsPanel = () => {
+    console.log('📤 Closing comments panel - resetting ALL states');
     setShowCommentsPanel(false);
     setSelectedBlogForComments(null);
     setComments([]);
@@ -1097,6 +1311,10 @@ const MarketingPage = () => {
     setTotalComments(0);
     setHasMoreComments(false);
     setLoadingMoreComments(false);
+    // Reset filter và sort về mặc định
+    setCommentSortBy('newest');
+    setCommentFilter('all');
+    setCommentsLoading(false);
   };
 
   // Hàm thay đổi sort/filter và reload comments
@@ -1118,11 +1336,27 @@ const MarketingPage = () => {
   const handleCommentFilterChange = async (newFilter) => {
     if (newFilter === commentFilter) return;
     
+    console.log('🔄 Changing filter from', commentFilter, 'to', newFilter);
     setCommentFilter(newFilter);
     setCommentsLoading(true);
     
     try {
-      await loadCommentsData(selectedBlogForComments, 1, true);
+      // Fetch lại data với filter mới
+      const blogId = selectedBlogForComments.blogId || selectedBlogForComments.blog_id || selectedBlogForComments.id;
+      const params = `page=1&limit=${commentsPerPage}&sort=${commentSortBy}&filter=${newFilter}`;
+      const response = await commentService.getBlogCommentsWithUser(blogId, params);
+      
+      let commentsData = [];
+      if (Array.isArray(response)) {
+        commentsData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        commentsData = response.data;
+      }
+      
+      // Organize ngay với newFilter (không chờ state update)
+      const organizedComments = organizeCommentsTree(commentsData, newFilter);
+      setComments(organizedComments);
+      setCommentsPage(1);
     } catch (error) {
       setModalNotification({ message: 'Lỗi khi tải bình luận', type: 'error' });
     } finally {
@@ -1130,21 +1364,37 @@ const MarketingPage = () => {
     }
   };
 
-  // Hàm tổ chức comments thành cây
-  const organizeCommentsTree = (comments) => {
+  // Hàm tổ chức comments thành cây (Facebook-style)
+  const organizeCommentsTree = (comments, filterStatus = commentFilter) => {
+    // 🔥 FILTER CHỈ PARENT COMMENTS (không filter replies)
+    // Nếu filter theo status, chỉ lọc parent comments, GIỮ NGUYÊN replies
+    let parentComments = comments.filter(c => !c.parentCommentId && !c.parent_comment_id);
+    let allReplies = comments.filter(c => c.parentCommentId || c.parent_comment_id);
+    
+    // Apply filter chỉ cho parent comments (dùng filterStatus parameter)
+    if (filterStatus && filterStatus !== 'all') {
+      const originalCount = parentComments.length;
+      parentComments = parentComments.filter(c => c.status === filterStatus);
+      console.log(`🔍 Filtered PARENT comments from ${originalCount} to ${parentComments.length} with status: ${filterStatus}`);
+      console.log(`🔍 Keeping ALL ${allReplies.length} replies (not filtered)`);
+    }
+    
+    // Combine: filtered parents + ALL replies
+    const filteredComments = [...parentComments, ...allReplies];
+    
     const commentMap = {};
     const rootComments = [];
 
     // First pass: create a map of all comments
-    comments.forEach(comment => {
+    filteredComments.forEach(comment => {
       commentMap[comment.commentId || comment.comment_id] = {
         ...comment,
         replies: []
       };
     });
 
-    // Second pass: organize into tree structure
-    comments.forEach(comment => {
+    // Second pass: organize into tree structure (chỉ từ filtered comments)
+    filteredComments.forEach(comment => {
       const commentObj = commentMap[comment.commentId || comment.comment_id];
       if (comment.parentCommentId || comment.parent_comment_id) {
         const parentId = comment.parentCommentId || comment.parent_comment_id;
@@ -1156,6 +1406,28 @@ const MarketingPage = () => {
         rootComments.push(commentObj);
       }
     });
+
+    // Sort ONLY parent comments by newest/oldest
+    // Keep child replies in chronological order (as returned from API)
+    rootComments.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.created_at);
+      const dateB = new Date(b.createdAt || b.created_at);
+      
+      if (commentSortBy === 'newest') {
+        return dateB - dateA; // Mới nhất trên cùng (21/08 trước 15/08)
+      } else if (commentSortBy === 'oldest') {
+        return dateA - dateB; // Cũ nhất trên cùng (15/08 trước 21/08)
+      } else if (commentSortBy === 'popular') {
+        // Sort by like count (popular)
+        const likesA = a.likeCount || a.like_count || 0;
+        const likesB = b.likeCount || b.like_count || 0;
+        return likesB - likesA;
+      }
+      return 0;
+    });
+
+    // Keep replies in chronological order (do not sort)
+    // Replies appear in the order they were created
 
     return rootComments;
   };
@@ -1189,8 +1461,13 @@ const MarketingPage = () => {
       setNewComment('');
       setModalNotification({ message: '✅ Đã gửi bình luận!', type: 'success' });
       
-      // Reload comments from the beginning để thấy bình luận mới
-      await loadCommentsData(selectedBlogForComments, 1, true);
+      // Reload comments from the beginning để thấy bình luận mới (Facebook-style refresh)
+      setCommentsLoading(true);
+      try {
+        await loadCommentsData(selectedBlogForComments, 1, true);
+      } finally {
+        setCommentsLoading(false);
+      }
     } catch (error) {
       console.error('Error creating comment:', error);
       setModalNotification({ message: 'Lỗi khi gửi bình luận: ' + error.message, type: 'error' });
@@ -1212,8 +1489,21 @@ const MarketingPage = () => {
       setReplyingTo(null);
       setModalNotification({ message: '✅ Đã trả lời bình luận!', type: 'success' });
       
-      // Reload comments from the beginning để thấy reply mới
-      await loadCommentsData(selectedBlogForComments, 1, true);
+      // Auto-expand the parent comment to show new reply
+      const parentId = replyingTo.commentId || replyingTo.comment_id;
+      setExpandedComments(prev => {
+        const newSet = new Set(prev);
+        newSet.add(parentId);
+        return newSet;
+      });
+      
+      // Reload comments from the beginning để thấy reply mới (Facebook-style refresh)
+      setCommentsLoading(true);
+      try {
+        await loadCommentsData(selectedBlogForComments, 1, true);
+      } finally {
+        setCommentsLoading(false);
+      }
     } catch (error) {
       console.error('Error replying to comment:', error);
       setModalNotification({ message: 'Lỗi khi trả lời bình luận: ' + error.message, type: 'error' });
@@ -1258,6 +1548,171 @@ const MarketingPage = () => {
     return date.toLocaleDateString('vi-VN');
   };
 
+  // Component Reply Form cho parent comments với local state
+  const ParentReplyForm = ({ comment, user, onCancel, onSubmit }) => {
+    const [localContent, setLocalContent] = useState('');
+    
+    return (
+      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+        <div className="flex space-x-2">
+          <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+            {(user?.fullName || user?.username || 'Y')[0].toUpperCase()}
+          </div>
+          <div className="flex-1">
+            <textarea
+              value={localContent}
+              onChange={(e) => setLocalContent(e.target.value)}
+              placeholder={`Trả lời ${comment.fullName || comment.username || 'người dùng'}...`}
+              className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              rows={2}
+              autoFocus
+            />
+            <div className="flex items-center justify-end space-x-1 mt-2">
+              <button
+                onClick={() => {
+                  setLocalContent('');
+                  onCancel();
+                }}
+                className="px-2 py-1 text-gray-600 hover:text-gray-800 text-xs"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  if (localContent.trim()) {
+                    onSubmit(localContent);
+                    setLocalContent('');
+                  }
+                }}
+                disabled={!localContent.trim()}
+                className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center"
+              >
+                <Send className="w-3 h-3 mr-1" />
+                Gửi
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // 🔄 Component đệ quy để render comment ở mọi tầng
+  const RenderCommentRecursive = ({ comment, depth }) => {
+    const commentId = comment.commentId || comment.comment_id;
+    const isExpanded = expandedComments.has(commentId);
+    const isReplying = replyingTo && (replyingTo.commentId === commentId || replyingTo.comment_id === commentId);
+    
+    // Local reply content for THIS comment only (không share giữa các comments)
+    const [localReplyContent, setLocalReplyContent] = useState('');
+    
+    // Màu avatar theo độ sâu
+    const avatarColors = [
+      'from-green-500 to-teal-500',    // depth 1
+      'from-purple-500 to-pink-500',   // depth 2
+      'from-orange-500 to-red-500',    // depth 3
+      'from-indigo-500 to-blue-500',   // depth 4+
+    ];
+    const avatarColor = avatarColors[Math.min(depth - 1, avatarColors.length - 1)];
+    
+    return (
+      <div className="space-y-2">
+        <div className="flex space-x-2">
+          <div className={`w-6 h-6 bg-gradient-to-br ${avatarColor} rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0`}>
+            {(comment.fullName || comment.username || 'U')[0].toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-1">
+              <h5 className="text-xs font-semibold text-gray-900 truncate">
+                {comment.fullName || comment.username || 'Người dùng'}
+              </h5>
+              <span className="text-xs text-gray-500">
+                {formatTimeAgo(comment.createdAt || comment.created_at)}
+              </span>
+            </div>
+            <p className="text-xs text-gray-700 mt-1 break-words">{comment.content}</p>
+            
+            {/* Actions: Trả lời và Xem replies */}
+            <div className="flex items-center space-x-3 text-xs mt-1">
+              <button
+                onClick={() => toggleReply(comment)}
+                className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
+              >
+                {isReplying ? '✕ Hủy' : '↩️ Trả lời'}
+              </button>
+              
+              {comment.replies && comment.replies.length > 0 && (
+                <button
+                  onClick={() => toggleCommentExpansion(commentId)}
+                  className="text-gray-600 hover:text-gray-800 font-medium transition-colors"
+                >
+                  {isExpanded ? '🔼 Ẩn' : `🔽 ${comment.replies.length} phản hồi`}
+                </button>
+              )}
+            </div>
+
+            {/* Reply Form - Dùng localReplyContent riêng */}
+            {isReplying && (
+              <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex space-x-2">
+                  <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                    {(user?.fullName || user?.username || 'Y')[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1">
+                    <textarea
+                      value={localReplyContent}
+                      onChange={(e) => setLocalReplyContent(e.target.value)}
+                      placeholder={`Trả lời ${comment.fullName || comment.username || 'người dùng'}...`}
+                      className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                      rows={2}
+                    />
+                    <div className="flex items-center justify-end space-x-1 mt-1">
+                      <button
+                        onClick={() => {
+                          setReplyingTo(null);
+                          setLocalReplyContent('');
+                        }}
+                        className="px-2 py-1 text-gray-600 hover:text-gray-800 text-xs"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        onClick={() => {
+                          // Gọi reply với localReplyContent
+                          setReplyContent(localReplyContent);
+                          handleReplyToComment();
+                          setLocalReplyContent('');
+                        }}
+                        disabled={!localReplyContent.trim()}
+                        className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center"
+                      >
+                        <Send className="w-3 h-3 mr-1" />
+                        Gửi
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Nested Replies - Đệ quy vô hạn */}
+            {comment.replies && comment.replies.length > 0 && isExpanded && (
+              <div className="mt-2 pl-3 space-y-2 border-l-2 border-gray-200">
+                {comment.replies.map((nestedReply) => (
+                  <RenderCommentRecursive
+                    key={nestedReply.commentId || nestedReply.comment_id}
+                    comment={nestedReply}
+                    depth={depth + 1}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="space-y-6">
@@ -1267,272 +1722,292 @@ const MarketingPage = () => {
             <h1 className="text-2xl font-bold text-gray-900">Marketing</h1>
             <p className="text-gray-600 mt-1">Quản lý bài viết marketing cho khách sạn của bạn</p>
             {loadingData && <p className="text-xs text-blue-600 mt-1">🔄 Đang tải dữ liệu...</p>}
+            {/* Hotel selector: chỉ hiển thị cho owner, staff tự động load hotel của mình */}
+            {user?.roleId === USER_ROLES.HOTEL_OWNER && (
+              <div className="mt-3 flex items-center space-x-3">
+                <label className="text-sm text-gray-600">Chọn khách sạn:</label>
+                <select
+                  value={selectedHotel}
+                  onChange={(e) => handleHotelChange(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  disabled={loadingData || hotelLoading}
+                >
+                  <option value="">{loadingData || hotelLoading ? 'Đang tải...' : 'Chọn khách sạn...'}</option>
+                  {hotels.map(hotel => {
+                    const _id = hotel.hotel_id || hotel.hotelId || hotel.id || hotel._id || '';
+                    const city = hotel.city ? ` - ${hotel.city}` : '';
+                    const status = hotel.status || hotel.state || (hotel.active === true ? 'active' : (hotel.active === false ? 'inactive' : ''));
+                    const statusText = status ? ` (${status})` : '';
+                    return (
+                      <option key={_id} value={_id}>
+                        {hotel.name}{city}{statusText}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+            {/* Hiển thị tên hotel cho staff */}
+            {user?.roleId === USER_ROLES.HOTEL_STAFF && hotels.length > 0 && (
+              <div className="mt-3">
+                <span className="text-sm text-gray-600">Khách sạn: </span>
+                <span className="text-sm font-semibold text-gray-900">{hotels[0]?.name || hotels[0]?.hotelName || 'Đang tải...'}</span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Stats removed - bình luận và bài viết */}
 
         {/* Create Form */}
-        {showCreateForm && (
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Tạo bài viết mới</h3>
-              <button 
-                onClick={() => setShowCreateForm(false)}
-                className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded text-sm"
-              >
-                ✕
-              </button>
-            </div>
-          
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Hotel Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Chọn khách sạn</label>
-                <select
-                  value={selectedHotel}
-                  onChange={(e) => setSelectedHotel(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  required
-                  disabled={hotelLoading}
+        {/* Create Blog Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-gray-900">Tạo bài viết mới</h3>
+                <button 
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setCreateTitle('');
+                    setCreateContent('');
+                    setCreateExcerpt('');
+                    setCreateSlug('');
+                    setCreateTags('');
+                    setCreateMetaDescription('');
+                    setCreateThumbnail(null);
+                    setCreateBlogImages([]);
+                    setCreateThumbnailUrl('');
+                    setCreateBlogImageUrl('');
+                  }}
+                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
                 >
-                  <option value="">{loadingData || hotelLoading ? 'Đang tải...' : 'Chọn khách sạn...'}</option>
-                  {hotels.map(hotel => (
-                    <option key={hotel.hotelId} value={hotel.name}>
-                      {hotel.name} - {hotel.city}
-                    </option>
-                  ))}
-                </select>
+                  ✕
+                </button>
               </div>
-
-              {/* Content Input */}
-              <div>
-                <textarea
-                  value={postContent}
-                  onChange={(e) => setPostContent(e.target.value)}
-                  placeholder="Chia sẻ về khách sạn của bạn..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-                  rows="4"
-                  required
-                />
-              </div>
-                
-              {/* Action Buttons */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1">
-                  {/* Image URL */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowImageUrlDialog(true)}
-                      className="flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded cursor-pointer transition-colors text-sm"
-                    >
-                      <FiImage className="mr-1" />
-                      Ảnh
-                    </button>
-                  </div>
-
-                  {/* Emoji Picker */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        closeAllDropdowns();
-                        const dropdown = document.getElementById('emojiDropdown');
-                        dropdown.style.display = 'block';
-                      }}
-                      className="flex items-center px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded transition-colors text-xs"
-                    >
-                      😊
-                    </button>
-
-                    <div
-                      id="emojiDropdown"
-                      style={{ display: 'none' }}
-                      className="absolute top-8 left-0 bg-white border border-gray-200 rounded shadow-lg p-2 z-10 w-48"
-                    >
-                      <div className="grid grid-cols-6 gap-1">
-                        {['😊', '😂', '🥰', '😍', '🤩', '😘', '😎', '🤗', '🤔', '😌', '😋', '😏', '❤️', '💙', '💚', '💛', '🧡', '💜', '👍', '👎', '👏', '🙌', '👌', '✌️', '🔥', '💯', '💪', '🎉', '🎊', '🥇', '🏆', '🎯', '🏨', '🏖️', '🏝️', '🏔️'].map(emoji => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => {
-                              setPostContent(prev => prev + ' ' + emoji);
-                              document.getElementById('emojiDropdown').style.display = 'none';
-                            }}
-                            className="p-1 hover:bg-gray-100 rounded text-sm transition-colors"
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Location */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        closeAllDropdowns();
-                        const dropdown = document.getElementById('locationDropdown');
-                        dropdown.style.display = 'block';
-                      }}
-                      className="flex items-center px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded transition-colors text-xs"
-                    >
-                      📍
-                    </button>
-
-                    <div
-                      id="locationDropdown"
-                      style={{ display: 'none' }}
-                      className="absolute top-8 left-0 bg-white border border-gray-200 rounded shadow-lg p-2 z-10 w-36"
-                    >
-                      <div className="space-y-1">
-                        {['TP.HCM', 'Hà Nội', 'Đà Nẵng', 'Nha Trang', 'Phú Quốc', 'Hạ Long'].map(location => (
-                          <button
-                            key={location}
-                            type="button"
-                            onClick={() => {
-                              setPostContent(prev => prev + ' 📍 ' + location);
-                              document.getElementById('locationDropdown').style.display = 'none';
-                            }}
-                            className="w-full text-left px-2 py-1 hover:bg-gray-100 rounded text-xs transition-colors"
-                          >
-                            {location}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
+              
+              <div className="p-6 space-y-4">
+                {/* Title Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tiêu đề bài viết</label>
+                  <input
+                    type="text"
+                    value={createTitle}
+                    onChange={(e) => setCreateTitle(e.target.value)}
+                    placeholder="Nhập tiêu đề bài viết..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
                 </div>
-                <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 font-medium transition-colors text-sm"
-              onClick={handleSaveDraft}
-              disabled={loadingData}
-            >
-              Lưu nháp
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium transition-colors text-sm"
-              disabled={loadingData}
-            >
-              Đăng bài
-              {loadingData }
-            </button>
-          </div>       
-              </div>
 
-              {/* Image Preview - Compact Scrollable Layout */}
-              {images.length > 0 && (
-                <div className="mt-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium">{images.length}</span> ảnh đã chọn
-                    </p>
+                {/* Content Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nội dung</label>
+                  <textarea
+                    value={createContent}
+                    onChange={(e) => setCreateContent(e.target.value)}
+                    placeholder="Viết nội dung bài viết của bạn..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    rows="6"
+                    required
+                  />
+                </div>
+
+                {/* Slug Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Đường dẫn (Slug) <span className="text-gray-400 text-xs">(Tự động tạo nếu để trống)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={createSlug}
+                    onChange={(e) => setCreateSlug(e.target.value)}
+                    placeholder="duong-dan-url (tự động tạo từ tiêu đề)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Excerpt Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tóm tắt</label>
+                  <textarea
+                    value={createExcerpt}
+                    onChange={(e) => setCreateExcerpt(e.target.value)}
+                    placeholder="Viết tóm tắt ngắn gọn..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    rows="3"
+                  />
+                </div>
+
+                {/* Tags and Meta Description */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                    <input
+                      type="text"
+                      value={createTags}
+                      onChange={(e) => setCreateTags(e.target.value)}
+                      placeholder="du lịch, khách sạn, resort"
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
-                  
-                  {/* Container có chiều cao cố định và scroll */}
-                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
-                    <div className="grid grid-cols-4 gap-3">
-                      {images.map((image, index) => (
-                        <div key={index} className="relative group bg-white rounded-lg overflow-hidden shadow-sm">
-                          {/* Ảnh đại diện badge */}
-                          {index === 0 && (
-                            <div className="absolute top-1 left-1 z-10 bg-blue-500 text-white text-xs px-2 py-0.5 rounded font-medium">
-                              Ảnh đại diện
-                            </div>
-                          )}
-                          
-                          <div className="aspect-square overflow-hidden bg-gray-100">
-                            <img 
-                              src={image} 
-                              alt={`Ảnh ${index + 1}`} 
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                              onError={(e) => {
-                                e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iMyIgeT0iMyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiByeD0iMiIgc3Ryb2tlPSIjOTQ5NDk0IiBzdHJva2Utd2lkdGg9IjIiLz4KPGNpcmNsZSBjeD0iOC41IiBjeT0iOC41IiByPSIxLjUiIGZpbGw9IiM5NDk0OTQiLz4KPHBhdGggZD0ibTIxIDEwLTUgNUw5IDhsLTYgNiIgc3Ryb2tlPSIjOTQ5NDk0IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K';
-                                e.target.className += ' p-2';
-                              }}
-                            />
-                          </div>
-                          
-                          {/* Control buttons - Chỉ hiện khi hover */}
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                            <div className="flex space-x-1">
-                              {/* Làm ảnh đại diện */}
-                              {index > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => setAsFirstImage(index)}
-                                  className="bg-blue-500 hover:bg-blue-600 text-white rounded p-1 text-xs transition-colors"
-                                  title="Đặt làm ảnh đại diện (featured_image_url)"
-                                >
-                                  🏆
-                                </button>
-                              )}
-                              
-                              {/* Di chuyển lên */}
-                              {index > 0 && (
-                                <button
-                                  type="button"
-                                  onClick={() => moveImageUp(index)}
-                                  className="bg-gray-700 hover:bg-gray-800 text-white rounded p-1 text-xs transition-colors"
-                                  title="Di chuyển lên"
-                                >
-                                  ↑
-                                </button>
-                              )}
-                              
-                              {/* Di chuyển xuống */}
-                              {index < images.length - 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => moveImageDown(index)}
-                                  className="bg-gray-700 hover:bg-gray-800 text-white rounded p-1 text-xs transition-colors"
-                                  title="Di chuyển xuống"
-                                >
-                                  ↓
-                                </button>
-                              )}
-                              
-                              {/* Xóa */}
-                              <button
-                                type="button"
-                                onClick={() => removeImage(index)}
-                                className="bg-red-500 hover:bg-red-600 text-white rounded p-1 text-xs transition-colors"
-                                title="Xóa ảnh"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          </div>
-                          
-                          {/* Số thứ tự */}
-                          <div className="absolute bottom-1 right-1 bg-black bg-opacity-70 text-white text-xs px-1.5 py-0.5 rounded font-medium">
-                            {index + 1}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    {/* Hướng dẫn nếu chưa có ảnh */}
-                    {images.length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <div className="text-4xl mb-2">🖼️</div>
-                        <p className="text-sm">Chưa có ảnh nào</p>
-                        <p className="text-xs mt-1">Click nút "Ảnh" để thêm ảnh từ URL</p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Meta Description</label>
+                    <input
+                      type="text"
+                      value={createMetaDescription}
+                      onChange={(e) => setCreateMetaDescription(e.target.value)}
+                      placeholder="Mô tả cho SEO"
+                      className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Thumbnail Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ảnh đại diện (Thumbnail)
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    {createThumbnail ? (
+                      <div className="relative">
+                        <img 
+                          src={createThumbnail} 
+                          alt="Thumbnail" 
+                          className="w-full h-48 object-cover rounded"
+                          onError={(e) => { e.target.src = 'https://via.placeholder.com/400x300?text=Invalid+Image'; }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setCreateThumbnail(null)}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <FiImage className="mx-auto text-gray-400 text-4xl mb-2" />
+                        <input
+                          type="url"
+                          value={createThumbnailUrl}
+                          onChange={(e) => setCreateThumbnailUrl(e.target.value)}
+                          placeholder="Nhập URL ảnh đại diện..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 mb-2"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (createThumbnailUrl.trim()) {
+                              setCreateThumbnail(createThumbnailUrl.trim());
+                              setCreateThumbnailUrl('');
+                            }
+                          }}
+                          disabled={!createThumbnailUrl.trim()}
+                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
+                        >
+                          Thêm ảnh đại diện
+                        </button>
                       </div>
                     )}
                   </div>
-                  
-
                 </div>
-              )}
-            </form>
+
+                {/* Blog Images Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ảnh bài viết (Blog Images) - Có thể thêm nhiều ảnh
+                  </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    {/* Add Image Input */}
+                    <div className="mb-4">
+                      <input
+                        type="url"
+                        value={createBlogImageUrl}
+                        onChange={(e) => setCreateBlogImageUrl(e.target.value)}
+                        placeholder="Nhập URL ảnh bài viết..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 mb-2"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (createBlogImageUrl.trim()) {
+                            setCreateBlogImages(prev => [...prev, createBlogImageUrl.trim()]);
+                            setCreateBlogImageUrl('');
+                          }
+                        }}
+                        disabled={!createBlogImageUrl.trim()}
+                        className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
+                      >
+                        + Thêm ảnh
+                      </button>
+                    </div>
+
+                    {/* Images Grid */}
+                    {createBlogImages.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-3">
+                        {createBlogImages.map((img, index) => (
+                          <div key={index} className="relative group">
+                            <img 
+                              src={img} 
+                              alt={`Blog ${index + 1}`} 
+                              className="w-full h-32 object-cover rounded"
+                              onError={(e) => { e.target.src = 'https://via.placeholder.com/200?text=Invalid'; }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setCreateBlogImages(prev => prev.filter((_, i) => i !== index))}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-600 transition-all text-xs"
+                            >
+                              ×
+                            </button>
+                            <div className="absolute bottom-1 right-1 bg-black bg-opacity-70 text-white text-xs px-1.5 py-0.5 rounded">
+                              {index + 1}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <FiImage className="mx-auto text-4xl mb-2" />
+                        <p className="text-sm">Chưa có ảnh nào</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setCreateTitle('');
+                    setCreateContent('');
+                    setCreateExcerpt('');
+                    setCreateSlug('');
+                    setCreateTags('');
+                    setCreateMetaDescription('');
+                    setCreateThumbnail(null);
+                    setCreateBlogImages([]);
+                    setCreateThumbnailUrl('');
+                    setCreateBlogImageUrl('');
+                  }}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-100 transition-colors text-sm"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={loadingData || !createTitle.trim() || !createContent.trim() || !selectedHotel}
+                  className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                >
+                  {loadingData ? 'Đang tạo...' : 'Tạo bài viết'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1602,13 +2077,15 @@ const MarketingPage = () => {
                   style={{ minWidth: 120 }}
                 >
                   <option value="all">Tất cả trạng thái ({statusCounts.all})</option>
-                  <option value="published">Đã xuất bản ({statusCounts.published})</option>
                   <option value="draft">Bản nháp ({statusCounts.draft})</option>
+                  <option value="pending">Chờ duyệt ({statusCounts.pending})</option>
+                  <option value="published">Đã xuất bản ({statusCounts.published})</option>
+                  <option value="rejected">Bị từ chối ({statusCounts.rejected})</option>
                   <option value="archived">Đã lưu trữ ({statusCounts.archived})</option>
                 </select>
               </div>
               <button
-                onClick={() => setShowCreateForm(true)}
+                onClick={() => setShowCreateModal(true)}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-medium"
               >
                 <FiPlus className="mr-1" />
@@ -1741,29 +2218,72 @@ const MarketingPage = () => {
                             
                             </button>
                             <div className="flex items-center space-x-2">
-                              {blog.status === 'draft' && (
-                                <button
-                                  onClick={() => handleChangeStatus(blog.blogId || blog.id || blog.blog_id, 'published')}
-                                  className="inline-flex items-center px-2 py-1 border border-green-500 text-green-700 bg-green-50 rounded hover:bg-green-100 text-xs font-medium transition-colors disabled:opacity-50"
-                                  title="Xuất bản"
-                                >
-                                  Xuất bản
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleEditBlog(blog)}
-                                className="inline-flex items-center p-2 border border-transparent rounded-md text-blue-600 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50"
-                                title="Chỉnh sửa bài viết"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => setShowDeleteConfirm(blog)}
-                                className="inline-flex items-center p-2 border border-transparent rounded-md text-orange-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors disabled:opacity-50"
-                                title="Xóa"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                              </button>
+                              {/* Kiểm tra xem blog có phải của user hiện tại không */}
+                              {(() => {
+                                // Debug: In ra để kiểm tra
+                                console.log('🔍 Blog debug:', {
+                                  blogTitle: blog.title,
+                                  blogAuthorId: blog.authorId,
+                                  blogAuthor_id: blog.author_id,
+                                  userUserId: user?.userId,
+                                  userId: user?.id,
+                                  userRoleId: user?.roleId
+                                });
+                                
+                                // ✅ FIX: Kiểm tra isAuthor - bỏ qua các giá trị undefined
+                                const isAuthor = (blog.authorId && user?.userId && blog.authorId === user.userId) || 
+                                                (blog.author_id && user?.userId && blog.author_id === user.userId) || 
+                                                (blog.authorId && user?.id && blog.authorId === user.id) || 
+                                                (blog.author_id && user?.id && blog.author_id === user.id);
+                                
+                                console.log('✅ isAuthor:', isAuthor);
+                                
+                                // Owner: Có quyền với tất cả blog
+                                // Staff: Chỉ có quyền với blog của mình
+                                const hasPermission = user?.roleId === USER_ROLES.HOTEL_OWNER || 
+                                                     (user?.roleId === USER_ROLES.HOTEL_STAFF && isAuthor);
+                                
+                                console.log('🔑 hasPermission:', hasPermission);
+                                
+                                if (!hasPermission) return null;
+                                
+                                return (
+                                  <>
+                                    {/* Nút Submit cho staff nếu blog ở trạng thái draft và là tác giả */}
+                                    {user?.roleId === USER_ROLES.HOTEL_STAFF && 
+                                     blog.status === 'draft' && (
+                                      <button
+                                        onClick={() => handleSubmitBlogForReview(blog)}
+                                        className="inline-flex items-center px-2 py-1 border border-green-500 text-green-700 bg-green-50 rounded hover:bg-green-100 text-xs font-medium transition-colors"
+                                        title="Nộp bài để chờ duyệt"
+                                      >
+                                        <Send className="w-3 h-3 mr-1" />
+                                        Nộp
+                                      </button>
+                                    )}
+                                    
+                                    {/* Nút Edit - Không hiển thị nếu blog đang pending (chỉ áp dụng với staff) */}
+                                    {(user?.roleId === USER_ROLES.HOTEL_OWNER || blog.status !== 'pending') && (
+                                      <button
+                                        onClick={() => handleEditBlog(blog)}
+                                        className="inline-flex items-center p-2 border border-transparent rounded-md text-blue-600 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50"
+                                        title="Chỉnh sửa bài viết"
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </button>
+                                    )}
+                                    
+                                    {/* Nút Delete */}
+                                    <button
+                                      onClick={() => setShowDeleteConfirm(blog)}
+                                      className="inline-flex items-center p-2 border border-transparent rounded-md text-orange-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors disabled:opacity-50"
+                                      title="Xóa"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                    </button>
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -2155,49 +2675,101 @@ const MarketingPage = () => {
                         {/* Hành động - Chỉ biểu tượng */}
                         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                           <div className="flex justify-center space-x-3">
-                            {user && (user.roleId === 1 || (user.roleId === 2 && (user.id === selectedBlog.authorId || user.id === selectedBlog.author || user.username === selectedBlog.author))) ? (
-                              <>
-                                {selectedBlog.status === 'draft' && (
-                                  <button
-                                    onClick={() => handleStatusChangeDetail('published')}
-                                    disabled={detailLoading}
-                                    className="p-3 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
-                                    title="Xuất bản"
-                                  >
-                                    <CheckCircle className="h-5 w-5" />
-                                  </button>
-                                )}
-                                {selectedBlog.status === 'published' && (
-                                  <button
-                                    onClick={() => handleStatusChangeDetail('archived')}
-                                    disabled={detailLoading}
-                                    className="p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
-                                    title="Lưu trữ"
-                                  >
-                                    <Archive className="h-5 w-5" />
-                                  </button>
-                                )}
-                                {selectedBlog.status === 'archived' && (
-                                  <button
-                                    onClick={() => handleStatusChangeDetail('published')}
-                                    disabled={detailLoading}
-                                    className="p-3 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
-                                    title="Khôi phục"
-                                  >
-                                    <CheckCircle className="h-5 w-5" />
-                                  </button>
-                                )}
-                              </>
-                            ) : (
-                              <div className="text-xs text-red-500 font-medium bg-red-50 px-3 py-2 rounded-lg">Không có quyền</div>
-                            )}
-                            <button
-                              onClick={() => setShowDeleteConfirm(true)}
-                              className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg"
-                              title="Xóa"
-                            >
-                              <Trash2 className="h-5 w-5" />
-                            </button>
+                            {(() => {
+                              // ✅ FIX: Kiểm tra quyền - bỏ qua các giá trị undefined
+                              const isAuthor = (selectedBlog.authorId && user?.userId && selectedBlog.authorId === user.userId) || 
+                                              (selectedBlog.author_id && user?.userId && selectedBlog.author_id === user.userId) || 
+                                              (selectedBlog.authorId && user?.id && selectedBlog.authorId === user.id) || 
+                                              (selectedBlog.author_id && user?.id && selectedBlog.author_id === user.id);
+                              
+                              const canChangeStatus = user?.roleId === USER_ROLES.HOTEL_OWNER;
+                              const canDelete = user?.roleId === USER_ROLES.HOTEL_OWNER || 
+                                               (user?.roleId === USER_ROLES.HOTEL_STAFF && isAuthor);
+                              
+                              return (
+                                <>
+                                  {canChangeStatus ? (
+                                    <>
+                                      {/* Pending: Xuất bản hoặc Từ chối */}
+                                      {selectedBlog.status === 'pending' && (
+                                        <>
+                                          <button
+                                            onClick={() => handleStatusChangeDetail('published')}
+                                            disabled={detailLoading}
+                                            className="p-3 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+                                            title="Xuất bản"
+                                          >
+                                            <CheckCircle className="h-5 w-5" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleStatusChangeDetail('rejected')}
+                                            disabled={detailLoading}
+                                            className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+                                            title="Từ chối"
+                                          >
+                                            <XCircle className="h-5 w-5" />
+                                          </button>
+                                        </>
+                                      )}
+                                      
+                                      {/* Published: Lưu trữ hoặc Từ chối */}
+                                      {selectedBlog.status === 'published' && (
+                                        <>
+                                          <button
+                                            onClick={() => handleStatusChangeDetail('archived')}
+                                            disabled={detailLoading}
+                                            className="p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+                                            title="Lưu trữ"
+                                          >
+                                            <Archive className="h-5 w-5" />
+                                          </button>
+                                          <button
+                                            onClick={() => handleStatusChangeDetail('rejected')}
+                                            disabled={detailLoading}
+                                            className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+                                            title="Từ chối"
+                                          >
+                                            <XCircle className="h-5 w-5" />
+                                          </button>
+                                        </>
+                                      )}
+                                      
+                                      {/* Archived: Khôi phục (Xuất bản) */}
+                                      {selectedBlog.status === 'archived' && (
+                                        <button
+                                          onClick={() => handleStatusChangeDetail('published')}
+                                          disabled={detailLoading}
+                                          className="p-3 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+                                          title="Khôi phục"
+                                        >
+                                          <CheckCircle className="h-5 w-5" />
+                                        </button>
+                                      )}
+                                      
+                                      {/* Draft, Rejected: Không có action */}
+                                      {['draft', 'rejected'].includes(selectedBlog.status) && (
+                                        <div className="text-xs text-gray-500 font-medium bg-gray-50 px-3 py-2 rounded-lg">
+                                          Không thể thay đổi trạng thái
+                                        </div>
+                                      )}
+                                    </>
+                                  ) : !canDelete ? (
+                                    <div className="text-xs text-red-500 font-medium bg-red-50 px-3 py-2 rounded-lg">Không có quyền</div>
+                                  ) : null}
+                                  
+                                  {/* Nút xóa - Chỉ hiển thị nếu có quyền */}
+                                  {canDelete && (
+                                    <button
+                                      onClick={() => setShowDeleteConfirm(true)}
+                                      className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg"
+                                      title="Xóa"
+                                    >
+                                      <Trash2 className="h-5 w-5" />
+                                    </button>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -2354,23 +2926,151 @@ const MarketingPage = () => {
                   />
                   <p className="text-xs text-gray-500 mt-1">{editForm.content.length} ký tự</p>
                 </div>
-                
-                {/* Status */}
+
+                {/* Slug */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Trạng thái
+                    Đường dẫn (Slug) <span className="text-gray-400 text-xs">(Tự động tạo nếu để trống)</span>
                   </label>
-                  <select
-                    value={editForm.status}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, status: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="draft">Bản nháp</option>
-                    <option value="published">Đã xuất bản</option>
-                    <option value="archived">Lưu trữ</option>
-                  </select>
+                  <input
+                    type="text"
+                    value={editForm.slug}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, slug: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="duong-dan-url (tự động tạo từ tiêu đề)"
+                  />
                 </div>
 
+                {/* Excerpt */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tóm tắt
+                  </label>
+                  <textarea
+                    value={editForm.excerpt}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, excerpt: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    placeholder="Viết tóm tắt ngắn gọn..."
+                    rows={3}
+                  />
+                </div>
+
+                {/* Tags and Meta Description */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+                    <input
+                      type="text"
+                      value={editForm.tags}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, tags: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="du lịch, khách sạn, resort"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Meta Description</label>
+                    <input
+                      type="text"
+                      value={editForm.metaDescription}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, metaDescription: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Mô tả cho SEO"
+                    />
+                  </div>
+                </div>
+                
+                {/* Status - Hiển thị trạng thái hiện tại */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Trạng thái hiện tại
+                  </label>
+                  <div className="flex items-center space-x-3">
+                    <span className={`px-3 py-2 rounded-md text-sm font-medium ${getStatusColor(editForm.status)}`}>
+                      {getStatusIcon(editForm.status)} {getStatusText(editForm.status)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Status Actions - Chuyển đổi trạng thái */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Thay đổi trạng thái
+                  </label>
+                  <div className="flex items-center space-x-2 flex-wrap gap-2">
+                    {/* Pending: Xuất bản hoặc Từ chối */}
+                    {editForm.status === 'pending' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, status: 'published' }))}
+                          className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded-md transition-colors flex items-center"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Xuất bản
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, status: 'rejected' }))}
+                          className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-md transition-colors flex items-center"
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Từ chối
+                        </button>
+                      </>
+                    )}
+                    
+                    {/* Published: Lưu trữ hoặc Từ chối */}
+                    {editForm.status === 'published' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, status: 'archived' }))}
+                          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-md transition-colors flex items-center"
+                        >
+                          <Archive className="h-4 w-4 mr-1" />
+                          Lưu trữ
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, status: 'rejected' }))}
+                          className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-md transition-colors flex items-center"
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Từ chối
+                        </button>
+                      </>
+                    )}
+                    
+                    {/* Archived: Xuất bản hoặc Từ chối */}
+                    {editForm.status === 'archived' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, status: 'published' }))}
+                          className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded-md transition-colors flex items-center"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Xuất bản
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, status: 'rejected' }))}
+                          className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-md transition-colors flex items-center"
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Từ chối
+                        </button>
+                      </>
+                    )}
+                    
+                    {/* Draft, Rejected: Không thể đổi */}
+                    {['draft', 'rejected'].includes(editForm.status) && (
+                      <div className="text-xs text-gray-500 bg-gray-100 px-3 py-2 rounded-md">
+                        ⚠️ Không thể thay đổi trạng thái từ {getStatusText(editForm.status)}
+                      </div>
+                    )}
+                  </div>
+                </div>
 
               </div>
               
@@ -2461,17 +3161,17 @@ const MarketingPage = () => {
           />
         )}
 
-        {/* Comments Sidebar Panel - Modern Design */}
+        {/* Comments Modal Panel - Centered & Larger */}
         {showCommentsPanel && selectedBlogForComments && (
           <>
             {/* Backdrop */}
             <div 
-              className="fixed inset-0 bg-black bg-opacity-30 z-40"
+              className="fixed inset-0 bg-black bg-opacity-50 z-40"
               onClick={handleCloseCommentsPanel}
             ></div>
 
-            {/* Sidebar Panel */}
-            <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-50 flex flex-col border-l border-gray-200">
+            {/* Centered Modal Panel */}
+            <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[85vh] bg-white shadow-2xl z-50 flex flex-col rounded-2xl border border-gray-200">
               {/* Header */}
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 flex-shrink-0">
                 <div className="flex items-center justify-between">
@@ -2508,9 +3208,9 @@ const MarketingPage = () => {
                       className="bg-blue-800 text-white text-xs rounded px-2 py-1 border border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-300"
                       disabled={commentsLoading}
                     >
-                      <option value="newest">Mới nhất</option>
-                      <option value="oldest">Cũ nhất</option>
-                      <option value="popular">Phổ biến</option>
+                      <option value="newest">Cũ nhất</option>
+                      <option value="oldest">Mới nhất</option>
+                      {/* <option value="popular">Phổ biến</option> */}
                     </select>
                     
                     <select
@@ -2522,6 +3222,8 @@ const MarketingPage = () => {
                       <option value="all">Tất cả</option>
                       <option value="approved">Đã duyệt</option>
                       <option value="pending">Chờ duyệt</option>
+                      <option value="rejected">Từ chối</option>
+                      <option value="hidden">Đã ẩn</option>
                     </select>
                   </div>
                 </div>
@@ -2560,10 +3262,14 @@ const MarketingPage = () => {
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                                 comment.status === 'approved' ? 'bg-green-100 text-green-700' :
                                 comment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
+                                comment.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                comment.status === 'hidden' ? 'bg-gray-100 text-gray-700' :
+                                'bg-gray-100 text-gray-500'
                               }`}>
                                 {comment.status === 'approved' ? '✓' :
-                                 comment.status === 'pending' ? '⏳' : '✗'}
+                                 comment.status === 'pending' ? '⏳' : 
+                                 comment.status === 'rejected' ? '✗' :
+                                 comment.status === 'hidden' ? '👁️' : '?'}
                               </span>
                             </div>
 
@@ -2593,65 +3299,32 @@ const MarketingPage = () => {
                               )}
                             </div>
 
-                            {/* Reply Form */}
-                            {replyingTo && (replyingTo.commentId === comment.commentId || replyingTo.comment_id === comment.comment_id) && (
-                              <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                <div className="flex space-x-2">
-                                  <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
-                                    {(user?.fullName || user?.username || 'Y')[0].toUpperCase()}
-                                  </div>
-                                  <div className="flex-1">
-                                    <textarea
-                                      value={replyContent}
-                                      onChange={(e) => setReplyContent(e.target.value)}
-                                      placeholder={`Trả lời ${comment.fullName || comment.username || 'người dùng'}...`}
-                                      className="w-full px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-                                      rows={2}
-                                    />
-                                    <div className="flex items-center justify-end space-x-1 mt-2">
-                                      <button
-                                        onClick={() => {
-                                          setReplyingTo(null);
-                                          setReplyContent('');
-                                        }}
-                                        className="px-2 py-1 text-gray-600 hover:text-gray-800 text-xs"
-                                      >
-                                        Hủy
-                                      </button>
-                                      <button
-                                        onClick={handleReplyToComment}
-                                        disabled={!replyContent.trim()}
-                                        className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center"
-                                      >
-                                        <Send className="w-3 h-3 mr-1" />
-                                        Gửi
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
+                            {/* Reply Form - CHỈ hiện nếu đúng comment này được chọn */}
+                            {replyingTo && 
+                             (replyingTo.commentId || replyingTo.comment_id) === (comment.commentId || comment.comment_id) && (
+                              <ParentReplyForm 
+                                comment={comment} 
+                                user={user}
+                                onCancel={() => {
+                                  setReplyingTo(null);
+                                  setReplyContent('');
+                                }}
+                                onSubmit={(content) => {
+                                  setReplyContent(content);
+                                  handleReplyToComment();
+                                }}
+                              />
                             )}
 
-                            {/* Replies */}
+                            {/* Replies - Fully Recursive (Đệ quy hoàn toàn) */}
                             {comment.replies && comment.replies.length > 0 && expandedComments.has(comment.commentId || comment.comment_id) && (
                               <div className="mt-3 space-y-2 pl-4 border-l-2 border-blue-200">
                                 {comment.replies.map((reply) => (
-                                  <div key={reply.commentId || reply.comment_id} className="flex space-x-2">
-                                    <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-teal-500 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
-                                      {(reply.fullName || reply.username || reply.user?.full_name || 'U')[0].toUpperCase()}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center space-x-1">
-                                        <h5 className="text-xs font-semibold text-gray-900 truncate">
-                                          {reply.fullName || reply.username || reply.user?.full_name || 'Người dùng'}
-                                        </h5>
-                                        <span className="text-xs text-gray-500">
-                                          {formatTimeAgo(reply.createdAt || reply.created_at)}
-                                        </span>
-                                      </div>
-                                      <p className="text-xs text-gray-700 mt-1 break-words">{reply.content}</p>
-                                    </div>
-                                  </div>
+                                  <RenderCommentRecursive 
+                                    key={reply.commentId || reply.comment_id}
+                                    comment={reply}
+                                    depth={1}
+                                  />
                                 ))}
                               </div>
                             )}
@@ -2661,7 +3334,7 @@ const MarketingPage = () => {
                     ))}
 
                     {/* Infinite Scroll Trigger */}
-                    {hasMoreComments && (
+                    {hasMoreComments && totalComments > comments.length && (
                       <div className="p-4 text-center">
                         <button
                           onClick={handleLoadMoreComments}
@@ -2674,7 +3347,7 @@ const MarketingPage = () => {
                               Đang tải...
                             </span>
                           ) : (
-                            `⬇️ Tải thêm (còn ${Math.max(0, totalComments - comments.length)} bình luận)`
+                            `⬇️ Tải thêm bình luận`
                           )}
                         </button>
                       </div>
@@ -2735,9 +3408,8 @@ const MarketingPage = () => {
           </>
         )}
       </div>
-    
+
   );
 };
 
 export default MarketingPage;
-

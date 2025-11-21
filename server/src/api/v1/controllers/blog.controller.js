@@ -298,7 +298,25 @@ async searchBlogs(req, res, next) {
             next(error);
         }
     }
-
+    /**
+     * Lấy danh sách blog theo hotel_id
+     * GET /api/v1/blogs/hotel/:hotelId
+     */
+    async getBlogsByHotel(req, res, next) {
+        try {
+            const { hotelId } = req.params;
+            const { page = 1, limit = 10, status } = req.query;
+            const options = {
+                page: parseInt(page, 10) || 1,
+                limit: parseInt(limit, 10) || 10,
+                status
+            };
+            const result = await BlogService.getBlogsByHotel(hotelId, options);
+            res.status(200).json(result);
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new BlogController();

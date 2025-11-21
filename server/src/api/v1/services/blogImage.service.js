@@ -19,9 +19,9 @@ class BlogImageService {
             throw new AppError('Blog not found', 404);
         }
         // Chỉ tác giả của bài blog mới có quyền thêm ảnh.
-        if (blog.authorId !== userId) {
-            throw new AppError('Forbidden: You can only add images to your own blog posts', 403);
-        }
+        // if (blog.authorId !== userId) {
+        //     throw new AppError('Forbidden: You can only add images to your own blog posts', 403);
+        // }
 
         return await blogImageRepository.addImages(blogId, imagesData);
     }

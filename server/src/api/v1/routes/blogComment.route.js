@@ -20,7 +20,7 @@ router.route('/blogs/:blogId/comments')
 router.post(
     '/blogs/:blogId/comments/:commentId/reply',
     authenticate,
-    authorize(['admin', 'hotel_owner']), // Cho phép cả admin và chủ khách sạn
+    authorize(['admin', 'hotel_owner', 'hotel_staff']), // Cho phép cả admin và chủ khách sạn
     blogCommentController.replyToComment
 );
 

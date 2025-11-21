@@ -621,6 +621,78 @@ export const BlogProvider = ({ children }) => {
         setCurrentBlog(null);
     }, []);
 
+    // Optional filters state to be compatible with older callers
+    const [filters, setFiltersState] = useState({});
+
+    const setFilters = useCallback((f) => {
+        setFiltersState(prev => ({ ...prev, ...f }));
+    }, []);
+
+    const resetFilters = useCallback(() => {
+        setFiltersState({});
+    }, []);
+
+    // Provide a small dispatch compatibility layer so callers that use
+    // blogContext.dispatch(...) don't crash. It handles a few common
+    // action types used in hooks.
+    const dispatch = useCallback((action) => {
+        if (!action || !action.type) return;
+        switch (action.type) {
+            case 'SET_BLOGS':
+                setBlogs(Array.isArray(action.payload) ? action.payload : []);
+                break;
+            case 'SET_CURRENT_BLOG':
+                setCurrentBlog(action.payload || null);
+                break;
+            case 'INCREMENT_VIEW_COUNT': {
+                const blogId = action.payload;
+                setBlogs(prev => prev.map(b => {
+                    const id = b.blogId || b.id || b.blog_id;
+                    if (String(id) === String(blogId)) {
+                        const current = b.viewCount || b.view_count || 0;
+                        return { ...b, viewCount: current + 1 };
+                    }
+                    return b;
+                }));
+                setCurrentBlog(prev => {
+                    if (!prev) return prev;
+                    const id = prev.blogId || prev.id || prev.blog_id;
+                    if (String(id) === String(blogId)) {
+                        const current = prev.viewCount || prev.view_count || 0;
+                        return { ...prev, viewCount: current + 1 };
+                    }
+                    return prev;
+                });
+                break;
+            }
+            case 'TOGGLE_LIKE': {
+                const { blogId, liked } = action.payload || {};
+                setBlogs(prev => prev.map(b => {
+                    const id = b.blogId || b.id || b.blog_id;
+                    if (String(id) === String(blogId)) {
+                        const current = b.likeCount || b.like_count || 0;
+                        const next = liked ? current + 1 : Math.max(current - 1, 0);
+                        return { ...b, likeCount: next };
+                    }
+                    return b;
+                }));
+                setCurrentBlog(prev => {
+                    if (!prev) return prev;
+                    const id = prev.blogId || prev.id || prev.blog_id;
+                    if (String(id) === String((action.payload || {}).blogId)) {
+                        const current = prev.likeCount || prev.like_count || 0;
+                        const next = (action.payload || {}).liked ? current + 1 : Math.max(current - 1, 0);
+                        return { ...prev, likeCount: next };
+                    }
+                    return prev;
+                });
+                break;
+            }
+            default:
+                console.warn('Unknown blog dispatch action:', action.type);
+        }
+    }, [setBlogs, setCurrentBlog]);
+
     // Thêm hàm getOwnerBlogs để lấy blog của hotel owner
     const getOwnerBlogs = useCallback(async (options = {}) => {
         try {
@@ -661,6 +733,46 @@ export const BlogProvider = ({ children }) => {
             setLoading(false);
         }
     }, []);
+
+    // Lấy blog theo hotelId (dùng cho public hoặc trang hotel)
+    const getBlogsByHotel = useCallback(async (hotelId, options = {}) => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            if (!hotelId) {
+                throw new Error('hotelId is required');
+            }
+
+            const params = {
+                page: options.page || 1,
+                limit: options.limit || pagination.itemsPerPage || 10,
+                status: options.status || 'published',
+                sortBy: options.sortBy || 'created_at',
+                sortOrder: options.sortOrder || 'desc',
+            };
+
+            console.log('🔄 Fetching blogs by hotel:', hotelId, params);
+            const response = await blogService.getBlogsByHotel(hotelId, params);
+
+            if (response?.success) {
+                const blogsData = Array.isArray(response.data) ? response.data : response.data?.blogs || [];
+                const paginationData = response.pagination || response.data?.pagination || {};
+                setBlogs(blogsData);
+                setPagination(prev => ({ ...prev, ...paginationData, currentPage: params.page }));
+                return { blogs: blogsData, pagination: paginationData };
+            } else {
+                throw new Error(response?.message || 'Failed to fetch blogs by hotel');
+            }
+        } catch (err) {
+            console.error('❌ Error fetching blogs by hotel:', err);
+            setError(err.message || 'Không thể tải danh sách bài viết theo khách sạn');
+            setBlogs([]);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    }, [pagination.itemsPerPage]);
 
     // Thêm hàm searchBlogsByTitle vào BlogProvider
     const searchBlogsByTitle = useCallback(async (keyword, options = {}) => {
@@ -779,6 +891,7 @@ export const BlogProvider = ({ children }) => {
         statistics,
         pagination,
         currentBlog,
+        filters,
 
         // Actions
     fetchBlogs,
@@ -791,6 +904,12 @@ export const BlogProvider = ({ children }) => {
     updateBlogStatus,
     refreshBlogs,
     updatePagination,
+    // compatibility setters
+    setBlogs,
+    setPagination: updatePagination,
+    setFilters,
+    resetFilters,
+    dispatch,
     clearError,
     setCurrentBlog,
     clearCurrentBlog,
