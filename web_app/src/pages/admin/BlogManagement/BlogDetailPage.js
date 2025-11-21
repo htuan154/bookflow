@@ -439,13 +439,13 @@ const BlogDetailPage = () => {
 
                         <div className="space-y-2">
                             <label className="block text-sm font-medium text-gray-700">
-                                Thay đổi trạng thái:
+                                Trạng thái (không thể thay đổi):
                             </label>
                             <select
                                 value={blog.status}
-                                onChange={(e) => handleStatusChange(e.target.value)}
-                                disabled={isUpdatingStatus}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                disabled
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed"
+                                style={{ pointerEvents: 'none' }}
                             >
                                 <option value="draft">Nháp</option>
                                 <option value="pending">Chờ duyệt</option>
@@ -453,9 +453,7 @@ const BlogDetailPage = () => {
                                 <option value="archived">Lưu trữ</option>
                                 <option value="rejected">Bị từ chối</option>
                             </select>
-                            {isUpdatingStatus && (
-                                <p className="text-sm text-gray-600">Đang cập nhật...</p>
-                            )}
+                            <p className="text-xs text-gray-500 mt-1">Không thể thay đổi trạng thái tại đây</p>
                         </div>
                     </div>
 

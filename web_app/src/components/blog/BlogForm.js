@@ -617,7 +617,7 @@ const BlogForm = ({
                     </div>
 
                     {/* Hotel ID */}
-                    <div>
+                    {/* <div>
                         <label htmlFor="hotelId" className="block text-sm font-medium text-gray-700 mb-2">
                             ID Khách sạn liên quan
                         </label>
@@ -633,7 +633,7 @@ const BlogForm = ({
                         <p className="mt-1 text-sm text-gray-500">
                             ID của khách sạn mà bài viết này liên quan đến (nếu có)
                         </p>
-                    </div>
+                    </div> */}
 
                     {/* Status */}
                     <div>
