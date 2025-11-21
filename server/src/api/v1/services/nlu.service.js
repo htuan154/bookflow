@@ -85,9 +85,6 @@ function detectRegion(normalized = '') {
 }
 
 /** Rút số lượng top-N nếu người dùng chỉ định (mặc định 5) */
-
-
-
 function extractTopN(normalized = '', fallback = 5) {
   const m1 = normalized.match(/top\s*(\d{1,2})/);
   if (m1) return Math.max(1, Math.min(20, Number(m1[1])));
@@ -116,34 +113,35 @@ function extractFilters(normalized = '') {
   return f;
 }
 
-/** Alias 63 tỉnh/thành (không dấu → tên chuẩn có dấu) */
+/** * Alias 63 tỉnh/thành + CÁC QUẬN/HUYỆN/ĐỊA DANH NỔI TIẾNG 
+ * (Giúp AI tự nhận diện tỉnh khi user chỉ nói tên địa danh)
+ */
 const CITY_ALIASES = {
   // TP trực thuộc TW
-  'ha noi': 'Hà Nội', 'hanoi': 'Hà Nội',
-  'ho chi minh': 'Hồ Chí Minh', 'hcm': 'Hồ Chí Minh', 'sai gon': 'Hồ Chí Minh', 'saigon': 'Hồ Chí Minh', 'tp hcm': 'Hồ Chí Minh',
-  'da nang': 'Đà Nẵng', 'danang': 'Đà Nẵng',
-  'can tho': 'Cần Thơ', 'cantho': 'Cần Thơ',
-  'hai phong': 'Hải Phòng', 'haiphong': 'Hải Phòng',
-  // Tỉnh
-  'an giang': 'An Giang', 'ba ria vung tau': 'Bà Rịa - Vũng Tàu', 'brvt': 'Bà Rịa - Vũng Tàu',
-  'bac giang': 'Bắc Giang', 'bac kan': 'Bắc Kạn', 'bac lieu': 'Bạc Liêu', 'bac ninh': 'Bắc Ninh',
-  'ben tre': 'Bến Tre', 'binh dinh': 'Bình Định', 'binh duong': 'Bình Dương', 'binh phuoc': 'Bình Phước',
-  'binh thuan': 'Bình Thuận', 'ca mau': 'Cà Mau', 'cao bang': 'Cao Bằng',
-  'dak lak': 'Đắk Lắk', 'daklak': 'Đắk Lắk', 'dak nong': 'Đắk Nông',
-  'dien bien': 'Điện Biên', 'dong nai': 'Đồng Nai', 'dong thap': 'Đồng Tháp',
-  'gia lai': 'Gia Lai', 'ha giang': 'Hà Giang', 'ha nam': 'Hà Nam', 'ha tinh': 'Hà Tĩnh',
-  'hai duong': 'Hải Dương', 'hau giang': 'Hậu Giang', 'hoa binh': 'Hòa Bình', 'hung yen': 'Hưng Yên',
-  'khanh hoa': 'Khánh Hòa', 'kien giang': 'Kiên Giang', 'kon tum': 'Kon Tum',
-  'lai chau': 'Lai Châu', 'lam dong': 'Lâm Đồng', 'lang son': 'Lạng Sơn', 'lao cai': 'Lào Cai',
-  'long an': 'Long An', 'nam dinh': 'Nam Định', 'nghe an': 'Nghệ An',
-  'ninh binh': 'Ninh Bình', 'ninh thuan': 'Ninh Thuận',
-  'phu tho': 'Phú Thọ', 'phu yen': 'Phú Yên', 'quang binh': 'Quảng Bình',
-  'quang nam': 'Quảng Nam', 'quang ngai': 'Quảng Ngãi', 'quang ninh': 'Quảng Ninh', 'quang tri': 'Quảng Trị',
-  'soc trang': 'Sóc Trăng', 'son la': 'Sơn La', 'tay ninh': 'Tây Ninh',
-  'thai binh': 'Thái Bình', 'thai nguyen': 'Thái Nguyên', 'thanh hoa': 'Thanh Hóa',
-  'thua thien hue': 'Thừa Thiên Huế', 'hue': 'Thừa Thiên Huế',
-  'tien giang': 'Tiền Giang', 'tra vinh': 'Trà Vinh', 'tuyen quang': 'Tuyên Quang',
-  'vinh long': 'Vĩnh Long', 'vinh phuc': 'Vĩnh Phúc', 'yen bai': 'Yên Bái',
+  'ha noi': 'Hà Nội', 'hanoi': 'Hà Nội', 'hoan kiem': 'Hà Nội', 'tay ho': 'Hà Nội', 'pho co': 'Hà Nội',
+  'ho chi minh': 'Thành phố Hồ Chí Minh', 'hcm': 'Thành phố Hồ Chí Minh', 'sai gon': 'Thành phố Hồ Chí Minh', 'saigon': 'Thành phố Hồ Chí Minh', 'tphcm': 'Thành phố Hồ Chí Minh', 'quan 1': 'Thành phố Hồ Chí Minh', 'ben thanh': 'Thành phố Hồ Chí Minh',
+  'da nang': 'Đà Nẵng', 'danang': 'Đà Nẵng', 'ba na': 'Đà Nẵng', 'son tra': 'Đà Nẵng', 'my khe': 'Đà Nẵng',
+  'can tho': 'Cần Thơ', 'cantho': 'Cần Thơ', 'ninh kieu': 'Cần Thơ', 'cai rang': 'Cần Thơ',
+  'hai phong': 'Hải Phòng', 'haiphong': 'Hải Phòng', 'do son': 'Hải Phòng', 'cat ba': 'Hải Phòng',
+  
+  // Miền Tây (Fix mạnh khu vực này)
+  'an giang': 'An Giang', 'chau doc': 'An Giang', 'long xuyen': 'An Giang', 'nui sam': 'An Giang', 'nui cam': 'An Giang', 'tra su': 'An Giang',
+  'kien giang': 'Kiên Giang', 'phu quoc': 'Kiên Giang', 'ha tien': 'Kiên Giang', 'rach gia': 'Kiên Giang', 'nam du': 'Kiên Giang',
+  'ca mau': 'Cà Mau', 'nam can': 'Cà Mau', 'dat mui': 'Cà Mau', 'u minh': 'Cà Mau',
+  'bac lieu': 'Bạc Liêu', 'soc trang': 'Sóc Trăng', 'hau giang': 'Hậu Giang', 'vinh long': 'Vĩnh Long', 'tra vinh': 'Trà Vinh', 'ben tre': 'Bến Tre', 'tien giang': 'Tiền Giang', 'my tho': 'Tiền Giang', 'dong thap': 'Đồng Tháp', 'sa dec': 'Đồng Tháp', 'long an': 'Long An',
+
+  // Các điểm du lịch hot khác
+  'ba ria vung tau': 'Bà Rịa - Vũng Tàu', 'vung tau': 'Bà Rịa - Vũng Tàu', 'con dao': 'Bà Rịa - Vũng Tàu', 'ho tram': 'Bà Rịa - Vũng Tàu',
+  'binh thuan': 'Bình Thuận', 'phan thiet': 'Bình Thuận', 'mui ne': 'Bình Thuận',
+  'lam dong': 'Lâm Đồng', 'da lat': 'Lâm Đồng', 'dalat': 'Lâm Đồng', 'bao loc': 'Lâm Đồng',
+  'khanh hoa': 'Khánh Hòa', 'nha trang': 'Khánh Hòa', 'cam ranh': 'Khánh Hòa',
+  'quang nam': 'Quảng Nam', 'hoi an': 'Quảng Nam', 'my son': 'Quảng Nam',
+  'quang ninh': 'Quảng Ninh', 'ha long': 'Quảng Ninh', 'halong': 'Quảng Ninh', 'co to': 'Quảng Ninh', 'yen tu': 'Quảng Ninh',
+  'lao cai': 'Lào Cai', 'sa pa': 'Lào Cai', 'sapa': 'Lào Cai', 'fansipan': 'Lào Cai',
+  'ninh binh': 'Ninh Bình', 'trang an': 'Ninh Bình', 'tam coc': 'Ninh Bình', 'bai dinh': 'Ninh Bình',
+
+  // Các tỉnh còn lại
+  'bac giang': 'Bắc Giang', 'bac kan': 'Bắc Kạn', 'bac ninh': 'Bắc Ninh', 'binh dinh': 'Bình Định', 'binh duong': 'Bình Dương', 'binh phuoc': 'Bình Phước', 'cao bang': 'Cao Bằng', 'dak lak': 'Đắk Lắk', 'daklak': 'Đắk Lắk', 'dak nong': 'Đắk Nông', 'dien bien': 'Điện Biên', 'dong nai': 'Đồng Nai', 'gia lai': 'Gia Lai', 'ha giang': 'Hà Giang', 'ha nam': 'Hà Nam', 'ha tinh': 'Hà Tĩnh', 'hai duong': 'Hải Dương', 'hoa binh': 'Hòa Bình', 'hung yen': 'Hưng Yên', 'kon tum': 'Kon Tum', 'lai chau': 'Lai Châu', 'lang son': 'Lạng Sơn', 'nam dinh': 'Nam Định', 'nghe an': 'Nghệ An', 'ninh thuan': 'Ninh Thuận', 'phu tho': 'Phú Thọ', 'phu yen': 'Phú Yên', 'quang binh': 'Quảng Bình', 'quang ngai': 'Quảng Ngãi', 'quang tri': 'Quảng Trị', 'son la': 'Sơn La', 'tay ninh': 'Tây Ninh', 'thai binh': 'Thái Bình', 'thai nguyen': 'Thái Nguyên', 'thanh hoa': 'Thanh Hóa', 'thua thien hue': 'Thừa Thiên Huế', 'hue': 'Huế', 'tuyen quang': 'Tuyên Quang', 'vinh phuc': 'Vĩnh Phúc', 'yen bai': 'Yên Bái'
 };
 
 /** Nhận diện tỉnh/thành (trên chuỗi đã normalize) */

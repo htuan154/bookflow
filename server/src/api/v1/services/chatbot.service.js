@@ -3,9 +3,9 @@
 /**
  * Chatbot service — kết hợp NoSQL + Supabase RPC + LLM compose
  * - TẤT CẢ các hàm RPC/search đều nhận thêm tham số tùy chọn `opts` ở cuối:
- *     + opts.llm: boolean (ưu tiên hơn .env USE_LLM)
- *     + opts.context: object (filters/top_n/... chuyển qua composer)
- *     + opts.nlu: object (nếu muốn truyền NLU có sẵn)
+ * + opts.llm: boolean (ưu tiên hơn .env USE_LLM)
+ * + opts.context: object (filters/top_n/... chuyển qua composer)
+ * + opts.nlu: object (nếu muốn truyền NLU có sẵn)
  * - Nếu LLM bật -> hàm trả payload từ compose() (summary/sections/source/...)
  * - Nếu LLM tắt -> hàm trả raw data như trước (backward-compatible)
  */
@@ -499,140 +499,7 @@ async function listHotelCities(opts = undefined) {
   return composeFromSQL('hotel_cities', {}, data, opts);
 }
 
-// ====== NoSQL / LLM compose ======
-
-/**
- * suggest(): NoSQL + (optional) LLM — giữ nguyên hành vi cũ
- */
-// async function suggest(db, { message, context = {} }) {
-//   const started = Date.now();
-//   const nlu = analyze(message);
-//   const { top_n = context.top_n || 10, filters = {} } = nlu;
-
-//   // 1) Tìm doc theo toàn câu
-//   let doc = await repo.findInText(db, nlu).catch(() => null);
-
-//   // 2) Nếu có city nhưng doc KHÔNG chứa city qua name/alias/merged → refetch chỉ với city
-//   if (nlu.city && doc?.name && !sameProvince(nlu.city, doc)) {
-//     console.warn('[suggest] mismatch -> refetch city only', { query: message, nlu_city: nlu.city, doc_name: doc.name });
-//     const nluCityOnly = analyze(nlu.city);
-//     doc = await repo.findInText(db, nluCityOnly).catch(() => null);
-//     // 3) Nếu vẫn lệch thật sự mới ép skeleton rỗng cho đúng tỉnh
-//     if (doc?.name && !sameProvince(nlu.city, doc)) {
-//       doc = { name: nlu.city, places: [], dishes: [], tips: [] };
-//     }
-//   }
-//   // 4) Không tìm thấy gì nhưng user nêu city → skeleton
-//   if (!doc && nlu.city) {
-//     doc = { name: nlu.city, places: [], dishes: [], tips: [] };
-//   }
-
-//   const llmOn = true; // luôn dùng LLM
-
-//   let safeDoc = extractProvinceDoc(doc);
-//   const cityFinal = nlu.city || safeDoc?.name;
-//   safeDoc = filterDocByProvince(safeDoc, cityFinal);
-
-//   const payload = await compose({
-//     doc: safeDoc,
-//     nlu,
-//     filters: { ...(filters || {}), ...(context.filters || {}) },
-//     user_ctx: { top_n, ...context, city: nlu.city }
-//   });
-
-//   // Ghi chú dữ liệu gộp
-//   if (safeDoc && Array.isArray(safeDoc.merged_from) && safeDoc.merged_from.length) {
-//     const mergedNote = ` (dữ liệu gộp: ${safeDoc.merged_from.join(' + ')})`;
-//     if (!payload.summary) {
-//       payload.summary = `Gợi ý cho ${nlu.city || safeDoc.name}${mergedNote}`;
-//     } else if (!payload.summary.includes('dữ liệu gộp')) {
-//       payload.summary += mergedNote;
-//     }
-//   }
-
-//   payload.source = payload.source || 'nosql+llm';
-//   payload.latency_ms = Date.now() - started;
-//   payload.province = safeDoc?.name || null;
-//   return payload;
-// }
-
-// /* =================== FINAL suggestHybrid() ===================== */
-// async function suggestHybrid(db, { message, context = {} }) {
-//   const started = Date.now();
-//   const nlu = analyze(message);
-//   const { intent, top_n = context.top_n || 10, filters = {}, city } = nlu;
-
-//   // NoSQL fetch song song (docFirst sẽ truyền vào helper để tiết kiệm 1 lần gọi)
-//   const nosqlTask = repo.findInText(db, nlu).catch(() => null);
-
-//   // SQL tasks (intent + keyword fallback)
-//   const sqlTasks = [];
-//   const raw = String(message || '').toLowerCase()
-//     .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-//   const wantPromo = /\bkhuyen\s*mai\b|\bkhuyen mai\b|\bvoucher\b|\bphieu\b|\bphi[eê]u\b|\bma\s*giam\b|\bm[aãă]\s*gi[aá]m\b|\buu\s*dai\b|\buu dai\b|\bpromo\b|\bdiscount\b|\bgiam\s*gia\b/.test(raw);
-//   const wantHotel = /khach\s*san|kh[aá]ch\s*s[aạ]n|\bks\b|hotel|resort/.test(raw);
-//   const wrap = (tag, p) =>
-//     p.then(rows => ({ tag, name: tag, params: {}, rows }))
-//      .catch(e => { console.error('[suggestHybrid] RPC fail', tag, e.message); return { tag, name: tag, params: {}, rows: [] }; });
-
-//   if ((intent === 'hotels_top' || wantHotel) && city)
-//     sqlTasks.push(wrap('hotels_top', getTopHotels(city, top_n, { llm: false })));
-//   if ((intent === 'hotels_by_amenities' || (wantHotel && (filters?.amenities || context.filters?.amenities))) && city) {
-//     const amenities = context.filters?.amenities || filters?.amenities || [];
-//     sqlTasks.push(wrap('hotels_by_amenities', getHotelsByAmenities(city, amenities, top_n, { llm: false })));
-//   }
-//   const year = context.year ?? nlu?.time?.year ?? new Date().getFullYear();
-//   const month = context.month ?? nlu?.time?.month ?? (new Date().getMonth() + 1);
-//   if (intent === 'promotions_in_month' || (wantPromo && !city))
-//     sqlTasks.push(wrap('promotions_in_month', getPromotionsInMonth(year, month, top_n, { llm: false })));
-//   if ((intent === 'promotions_in_month_by_city' || (wantPromo && !!city)) && city)
-//     sqlTasks.push(wrap('promotions_in_month_by_city', getPromotionsInMonthByCity(city, year, month, top_n, { llm: false })));
-//   if ((intent === 'promotions_by_city' || (wantPromo && !!city)) && city)
-//     sqlTasks.push(wrap('promotions_by_city', getPromotionsByCity(city, { llm: false })));
-
-//   // Await
-//   const [docFirst, ...sqlDatasets] = await Promise.all([nosqlTask, ...sqlTasks]);
-
-//   // Hợp nhất logic tìm doc (bao gồm alias/merged + quét toàn KB)
-//   const doc = await findProvinceDoc(db, nlu, docFirst);
-
-//   let safeDoc = extractProvinceDoc(doc);
-//   const cityFinal = (nlu.city && sameProvince(nlu.city, safeDoc))
-//     ? nlu.city
-//     : (safeDoc?.name || nlu.city);
-//   safeDoc = filterDocByProvince(safeDoc, cityFinal);
-
-//   const safeSql = sqlDatasets.length
-//     ? sqlDatasets.map(ds => ({
-//         ...ds,
-//         rows: normalizeRows(ds.rows, ds.tag || ds.name || 'dataset')
-//       }))
-//     : [];
-
-//   const payload = await compose({
-//     doc: safeDoc,
-//     sql: safeSql,
-//     nlu,
-//     filters: { ...(filters || {}), ...(context.filters || {}) },
-//     user_ctx: { city: cityFinal, top_n, ...context }
-//   });
-
-//   if (safeDoc && Array.isArray(safeDoc.merged_from) && safeDoc.merged_from.length) {
-//     const mergedNote = ` (dữ liệu gộp: ${safeDoc.merged_from.join(' + ')})`;
-//     if (!payload.summary) payload.summary = `Gợi ý cho ${cityFinal}${mergedNote}`;
-//     else if (!payload.summary.includes('dữ liệu gộp')) payload.summary += mergedNote;
-//   }
-
-//   payload.source = payload.source ||
-//     (safeDoc && safeSql.length ? 'sql+nosql+llm'
-//       : safeSql.length ? 'sql+llm'
-//       : 'nosql+llm');
-//   payload.latency_ms = Date.now() - started;
-//   payload.province = safeDoc?.name || null;
-//   return payload;
-// }
-
-/* ========== MULTI-STRATEGY SEARCH: Fix "Hồ Chí Minh" and "Đắk Lắk" failures ========== */
+/* ========== MULTI-STRATEGY SEARCH ========== */
 async function findProvinceDoc(db, nlu, firstDoc, queryText) {
   console.log('[findProvinceDoc] START - Input:', {
     nluCity: nlu?.city,
@@ -644,16 +511,27 @@ async function findProvinceDoc(db, nlu, firstDoc, queryText) {
   let doc = firstDoc;
   let targetCity = nlu?.city;
 
-  // 2) STRATEGY 1: Canonical Mapping (most reliable for tricky names)
+  // === FIX START: Chuẩn hóa targetCity từ NLU/History ngay lập tức ===
+  // Giúp biến "Hồ Chí Minh" thành "Thành phố Hồ Chí Minh" ngay từ đầu
+  // Điều này cực quan trọng cho các bước so sánh mismatch hoặc tạo skeleton ở cuối
+  const ctxCanonical = canonicalFromText(targetCity);
+  if (ctxCanonical) {
+    console.log('[findProvinceDoc] Canonicalized targetCity context:', targetCity, '->', ctxCanonical);
+    targetCity = ctxCanonical;
+  }
+  // === FIX END ===
+
+  // 2) STRATEGY 1: Canonical Mapping on QUERY TEXT (most reliable for tricky names)
   const inputText = queryText || nlu?.city || '';
   const canonicalName = canonicalFromText(inputText);
   
-  if (canonicalName) {
+  if (!doc && canonicalName) {
     console.log('[findProvinceDoc] STRATEGY 1 (Canonical): Found mapping:', {
       input: inputText,
       canonical: canonicalName
     });
     
+    // Nếu mapping ra khác targetCity hiện tại, cập nhật luôn
     targetCity = canonicalName;
     
     // Search by exact canonical name
@@ -708,9 +586,8 @@ async function findProvinceDoc(db, nlu, firstDoc, queryText) {
   }
 
   // 5) STRATEGY 4: Province Exact (comprehensive: name + aliases + merged_from)
-  if (!doc && (queryText || nlu?.city)) {
-    const searchText = queryText || nlu?.city;
-    const normalized = normalize(String(searchText));
+  if (!doc && targetCity) { // Dùng targetCity đã chuẩn hóa
+    const normalized = normalize(String(targetCity));
     
     console.log('[findProvinceDoc] STRATEGY 4 (ProvinceExact):', normalized);
     
@@ -719,13 +596,12 @@ async function findProvinceDoc(db, nlu, firstDoc, queryText) {
       
       if (doc) {
         console.log('[findProvinceDoc] ✓ Found via ProvinceExact:', doc.name);
-        targetCity = doc.name;
         return doc;
       }
     }
   }
 
-  // 6) STRATEGY 5: Full-text search using NLU (last resort)
+  // 6) STRATEGY 5: Full-text search using NLU (last resort for items like "Chợ Bến Thành")
   if (!doc) {
     console.log('[findProvinceDoc] STRATEGY 5 (FullText): Using repo.findInText');
     
@@ -735,38 +611,33 @@ async function findProvinceDoc(db, nlu, firstDoc, queryText) {
       console.log('[findProvinceDoc] ✓ Found via FullText:', doc.name);
       
       // Verify the doc matches the target city
+      // Nhờ hàm sameProvince đã sửa + targetCity đã chuẩn hóa -> logic này giờ rất an toàn
       if (targetCity && !sameProvince(targetCity, doc)) {
-        console.warn('[findProvinceDoc] FullText mismatch:', {
+        console.warn('[findProvinceDoc] FullText mismatch detected:', {
           targetCity,
           foundDoc: doc.name
         });
         
-        // Trust targetCity over full-text result
+        // Trust targetCity over full-text result if they really conflict
         doc = { name: targetCity, places: [], dishes: [], tips: [] };
       } else {
+        // Nếu khớp, cập nhật targetCity theo doc tìm được
         targetCity = doc.name;
       }
       
       return doc;
     }
   }
+  
+  // 6.5) STRATEGY 6: QUÉT ITEM (Item Scan) - Sẽ được xử lý ở hàm scanItemInDB
+  // Do hàm này chỉ tìm tỉnh, còn scanItemInDB tìm item cụ thể và được gọi trước khi vào đây.
 
   // 7) FALLBACK: Create skeleton if we have targetCity but no doc
   if (!doc && targetCity) {
     console.log('[findProvinceDoc] ✗ No doc found. Creating skeleton for:', targetCity);
+    // Vì targetCity đã được canonicalize ở đầu hàm, skeleton này sẽ có tên đúng
     doc = { name: targetCity, places: [], dishes: [], tips: [] };
     return doc;
-  }
-
-  // 8) FINAL FALLBACK: Try canonical on NLU city as last attempt
-  if (!doc && nlu?.city) {
-    const finalCanon = canonicalFromText(nlu.city);
-    if (finalCanon) {
-      console.log('[findProvinceDoc] Final attempt with canonical from NLU city:', finalCanon);
-      targetCity = finalCanon;
-      doc = { name: finalCanon, places: [], dishes: [], tips: [] };
-      return doc;
-    }
   }
 
   console.log('[findProvinceDoc] END - Result:', {
@@ -777,7 +648,6 @@ async function findProvinceDoc(db, nlu, firstDoc, queryText) {
 
   return doc;
 }
-
 // ================= IMPROVED suggest: Better aliases matching =================
 async function suggest(db, { message, context = {} }) {
   const started = Date.now();
@@ -830,16 +700,121 @@ async function suggest(db, { message, context = {} }) {
   return payload;
 }
 
-// ================= PATCH USE: suggestHybrid =================
+// --- [PHIÊN BẢN SUPER CLEAN] QUÉT DB TỰ ĐỘNG & LỌC TỪ KHÓA MẠNH ---
+async function scanItemInDB(db, message, nluCity = null) {
+  if (!message || message.length < 2) return null;
+
+  // 1. Dọn dẹp từ khóa rác (Bổ sung thêm các từ cảm thán/hành động)
+  // Mới thêm: mua, bán, đẹp, ngon, nổi tiếng, nhất, lắm, không, ở, tại...
+  const keywordsRegex = /mô tả|chi tiết|thông tin|giới thiệu|về|là gì|ở đâu|review|cho tôi|biết|ăn gì|chơi gì|có gì|tìm hiểu|cho hỏi|xem|như thế nào|ra sao|món|địa danh|địa điểm|đi|ăn|mua|bán|đẹp|ngon|nổi tiếng|nhất|lắm|không|tại|trong|ngoài/gi;
+  
+  let cleanQuery = message.replace(keywordsRegex, '').trim();
+  // Xóa bớt ký tự đặc biệt còn sót (? ! .)
+  cleanQuery = cleanQuery.replace(/[?!.,;]/g, '').trim();
+  
+  // Nếu dọn xong mà chuỗi rỗng (vd khách chỉ hỏi "đẹp không"), thì bỏ qua
+  if (cleanQuery.length < 2) return null;
+
+  // 2. Tạo các biến thể tìm kiếm
+  const searchVariations = [cleanQuery]; 
+  
+  if (nluCity) {
+      const cityNorm = normalize(nluCity);
+      const cityRegex = new RegExp(cityNorm.replace(/\s+/g, '\\s*'), 'gi');
+      const stripped = normalize(cleanQuery).replace(cityRegex, '').trim();
+      if (stripped.length > 2 && stripped !== normalize(cleanQuery)) {
+          searchVariations.push(stripped);
+      }
+  }
+
+  console.log('[scanItemInDB] 🔍 Đang tìm (Super Clean):', searchVariations);
+
+  try {
+    const allCols = await db.listCollections().toArray();
+    const targetCols = allCols
+        .map(c => c.name)
+        .filter(name => !name.startsWith('system.') && !name.startsWith('admin') && !name.startsWith('local'));
+
+    for (const queryVariant of searchVariations) {
+        const regex = new RegExp(queryVariant, 'i');
+
+        for (const colName of targetCols) {
+            const found = await db.collection(colName).findOne({
+                $or: [
+                    { 'places.name': regex },
+                    { 'dishes.name': regex },
+                    { 'places': regex },
+                    { 'dishes': regex }
+                ]
+            });
+
+            if (found) {
+                let specificItem = null;
+                let type = 'place';
+                
+                const allPlaces = Array.isArray(found.places) ? found.places : [];
+                const matchPlace = allPlaces.find(p => (p.name || p).match(regex));
+                
+                const allDishes = Array.isArray(found.dishes) ? found.dishes : [];
+                const matchDish = allDishes.find(d => (d.name || d).match(regex));
+
+                if (matchDish) { specificItem = matchDish; type = 'dish'; }
+                else if (matchPlace) { specificItem = matchPlace; type = 'place'; }
+                else { specificItem = { name: cleanQuery }; }
+
+                if (typeof specificItem === 'string') specificItem = { name: specificItem };
+
+                console.log(`[scanItemInDB] ✅ MATCH! "${queryVariant}" -> "${specificItem.name}" (Doc: ${found.name})`);
+                return { doc: found, item: specificItem, type };
+            }
+        }
+    }
+  } catch (e) {
+    console.warn('[scanItemInDB] ❌ Lỗi:', e.message);
+  }
+  return null;
+}
+
+// ================= PATCH USE: suggestHybrid (LOGIC MỚI NHẤT) =================
 async function suggestHybrid(db, { message, context = {} }) {
   const started = Date.now();
+  
+  // 1. Phân tích NLU sơ bộ để lấy City (phục vụ việc cắt chữ cho scanItemInDB)
   const nlu = analyze(message);
+  
+  // 2. === ƯU TIÊN 1: QUÉT DB TÌM ITEM CỤ THỂ ===
+  // Chạy ngay lập tức, bất chấp NLU là chitchat hay gì
+  // Lưu ý: scanItemInDB phải nhận tham số thứ 3 là nlu.city để cắt chữ "Hà Nội" trong "Phở bò Hà Nội"
+  const dbMatch = await scanItemInDB(db, message, nlu.city);
+  
+  if (dbMatch) {
+    console.log('[suggestHybrid] => 🔥 Tìm thấy Item trong DB -> Kích hoạt AI Thinking Mode!');
+    
+    // Chuẩn hóa document tỉnh tìm được
+    const safeDoc = extractProvinceDoc(dbMatch.doc); 
+    
+    // Gọi Composer với tín hiệu forcedItem
+    const payload = await compose({
+      doc: safeDoc,
+      nlu: { intent: 'ask_details', city: safeDoc.name },
+      filters: {},
+      user_ctx: { 
+        forcedItem: dbMatch.item, // <--- Tín hiệu "Ép buộc"
+        forcedType: dbMatch.type,
+        ...context
+      }
+    });
+
+    payload.latency_ms = Date.now() - started;
+    payload.province = safeDoc.name;
+    return payload; // Trả về ngay lập tức
+  }
+
+  // 3. === ƯU TIÊN 2: NLU CHITCHAT (Nếu không tìm thấy item ở bước 1) ===
   const history = Array.isArray(context.history) ? context.history : [];
   const historyCity = history.find(t => t?.nlu?.city)?.nlu?.city || null;
-  const monthMatch = String(message || '').match(/th[aá]ng\s*(\d{1,2})/i);
-  const askedMonth = monthMatch ? Math.max(1, Math.min(12, Number(monthMatch[1]))) : null;
-  const nluCtx = { ...nlu, city: nlu.city || historyCity, month: askedMonth };
-  const { intent, top_n = context.top_n || 10, filters = {}, city } = nluCtx;
+  const nluCtx = { ...nlu, city: nlu.city || historyCity }; // Merge context
+  const { intent, top_n = context.top_n || 10, filters = {} } = nluCtx;
 
   if (intent === 'chitchat') {
     const payload = await composeSmallTalk({ message, nlu: nluCtx, history });
@@ -847,7 +822,10 @@ async function suggestHybrid(db, { message, context = {} }) {
     payload.province = null;
     return payload;
   }
-
+  
+  // 4. === CÁC LUỒNG KHÁC (Weather, SQL, NoSQL Fallback) ===
+  
+  // 4.1 Weather
   if (intent === 'ask_weather') {
     const cityTarget = nluCtx.city || historyCity || null;
     let safeDoc = null;
@@ -860,6 +838,9 @@ async function suggestHybrid(db, { message, context = {} }) {
         console.warn('[suggestHybrid] weather doc fetch failed:', err?.message || err);
       }
     }
+    const monthMatch = String(message || '').match(/th[aá]ng\s*(\d{1,2})/i);
+    const askedMonth = monthMatch ? Math.max(1, Math.min(12, Number(monthMatch[1]))) : null;
+    
     const payload = await composeCityFallback({
       city: cityTarget,
       intent,
@@ -873,17 +854,18 @@ async function suggestHybrid(db, { message, context = {} }) {
     return payload;
   }
 
+  // 4.2 Parallel Search (NoSQL + SQL RPC)
   const nosqlTask = repo.findInText(db, nluCtx).catch(() => null);
 
   const sqlTasks = [];
-  const raw = String(message || '').toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const raw = String(message || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const wantPromo = /\bkhuyen\s*mai\b|\bkhuyen mai\b|\bvoucher\b|\bphieu\b|\bphi[eê]u\b|\bma\s*giam\b|\bm[aãă]\s*gi[aá]m\b|\buu\s*dai\b|\buu dai\b|\bpromo\b|\bdiscount\b|\bgiam\s*gia\b/.test(raw);
   const wantHotel = /khach\s*san|kh[aá]ch\s*s[aạ]n|\bks\b|hotel|resort/.test(raw);
   const wrap = (tag, p) =>
     p.then(rows => ({ tag, name: tag, params: {}, rows }))
      .catch(e => { console.error('[suggestHybrid] RPC fail', tag, e.message); return { tag, name: tag, params: {}, rows: [] }; });
 
+  const city = nluCtx.city;
   console.log('[suggestHybrid] Query analysis:', { city, intent, wantHotel, wantPromo, top_n });
   
   if ((intent === 'hotels_top' || wantHotel) && city)
@@ -901,10 +883,9 @@ async function suggestHybrid(db, { message, context = {} }) {
   if ((intent === 'promotions_by_city' || (wantPromo && !!city)) && city)
     sqlTasks.push(wrap('promotions_by_city', getPromotionsByCity(city, { llm: false })));
 
-  console.log('[suggestHybrid] SQL tasks count:', sqlTasks.length);
   const [docFirst, ...sqlDatasets] = await Promise.all([nosqlTask, ...sqlTasks]);
-  console.log('[suggestHybrid] SQL datasets received:', sqlDatasets.map(ds => ({ tag: ds.tag, rowCount: ds.rows?.length || 0 })));
 
+  // 4.3 Tìm document tỉnh (nếu bước 1 chưa tìm thấy item cụ thể thì giờ tìm tỉnh để list generic)
   const doc = await findProvinceDoc(db, nluCtx, docFirst, message);
   const safeDoc = extractProvinceDoc(doc);
   const cityFinal = (nluCtx.city && sameProvince(nluCtx.city, safeDoc))
@@ -918,6 +899,7 @@ async function suggestHybrid(db, { message, context = {} }) {
       }))
     : [];
 
+  // 5. Compose cuối cùng
   const payload = await compose({
     doc: safeDoc,
     sql: safeSql,
@@ -926,6 +908,7 @@ async function suggestHybrid(db, { message, context = {} }) {
     user_ctx: { city: cityFinal, top_n, ...context }
   });
 
+  // Xử lý ghi chú dữ liệu gộp
   if (safeDoc && safeDoc.merged_from?.length) {
     const mergedNote = ` (dữ liệu gộp: ${safeDoc.merged_from.join(' + ')})`;
     if (!payload.summary) payload.summary = `Gợi ý cho ${cityFinal}${mergedNote}`;
@@ -949,6 +932,13 @@ if (typeof sameProvince !== 'function') {
   function sameProvince(userCity, doc) {
     if (!userCity || !doc) return false;
     const q = normalize(String(userCity));
+    
+    // FIX: Kiểm tra Canonical trước (quan trọng cho HCM -> Thành phố Hồ Chí Minh)
+    const canon = canonicalFromText(userCity);
+    if (canon && normalize(canon) === normalize(doc.name)) {
+      return true;
+    }
+
     const names = new Set();
     const add = v => { if (v) names.add(normalize(String(v))); };
 
@@ -960,7 +950,11 @@ if (typeof sameProvince !== 'function') {
     const mergedFields = ['merged_from','mergedFrom','merged','merge_from'];
     mergedFields.forEach(k => (Array.isArray(doc[k]) ? doc[k] : []).forEach(add));
 
-    return names.has(q);
+    // Fix: Kiểm tra cả biến thể dính liền của user input
+    if (names.has(q)) return true;
+    if (names.has(q.replace(/\s/g, ''))) return true;
+
+    return false;
   }
   // expose (optional)
   global.sameProvince = sameProvince;

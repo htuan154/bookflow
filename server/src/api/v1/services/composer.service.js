@@ -3,10 +3,10 @@
 const { generateJSON } = require('../../../config/ollama');
 const { validateResponse } = require('./guardrails.service');
 const { cache, makeKey } = require('../../../config/cache');
-const { normalize } = require('./nlu.service'); // ADDED for dedupe keys
+const { normalize } = require('./nlu.service');
 
 // ===== Text sanitization helpers =====
-const CJK_REGEX = /[\u3400-\u9fff]/g; // loại bỏ ký tự tiếng Trung/đông á bất ngờ
+const CJK_REGEX = /[\u3400-\u9fff]/g;
 const sanitizeText = (s = '') => String(s || '')
   .replace(/Celsius/gi, '°C')
   .replace(CJK_REGEX, '')
@@ -96,30 +96,11 @@ function payloadFromHistory(history = []) {
   return (p && typeof p === 'object') ? p : null;
 }
 
-// Một số địa danh cụ thể: xử lý quyết định sớm để trả lời đúng trọng tâm
+// === BƯỚC 1: XÓA HARDCODE (Chỉ giữ lại Misinfo Rules để bảo vệ logic) ===
 const POI_RULES = [
-  {
-    alias: /nha tho duc ba/i,
-    poi: 'Nhà thờ Đức Bà',
-    cityActual: 'Hồ Chí Minh',
-    info: 'Địa chỉ: 01 Công xã Paris, Q.1, TP.HCM. Kiến trúc Gothic Pháp, biểu tượng Sài Gòn, mở cửa miễn phí ban ngày.',
-    alt: {
-      city: 'Đà Nẵng',
-      suggestion: 'Tham khảo Nhà thờ Chính toà Đà Nẵng (156 Trần Phú, Q.Hải Châu) với kiến trúc kiểu Gothic, còn gọi là Nhà thờ Con Gà.'
-    }
-  },
-  {
-    alias: /bao tang ca mau|bảo tàng cà mau/i,
-    poi: 'Bảo tàng Cà Mau',
-    cityActual: 'Cà Mau',
-    info: 'Địa chỉ: 12 Phan Ngọc Hiển, P.2, TP Cà Mau. Trưng bày văn hóa Khmer, Hoa, Việt và hiện vật khẩn hoang miền Tây.',
-  },
-  {
-    alias: /v[ịi]nh d[ạa]i l[aã]nh/i,
-    poi: 'Vịnh Đại Lãnh',
-    cityActual: 'Phú Yên',
-    info: 'Vịnh biển ở giáp ranh Khánh Hòa - Phú Yên, nước xanh và bờ cát cong. Không nằm ở Cà Mau.',
-  },
+  // Đã xóa hardcode Nhà thờ Đức Bà, Miếu Bà Chúa Xứ... để AI tự suy nghĩ.
+  
+  // Giữ lại Rule chặn tin giả (Misinfo) - Đây là logic bảo vệ, không phải nội dung cứng
   {
     alias: /c[uù]\s*lao\s*t[iị]eu/i,
     type: 'misinfo',
@@ -142,41 +123,26 @@ const POI_RULES = [
   }
 ];
 
-/**
- * Find specific item (place or dish) that user is asking about
- * Uses fuzzy matching with normalized text and character overlap detection
- * @param {object} doc - Province document
- * @param {string} message - User's query message
- * @returns {object|null} - { type: 'place'|'dish', item: object } or null
- */
 function findSpecificItem(doc, message = '') {
   if (!doc || !message) return null;
   
   const normMsg = normalize(String(message).toLowerCase());
   const msgWords = normMsg.split(/\s+/).filter(Boolean);
   
-  // Check if message contains detail-seeking keywords
   const isDetailQuery = /mo ta|chi tiet|thong tin|gioi thieu|noi ve|la gi|bao gom|dia chi|lich su|kien truc|dac diem|cung cap|hieu biet|tim hieu/.test(normMsg);
   
   if (!isDetailQuery) return null;
   
-  /**
-   * Fuzzy match scorer: checks word overlap and character similarity
-   * Returns match score (0-1), where 1 is perfect match
-   */
   const fuzzyScore = (itemNorm, msgNorm, msgWordsArr) => {
-    // Direct substring match
     if (msgNorm.includes(itemNorm)) return 1.0;
     if (itemNorm.includes(msgNorm) && msgNorm.length > 3) return 0.9;
     
     const itemWords = itemNorm.split(/\s+/).filter(Boolean);
     if (itemWords.length === 0) return 0;
     
-    // Word overlap ratio
     const matchedWords = itemWords.filter(w => msgWordsArr.some(mw => mw.includes(w) || w.includes(mw)));
     const wordRatio = matchedWords.length / itemWords.length;
     
-    // Character overlap for single-word items
     if (itemWords.length === 1) {
       const itemChars = new Set(itemNorm.split(''));
       const msgChars = new Set(msgNorm.split(''));
@@ -188,10 +154,9 @@ function findSpecificItem(doc, message = '') {
     return wordRatio;
   };
   
-  // Search in places
   const places = Array.isArray(doc.places) ? doc.places : [];
   let bestMatch = null;
-  let bestScore = 0.5; // Minimum threshold
+  let bestScore = 0.4; 
   
   for (const place of places) {
     if (!place || !place.name) continue;
@@ -204,7 +169,6 @@ function findSpecificItem(doc, message = '') {
     }
   }
   
-  // Search in dishes
   const dishes = Array.isArray(doc.dishes) ? doc.dishes : [];
   for (const dish of dishes) {
     if (!dish || !dish.name) continue;
@@ -289,197 +253,98 @@ function alignWithDoc(payload, doc) {
   };
 }
 
-/* ========== NoSQL (địa danh/món ăn) – logic cũ, giữ nguyên ========== */
-
-/**
- * Compose detailed response for specific item (place or dish) - Anti-Hallucination Mode
- * Injects hardcoded POI_RULES knowledge as ground truth to prevent fabrication
- * @param {object} doc - Province document
- * @param {object} targetItem - Specific place/dish to describe
- * @param {string} type - 'place' or 'dish'
- * @param {string} intent - User intent
- * @returns {Promise<object>} - Composed payload with single item focus
- */
+// === BƯỚC 2: AI THINKING MODE (Xử lý thông minh Data Gộp) ===
 async function composeSpecificItem({ doc, targetItem, type, intent }) {
-  const itemName = targetItem.name || 'Unknown';
-  const provinceName = doc.name || 'Unknown';
+  const itemName = targetItem.name || 'Địa điểm chưa rõ tên'; // VD: Bún chả cá Quy Nhơn
+  const provinceName = doc.name || 'Địa phương';             // VD: Gia Lai (nhưng data gộp Bình Định)
   
-  // KNOWLEDGE INJECTION: Check POI_RULES for verified ground truth
-  let groundTruth = null;
-  const itemNormalized = normalize(itemName);
-  
-  for (const rule of POI_RULES) {
-    if (!rule.alias) continue;
-    
-    // Test against both original name and normalized version
-    if (rule.alias.test(itemName) || rule.alias.test(itemNormalized)) {
-      groundTruth = rule;
-      console.log('[composeSpecificItem] Ground truth found for:', itemName);
-      break;
-    }
-  }
-  
-  // Build knowledge injection block
-  let knowledgeBlock = '';
-  if (groundTruth) {
-    knowledgeBlock = `\n=== GROUND TRUTH (USE THIS FIRST) ===\n`;
-    knowledgeBlock += `Item: ${groundTruth.poi || itemName}\n`;
-    knowledgeBlock += `Verified Info: ${groundTruth.info || 'N/A'}\n`;
-    
-    if (groundTruth.cityActual) {
-      knowledgeBlock += `Actual Province: ${groundTruth.cityActual}\n`;
-    }
-    
-    if (groundTruth.type === 'misinfo') {
-      knowledgeBlock += `Warning: This is misinformation. `;
-      if (Array.isArray(groundTruth.replacements) && groundTruth.replacements.length) {
-        knowledgeBlock += `Suggest these alternatives instead:\n`;
-        groundTruth.replacements.forEach(r => {
-          knowledgeBlock += `  - ${r.name}: ${r.hint || ''}\n`;
-        });
-      }
-    }
-    
-    if (groundTruth.alt && groundTruth.alt.city !== provinceName) {
-      knowledgeBlock += `Note: User asked about ${provinceName}, but ${groundTruth.poi} is in ${groundTruth.cityActual}. `;
-      knowledgeBlock += `Alternative in ${provinceName}: ${groundTruth.alt.suggestion || 'N/A'}\n`;
-    }
-    
-    knowledgeBlock += `===================================\n`;
-  }
-  
+  // Lấy hint từ DB (nếu có)
+  const dbHint = targetItem.hint || targetItem.description || ''; 
+
+  // --- LOGIC XỬ LÝ TỈNH GỘP (QUAN TRỌNG) ---
+  // Kiểm tra xem document này có phải là data gộp không (VD: Gia Lai gộp Bình Định)
+  // Nếu có, tạo một ghi chú đặc biệt để nhắc AI phân định rõ ràng.
+  const mergedList = doc.merged_from || doc.mergedFrom || []; // List các tỉnh bị gộp
+  const mergedInfo = (mergedList.length > 0) 
+      ? `LƯU Ý QUAN TRỌNG: Dữ liệu hệ thống đang gộp chung các tỉnh: ${mergedList.join(', ')}. Hãy dùng kiến thức của bạn để xác định chính xác "${itemName}" thuộc tỉnh/thành nào trong số đó.`
+      : '';
+
+  console.log(`[composeSpecificItem] Thinking mode: "${itemName}" @ "${provinceName}" (Merged: ${mergedList.length ? 'YES' : 'NO'})`);
+
+  // --- TẠO PROMPT ---
   let prompt = '';
   
   if (type === 'place') {
     prompt = `
-You are a LOCAL EXPERT GUIDE specializing in ${provinceName}. A tourist is asking specifically about "${itemName}".
-${knowledgeBlock}
-Return JSON following this schema:
+Bạn là HƯỚNG DẪN VIÊN DU LỊCH am hiểu sâu sắc về Việt Nam (Expert Local Guide).
+Người dùng đang hỏi về: "${itemName}".
+Khu vực dữ liệu hiện tại: ${provinceName}.
+${mergedInfo}
+
+Dữ liệu ghi chú từ hệ thống: "${dbHint}".
+
+NHIỆM VỤ:
+1. Xác định chính xác địa danh này nằm ở đâu (đặc biệt nếu nó thuộc tỉnh cũ trước khi gộp dữ liệu).
+2. Dùng KIẾN THỨC NỘI TẠI (Internal Knowledge) để viết mô tả hấp dẫn, chi tiết.
+
+Yêu cầu trả về JSON:
 {
-  "summary": string,
-  "places": [{ "name": string, "hint": string }],
-  "dishes": [],
-  "tips": string[],
-  "source": "nosql+llm"
+  "summary": "Đoạn văn 4-5 câu mô tả chi tiết bằng TIẾNG VIỆT. Nói rõ vị trí cụ thể (huyện/thị xã/tỉnh), lịch sử, kiến trúc hoặc trải nghiệm nổi bật.",
+  "tips": ["Mẹo 1 (thời gian đi đẹp nhất)", "Mẹo 2 (trang phục/lưu ý)", "Mẹo 3 (giá vé/đường đi)"]
 }
-
-MANDATORY REQUIREMENTS:
-
-1. SINGLE ITEM FOCUS:
-   - Describe ONLY "${itemName}". DO NOT list other places.
-   - If Ground Truth shows this is misinformation or wrong province, explain that clearly.
-
-2. "summary" (3-4 detailed sentences):
-   - Historical background / Origin story (if known with certainty).
-   - Architectural features / Visual characteristics.
-   - EXACT address (street, district) if you know it reliably.
-   - If uncertain about address: say "Located in [general area name]" or "Contact ${provinceName} tourist center for directions".
-   - If Ground Truth exists, prioritize that information.
-
-3. "places" array:
-   - Contains EXACTLY 1 element: { "name": "${itemName}", "hint": "..." }
-   - "hint" must be 15-20 words describing unique features (architecture/history/activities).
-   - GOOD EXAMPLE: "Gothic cathedral built 1863-1880, red bricks imported from Marseille, 58m bell towers, crowned with Virgin Mary statue"
-   - BAD EXAMPLE: "Famous place in Saigon" (too generic)
-
-4. "dishes": Always return empty array [].
-
-5. "tips": 2-3 PRACTICAL tips:
-   - Opening hours (if known).
-   - Transportation / Parking advice.
-   - Dress code (if religious site).
-   - If Ground Truth provides tips, include those.
-
-6. ANTI-HALLUCINATION RULES:
-   - Use ONLY information you are CERTAIN about.
-   - If Ground Truth contradicts your knowledge, TRUST Ground Truth.
-   - DO NOT fabricate phone numbers, emails, or websites.
-   - If address is unknown, admit it and guide to general area.
-
-(Original intent: ${intent})
 `;
-  } else if (type === 'dish') {
+  } else {
+    // Prompt cho món ăn (Bún cá Châu Đốc, Bún chả cá Quy Nhơn...)
     prompt = `
-You are a LOCAL CULINARY EXPERT specializing in ${provinceName} cuisine. A foodie is asking specifically about "${itemName}".
-${knowledgeBlock}
-Return JSON following this schema:
+Bạn là CHUYÊN GIA ẨM THỰC Việt Nam.
+Người dùng hỏi về món: "${itemName}".
+Khu vực dữ liệu hiện tại: ${provinceName}.
+${mergedInfo}
+
+NHIỆM VỤ:
+1. Xác định món ăn này là đặc sản gốc của tỉnh/thành nào (Ví dụ: "Bún chả cá Quy Nhơn" -> Bình Định, dù dữ liệu đang ở Gia Lai).
+2. Mô tả hương vị, nguyên liệu đặc trưng và cách thưởng thức đúng điệu.
+
+Yêu cầu trả về JSON:
 {
-  "summary": string,
-  "places": [],
-  "dishes": [{ "name": string, "where": string }],
-  "tips": string[],
-  "source": "nosql+llm"
+  "summary": "Đoạn văn 4-5 câu mô tả hương vị, nguồn gốc và độ nổi tiếng của món ăn này bằng TIẾNG VIỆT.",
+  "tips": ["Ăn ở đâu ngon (gợi ý tên quán cụ thể nếu biết)", "Giá khoảng bao nhiêu", "Ăn kèm rau gì/nước chấm gì"]
 }
-
-MANDATORY REQUIREMENTS:
-
-1. SINGLE ITEM FOCUS:
-   - Describe ONLY "${itemName}". DO NOT list other dishes.
-
-2. "summary" (3-4 detailed sentences):
-   - Main ingredients.
-   - Characteristic flavors (sour/sweet/salty/spicy).
-   - Special cooking method (if any).
-   - Origin story / Cultural significance (if known with certainty).
-   - If Ground Truth exists, prioritize that information.
-
-3. "dishes" array:
-   - Contains EXACTLY 1 element: { "name": "${itemName}", "where": "..." }
-   - "where" must be 15-20 words suggesting SPECIFIC RESTAURANTS or FAMOUS AREAS:
-   - GOOD EXAMPLE: "Com Tam Suon Bi Cha Saigon restaurant (138 Nguyen Van Cu, District 1) or Ben Thanh Market area"
-   - BAD EXAMPLE: "Many restaurants in Saigon" (not helpful)
-   - If you don't know specific restaurants, suggest general area: "Near [market name] / Along [street name]"
-
-4. "places": Always return empty array [].
-
-5. "tips": 2-3 PRACTICAL tips:
-   - How to eat it properly (local style).
-   - Price range (approximate, not exact).
-   - Best time to eat (breakfast/lunch/dinner).
-   - If Ground Truth provides tips, include those.
-
-6. ANTI-HALLUCINATION RULES:
-   - If you don't know famous restaurants, suggest general area only.
-   - DO NOT fabricate restaurant names.
-   - If Ground Truth exists, TRUST it over your general knowledge.
-
-(Original intent: ${intent})
 `;
   }
-  
+
   try {
-    const raw = await generateJSON({ prompt, temperature: 0.2 });
-    const safe = validateResponse(raw, doc);
+    // Temperature 0.5 giúp AI sáng tạo nhưng vẫn bám sát thực tế
+    const raw = await generateJSON({ prompt, temperature: 0.5 });
     
-    // Ensure single item in response
-    const result = {
-      summary: safe.summary || `Detailed information about ${itemName}.`,
-      places: type === 'place' ? (safe.places || []).slice(0, 1) : [],
-      dishes: type === 'dish' ? (safe.dishes || []).slice(0, 1) : [],
-      tips: Array.isArray(safe.tips) ? safe.tips.slice(0, 5) : [],
+    // --- BYPASS VALIDATION CỨNG ---
+    // Không dùng validateResponse() để tránh việc AI viết đúng tên tỉnh gốc (Bình Định) 
+    // nhưng lại bị bộ lọc (Gia Lai) xóa mất.
+
+    return sanitizePayload({
+      summary: raw.summary || `${itemName} là điểm nổi bật tại khu vực ${provinceName}.`,
+      
+      // Trả về chính item đó để UI hiển thị highlight
+      places: type === 'place' ? [{ name: itemName, hint: "Thông tin chi tiết từ AI Expert" }] : [],
+      dishes: type === 'dish' ? [{ name: itemName, where: "Đặc sản địa phương" }] : [],
+      
+      tips: Array.isArray(raw.tips) ? raw.tips : [],
       promotions: [],
       hotels: [],
-      source: 'nosql+llm-specific'
-    };
-    
-    console.log('[composeSpecificItem] Generated detailed response for:', itemName);
-    return sanitizePayload(result);
-    
+      source: 'nosql+llm-thinking' // Đánh dấu nguồn là AI suy luận
+    });
+
   } catch (error) {
-    console.error('[composeSpecificItem] Error:', error.message);
+    console.error('[composeSpecificItem] Lỗi AI:', error.message);
     
-    // Fallback: return basic info from doc
-    const fallback = {
-      summary: `Information about ${itemName} in ${provinceName}.`,
-      places: type === 'place' ? [{ name: itemName, hint: targetItem.hint || targetItem.description || '' }] : [],
-      dishes: type === 'dish' ? [{ name: itemName, where: targetItem.where || targetItem.location || '' }] : [],
-      tips: ['Check with local tourist office for more details'],
-      promotions: [],
-      hotels: [],
-      source: 'fallback-specific'
-    };
-    
-    return sanitizePayload(fallback);
+    // Fallback an toàn nếu AI gặp sự cố
+    return sanitizePayload({
+      summary: `${itemName} là một địa danh/món ăn nổi tiếng tại ${provinceName}.`,
+      places: type === 'place' ? [{ name: itemName, hint: dbHint }] : [],
+      dishes: type === 'dish' ? [{ name: itemName, where: 'Tại địa phương' }] : [],
+      tips: ['Hệ thống đang bận, vui lòng thử lại sau.'],
+      source: 'nosql-fallback'
+    });
   }
 }
 
@@ -544,7 +409,6 @@ function fallbackFromDoc(doc, intent) {
   const pick = (arr) => Array.isArray(arr) ? arr.slice(0, 7) : [];
   return {
     province: doc.name,
-    // Luôn trả cả hai thay vì lọc theo intent, giữ hint/where nếu có
     places: pick(doc.places).map(x => ({ 
       name: x.name, 
       hint: x.hint || x.description || '' 
@@ -568,14 +432,10 @@ function normRow(x, tag = '') {
     x.code || x.place || x.dish || x.city || x.id || null;
   if (!name) return null;
 
-  // Chuẩn hoá các field FE đang render
   const discount_value =
     x.discount_value ?? x.discount_percent ?? x.discount ?? x.percent ?? x.amount_off ?? x.value ?? null;
-
-  // FE dùng "valid_from" & "valid_until"
   const valid_from = x.valid_from ?? x.start_date ?? x.from ?? x.begin_at ?? null;
   const valid_until = x.valid_until ?? x.valid_to ?? x.end_date ?? x.to ?? x.expire_at ?? null;
-
   const city = x.city ?? x.province ?? x.location ?? null;
 
   return {
@@ -610,7 +470,7 @@ function detectSqlMode(sql = []) {
   return 'generic';
 }
 
-// ==== DEDUPE HELPERS (ADDED) ====
+// ==== DEDUPE HELPERS ====
 const uniqBy = (arr, keyFn) => {
   const seen = new Set();
   return (arr || []).filter(x => {
@@ -629,6 +489,15 @@ const normKey = v => normalize(String(v || ''));
 /* ========== COMPOSE (hợp nhất NoSQL + SQL) ========== */
 
 async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, intent }) {
+  if (user_ctx && user_ctx.forcedItem && doc) {
+      console.log('[compose] => Nhận tín hiệu ép buộc (Thinking Mode) cho:', user_ctx.forcedItem.name);
+      return await composeSpecificItem({
+          doc,
+          targetItem: user_ctx.forcedItem,
+          type: user_ctx.forcedType || 'place',
+          intent: 'ask_details'
+      });
+  }
   const key = makeKey({
     doc_key: doc?.name || doc?.province || 'no-doc',
     sql_tags: (sql || []).map(ds => ds?.tag || ds?.name).join('|') || 'no-sql',
@@ -644,7 +513,6 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
     const mode = detectSqlMode(sql);
     const topN = Number.isFinite(user_ctx?.top_n) ? user_ctx.top_n : 10;
 
-    // Gộp + chuẩn hoá
     let items = [];
     for (const ds of sql) {
       const tag = ds?.name || ds?.tag || 'dataset';
@@ -652,7 +520,6 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
       items.push(...rows);
     }
 
-    // Dedupe theo mode
     if (mode === 'promotions') {
       items = uniqBy(items, r => r.code ? normKey(r.code) : `${normKey(r.name)}|${normKey(r.city)}`);
     } else if (mode === 'hotels') {
@@ -679,10 +546,7 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
       out = {
         summary: `Tìm thấy ${items.length} khuyến mãi, hiển thị ${promos.length} ưu đãi tiêu biểu.`,
         promotions: promos,
-        hotels: [],
-        places: [],
-        dishes: [],
-        tips: [],
+        hotels: [], places: [], dishes: [], tips: [],
         source: 'sql+nosql+llm'
       };
     } else if (mode === 'hotels') {
@@ -699,21 +563,14 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
       out = {
         summary: `Gợi ý ${hotels.length} khách sạn.`,
         hotels,
-        promotions: [],
-        places: [],
-        dishes: [],
-        tips: [],
+        promotions: [], places: [], dishes: [], tips: [],
         source: 'sql+nosql+llm'
       };
     } else {
       out = {
         summary: `Tìm thấy ${pick.length} kết quả.`,
         data: { items: pick },
-        promotions: [],
-        hotels: [],
-        places: [],
-        dishes: [],
-        tips: [],
+        promotions: [], hotels: [], places: [], dishes: [], tips: [],
         source: 'sql+nosql+llm'
       };
     }
@@ -737,14 +594,13 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
   }
 
   try {
-    // SPECIFIC ITEM FOCUS MODE: Check if user asks about a specific place/dish
+    // SPECIFIC ITEM FOCUS MODE
     const userMessage = nlu?.normalized || user_ctx?.message || '';
     const specificItem = findSpecificItem(doc, userMessage);
     
     if (specificItem) {
-      console.log('[compose] ✓ SPECIFIC ITEM MODE:', specificItem.type, specificItem.item.name, `(confidence: ${specificItem.score?.toFixed(2) || 'N/A'})`);
+      console.log('[compose] ✓ SPECIFIC ITEM MODE:', specificItem.type, specificItem.item.name);
       
-      // Use dedicated composeSpecificItem function for focused, anti-hallucination response
       const result = await composeSpecificItem({
         doc,
         targetItem: specificItem.item,
@@ -756,7 +612,7 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
       return result;
     }
     
-    // GENERIC LIST MODE: Return multiple items
+    // GENERIC LIST MODE
     console.log('[compose] → GENERIC LIST MODE');
     const prompt = factsToPrompt({ doc, intent: intent || nlu?.intent || 'generic' });
     const raw = await generateJSON({ prompt, temperature: 0.2 });
@@ -764,18 +620,17 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
 
     const pickSlice = (arr, n = 7) => (Array.isArray(arr) ? arr.slice(0, n) : []);
     
-    // Ưu tiên kết quả từ LLM (có hint/where), nếu không có thì lấy từ doc (chỉ có name)
     let places = (safe.places && safe.places.length)
       ? safe.places
       : pickSlice(doc.places || [], 7).map(x => ({ 
           name: x.name, 
-          hint: x.hint || x.description || '' // Giữ hint nếu có trong doc
+          hint: x.hint || x.description || '' 
         }));
     let dishes = (safe.dishes && safe.dishes.length)
       ? safe.dishes
       : pickSlice(doc.dishes || [], 7).map(x => ({ 
           name: x.name,
-          where: x.where || x.location || '' // Giữ where nếu có trong doc
+          where: x.where || x.location || '' 
         }));
     let tips = (safe.tips && safe.tips.length) ? safe.tips : (doc.tips || []);
 
@@ -810,14 +665,14 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
   }
 }
 
-/* ========== Small talk / chitchat fallback (không cần doc/whitelist) ========== */
+/* ========== Small talk fallback ========== */
 
 async function composeSmallTalk({ message = '', nlu = {}, history = [] }) {
   const historyLines = Array.isArray(history)
     ? history
         .map(h => `Q: ${h?.message?.text || ''}\nA: ${h?.reply?.text || ''}`.trim())
         .filter(Boolean)
-        .reverse() // gần nhất trước
+        .reverse()
         .slice(0, 5)
     : [];
   const histBlock = historyLines.length
@@ -825,14 +680,9 @@ async function composeSmallTalk({ message = '', nlu = {}, history = [] }) {
     : '';
 
   const prompt = `
-Bạn là trợ lý du lịch thân thiện. Người dùng hỏi chung (có thể không liên quan dữ liệu nội bộ): "${message}".
-${histBlock}Hãy trả lời ngắn gọn 2-4 câu, tự nhiên như người thật, không viện dẫn nguồn, không nói "thiếu dữ liệu".
-Nếu câu hỏi gợi ý đi chơi/du lịch mà không có địa điểm cụ thể, hãy gợi ý các lựa chọn phổ biến (biển, núi, nghỉ dưỡng gần) mang tính an toàn.
-Trả về JSON:
-{
-  "summary": string,
-  "tips": string[]
-}
+Bạn là trợ lý du lịch thân thiện. Người dùng hỏi chung: "${message}".
+${histBlock}Hãy trả lời ngắn gọn 2-4 câu, tự nhiên như người thật.
+Trả về JSON: { "summary": string, "tips": string[] }
 `;
 
   try {
@@ -842,30 +692,18 @@ Trả về JSON:
       : 'Mình đã ghi nhận câu hỏi và gợi ý chung nhé.';
     const tips = Array.isArray(resp?.tips) ? resp.tips.filter(Boolean).slice(0, 5) : [];
     return {
-      summary,
-      tips,
-      promotions: [],
-      hotels: [],
-      places: [],
-      dishes: [],
-      source: 'llm-chitchat'
+      summary, tips, promotions: [], hotels: [], places: [], dishes: [], source: 'llm-chitchat'
     };
   } catch (e) {
     return {
       summary: 'Mình đã ghi nhận, dưới đây là vài gợi ý chung để bạn tham khảo.',
-      tips: ['Thử chọn một điểm đến gần để tiết kiệm thời gian di chuyển', 'Mang theo áo mưa/ô gấp phòng trường hợp thời tiết thay đổi'],
-      promotions: [],
-      hotels: [],
-      places: [],
-      dishes: [],
-      source: 'llm-chitchat'
+      tips: ['Thử chọn một điểm đến gần để tiết kiệm thời gian di chuyển'],
+      promotions: [], hotels: [], places: [], dishes: [], source: 'llm-chitchat'
     };
   }
 }
 
-module.exports = { compose, composeSmallTalk, fallbackFromDoc, composeCityFallback };
-
-/* ========== Generic city fallback khi không có dữ liệu NoSQL (không whitelist) ========== */
+/* ========== Generic city fallback ========== */
 async function composeCityFallback({ city, intent = 'generic', message = '', history = [], month = null, doc = null }) {
   const normMsg = normalize(String(message || ''));
   const inferredCity = city || inferCityFromMessage(normMsg);
@@ -876,125 +714,46 @@ async function composeCityFallback({ city, intent = 'generic', message = '', his
   const monthNote = overrideMonthNote || monthContext(month);
   const histPayload = payloadFromHistory(history);
 
-  // Nếu user follow-up về một địa danh đã gợi ý trong payload trước
   if (histPayload && Array.isArray(histPayload.places)) {
     const found = histPayload.places.find(p => {
       const n = normalize(p?.name || '');
       return n && normMsg.includes(n);
     });
     if (found) {
-      const addrNote = /dia chi|địa chỉ/i.test(message) && !found.address
-        ? `Chưa có địa chỉ chi tiết, bạn có thể hỏi quầy du lịch địa phương tại ${inferredCity || city || 'địa phương'} hoặc tra cứu trên bản đồ.`
-        : '';
-      const activityNote = /hoạt động|activity|làm gì|chơi gì|tham quan/i.test(message)
-        ? 'Hoạt động gợi ý: tham quan, chụp ảnh, nghe thuyết minh lịch sử, thử ẩm thực địa phương.'
-        : '';
-      const annualNote = /thường niên|lễ hội|festival|sự kiện/i.test(message)
-        ? 'Sự kiện: kiểm tra lịch lễ hội/liveshow tại điểm tham quan hoặc trang văn hóa địa phương (nếu có).'
-        : '';
-      const hint = [found.hint || found.description || '', found.address || found.where || '', addrNote, activityNote, annualNote]
-        .map(s => (s || '').trim())
-        .filter(Boolean)
-        .join(' \n ');
+      const hint = found.hint || found.description || '';
       return sanitizePayload({
         summary: hint || `Thông tin về ${found.name}`,
         places: [{ name: found.name, hint }],
-        dishes: [], tips: ['Kiểm tra giờ mở cửa và đường đi trước khi đến', addrNote].filter(Boolean), promotions: [], hotels: [],
+        dishes: [], tips: ['Kiểm tra giờ mở cửa trước khi đến'], promotions: [], hotels: [],
         source: histPayload.source || 'nosql+llm'
       });
     }
   }
 
-  // Nếu user hỏi 1 địa danh cụ thể đã biết
+  // Kiểm tra POI RULES (chỉ cho misinfo hoặc redirect)
   for (const rule of POI_RULES) {
     if (!rule.alias.test(message)) continue;
-
+    
     if (rule.type === 'misinfo') {
       const replacements = Array.isArray(rule.replacements) ? rule.replacements : [];
-      const tips = Array.isArray(rule.tips) && rule.tips.length
-        ? rule.tips
-        : ['Kiểm tra lại tên địa điểm trên bản đồ chính thống trước khi đặt tour.'];
       return sanitizePayload({
         summary: rule.info || `Chưa có thông tin chính thống về ${rule.poi}.`,
-        places: replacements,
-        dishes: [],
-        tips,
-        promotions: [], hotels: [],
-        source: 'llm-generic'
+        places: replacements, dishes: [], tips: rule.tips || [], promotions: [], hotels: [], source: 'llm-generic'
       });
     }
-
-    if (inferredCity && rule.cityActual !== inferredCity && rule.alt && rule.alt.city === inferredCity) {
-      return sanitizePayload({
-        summary: `${rule.poi} nằm ở ${rule.cityActual}, không thuộc ${inferredCity}. ${rule.info || ''}`.trim(),
-        places: [{ name: rule.alt.suggestion || rule.info || rule.poi }],
-        dishes: [],
-        tips: ['Bạn có thể ghé đúng địa danh thay thế trong tỉnh: ' + (rule.alt.suggestion || '')],
-        promotions: [], hotels: [],
-        source: 'llm-generic'
-      });
-    }
-    return sanitizePayload({
-      summary: `${rule.poi}: ${rule.info || ''}`.trim(),
-      places: [{ name: rule.poi, hint: rule.info || '' }],
-      dishes: [],
-      tips: ['Kiểm tra giờ mở cửa trước khi đi', 'Mang áo mưa/ô nếu thời tiết xấu'],
-      promotions: [], hotels: [],
-      source: 'llm-generic'
-    });
+    // Các rules thông thường đã bị bỏ qua ở composeSpecificItem, nhưng nếu rơi vào đây (fallback) 
+    // thì cũng nên để AI tự xử lý (return null để xuống dưới) hoặc xử lý generic.
+    // Ở đây ta chỉ giữ logic redirect nếu có (nhưng POI_RULES hiện tại đã xóa hardcode info).
   }
-  const historyLines = Array.isArray(history)
-    ? history
-        .map(h => `Q: ${h?.message?.text || ''}\nA: ${h?.reply?.text || ''}`.trim())
-        .filter(Boolean)
-        .reverse()
-        .slice(0, 3)
-    : [];
-  const histBlock = historyLines.length
-    ? `Ngữ cảnh trước đó:\n${historyLines.join('\n')}\n\n`
-    : '';
+
   const prompt = `
-Bạn là trợ lý du lịch chuyên nghiệp, nhiệt tình, và hiểu biết sâu về các tỉnh thành Việt Nam.
-${histBlock}Câu hỏi người dùng: "${message}" ${cityText}.
-${monthNote}
-
-Bạn KHÔNG CÓ dữ liệu nội bộ chi tiết về ${cityStrict}, nhưng hãy dựa vào kiến thức CHẮC CHẮN của bạn để trả lời.
-
-TRẢ VỀ JSON DUY NHẤT (schema):
-{
-  "summary": string,
-  "places": [{ "name": string, "hint": string }],
-  "dishes": [{ "name": string, "where": string }],
-  "tips": string[],
-  "province": string
-}
-
-YÊU CẦU BẮT BUỘC:
-
-1. KIỂM SOÁT ĐỊA LÝ NGHIÊM NGẶT:
-   - CHỈ gợi ý địa danh/món ăn thuộc ĐÚNG ${cityStrict}.
-   - TUYỆT ĐỐI KHÔNG gợi ý địa điểm từ tỉnh khác (ví dụ: KHÔNG gợi ý "Hồ Dầu Tiếng" (Bình Dương) cho "Đắk Lắk").
-   - Nếu bạn KHÔNG CHẮC CHẮN một địa danh thuộc ${cityStrict}, HÃY BỎ QUA địa danh đó.
-   - Nếu không có kiến thức chắc chắn về ${cityStrict}, trả danh sách rỗng [] thay vì bịa.
-
-2. CHẤT LƯỢNG NỘI DUNG:
-   - "summary": 2-3 câu, giọng văn thân thiện, mang tính an toàn.
-   - "hint": 10-15 từ mô tả ĐỘC ĐÁO (kiến trúc/cảnh quan/hoạt động/lịch sử), KHÔNG chỉ viết "nằm ở [tên tỉnh]".
-   - "where": 10-15 từ gợi ý ĐỊA CHỈ/KHU VỰC cụ thể nếu biết (tên quán/chợ/đường phố), hoặc "khu vực trung tâm" nếu không chắc.
-   - "tips": Lời khuyên thực tế về thời điểm/chuẩn bị/an toàn.
-
-3. KIỂM TRA TRƯỚC KHI TRẢ LỜI:
-   - Với MỖI địa danh/món ăn bạn định gợi ý, tự hỏi: "Tôi có CHẮC CHẮN 100% rằng [tên này] thuộc ${cityStrict} không?"
-   - Nếu câu trả lời là "Không chắc" hoặc "Có thể thuộc tỉnh khác" → BỎ QUA địa danh đó.
-
-4. XỬ LÝ THỜI TIẾT (nếu intent=ask_weather):
-   - Nếu có ghi chú đặc biệt: ${overrideMonthNote || 'không có ghi chú'}
-   - Mô tả cảm tính "ấm áp/mát mẻ", KHÔNG bịa số °C cụ thể.
-   - Nếu user nêu tháng ${month ?? 'không rõ'}, mô tả mùa đúng (tháng 11 ≠ mùa hè).
-
-5. "province" gán bằng "${cityStrict}".
-
-(intent: ${intent}, weatherMode: ${weatherMode}, inferred city: ${inferredCity || 'N/A'})
+Bạn là trợ lý du lịch chuyên nghiệp.
+Câu hỏi: "${message}" ${cityText}. ${monthNote}
+KHÔNG CÓ dữ liệu nội bộ về ${cityStrict}, hãy trả lời dựa vào kiến thức CHẮC CHẮN.
+TRẢ VỀ JSON:
+{ "summary": string, "places": [{ "name": string, "hint": string }], "dishes": [], "tips": [], "province": string }
+Yêu cầu: CHỈ gợi ý địa danh thuộc ĐÚNG ${cityStrict}. Summary 2-3 câu thân thiện.
+(intent: ${intent})
 `;
 
   try {
@@ -1008,15 +767,14 @@ YÊU CẦU BẮT BUỘC:
       source: 'llm-generic'
     };
     out = sanitizePayload(out);
-    if (doc && doc.name) {
-      out = alignWithDoc(out, doc);
-    }
+    if (doc && doc.name) out = alignWithDoc(out, doc);
     return out;
   } catch {
     return {
       summary: city ? `Gợi ý chung cho ${city}` : 'Gợi ý du lịch chung',
-      places: [], dishes: [], tips: [], promotions: [], hotels: [],
-      source: 'llm-generic'
+      places: [], dishes: [], tips: [], promotions: [], hotels: [], source: 'llm-generic'
     };
   }
 }
+
+module.exports = { compose, composeSmallTalk, fallbackFromDoc, composeCityFallback };
