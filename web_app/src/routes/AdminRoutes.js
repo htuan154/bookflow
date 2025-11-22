@@ -48,6 +48,8 @@ import AdminMessagesPage from '../pages/admin/messages';
 import { IMProvider } from '../context/IMContext';
 import { TouristLocationProvider } from '../context/TouristLocationContext';
 import { FoodRecommendationProvider } from '../context/FoodRecommendationContext';
+import { AmenityProvider } from '../context/AmenityContext';
+import AmenityManagementPage from '../pages/admin/AmenityManagement/AmenityManagementPage';
 // Promotion pages
 import {
     PromotionManagement,
@@ -248,6 +250,16 @@ const AdminRoutes = () => {
                                 <FoodRecommendationDetailPage />
                             </FoodRecommendationProvider>
                         </TouristLocationProvider>
+                    }
+                />
+                
+                {/* Amenity Management */}
+                <Route
+                    path="amenities"
+                    element={
+                        <AmenityProvider>
+                            <AmenityManagementPage />
+                        </AmenityProvider>
                     }
                 />
                 

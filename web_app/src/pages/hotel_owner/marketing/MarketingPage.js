@@ -27,7 +27,7 @@ const MarketingPage = () => {
   const [showAllImages, setShowAllImages] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [postsPerPage] = useState(9);
+  const [postsPerPage, setPostsPerPage] = useState(9); // Cho phép thay đổi số lượng bài viết mỗi trang
   const [stats, setStats] = useState({
     totalPosts: 0,
     totalInteractions: 0,
@@ -376,7 +376,7 @@ const MarketingPage = () => {
     console.log('🔄 Hotel changed to:', hotelId);
     try {
       setLoadingData(true);
-      const resp = await getBlogsByHotel(hotelId, { page: 1, limit: postsPerPage });
+      const resp = await getBlogsByHotel(hotelId, { page: 1, limit: 10000 });
       console.log('📦 Blogs response for hotel change:', resp);
       console.log('📦 resp.data:', resp?.data);
       console.log('📦 resp.data.blogs:', resp?.data?.blogs);
@@ -631,6 +631,17 @@ const MarketingPage = () => {
   const indexOfFirstPost = indexOfLastPost - postsPerPage;
   const currentPosts = filteredAndSortedPosts.slice(indexOfFirstPost, indexOfLastPost);
   const totalPages = Math.ceil(filteredAndSortedPosts.length / postsPerPage);
+  
+  // Debug pagination
+  console.log('📊 Pagination Debug:', {
+    totalPosts: posts.length,
+    filteredPosts: filteredAndSortedPosts.length,
+    postsPerPage,
+    currentPage,
+    totalPages,
+    statusFilter,
+    searchTerm
+  });
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -2346,11 +2357,11 @@ const MarketingPage = () => {
                     </span>
                     <div className="flex items-center space-x-2">
                         <span className="text-sm text-gray-600">Hiển thị:</span>
-                        <select 
+                        <select
                             value={postsPerPage}
                             onChange={(e) => {
+                                setPostsPerPage(Number(e.target.value));
                                 setCurrentPage(1);
-                                // Có thể thêm logic thay đổi postsPerPage nếu cần
                             }}
                             className="border border-gray-300 rounded px-2 py-1 text-sm"
                         >
@@ -3266,10 +3277,10 @@ const MarketingPage = () => {
                                 comment.status === 'hidden' ? 'bg-gray-100 text-gray-700' :
                                 'bg-gray-100 text-gray-500'
                               }`}>
-                                {comment.status === 'approved' ? '✓' :
-                                 comment.status === 'pending' ? '⏳' : 
-                                 comment.status === 'rejected' ? '✗' :
-                                 comment.status === 'hidden' ? '👁️' : '?'}
+                                {comment.status === 'approved' ? 'Đã Duyệt' :
+                                 comment.status === 'pending' ? 'Chờ Duyệt' : 
+                                 comment.status === 'rejected' ? 'Từ Chối' :
+                                 comment.status === 'hidden' ? 'Đã Ẩn' : '?'}
                               </span>
                             </div>
 

@@ -261,27 +261,36 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
     
     const isExpanded = expandedComments.has(comment.commentId);
     const hasReplies = comment.replies && comment.replies.length > 0;
+    
+    // Giới hạn độ thụt tối đa để tránh tràn
+    const maxLevel = 5;
+    const actualLevel = Math.min(level, maxLevel);
+    const indentSize = actualLevel * 3; // Giảm từ 4 xuống 3
 
     return (
-      <Box key={comment.commentId} sx={{ mb: 2 }}>
+      <Box key={comment.commentId} sx={{ mb: 1.5, ml: indentSize }}>
         <Box sx={{ 
-          p: 2,
-          bgcolor: 'white',
+          p: 1.5,
+          bgcolor: level > 0 ? '#fafafa' : 'white',
           borderRadius: 1,
-          border: level > 0 ? '1px solid #f0f0f0' : 'none',
-          borderLeft: level > 0 ? '2px solid #e0e0e0' : 'none',
-          ml: level > 0 ? 2 : 0
+          border: '1px solid #e2e8f0',
+          borderLeft: level > 0 ? `3px solid #FF6B35` : '1px solid #e2e8f0',
+          position: 'relative',
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+          }
         }}>
-          <Stack direction="row" alignItems="flex-start" spacing={2}>
-            <Avatar sx={{ bgcolor: '#FF6B35', width: 32, height: 32 }}>
-              <Person sx={{ fontSize: 18 }} />
+          <Stack direction="row" alignItems="flex-start" spacing={1.5}>
+            <Avatar sx={{ bgcolor: '#FF6B35', width: 28, height: 28, flexShrink: 0 }}>
+              <Person sx={{ fontSize: 16 }} />
             </Avatar>
-            <Box sx={{ flexGrow: 1 }}>
-              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                <Typography fontWeight={600} sx={{ fontSize: '0.9rem' }}>
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5, flexWrap: 'wrap' }}>
+                <Typography fontWeight={600} sx={{ fontSize: '0.85rem' }}>
                   {comment.fullName || comment.username || comment.user?.full_name || 'Người dùng'}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
                   {formatTimeAgo(comment.createdAt)}
                 </Typography>
                 {comment.status === 'rejected' ? (
@@ -308,24 +317,25 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
                 )}
               </Stack>
               
-              <Typography sx={{ mb: 1.5, fontSize: '0.9rem', lineHeight: 1.5 }}>
+              <Typography sx={{ mb: 1, fontSize: '0.85rem', lineHeight: 1.5, wordBreak: 'break-word' }}>
                 {comment.content}
               </Typography>
               
               {/* Action Buttons - Đơn giản hóa */}
-              <Stack direction="row" alignItems="center" spacing={1}>
+              <Stack direction="row" alignItems="center" spacing={0.5} flexWrap="wrap">
                 <Button
                   size="small"
-                  startIcon={<Reply sx={{ fontSize: 14 }} />}
+                  startIcon={<Reply sx={{ fontSize: 12 }} />}
                   onClick={() => handleReplyComment(comment.commentId, comment.fullName || comment.username || comment.user?.full_name || 'Người dùng')}
                   sx={{
                     textTransform: 'none',
                     color: '#FF6B35',
                     bgcolor: 'transparent',
-                    fontSize: '0.75rem',
-                    px: 1,
-                    py: 0.5,
+                    fontSize: '0.7rem',
+                    px: 0.75,
+                    py: 0.25,
                     minHeight: 'auto',
+                    minWidth: 'auto',
                     '&:hover': {
                       bgcolor: '#FFF5F0',
                       color: '#E55A2B'
@@ -339,23 +349,24 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
                 {hasReplies && (
                   <Button
                     size="small"
-                    endIcon={isExpanded ? <ExpandLess sx={{ fontSize: 14 }} /> : <ExpandMore sx={{ fontSize: 14 }} />}
+                    endIcon={isExpanded ? <ExpandLess sx={{ fontSize: 12 }} /> : <ExpandMore sx={{ fontSize: 12 }} />}
                     onClick={() => toggleCommentExpansion(comment.commentId)}
                     sx={{ 
                       textTransform: 'none',
                       color: '#FF6B35',
                       bgcolor: 'transparent',
-                      fontSize: '0.75rem',
+                      fontSize: '0.7rem',
                       px: 0.75,
                       py: 0.25,
                       minHeight: 'auto',
+                      minWidth: 'auto',
                       '&:hover': {
                         bgcolor: '#FFF5F0',
                         color: '#E55A2B'
                       }
                     }}
                   >
-                    {comment.replies.length} phản hồi
+                    {comment.replies.length}
                   </Button>
                 )}
 
@@ -367,15 +378,16 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
                       onClick={() => updateStatus(comment.commentId, 'approved')}
                       sx={{
                         textTransform: 'none',
-                        color: '#FF6B35',
+                        color: '#16a34a',
                         bgcolor: 'transparent',
-                        fontSize: '0.75rem',
-                        px: 1,
-                        py: 0.5,
+                        fontSize: '0.7rem',
+                        px: 0.75,
+                        py: 0.25,
                         minHeight: 'auto',
+                        minWidth: 'auto',
                         '&:hover': {
-                          bgcolor: '#FFF5F0',
-                          color: '#E55A2B'
+                          bgcolor: '#f0fdf4',
+                          color: '#15803d'
                         }
                       }}
                     >
@@ -386,15 +398,16 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
                       onClick={() => updateStatus(comment.commentId, 'rejected')}
                       sx={{
                         textTransform: 'none',
-                        color: '#FF6B35',
+                        color: '#dc2626',
                         bgcolor: 'transparent',
-                        fontSize: '0.75rem',
-                        px: 1,
-                        py: 0.5,
+                        fontSize: '0.7rem',
+                        px: 0.75,
+                        py: 0.25,
                         minHeight: 'auto',
+                        minWidth: 'auto',
                         '&:hover': {
-                          bgcolor: '#FFF5F0',
-                          color: '#E55A2B'
+                          bgcolor: '#fef2f2',
+                          color: '#b91c1c'
                         }
                       }}
                     >
@@ -409,15 +422,16 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
                     onClick={() => updateStatus(comment.commentId, 'hidden')}
                     sx={{
                       textTransform: 'none',
-                      color: '#FF6B35',
+                      color: '#64748b',
                       bgcolor: 'transparent',
-                      fontSize: '0.75rem',
-                      px: 1,
-                      py: 0.5,
+                      fontSize: '0.7rem',
+                      px: 0.75,
+                      py: 0.25,
                       minHeight: 'auto',
+                      minWidth: 'auto',
                       '&:hover': {
-                        bgcolor: '#FFF5F0',
-                        color: '#E55A2B'
+                        bgcolor: '#f8fafc',
+                        color: '#475569'
                       }
                     }}
                   >
@@ -432,23 +446,22 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
         {/* Inline Reply Form */}
         {replyingToComment === comment.commentId && (
           <Box sx={{ 
-            ml: level > 0 ? 4 : 2, 
-            mr: 1, 
-            mt: 1, 
-            p: 2, 
-            bgcolor: '#f8fafc', 
-            borderRadius: 1
+            mt: 1.5, 
+            p: 1.5, 
+            bgcolor: '#f1f5f9', 
+            borderRadius: 1,
+            border: '1px dashed #cbd5e1'
           }}>
-            <Stack direction="row" spacing={2} alignItems="flex-start">
-              <Avatar sx={{ width: 32, height: 32, bgcolor: '#FF6B35' }}>
-                <Person sx={{ fontSize: 18 }} />
+            <Stack direction="row" spacing={1.5} alignItems="flex-start">
+              <Avatar sx={{ width: 28, height: 28, bgcolor: '#FF6B35', flexShrink: 0 }}>
+                <Person sx={{ fontSize: 16 }} />
               </Avatar>
-              <Box sx={{ flexGrow: 1 }}>
+              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                 <TextField
                   fullWidth
                   multiline
                   rows={2}
-                  placeholder="Viết trả lời của bạn..."
+                  placeholder="Viết trả lời..."
                   value={replyContent}
                   onChange={(e) => setReplyContent(e.target.value)}
                   size="small"
@@ -456,6 +469,7 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
                     '& .MuiOutlinedInput-root': {
                       bgcolor: 'white',
                       borderRadius: 1,
+                      fontSize: '0.85rem',
                       '& fieldset': {
                         borderColor: '#e2e8f0'
                       },
@@ -463,35 +477,33 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
                         borderColor: '#d1d5db'
                       },
                       '&.Mui-focused fieldset': {
-                        borderColor: '#64748b'
+                        borderColor: '#FF6B35'
                       }
                     }
                   }}
                 />
-                <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                <Stack direction="row" spacing={0.75} sx={{ mt: 1 }}>
                   <Button
                     size="small"
                     variant="contained"
-                    startIcon={<Send sx={{ fontSize: 14 }} />}
+                    startIcon={<Send sx={{ fontSize: 12 }} />}
                     onClick={handleSubmitReply}
                     disabled={!replyContent.trim() || replyLoading}
                     sx={{
                       bgcolor: '#FF6B35',
                       color: 'white',
-                      border: '1px solid #FF6B35',
                       textTransform: 'none',
-                      fontSize: '0.75rem',
-                      px: 2,
+                      fontSize: '0.7rem',
+                      px: 1.5,
+                      py: 0.5,
                       boxShadow: 'none',
                       '&:hover': { 
                         bgcolor: '#E55A2B',
-                        borderColor: '#E55A2B',
-                        color: 'white',
                         boxShadow: 'none'
                       }
                     }}
                   >
-                    {replyLoading ? 'Đang gửi...' : 'Gửi'}
+                    {replyLoading ? 'Gửi...' : 'Gửi'}
                   </Button>
                   <Button
                     size="small"
@@ -499,15 +511,16 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
                     onClick={handleCancelReply}
                     sx={{
                       textTransform: 'none',
-                      fontSize: '0.75rem',
+                      fontSize: '0.7rem',
                       bgcolor: 'white',
-                      borderColor: '#FF6B35',
-                      color: '#FF6B35',
-                      px: 2,
+                      borderColor: '#e2e8f0',
+                      color: '#64748b',
+                      px: 1.5,
+                      py: 0.5,
                       '&:hover': {
-                        bgcolor: '#FFF5F0',
-                        borderColor: '#E55A2B',
-                        color: '#E55A2B'
+                        bgcolor: '#f8fafc',
+                        borderColor: '#cbd5e1',
+                        color: '#475569'
                       }
                     }}
                   >
@@ -521,7 +534,7 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
 
         {hasReplies && (
           <Collapse in={isExpanded}>
-            <Box sx={{ mt: 1 }}>
+            <Box sx={{ mt: 1.5 }}>
               {comment.replies.map(reply => renderComment(reply, level + 1))}
             </Box>
           </Collapse>
