@@ -21,6 +21,8 @@ router.get('/hotel/:hotelId', blogController.getBlogsByHotel);
 // Route tìm kiếm blog theo tiêu đề (phân trang, mặc định 10)
 router.get('/search', blogController.searchBlogs);
 
+// Route lấy tất cả blogs (không filter status)
+router.get('/all', blogController.getAllBlogs);
 
 // --- ADMIN ROUTES ---
 // ✅ SỬA: Thêm route /admin/blogs/stats 

@@ -508,10 +508,29 @@ const findByHotelId = async (hotelId, options = {}) => {
     return { blogs, total };
 };
 
+/**
+ * Lấy tất cả các bài blog (không filter status, có phân trang).
+ * @param {number} limit
+ * @param {number} offset
+ * @returns {Promise<Blog[]>}
+ */
+const findAllBlogs = async (limit = 10, offset = 0) => {
+    const query = `
+        SELECT blogs.*, users.username
+        FROM blogs
+        JOIN users ON users.user_id = blogs.author_id
+        ORDER BY blogs.created_at DESC
+        LIMIT $1 OFFSET $2
+    `;
+    const result = await pool.query(query, [limit, offset]);
+    return result.rows.map(row => new Blog_custom(row));
+};
+
 module.exports = {
     create,
     findBySlug,
     findById,
+    findAllBlogs,
     findAllPublished,
     findByStatus, // Thêm function mới
     getBlogStatsByStatus, // Thêm function mới

@@ -24,12 +24,18 @@ const BlogForm = ({
         featuredImageUrl: '',
         metaDescription: '',
         tags: '',
-        status: 'draft',
+        status: 'pending', // Mặc định là chờ duyệt
         hotelId: '',
     });
 
     const [formErrors, setFormErrors] = useState({});
     const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
+    
+    // Image management state
+    const [additionalImages, setAdditionalImages] = useState([]);
+    const [showImageUrlDialog, setShowImageUrlDialog] = useState(false);
+    const [imageUrlInput, setImageUrlInput] = useState('');
+    const [draggedIndex, setDraggedIndex] = useState(null);
 
     // ✅ CẬP NHẬT: Initialize form data with correct Blog model mapping
     useEffect(() => {
@@ -213,6 +219,51 @@ const BlogForm = ({
         }
     };
 
+    // Image management functions
+    const handleAddImageFromUrl = () => {
+        if (!imageUrlInput.trim()) {
+            alert('Vui lòng nhập URL hình ảnh');
+            return;
+        }
+        
+        // Validate URL
+        try {
+            new URL(imageUrlInput);
+        } catch {
+            alert('URL không hợp lệ');
+            return;
+        }
+        
+        setAdditionalImages(prev => [...prev, imageUrlInput.trim()]);
+        setImageUrlInput('');
+        setShowImageUrlDialog(false);
+    };
+
+    const handleRemoveImage = (index) => {
+        setAdditionalImages(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleMoveImageUp = (index) => {
+        if (index === 0) return;
+        const newImages = [...additionalImages];
+        [newImages[index], newImages[index - 1]] = [newImages[index - 1], newImages[index]];
+        setAdditionalImages(newImages);
+    };
+
+    const handleMoveImageDown = (index) => {
+        if (index === additionalImages.length - 1) return;
+        const newImages = [...additionalImages];
+        [newImages[index], newImages[index + 1]] = [newImages[index + 1], newImages[index]];
+        setAdditionalImages(newImages);
+    };
+
+    const handleSetAsThumbnail = (imageUrl) => {
+        setFormData(prev => ({
+            ...prev,
+            featuredImageUrl: imageUrl
+        }));
+    };
+
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="p-6">
@@ -380,6 +431,147 @@ const BlogForm = ({
                         )}
                     </div>
 
+                    {/* Additional Images */}
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-medium text-gray-700">
+                                Ảnh bổ sung
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setShowImageUrlDialog(true)}
+                                className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            >
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                Thêm ảnh
+                            </button>
+                        </div>
+                        
+                        {/* Image URL Dialog */}
+                        {showImageUrlDialog && (
+                            <div className="mb-4 p-4 border border-blue-200 bg-blue-50 rounded-md">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Nhập URL hình ảnh
+                                </label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="url"
+                                        value={imageUrlInput}
+                                        onChange={(e) => setImageUrlInput(e.target.value)}
+                                        placeholder="https://example.com/image.jpg"
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleAddImageFromUrl();
+                                            }
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleAddImageFromUrl}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                    >
+                                        Thêm
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowImageUrlDialog(false);
+                                            setImageUrlInput('');
+                                        }}
+                                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                                    >
+                                        Hủy
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Image Gallery */}
+                        {additionalImages.length > 0 && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                                {additionalImages.map((imageUrl, index) => (
+                                    <div key={index} className="relative group border rounded-lg p-2 bg-white hover:shadow-md transition-shadow">
+                                        <img
+                                            src={imageUrl}
+                                            alt={`Image ${index + 1}`}
+                                            className="w-full h-32 object-cover rounded"
+                                            onError={(e) => {
+                                                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EError%3C/text%3E%3C/svg%3E';
+                                            }}
+                                        />
+                                        
+                                        {/* Action Buttons */}
+                                        <div className="absolute top-1 right-1 flex flex-col gap-1">
+                                            {/* Set as thumbnail */}
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSetAsThumbnail(imageUrl)}
+                                                className="p-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs"
+                                                title="Đặt làm ảnh đại diện"
+                                            >
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </button>
+                                            
+                                            {/* Move up */}
+                                            {index > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleMoveImageUp(index)}
+                                                    className="p-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs"
+                                                    title="Di chuyển lên"
+                                                >
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                            
+                                            {/* Move down */}
+                                            {index < additionalImages.length - 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleMoveImageDown(index)}
+                                                    className="p-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs"
+                                                    title="Di chuyển xuống"
+                                                >
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                            
+                                            {/* Remove */}
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveImage(index)}
+                                                className="p-1 bg-red-500 text-white rounded hover:bg-red-600 text-xs"
+                                                title="Xóa"
+                                            >
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="mt-1 text-xs text-gray-500 truncate" title={imageUrl}>
+                                            {imageUrl.substring(0, 30)}...
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        
+                        <p className="mt-2 text-sm text-gray-500">
+                            Thêm các hình ảnh bổ sung cho bài viết. Bạn có thể sắp xếp thứ tự và chọn ảnh đại diện.
+                        </p>
+                    </div>
+
                     {/* Meta Description */}
                     <div>
                         <label htmlFor="metaDescription" className="block text-sm font-medium text-gray-700 mb-2">
@@ -425,7 +617,7 @@ const BlogForm = ({
                     </div>
 
                     {/* Hotel ID */}
-                    <div>
+                    {/* <div>
                         <label htmlFor="hotelId" className="block text-sm font-medium text-gray-700 mb-2">
                             ID Khách sạn liên quan
                         </label>
@@ -441,25 +633,66 @@ const BlogForm = ({
                         <p className="mt-1 text-sm text-gray-500">
                             ID của khách sạn mà bài viết này liên quan đến (nếu có)
                         </p>
-                    </div>
+                    </div> */}
 
                     {/* Status */}
                     <div>
                         <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
                             Trạng thái
                         </label>
-                        <select
-                            id="status"
-                            name="status"
-                            value={formData.status}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="draft">Bản nháp</option>
-                            <option value="pending">Chờ duyệt</option>
-                            <option value="published">Đã xuất bản</option>
-                            <option value="rejected">Bị từ chối</option>
-                        </select>
+                        {isEditing ? (
+                            <select
+                                id="status"
+                                name="status"
+                                value={formData.status}
+                                onChange={handleInputChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                {/* draft không đổi được */}
+                                {blog?.status === 'draft' && <option value="draft">Bản nháp (Không thể đổi)</option>}
+                                
+                                {/* pending -> published, rejected */}
+                                {blog?.status === 'pending' && (
+                                    <>
+                                        <option value="pending">Chờ duyệt</option>
+                                        <option value="published">Đã xuất bản</option>
+                                        <option value="rejected">Bị từ chối</option>
+                                    </>
+                                )}
+                                
+                                {/* published -> archived, rejected */}
+                                {blog?.status === 'published' && (
+                                    <>
+                                        <option value="published">Đã xuất bản</option>
+                                        <option value="archived">Lưu trữ</option>
+                                        <option value="rejected">Bị từ chối</option>
+                                    </>
+                                )}
+                                
+                                {/* archived -> published */}
+                                {blog?.status === 'archived' && (
+                                    <>
+                                        <option value="archived">Lưu trữ</option>
+                                        <option value="published">Đã xuất bản</option>
+                                    </>
+                                )}
+                                
+                                {/* rejected không đổi được */}
+                                {blog?.status === 'rejected' && <option value="rejected">Bị từ chối (Không thể đổi)</option>}
+                            </select>
+                        ) : (
+                            <>
+                                <input
+                                    type="text"
+                                    value="Chờ duyệt"
+                                    disabled
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700 cursor-not-allowed"
+                                />
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Bài viết mới sẽ được đặt ở trạng thái "Chờ duyệt" mặc định
+                                </p>
+                            </>
+                        )}
                     </div>
 
                     {/* Form Actions */}

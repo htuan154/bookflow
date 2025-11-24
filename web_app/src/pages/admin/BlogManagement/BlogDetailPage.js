@@ -336,24 +336,35 @@ const BlogDetailPage = () => {
                 </div>
 
                 <div className="flex items-center space-x-3">
-                    <button
-                        onClick={() => {
-                            const blogIdToUse = blog.blogId;
-                            navigate(`/admin/blog-management/edit/${blogIdToUse}`);
-                        }}
-                        className="flex items-center space-x-2 px-4 py-2 text-blue-700 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
-                    >
-                        <Edit className="h-4 w-4" />
-                        <span>Chỉnh sửa</span>
-                    </button>
-                    
-                    <button
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="flex items-center space-x-2 px-4 py-2 text-red-700 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                        <span>Xóa</span>
-                    </button>
+                    {/* Chỉ hiển thị Edit và Delete cho blog của admin (không có hotelId) */}
+                    {!blog.hotelId && !blog.hotel_id && (
+                        <>
+                            <button
+                                onClick={() => {
+                                    const blogIdToUse = blog.blogId;
+                                    navigate(`/admin/blog-management/edit/${blogIdToUse}`);
+                                }}
+                                className="flex items-center space-x-2 px-4 py-2 text-blue-700 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors"
+                            >
+                                <Edit className="h-4 w-4" />
+                                <span>Chỉnh sửa</span>
+                            </button>
+                            
+                            <button
+                                onClick={() => setShowDeleteConfirm(true)}
+                                className="flex items-center space-x-2 px-4 py-2 text-red-700 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                                <span>Xóa</span>
+                            </button>
+                        </>
+                    )}
+                    {/* Hiển thị thông báo cho blog khách sạn */}
+                    {(blog.hotelId || blog.hotel_id) && (
+                        <div className="text-sm text-gray-600 italic">
+                            Blog của khách sạn - Chỉ xem
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -431,13 +442,13 @@ const BlogDetailPage = () => {
 
                         <div className="space-y-2">
                             <label className="block text-sm font-medium text-gray-700">
-                                Thay đổi trạng thái:
+                                Trạng thái (không thể thay đổi):
                             </label>
                             <select
                                 value={blog.status}
-                                onChange={(e) => handleStatusChange(e.target.value)}
-                                disabled={isUpdatingStatus}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                disabled
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed"
+                                style={{ pointerEvents: 'none' }}
                             >
                                 <option value="draft">Nháp</option>
                                 <option value="pending">Chờ duyệt</option>
@@ -445,9 +456,7 @@ const BlogDetailPage = () => {
                                 <option value="archived">Lưu trữ</option>
                                 <option value="rejected">Bị từ chối</option>
                             </select>
-                            {isUpdatingStatus && (
-                                <p className="text-sm text-gray-600">Đang cập nhật...</p>
-                            )}
+                            <p className="text-xs text-gray-500 mt-1">Không thể thay đổi trạng thái tại đây</p>
                         </div>
                     </div>
 
