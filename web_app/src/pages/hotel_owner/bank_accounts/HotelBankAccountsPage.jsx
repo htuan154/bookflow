@@ -135,7 +135,6 @@ const HotelBankAccountsPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedHotelId) {
-      alert('Vui lòng chọn khách sạn trước!');
       return;
     }
 

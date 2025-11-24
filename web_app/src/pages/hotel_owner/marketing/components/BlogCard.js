@@ -1,11 +1,13 @@
 import React from 'react';
 import { Calendar, Edit, Eye, MessageCircle, Trash2 } from 'lucide-react';
-import { getStatusColor, getStatusIcon, getStatusText } from './utils';
+import { getStatusColor, getStatusIcon, getStatusText, sanitizeTitle } from './utils';
 import { USER_ROLES } from '../../../../config/roles';
 
 const BlogCard = ({ blog, onView, onEdit, onDelete, onShowComments, user }) => {
-  const isAuthor = (blog.authorId && user?.userId && blog.authorId === user.userId) || 
+  const isAuthor = (blog.userId && user?.userId && blog.userId === user.userId) ||
+                   (blog.authorId && user?.userId && blog.authorId === user.userId) || 
                    (blog.author_id && user?.userId && blog.author_id === user.userId) || 
+                   (blog.userId && user?.id && blog.userId === user.id) ||
                    (blog.authorId && user?.id && blog.authorId === user.id);
   
   const canEdit = user?.roleId === USER_ROLES.HOTEL_OWNER || 
@@ -15,9 +17,10 @@ const BlogCard = ({ blog, onView, onEdit, onDelete, onShowComments, user }) => {
                     (user?.roleId === USER_ROLES.HOTEL_STAFF && isAuthor);
 
   return (
+
     <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 border border-gray-100 overflow-hidden flex flex-col h-full group">
       {/* Image */}
-      <div className="relative h-48 overflow-hidden cursor-pointer" onClick={() => onView(blog)}>
+      <div className="relative h-48 overflow-hidden cursor-pointer">
         <img
           src={blog.featuredImageUrl || blog.featured_image_url || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'}
           alt={blog.title}
@@ -55,10 +58,9 @@ const BlogCard = ({ blog, onView, onEdit, onDelete, onShowComments, user }) => {
           
           <h3 
             className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 cursor-pointer transition-colors"
-            onClick={() => onView(blog)}
             title={blog.title}
           >
-            {blog.title}
+            {sanitizeTitle(blog.title, 80)}
           </h3>
           
           <p className="text-sm text-gray-600 line-clamp-3 mb-4">

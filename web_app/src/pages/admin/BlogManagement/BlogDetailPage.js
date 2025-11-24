@@ -18,10 +18,13 @@ import {
 } from 'lucide-react';
 import { useBlogContext } from '../../../context/BlogContext';
 import useAuth from '../../../hooks/useAuth';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 const BlogDetailPage = () => {
     const { blogId } = useParams();
     const navigate = useNavigate();
+    const { toast, showSuccess, showError, hideToast } = useToast();
     const { isAuthenticated } = useAuth();
     const { getBlogById, updateBlogStatus, deleteBlog, loading, error, clearError, clearCurrentBlog } = useBlogContext();
 
@@ -147,7 +150,7 @@ const BlogDetailPage = () => {
             // EMERGENCY FIX: Thử đăng nhập lại
             if (error.message?.includes('401') || error.message?.includes('đăng nhập')) {
                 console.log('🚨 AUTHENTICATION FAILED - FORCING RE-LOGIN');
-                alert('Token không hợp lệ! Đăng nhập lại để tiếp tục.');
+                showError('Token không hợp lệ! Đăng nhập lại để tiếp tục.');
                 
                 // Clear tất cả auth data
                 localStorage.clear();
@@ -163,14 +166,14 @@ const BlogDetailPage = () => {
                 console.error('❌ Blog not found (404)');
             } else if (error.message?.includes('403')) {
                 console.error('❌ Access denied (403) - ADMIN should have access!');
-                alert('Lỗi 403: Không có quyền truy cập. Kiểm tra token authentication!');
+                showError('Lỗi 403: Không có quyền truy cập. Kiểm tra token authentication!');
             } else if (error.message?.includes('401')) {
                 console.error('❌ Unauthorized (401) - Token invalid');
-                alert('Lỗi 401: Token không hợp lệ. Đăng nhập lại!');
+                showError('Lỗi 401: Token không hợp lệ. Đăng nhập lại!');
                 navigate('/login');
             } else if (error.message?.includes('Bạn cần đăng nhập')) {
                 console.error('❌ Authentication required');
-                alert('Vui lòng đăng nhập để xem bài viết!');
+                showError('Vui lòng đăng nhập để xem bài viết!');
                 navigate('/login');
             }
         }
@@ -184,7 +187,7 @@ const BlogDetailPage = () => {
         console.log('🔄 Updating status for blogId:', blogIdToUse);
 
         if (!blogIdToUse) {
-            alert('Không tìm thấy blogId để cập nhật!');
+            showError('Không tìm thấy blogId để cập nhật!');
             return;
         }
 
@@ -192,10 +195,10 @@ const BlogDetailPage = () => {
             setIsUpdatingStatus(true);
             await updateBlogStatus(blogIdToUse, newStatus);
             setBlog(prev => ({ ...prev, status: newStatus }));
-            alert(`Đã cập nhật trạng thái thành "${getStatusText(newStatus)}"`);
+            showSuccess(`Đã cập nhật trạng thái thành "${getStatusText(newStatus)}"`);
         } catch (error) {
             console.error('Error updating status:', error);
-            alert('Không thể cập nhật trạng thái!');
+            showError('Không thể cập nhật trạng thái!');
         } finally {
             setIsUpdatingStatus(false);
         }
@@ -209,17 +212,17 @@ const BlogDetailPage = () => {
         console.log('🗑️ Deleting blog with blogId:', blogIdToUse);
 
         if (!blogIdToUse) {
-            alert('Không tìm thấy blogId để xóa!');
+            showError('Không tìm thấy blogId để xóa!');
             return;
         }
 
         try {
             await deleteBlog(blogIdToUse);
-            alert('Đã xóa bài viết thành công!');
+            showSuccess('Đã xóa bài viết thành công!');
             navigate('/admin/blog-management');
         } catch (error) {
             console.error('Error deleting blog:', error);
-            alert('Không thể xóa bài viết!');
+            showError('Không thể xóa bài viết!');
         }
     };
 
@@ -546,6 +549,4 @@ const BlogDetailPage = () => {
         </div>
     );
 };
-
-
 export default BlogDetailPage;

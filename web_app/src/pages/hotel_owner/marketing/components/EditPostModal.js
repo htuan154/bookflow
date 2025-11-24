@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Archive, CheckCircle, Loader, XCircle } from 'lucide-react';
+import { Archive, CheckCircle, Loader, Send, XCircle } from 'lucide-react';
 import ImageUrlDialog from './ImageUrlDialog';
 import { getStatusColor, getStatusIcon, getStatusText } from './utils';
 import blogService from '../../../../api/blog.service';
+import { USER_ROLES } from '../../../../config/roles';
+import Toast from '../../../../components/common/Toast';
+import { useToast } from '../../../../hooks/useToast';
 
-const EditPostModal = ({ show, blog, onClose, onSave }) => {
+const EditPostModal = ({ show, blog, onClose, onSave, user }) => {
+  const { toast, showSuccess, showError, hideToast } = useToast();
   const [editForm, setEditForm] = useState({
     title: '',
     content: '',
@@ -80,7 +84,7 @@ const EditPostModal = ({ show, blog, onClose, onSave }) => {
         featured_image_url: editImages.length > 0 ? editImages[0].imageUrl : null
       };
 
-      await onSave(blog.blogId || blog.id, updateData, editImages);
+      await onSave(updateData);
       // onClose is handled by parent after successful save
     } catch (error) {
       console.error('Error saving blog:', error);
@@ -108,7 +112,7 @@ const EditPostModal = ({ show, blog, onClose, onSave }) => {
         await blogService.deleteBlogImageById(imageData.imageId);
       } catch (error) {
         console.error('Error deleting image:', error);
-        alert('Không thể xóa ảnh. Vui lòng thử lại!');
+        showError('Không thể xóa ảnh. Vui lòng thử lại!');
         return;
       }
     }
@@ -301,77 +305,68 @@ const EditPostModal = ({ show, blog, onClose, onSave }) => {
               Thay đổi trạng thái
             </label>
             <div className="flex items-center space-x-2 flex-wrap gap-2">
-              {/* Pending: Xuất bản hoặc Từ chối */}
-              {editForm.status === 'pending' && (
+              {/* === OWNER: ACTIONS FOR PENDING / PUBLISHED / ARCHIVED === */}
+              {user?.roleId === USER_ROLES.HOTEL_OWNER && (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => setEditForm(prev => ({ ...prev, status: 'published' }))}
-                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded-md transition-colors flex items-center"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Xuất bản
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditForm(prev => ({ ...prev, status: 'rejected' }))}
-                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-md transition-colors flex items-center"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Từ chối
-                  </button>
+                  {editForm.status === 'pending' && (
+                    <>
+                      <button type="button" onClick={() => setEditForm(prev => ({ ...prev, status: 'published' }))} className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded-md transition-colors flex items-center">
+                        <CheckCircle className="h-4 w-4 mr-1" /> Xuất bản
+                      </button>
+                      <button type="button" onClick={() => setEditForm(prev => ({ ...prev, status: 'rejected' }))} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-md transition-colors flex items-center">
+                        <XCircle className="h-4 w-4 mr-1" /> Từ chối
+                      </button>
+                    </>
+                  )}
+                  {editForm.status === 'published' && (
+                    <>
+                      <button type="button" onClick={() => setEditForm(prev => ({ ...prev, status: 'archived' }))} className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-md transition-colors flex items-center">
+                        <Archive className="h-4 w-4 mr-1" /> Lưu trữ
+                      </button>
+                      <button type="button" onClick={() => setEditForm(prev => ({ ...prev, status: 'rejected' }))} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-md transition-colors flex items-center">
+                        <XCircle className="h-4 w-4 mr-1" /> Từ chối
+                      </button>
+                    </>
+                  )}
+                  {editForm.status === 'archived' && (
+                    <>
+                      <button type="button" onClick={() => setEditForm(prev => ({ ...prev, status: 'published' }))} className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded-md transition-colors flex items-center">
+                        <CheckCircle className="h-4 w-4 mr-1" /> Xuất bản
+                      </button>
+                       <button type="button" onClick={() => setEditForm(prev => ({ ...prev, status: 'rejected' }))} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-md transition-colors flex items-center">
+                        <XCircle className="h-4 w-4 mr-1" /> Từ chối
+                      </button>
+                    </>
+                  )}
+                  {/* Owner cannot change draft - must wait for staff to submit */}
+                  {editForm.status === 'draft' && (
+                    <div className="text-xs text-yellow-600 bg-yellow-50 px-3 py-2 rounded-md">
+                      ⏳ Chờ nhân viên gửi duyệt
+                    </div>
+                  )}
+                  {/* Owner cannot change rejected */}
+                  {editForm.status === 'rejected' && (
+                    <div className="text-xs text-gray-500 bg-gray-100 px-3 py-2 rounded-md">
+                      ⚠️ Không thể thay đổi trạng thái từ {getStatusText(editForm.status)}
+                    </div>
+                  )}
                 </>
               )}
-              
-              {/* Published: Lưu trữ hoặc Từ chối */}
-              {editForm.status === 'published' && (
+
+              {/* === STAFF: CAN ONLY SUBMIT DRAFT FOR REVIEW === */}
+              {user?.roleId === USER_ROLES.HOTEL_STAFF && (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => setEditForm(prev => ({ ...prev, status: 'archived' }))}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-md transition-colors flex items-center"
-                  >
-                    <Archive className="h-4 w-4 mr-1" />
-                    Lưu trữ
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditForm(prev => ({ ...prev, status: 'rejected' }))}
-                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-md transition-colors flex items-center"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Từ chối
-                  </button>
+                  {editForm.status === 'draft' && (
+                    <button type="button" onClick={() => setEditForm(prev => ({ ...prev, status: 'pending' }))} className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm rounded-md transition-colors flex items-center">
+                      <Send className="h-4 w-4 mr-1" /> Gửi duyệt
+                    </button>
+                  )}
+                  {editForm.status !== 'draft' && (
+                    <div className="text-xs text-gray-500 bg-gray-100 px-3 py-2 rounded-md">
+                      👁️ Chỉ chủ khách sạn mới có thể duyệt
+                    </div>
+                  )}
                 </>
-              )}
-              
-              {/* Archived: Xuất bản hoặc Từ chối */}
-              {editForm.status === 'archived' && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setEditForm(prev => ({ ...prev, status: 'published' }))}
-                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded-md transition-colors flex items-center"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Xuất bản
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditForm(prev => ({ ...prev, status: 'rejected' }))}
-                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-md transition-colors flex items-center"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    Từ chối
-                  </button>
-                </>
-              )}
-              
-              {/* Draft, Rejected: Không thể đổi */}
-              {['draft', 'rejected'].includes(editForm.status) && (
-                <div className="text-xs text-gray-500 bg-gray-100 px-3 py-2 rounded-md">
-                  ⚠️ Không thể thay đổi trạng thái từ {getStatusText(editForm.status)}
-                </div>
               )}
             </div>
           </div>
@@ -403,6 +398,14 @@ const EditPostModal = ({ show, blog, onClose, onSave }) => {
         onClose={() => setShowImageUrlDialog(false)}
         onAdd={handleAddImage}
       />
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+          duration={toast.duration}
+        />
+      )}
     </div>
   );
 };

@@ -7,9 +7,12 @@ import HotelOwnerContractTable from '../../../components/hotel_owner_contract/Ho
 import ContractDetail from '../../../components/hotel_owner_contract/HotelOwnerContractDetail';
 import ContractForm from '../../../components/hotel_owner_contract/ContractForm';
 import { getHotelOwnerPermissions } from './ContractStatusUtils';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 const ContractManagement = () => {
   const { currentHotel } = useHotel();
+  const { toast, showSuccess, showError, hideToast } = useToast();
   const [contracts, setContracts] = useState([]);
   const [approvedHotels, setApprovedHotels] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -237,11 +240,11 @@ const ContractManagement = () => {
       if (editingContract?.contract_id) {
         console.log('Updating contract:', editingContract.contract_id);
         await contractServices.updateContract(editingContract.contract_id, contractData);
-        alert('✅ Cập nhật hợp đồng thành công!');
+        showSuccess('Cập nhật hợp đồng thành công!');
       } else {
         console.log('Creating new contract');
         await contractServices.createContract(contractData);
-        alert('✅ Tạo hợp đồng thành công!');
+        showSuccess('Tạo hợp đồng thành công!');
       }
       
       // Refresh danh sách và đóng form
@@ -254,7 +257,7 @@ const ContractManagement = () => {
       console.error('Error saving contract:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Lỗi khi lưu hợp đồng';
       setError(errorMessage);
-      alert('❌ ' + errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -274,14 +277,14 @@ const ContractManagement = () => {
     try {
       setLoading(true);
       await contractServices.deleteContract(contractId);
-      alert('✅ Xóa hợp đồng thành công!');
+      showSuccess('Xóa hợp đồng thành công!');
       await fetchAllContracts();
       setError('');
     } catch (err) {
       console.error('Error deleting contract:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Lỗi khi xóa hợp đồng';
       setError(errorMessage);
-      alert('❌ ' + errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -312,14 +315,14 @@ const ContractManagement = () => {
       
       console.log('Send for approval successful:', result);
       
-      alert('✅ Gửi hợp đồng chờ duyệt thành công!');
+      showSuccess('Gửi hợp đồng chờ duyệt thành công!');
       await fetchAllContracts();
       
     } catch (err) {
       console.error('Error sending for approval:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Lỗi khi gửi hợp đồng chờ duyệt';
       setError(errorMessage);
-      alert('❌ ' + errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -525,6 +528,16 @@ const ContractManagement = () => {
               />
             {/* </div> */}
           </div>
+        )}
+        
+        {/* Toast Notification */}
+        {toast && (
+          <Toast 
+            message={toast.message}
+            type={toast.type}
+            onClose={hideToast}
+            duration={toast.duration}
+          />
         )}
       </div>
     </div>

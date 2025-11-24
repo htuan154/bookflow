@@ -50,6 +50,9 @@ export const formatTimeAgo = (dateString) => {
 };
 
 export const organizeCommentsTree = (flatComments) => {
+  if (!flatComments || flatComments.length === 0) {
+    return [];
+  }
   const commentMap = {};
   const roots = [];
 
@@ -62,27 +65,87 @@ export const organizeCommentsTree = (flatComments) => {
   // 2. Xây dựng cây
   flatComments.forEach(comment => {
     const id = comment.commentId || comment.comment_id;
-    const parentId = comment.parentId || comment.parent_id;
+    const parentId = comment.parentCommentId || comment.parentId || comment.parent_id;
 
-    if (parentId && commentMap[parentId]) {
+    if (parentId && commentMap[parentId] && id !== parentId) {
       commentMap[parentId].replies.push(commentMap[id]);
-    } else {
+    } else if (!parentId) {
+      // Only push root if parentId is null/undefined
       roots.push(commentMap[id]);
     }
-  });
-
-  // 3. Sắp xếp replies (mới nhất lên đầu hoặc cũ nhất lên đầu tùy ý)
-  // Ở đây ta sort theo createdAt tăng dần (cũ nhất trước) cho replies
-  const sortReplies = (comments) => {
-    comments.sort((a, b) => new Date(a.createdAt || a.created_at) - new Date(b.createdAt || b.created_at));
-    comments.forEach(c => {
-      if (c.replies.length > 0) sortReplies(c.replies);
-    });
-  };
-
-  roots.forEach(root => {
-    if (root.replies.length > 0) sortReplies(root.replies);
+    // If parentId exists but not in map, do not push to roots (avoid duplicate root)
   });
 
   return roots;
+};
+
+/**
+ * Check if a string looks like a URL
+ * @param {string} text - Text to check
+ * @returns {boolean} - True if text looks like a URL
+ */
+export const isUrlLike = (text) => {
+  if (!text || typeof text !== 'string') return false;
+  
+  // Check for common URL patterns
+  const urlPattern = /^(https?:\/\/|www\.|ftp:\/\/)/i;
+  const hasUrlChars = text.includes('://') || text.startsWith('www.');
+  
+  return urlPattern.test(text) || hasUrlChars;
+};
+
+/**
+ * Truncate text intelligently with ellipsis
+ * @param {string} text - Text to truncate
+ * @param {number} maxLength - Maximum length (default: 60)
+ * @returns {string} - Truncated text
+ */
+export const truncateText = (text, maxLength = 60) => {
+  if (!text || typeof text !== 'string') return '';
+  if (text.length <= maxLength) return text;
+  
+  // Try to truncate at a word boundary
+  const truncated = text.substring(0, maxLength);
+  const lastSpace = truncated.lastIndexOf(' ');
+  
+  if (lastSpace > maxLength * 0.7) {
+    return truncated.substring(0, lastSpace) + '...';
+  }
+  
+  return truncated + '...';
+};
+
+/**
+ * Sanitize and clean blog titles for display
+ * @param {string} title - Original title
+ * @param {number} maxLength - Maximum length (default: 60)
+ * @returns {string} - Sanitized title
+ */
+export const sanitizeTitle = (title, maxLength = 60) => {
+  if (!title || typeof title !== 'string') return 'Không có tiêu đề';
+  
+  // If title looks like a URL, try to extract a meaningful part
+  if (isUrlLike(title)) {
+    // Try to extract filename from URL
+    try {
+      const urlParts = title.split('/');
+      const filename = urlParts[urlParts.length - 1];
+      
+      // If we found a filename, use it (truncated)
+      if (filename && filename.length > 0 && filename !== '') {
+        // Remove file extension and decode URI
+        const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+        const decoded = decodeURIComponent(nameWithoutExt);
+        return truncateText(decoded, maxLength);
+      }
+    } catch (e) {
+      // If parsing fails, just truncate the URL
+    }
+    
+    // Fallback: just truncate the URL
+    return truncateText(title, 40);
+  }
+  
+  // For normal titles, just truncate if too long
+  return truncateText(title, maxLength);
 };

@@ -139,7 +139,7 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
       if (onDataChanged) onDataChanged();
     } catch (err) {
       console.error('Error submitting reply:', err);
-      alert('Lỗi khi gửi trả lời: ' + err.message);
+   
     } finally {
       setReplyLoading(false);
     }
@@ -171,7 +171,7 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
       setNewCommentContent('');
     } catch (err) {
       console.error('Error creating comment:', err);
-      alert('Lỗi khi tạo bình luận: ' + err.message);
+    
     } finally {
       setNewCommentLoading(false);
     }
@@ -188,12 +188,8 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
       }
       if (onDataChanged) onDataChanged();
     } catch (err) {
-      console.error('💥 Update status error:', err);
-      if (err?.response?.data?.message) {
-        alert(`Lỗi cập nhật trạng thái: ${err.response.data.message}`);
-      } else {
-        alert('Lỗi cập nhật trạng thái bình luận. Vui lòng thử lại hoặc kiểm tra quyền truy cập.');
-      }
+      console.error( err);
+      
     }
   };
 
@@ -675,7 +671,7 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
                             setNewCommentContent('');
                           } catch (err) {
                             console.error('Error:', err);
-                            alert('Lỗi khi gửi bình luận: ' + err.message);
+                           
                           } finally {
                             setNewCommentLoading(false);
                           }
@@ -778,7 +774,7 @@ const BlogCommentDetail = ({ blogId, onReply, onDataChanged }) => {
                             setNewCommentContent('');
                           } catch (err) {
                             console.error('Error:', err);
-                            alert('Lỗi khi gửi bình luận: ' + err.message);
+                           
                           } finally {
                             setNewCommentLoading(false);
                           }

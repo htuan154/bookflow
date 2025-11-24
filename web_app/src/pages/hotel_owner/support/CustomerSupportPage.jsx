@@ -14,9 +14,12 @@ import { bookingNightlyPriceService } from '../../../api/bookingNightlyPrice.ser
 import { calculateBookingPrice, createBookingDetailMessage, createNoRoomAvailableMessage } from '../../../utils/bookingPriceCalculator';
 import { useBooking } from '../../../hooks/useBooking';
 import { useBookingDetail } from '../../../hooks/useBookingDetail';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 const CustomerSupportPage = () => {
-        const [roomGuestError, setRoomGuestError] = useState('');
+    const { toast, showSuccess, showError, hideToast } = useToast();
+    const [roomGuestError, setRoomGuestError] = useState('');
     const { fetchOwnerHotel, fetchBookingsByHotelId, loading, error } = useHotelOwner();
     const { user } = useContext(AuthContext);
     const [selectedHotelId, setSelectedHotelId] = useState('');
@@ -257,12 +260,12 @@ const CustomerSupportPage = () => {
         
         // Validate form
         if (!checkInDate || !checkOutDate) {
-            alert('Vui lòng chọn ngày nhận phòng và ngày trả phòng');
+            showError('Vui lòng chọn ngày nhận phòng và ngày trả phòng');
             return;
         }
         
         if (!selectedHotelId) {
-            alert('Vui lòng chọn khách sạn');
+            showError('Vui lòng chọn khách sạn');
             return;
         }
         
@@ -300,7 +303,7 @@ const CustomerSupportPage = () => {
             
         } catch (error) {
             console.error('Error checking availability:', error);
-            setRoomGuestError('Có lỗi xảy ra khi kiểm tra phòng trống. Vui lòng thử lại.');
+            showError('Có lỗi xảy ra khi kiểm tra phòng trống. Vui lòng thử lại.');
         } finally {
             setCheckingAvailability(false);
         }
@@ -397,7 +400,7 @@ const CustomerSupportPage = () => {
             console.log('✓ Đã gửi chi tiết đặt phòng cho khách hàng');
         } catch (error) {
             console.error('Error sending booking detail:', error);
-            alert('Có lỗi xảy ra khi gửi thông tin. Vui lòng thử lại.');
+            showError('Có lỗi xảy ra khi gửi thông tin. Vui lòng thử lại.');
         } finally {
             setSendingBookingMessage(false);
         }
@@ -420,7 +423,7 @@ const CustomerSupportPage = () => {
             console.log('✓ Đã gửi tin nhắn cho khách hàng');
         } catch (error) {
             console.error('Error sending no room message:', error);
-            alert('Có lỗi xảy ra khi gửi tin nhắn. Vui lòng thử lại.');
+            showError('Có lỗi xảy ra khi gửi tin nhắn. Vui lòng thử lại.');
         } finally {
             setSendingBookingMessage(false);
         }
@@ -431,12 +434,12 @@ const CustomerSupportPage = () => {
         e.preventDefault();
         // Kiểm tra đã chọn loại phòng chưa
         if (!selectedRoomTypeId) {
-            alert('Vui lòng chọn loại phòng trước khi đặt!');
+            showError('Vui lòng chọn loại phòng trước khi đặt!');
             return;
         }
         const selectedRoomType = availableRoomTypes.find(rt => rt.room_type_id === selectedRoomTypeId);
         if (!selectedRoomType) {
-            alert('Không tìm thấy loại phòng đã chọn!');
+            showError('Không tìm thấy loại phòng đã chọn!');
             return;
         }
 
@@ -448,13 +451,13 @@ const CustomerSupportPage = () => {
         const checkIn = new Date(bookingForm.checkInDate);
         const checkOut = new Date(bookingForm.checkOutDate);
         if (isNaN(checkIn.getTime()) || checkIn < minCheckIn) {
-            alert('Ngày nhận phòng phải lớn hơn hôm nay ít nhất 1 ngày!');
+            showError('Ngày nhận phòng phải lớn hơn hôm nay ít nhất 1 ngày!');
             return;
         }
         const minCheckOut = new Date(checkIn);
         minCheckOut.setDate(minCheckOut.getDate() + 1);
         if (isNaN(checkOut.getTime()) || checkOut < minCheckOut) {
-            alert('Ngày trả phòng phải lớn hơn ngày nhận phòng ít nhất 1 ngày!');
+            showError('Ngày trả phòng phải lớn hơn ngày nhận phòng ít nhất 1 ngày!');
             return;
         }
         setCreatingBooking(true);
@@ -465,7 +468,7 @@ const CustomerSupportPage = () => {
             console.log('📝 Form data:', { checkInDate, checkOutDate, numGuests, numRooms, paymentMethod });
             // Validate payment_method
             if (!paymentMethod) {
-                alert('Vui lòng chọn phương thức thanh toán!');
+                showError('Vui lòng chọn phương thức thanh toán!');
                 setSendingBookingMessage(false);
                 setCreatingBooking(false);
                 return;
@@ -561,7 +564,7 @@ const CustomerSupportPage = () => {
                 };
                 await bookingNightlyPriceService.create(nightlyPriceData);
             }
-            alert('Đặt phòng thành công! Booking ID: ' + newBookingId);
+            showSuccess('Đặt phòng thành công! Booking ID: ' + newBookingId);
             // Reset form và đóng
             setShowBookingForm(false);
             setSelectedRoomTypeId(null);
@@ -572,7 +575,7 @@ const CustomerSupportPage = () => {
             setBookings(Array.isArray(data) ? data : (data?.data || []));
         } catch (error) {
             console.error('Error creating booking:', error);
-            alert('Có lỗi xảy ra khi đặt phòng: ' + (error.response?.data?.message || error.message));
+            showError('Có lỗi xảy ra khi đặt phòng: ' + (error.response?.data?.message || error.message));
         } finally {
             setSendingBookingMessage(false);
             setCreatingBooking(false);
@@ -1126,6 +1129,15 @@ const CustomerSupportPage = () => {
                     </>
                 )}
             </section>
+            {/* Toast Notification */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={hideToast}
+                    duration={toast.duration}
+                />
+            )}
         </div>
     );
 };

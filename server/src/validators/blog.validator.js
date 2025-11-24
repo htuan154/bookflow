@@ -18,7 +18,7 @@ const updateBlogSchema = Joi.object({
     excerpt: Joi.string().allow('').max(1000),
     featured_image_url: Joi.string().uri().allow(null),
     tags: Joi.string().allow(''),
-    status: Joi.string().valid('draft', 'published', 'archived'),
+    status: Joi.string().valid('draft', 'pending', 'published', 'archived', 'rejected'),
 }).min(1);
 
 module.exports = {

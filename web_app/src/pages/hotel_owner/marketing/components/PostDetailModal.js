@@ -5,52 +5,21 @@ import { getStatusColor, getStatusIcon, getStatusText } from './utils';
 import blogService from '../../../../api/blog.service';
 import { USER_ROLES } from '../../../../config/roles';
 
-const PostDetailModal = ({ show, blog, onClose, onUpdate, user, onNotify }) => {
-  const [detailImages, setDetailImages] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+const PostDetailModal = ({ blog, loading: externalLoading, error: externalError, images, onClose, onDelete, onStatusChange, user }) => {
   const [currentBlog, setCurrentBlog] = useState(blog);
+  const [internalLoading, setInternalLoading] = useState(false);
+  const loading = externalLoading || internalLoading;
+  const detailImages = images || [];
 
   useEffect(() => {
-    if (show && blog) {
+    if (blog) {
       setCurrentBlog(blog);
-      loadDetailImages(blog.blogId || blog.id);
     }
-  }, [show, blog]);
+  }, [blog]);
 
-  const loadDetailImages = async (blogId) => {
-    setLoading(true);
-    try {
-      const response = await blogService.getBlogImages(blogId);
-      let imagesList = [];
-      
-      if (response && response.data && Array.isArray(response.data)) {
-        imagesList = response.data;
-      } else if (response && response.images && Array.isArray(response.images)) {
-        imagesList = response.images;
-      } else if (response && Array.isArray(response)) {
-        imagesList = response;
-      }
-
-      const imageUrls = imagesList.map((img) => img.imageUrl || img.image_url || img.url).filter(url => url);
-      setDetailImages(imageUrls);
-    } catch (err) {
-      console.error('Error loading images:', err);
-      setDetailImages([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await blogService.deleteBlog(currentBlog.blogId || currentBlog.id);
-      onNotify('Đã xóa bài viết thành công!', 'success');
-      onClose();
-      onUpdate(); // Refresh list
-    } catch (err) {
-      onNotify('Không thể xóa bài viết!', 'error');
+  const handleDeleteClick = () => {
+    if (onDelete) {
+      onDelete();
     }
   };
 
@@ -59,22 +28,22 @@ const PostDetailModal = ({ show, blog, onClose, onUpdate, user, onNotify }) => {
     
     // Logic checks
     if (['draft', 'rejected'].includes(currentStatus)) {
-      onNotify('Bài viết này không thể thay đổi trạng thái!', 'error');
+      console.error('Bài viết này không thể thay đổi trạng thái!');
       return;
     }
     
     if (currentStatus === 'pending' && !['published', 'rejected'].includes(newStatus)) {
-      onNotify('Bài viết chờ duyệt chỉ có thể Xuất bản hoặc Từ chối!', 'error');
+      console.error('Bài viết chờ duyệt chỉ có thể Xuất bản hoặc Từ chối!');
       return;
     }
     
     if (currentStatus === 'published' && !['archived', 'rejected'].includes(newStatus)) {
-      onNotify('Bài viết đã xuất bản chỉ có thể chuyển sang Lưu trữ hoặc Từ chối!', 'error');
+      console.error('Bài viết đã xuất bản chỉ có thể chuyển sang Lưu trữ hoặc Từ chối!');
       return;
     }
     
     if (currentStatus === 'archived' && newStatus !== 'published') {
-      onNotify('Bài viết đã lưu trữ chỉ có thể chuyển sang Xuất bản!', 'error');
+      console.error('Bài viết đã lưu trữ chỉ có thể chuyển sang Xuất bản!');
       return;
     }
 
@@ -103,27 +72,26 @@ const PostDetailModal = ({ show, blog, onClose, onUpdate, user, onNotify }) => {
     // I will trust the UI logic more: `canChangeStatus = user?.roleId === USER_ROLES.HOTEL_OWNER`.
     // So I will use `user.roleId === USER_ROLES.HOTEL_OWNER` for permission.
 
-    if (!user || (user.roleId !== USER_ROLES.ADMIN && user.roleId !== USER_ROLES.HOTEL_OWNER)) {
+    if (!user || (user.roleId !== USER_ROLES.ADMIN && user.roleId !== USER_ROLES.HOTEL_OWNER && user.roleId !== USER_ROLES.HOTEL_STAFF)) {
        // If staff, they can't change status here (except maybe submit? but that's a different action)
-       setError('Bạn không có quyền đổi trạng thái bài viết này.');
+       console.error('Bạn không có quyền đổi trạng thái bài viết này.');
        return;
     }
 
     try {
-      setLoading(true);
-      await blogService.updateBlog(currentBlog.blogId || currentBlog.id, { status: newStatus });
-      setCurrentBlog(prev => ({ ...prev, status: newStatus }));
-      onNotify(`Đã cập nhật trạng thái thành "${getStatusText(newStatus)}"`, 'success');
-      onUpdate(); // Refresh list
+      setInternalLoading(true);
+      if (onStatusChange) {
+        await onStatusChange(newStatus);
+        setCurrentBlog(prev => ({ ...prev, status: newStatus }));
+      }
     } catch (err) {
       console.error('Error updating blog status:', err);
-      onNotify('Không thể cập nhật trạng thái!', 'error');
     } finally {
-      setLoading(false);
+      setInternalLoading(false);
     }
   };
 
-  if (!show || !currentBlog) return null;
+  if (!currentBlog) return null;
 
   return (
     <>
@@ -190,7 +158,7 @@ const PostDetailModal = ({ show, blog, onClose, onUpdate, user, onNotify }) => {
 
           {/* Modal Content */}
           <div className="flex-1 overflow-hidden">
-            {loading && detailImages.length === 0 ? (
+            {loading ? (
               <div className="flex items-center justify-center h-full">
                 <Loader className="h-6 w-6 animate-spin text-blue-600" />
                 <span className="ml-2 text-gray-600">Đang tải...</span>
@@ -200,11 +168,11 @@ const PostDetailModal = ({ show, blog, onClose, onUpdate, user, onNotify }) => {
                 {/* Left Column - Content */}
                 <div className="flex-1 p-6 overflow-y-auto">
                   <div className="space-y-4">
-                    {error && (
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                    {externalError && (
+                      <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-4 shadow-sm">
                         <div className="flex items-center">
-                          <XCircle className="h-5 w-5 text-red-400 mr-2" />
-                          <span className="text-red-800">{error}</span>
+                          <XCircle className="h-5 w-5 text-red-500 mr-3" />
+                          <span className="text-red-800 font-medium">{externalError}</span>
                         </div>
                       </div>
                     )}
@@ -334,15 +302,16 @@ const PostDetailModal = ({ show, blog, onClose, onUpdate, user, onNotify }) => {
                                           (currentBlog.author_id && user?.userId && currentBlog.author_id === user.userId) || 
                                           (currentBlog.authorId && user?.id && currentBlog.authorId === user.id);
                           
-                          const canChangeStatus = user?.roleId === USER_ROLES.HOTEL_OWNER;
+                          // Only OWNER can change status, and only when status is 'pending', 'published', or 'archived'
+                          const isOwner = user?.roleId === USER_ROLES.HOTEL_OWNER;
                           const canDelete = user?.roleId === USER_ROLES.HOTEL_OWNER || 
                                            (user?.roleId === USER_ROLES.HOTEL_STAFF && isAuthor);
                           
                           return (
                             <>
-                              {canChangeStatus ? (
+                              {isOwner ? (
                                 <>
-                                  {/* Pending */}
+                                  {/* Pending - Owner can approve or reject */}
                                   {currentBlog.status === 'pending' && (
                                     <>
                                       <button
@@ -364,7 +333,7 @@ const PostDetailModal = ({ show, blog, onClose, onUpdate, user, onNotify }) => {
                                     </>
                                   )}
                                   
-                                  {/* Published */}
+                                  {/* Published - Owner can archive or reject */}
                                   {currentBlog.status === 'published' && (
                                     <>
                                       <button
@@ -386,7 +355,7 @@ const PostDetailModal = ({ show, blog, onClose, onUpdate, user, onNotify }) => {
                                     </>
                                   )}
                                   
-                                  {/* Archived */}
+                                  {/* Archived - Owner can restore */}
                                   {currentBlog.status === 'archived' && (
                                     <button
                                       onClick={() => handleStatusChange('published')}
@@ -398,21 +367,31 @@ const PostDetailModal = ({ show, blog, onClose, onUpdate, user, onNotify }) => {
                                     </button>
                                   )}
                                   
-                                  {/* Draft, Rejected */}
-                                  {['draft', 'rejected'].includes(currentBlog.status) && (
+                                  {/* Draft - Owner cannot change (staff must submit first) */}
+                                  {currentBlog.status === 'draft' && (
+                                    <div className="text-xs text-yellow-600 font-medium bg-yellow-50 px-3 py-2 rounded-lg">
+                                      ⏳ Chờ nhân viên gửi duyệt
+                                    </div>
+                                  )}
+                                  
+                                  {/* Rejected - Cannot change */}
+                                  {currentBlog.status === 'rejected' && (
                                     <div className="text-xs text-gray-500 font-medium bg-gray-50 px-3 py-2 rounded-lg">
-                                      Không thể thay đổi trạng thái
+                                      ❌ Không thể thay đổi trạng thái
                                     </div>
                                   )}
                                 </>
-                              ) : !canDelete ? (
-                                <div className="text-xs text-red-500 font-medium bg-red-50 px-3 py-2 rounded-lg">Không có quyền</div>
-                              ) : null}
+                              ) : (
+                                // Staff cannot change status in detail view
+                                <div className="text-xs text-gray-500 font-medium bg-gray-50 px-3 py-2 rounded-lg">
+                                  👁️ Chỉ xem
+                                </div>
+                              )}
                               
                               {/* Delete */}
                               {canDelete && (
                                 <button
-                                  onClick={() => setShowDeleteConfirm(true)}
+                                  onClick={handleDeleteClick}
                                   className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg"
                                   title="Xóa"
                                 >
@@ -432,12 +411,7 @@ const PostDetailModal = ({ show, blog, onClose, onUpdate, user, onNotify }) => {
         </div>
       </div>
 
-      <DeleteConfirmModal
-        show={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={handleDelete}
-        title={currentBlog.title}
-      />
+
     </>
   );
 };

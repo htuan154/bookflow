@@ -8,10 +8,13 @@ import useSeason from '../../../hooks/useSeason';
 import useSeasonPricing from '../../../hooks/useSeasonPricing';
 import ActionButton from '../../../components/common/ActionButton';
 import { usePricingState } from './PricingWrapper';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 const SeasonalPricingDetailPage = () => {
   const { roomTypeId } = useParams();
   const navigate = useNavigate();
+  const { toast, showSuccess, showError, hideToast } = useToast();
   
   // Get shared state from wrapper
   const pricingState = usePricingState();
@@ -98,7 +101,7 @@ const SeasonalPricingDetailPage = () => {
       console.log('Parsed room type:', roomTypeData);
       
       if (!roomTypeData || !roomTypeData.roomTypeId) {
-        alert('Không tìm thấy loại phòng');
+        showError('Không tìm thấy loại phòng');
         navigate('/hotel-owner/pricing/seasonal');
         return;
       }
@@ -106,7 +109,7 @@ const SeasonalPricingDetailPage = () => {
       setRoomType(roomTypeData);
     } catch (error) {
       console.error('Error loading room type:', error);
-      alert('Không thể tải thông tin loại phòng: ' + (error.message || ''));
+      showError('Không thể tải thông tin loại phòng: ' + (error.message || ''));
     } finally {
       setLoading(false);
     }
@@ -295,12 +298,12 @@ const SeasonalPricingDetailPage = () => {
         room_type_id: roomTypeId,
         ...formData
       });
-      alert('Thêm giá theo mùa thành công');
+      showSuccess('Thêm giá theo mùa thành công');
       setShowAddModal(false);
       loadSeasonalPricings();
     } catch (error) {
       console.error('Error adding seasonal pricing:', error);
-      alert(error.response?.data?.message || 'Không thể thêm giá theo mùa');
+      showError(error.response?.data?.message || 'Không thể thêm giá theo mùa');
     } finally {
       setLoading(false);
     }
@@ -330,13 +333,13 @@ const SeasonalPricingDetailPage = () => {
       const createdCount = result.created?.length || 0;
       const skippedCount = result.skipped || 0;
       
-      alert(`Tạo thành công ${createdCount} giá, bỏ qua ${skippedCount} giá đã tồn tại`);
+      showSuccess(`Tạo thành công ${createdCount} giá, bỏ qua ${skippedCount} giá đã tồn tại`);
       setShowBulkAddModal(false);
       loadSeasonalPricings();
     } catch (error) {
       console.error('Error bulk adding seasonal pricing:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Không thể tạo giá hàng loạt';
-      alert(errorMessage);
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -371,13 +374,13 @@ const SeasonalPricingDetailPage = () => {
     try {
       setLoading(true);
       await seasonPricingService.updateSeasonPricing(editingPricing.pricingId, formData);
-      alert('Cập nhật giá theo mùa thành công');
+      showSuccess('Cập nhật giá theo mùa thành công');
       setShowEditModal(false);
       setEditingPricing(null);
       loadSeasonalPricings();
     } catch (error) {
       console.error('Error updating seasonal pricing:', error);
-      alert(error.response?.data?.message || 'Không thể cập nhật giá theo mùa');
+      showError(error.response?.data?.message || 'Không thể cập nhật giá theo mùa');
     } finally {
       setLoading(false);
     }
@@ -392,11 +395,11 @@ const SeasonalPricingDetailPage = () => {
     try {
       setLoading(true);
       await seasonPricingService.deleteSeasonPricing(pricing.pricingId);
-      alert('Xóa giá theo mùa thành công');
+      showSuccess('Xóa giá theo mùa thành công');
       loadSeasonalPricings();
     } catch (error) {
       console.error('Error deleting seasonal pricing:', error);
-      alert('Không thể xóa giá theo mùa');
+      showError('Không thể xóa giá theo mùa');
     } finally {
       setLoading(false);
     }
@@ -463,7 +466,7 @@ const SeasonalPricingDetailPage = () => {
   // Bulk delete selected
   const handleBulkDelete = async () => {
     if (selectedPricings.length === 0) {
-      alert('Vui lòng chọn ít nhất một giá để xóa');
+      showError('Vui lòng chọn ít nhất một giá để xóa');
       return;
     }
 
@@ -476,12 +479,12 @@ const SeasonalPricingDetailPage = () => {
       await Promise.all(
         selectedPricings.map(id => seasonPricingService.deleteSeasonPricing(id))
       );
-      alert(`Đã xóa thành công ${selectedPricings.length} giá`);
+      showSuccess(`Đã xóa thành công ${selectedPricings.length} giá`);
       setSelectedPricings([]);
       loadSeasonalPricings();
     } catch (error) {
       console.error('Error bulk deleting:', error);
-      alert('Không thể xóa một số giá');
+      showError('Không thể xóa một số giá');
     } finally {
       setLoading(false);
     }
@@ -490,7 +493,7 @@ const SeasonalPricingDetailPage = () => {
   // Open bulk edit modal
   const handleOpenBulkEditModal = () => {
     if (selectedPricings.length === 0) {
-      alert('Vui lòng chọn ít nhất một giá để chỉnh sửa');
+      showError('Vui lòng chọn ít nhất một giá để chỉnh sửa');
       return;
     }
     setBulkEditModifier(1.0);
@@ -514,13 +517,13 @@ const SeasonalPricingDetailPage = () => {
           });
         })
       );
-      alert(`Đã cập nhật thành công ${selectedPricings.length} giá`);
+      showSuccess(`Đã cập nhật thành công ${selectedPricings.length} giá`);
       setShowBulkEditModal(false);
       setSelectedPricings([]);
       loadSeasonalPricings();
     } catch (error) {
       console.error('Error bulk editing:', error);
-      alert('Không thể cập nhật một số giá');
+      showError('Không thể cập nhật một số giá');
     } finally {
       setLoading(false);
     }
@@ -1212,6 +1215,15 @@ const SeasonalPricingDetailPage = () => {
             </div>
           </div>
         </div>
+      )}
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+          duration={toast.duration}
+        />
       )}
     </div>
   );

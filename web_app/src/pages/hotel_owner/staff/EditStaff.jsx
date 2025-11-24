@@ -7,10 +7,13 @@ import {
 } from 'lucide-react';
 import { staffApiService } from '../../../api/staff.service';
 import userService from '../../../api/user.service';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 const EditStaff = () => {
     const { staffId } = useParams();
     const navigate = useNavigate();
+    const { toast, showSuccess, showError, hideToast } = useToast();
     
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -237,7 +240,7 @@ const EditStaff = () => {
                 await userService.updateUser(staffData.userId || staffData.user_id, userUpdateData);
             }
 
-            alert('Cập nhật thông tin nhân viên thành công!');
+            showSuccess('Cập nhật thông tin nhân viên thành công!');
             // Sau khi cập nhật, gọi refreshStaff nếu có để reload danh sách
             if (refreshStaff) {
                 refreshStaff();
@@ -245,7 +248,7 @@ const EditStaff = () => {
             navigate('/hotel-owner/staff/list');
         } catch (error) {
             console.error('Error updating staff:', error);
-            alert('Cập nhật thông tin thất bại: ' + (error.response?.data?.message || error.message));
+            showError('Cập nhật thông tin thất bại: ' + (error.response?.data?.message || error.message));
         } finally {
             setSaving(false);
         }
@@ -588,6 +591,17 @@ const EditStaff = () => {
                     </button>
                 </div>
             </form>
+
+            {/* Toast Notification */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={hideToast}
+                    duration={toast.duration}
+                />
+            )}
+
         </div>
     );
 };

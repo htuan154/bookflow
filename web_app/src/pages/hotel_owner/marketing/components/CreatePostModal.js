@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiImage } from 'react-icons/fi';
 import { USER_ROLES } from '../../../../config/roles';
 
@@ -20,11 +20,18 @@ const CreatePostModal = ({
   const [blogImages, setBlogImages] = useState([]);
   const [thumbnailUrl, setThumbnailUrl] = useState('');
   const [blogImageUrl, setBlogImageUrl] = useState('');
+  const [currentHotel, setCurrentHotel] = useState(selectedHotel);
+
+  useEffect(() => {
+    if (show) {
+      setCurrentHotel(selectedHotel);
+    }
+  }, [selectedHotel, show]);
 
   if (!show) return null;
 
   const handleSubmit = () => {
-    if (!title.trim() || !content.trim() || !selectedHotel) {
+    if (!title.trim() || !content.trim() || !currentHotel) {
       // Validation handled by parent or show error here
       // For now, we'll let parent handle notification, but we should validate here too
       // or pass a callback to show notification
@@ -44,12 +51,8 @@ const CreatePostModal = ({
 
     const initialStatus = user?.roleId === USER_ROLES.HOTEL_STAFF ? 'draft' : 'pending';
 
-    const allImages = [];
-    if (thumbnail) allImages.push(thumbnail);
-    allImages.push(...blogImages);
-
     const blogData = {
-      hotel_id: selectedHotel,
+      hotel_id: currentHotel,
       title: title.trim(),
       slug: finalSlug,
       content: content.trim(),
@@ -59,12 +62,18 @@ const CreatePostModal = ({
       featured_image_url: thumbnail || null,
       status: initialStatus,
       author_id: user?.userId || user?.id || user?.user_id,
-      blog_images: allImages.map((url, index) => ({
+      blog_images: blogImages.map((url, index) => ({
         image_url: url,
         order_index: index,
         caption: ''
       }))
     };
+
+    // The parent component seems to expect `allImages`, so we reconstruct it
+    // even though it seems redundant with the data in `blogData`.
+    const allImages = [];
+    if (thumbnail) allImages.push(thumbnail);
+    allImages.push(...blogImages);
 
     onSubmit(blogData, allImages);
     
@@ -296,6 +305,11 @@ const CreatePostModal = ({
 
         {/* Modal Footer */}
         <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end space-x-3">
+          {!currentHotel && (
+            <p className="text-xs text-red-600 mr-auto font-medium">
+              Vui lòng chọn một khách sạn để tạo bài viết.
+            </p>
+          )}
           <button
             type="button"
             onClick={handleClose}
@@ -306,7 +320,7 @@ const CreatePostModal = ({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={loading || !title.trim() || !content.trim() || !selectedHotel}
+            disabled={loading || !title.trim() || !content.trim() || !currentHotel}
             className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
           >
             {loading ? 'Đang tạo...' : 'Tạo bài viết'}
@@ -317,4 +331,4 @@ const CreatePostModal = ({
   );
 };
 
-export default CreatePostModal;
+export { CreatePostModal };

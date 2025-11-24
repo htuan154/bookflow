@@ -4,11 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, AlertTriangle, CheckCircle, Loader, Eye, FileText, Image, Tag, Link2 } from 'lucide-react';
 import { useBlogContext } from '../../../context/BlogContext';
 import useAuth from '../../../hooks/useAuth';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 const CreateBlogPage = () => {
     const navigate = useNavigate();
     const { user, isAuthenticated } = useAuth();
     const { createBlog, loading, error, clearError } = useBlogContext();
+    const { toast, showSuccess, showError, hideToast } = useToast();
 
     const [formData, setFormData] = useState({
         title: '',
@@ -143,7 +146,7 @@ const CreateBlogPage = () => {
         }
 
         if (!isAuthenticated || !user) {
-            alert('Vui lòng đăng nhập để tạo bài viết!');
+            showError('Vui lòng đăng nhập để tạo bài viết!');
             navigate('/login');
             return;
         }
@@ -153,14 +156,14 @@ const CreateBlogPage = () => {
         console.log('  - Final author_id:', author_id);
         
         if (!author_id) {
-            alert('Không xác định được tác giả. Vui lòng đăng nhập lại!');
+            showError('Không xác định được tác giả. Vui lòng đăng nhập lại!');
             console.log('❌ No author_id found in user object');
             navigate('/login');
             return;
         }
 
         if (!validateForm()) {
-            alert('Vui lòng kiểm tra lại thông tin đã nhập!');
+            showError('Vui lòng kiểm tra lại thông tin đã nhập!');
             return;
         }
 
@@ -218,7 +221,7 @@ const CreateBlogPage = () => {
                 error?.message?.includes('created')) {
                 
                 console.log('🎯 Detected success message in error - treating as success');
-                alert('Tạo bài viết thành công!');
+                showSuccess('Tạo bài viết thành công!');
                 navigate('/admin/blog-management');
                 return;
             }
@@ -243,32 +246,32 @@ const CreateBlogPage = () => {
                 try {
                     const retryResult = await createBlog(retryBlogData);
                     console.log('✅ Blog created successfully on retry:', retryResult);
-                    alert('Tạo bài viết thành công!');
+                    showSuccess('Tạo bài viết thành công!');
                     navigate('/admin/blog-management');
                 } catch (retryError) {
                     console.error('❌ Retry failed:', retryError);
                     
                     if (retryError?.message?.includes('successfully')) {
-                        alert('Tạo bài viết thành công!');
+                        showSuccess('Tạo bài viết thành công!');
                         navigate('/admin/blog-management');
                     } else {
-                        alert('Không thể tạo bài viết. Vui lòng thử với tiêu đề khác!');
+                        showError('Không thể tạo bài viết. Vui lòng thử với tiêu đề khác!');
                     }
                 }
             } else if (error?.message?.includes('author_id')) {
-                alert('Lỗi xác thực tác giả. Vui lòng đăng nhập lại!');
+                showError('Lỗi xác thực tác giả. Vui lòng đăng nhập lại!');
                 navigate('/login');
             } else if (error?.message?.includes('foreign key')) {
-                alert('ID khách sạn không hợp lệ. Vui lòng kiểm tra lại!');
+                showError('ID khách sạn không hợp lệ. Vui lòng kiểm tra lại!');
             } else if (error?.message?.includes('400')) {
-                alert('Dữ liệu không hợp lệ. Kiểm tra độ dài các trường!');
+                showError('Dữ liệu không hợp lệ. Kiểm tra độ dài các trường!');
             } else if (error?.message?.includes('401')) {
-                alert('Phiên đăng nhập hết hạn. Đăng nhập lại!');
+                showError('Phiên đăng nhập hết hạn. Đăng nhập lại!');
                 navigate('/login');
             } else if (error?.message?.includes('403')) {
-                alert('Không có quyền tạo bài viết!');
+                showError('Không có quyền tạo bài viết!');
             } else {
-                alert(`Lỗi: ${error?.message || 'Vui lòng thử lại!'}`);
+                showError(`Lỗi: ${error?.message || 'Vui lòng thử lại!'}`);
             }
         } finally {
             setIsSubmitting(false);
@@ -608,6 +611,15 @@ const CreateBlogPage = () => {
                         </div>
                     </div>
                 </div>
+            )}
+            {/* Toast Notification */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={hideToast}
+                    duration={toast.duration}
+                />
             )}
         </div>
     );

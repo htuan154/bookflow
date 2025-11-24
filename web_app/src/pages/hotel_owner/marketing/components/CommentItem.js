@@ -79,7 +79,21 @@ const CommentItem = ({
     : `bg-gradient-to-br ${avatarColors[Math.min(depth - 1, avatarColors.length - 1)]}`;
 
   return (
-    <div className={`p-4 hover:bg-gray-50 transition-colors ${depth > 0 ? 'pl-4 border-l-2 border-blue-200 mt-2' : ''}`}>
+    <div
+      className={`flex items-start mt-2 ${depth === 0 ? 'hover:bg-blue-50 transition' : ''}`}
+      style={{
+        borderLeft: depth > 0 ? '2px solid #e0e7ef' : 'none',
+        minWidth: '340px',
+        maxWidth: '720px',
+        marginLeft: depth > 0 ? '24px' : '0',
+        fontSize: depth > 0 ? '0.97em' : '1.05em',
+        boxShadow: depth === 0 ? '0 4px 16px rgba(0,0,0,0.06)' : 'none',
+        background: depth > 0 ? '#f8fafc' : '#fff',
+        borderRadius: '16px',
+        alignItems: 'flex-start',
+        padding: '16px 20px',
+      }}
+    >
       <div className="flex space-x-3">
         {/* Avatar */}
         <div className={`w-8 h-8 ${avatarClass} rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0`}>
@@ -96,18 +110,18 @@ const CommentItem = ({
             <span className="text-xs text-gray-500">
               {formatTimeAgo(comment.createdAt || comment.created_at)}
             </span>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              comment.status === 'approved' ? 'bg-green-100 text-green-700' :
-              comment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-              comment.status === 'rejected' ? 'bg-red-100 text-red-700' :
-              comment.status === 'hidden' ? 'bg-gray-100 text-gray-700' :
-              'bg-gray-100 text-gray-500'
-            }`}>
-              {comment.status === 'approved' ? '✓' :
-               comment.status === 'pending' ? '⏳' : 
-               comment.status === 'rejected' ? '✗' :
-               comment.status === 'hidden' ? '👁️' : '?'}
-            </span>
+             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+               comment.status === 'approved' ? 'bg-green-100 text-green-700' :
+               comment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+               comment.status === 'rejected' ? 'bg-red-100 text-red-700' :
+               comment.status === 'hidden' ? 'bg-gray-100 text-gray-700' :
+               'bg-gray-100 text-gray-500'
+             }`}>
+              {comment.status === 'approved' ? 'Đã duyệt' :
+               comment.status === 'pending' ? 'Chờ duyệt' : 
+               comment.status === 'rejected' ? 'Từ chối' :
+               comment.status === 'hidden' ? 'Ẩn' : '?'}
+             </span>
           </div>
 
           {/* Comment Text */}
@@ -120,16 +134,15 @@ const CommentItem = ({
             <button
               onClick={() => onToggleReply(comment)}
               className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
-            >
-              {isReplying ? '✕ Hủy' : '↩️ Trả lời'}
+              style={{padding: '2px 8px', borderRadius: '6px', background: 'none', border: 'none'}}>
+              {isReplying ? 'Hủy' : '↩ Trả lời'}
             </button>
-            
             {comment.replies && comment.replies.length > 0 && (
               <button
                 onClick={() => onToggleExpand(commentId)}
                 className="text-gray-600 hover:text-gray-800 font-medium transition-colors"
-              >
-                {isExpanded ? '🔼 Ẩn' : `🔽 ${comment.replies.length} phản hồi`}
+                style={{padding: '2px 8px', borderRadius: '6px', background: 'none', border: 'none'}}>
+                {isExpanded ? '▲ Ẩn' : `▼ ${comment.replies.length} phản hồi`}
               </button>
             )}
           </div>

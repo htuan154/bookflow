@@ -195,7 +195,7 @@ const ContractTable = ({
             
             if (!contractId) {
                 console.error('Contract ID not found');
-                alert('Không tìm thấy ID hợp đồng');
+               
                 return;
             }
             
@@ -221,7 +221,7 @@ const ContractTable = ({
                     await onReject([contractId]);
                 } else {
                     console.warn('No handler for status:', editFormData.status);
-                    alert('Chưa hỗ trợ cập nhật trạng thái này');
+                   
                     return;
                 }
             }
@@ -234,7 +234,7 @@ const ContractTable = ({
             
         } catch (error) {
             console.error('Error updating contract:', error);
-            alert('Có lỗi xảy ra khi cập nhật trạng thái hợp đồng: ' + error.message);
+          
         }
     };
 

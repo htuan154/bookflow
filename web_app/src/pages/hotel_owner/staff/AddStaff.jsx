@@ -9,11 +9,14 @@ import useAuth  from '../../../hooks/useAuth';
 import { staffApiService } from '../../../api/staff.service';
 import { USER_ROLES } from '../../../config/roles';
 import { API_ENDPOINTS } from '../../../config/apiEndpoints';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 const AddStaff = () => {
     const navigate = useNavigate();
     const { hotelData, fetchOwnerHotel } = useHotelOwner();
     const { user } = useAuth();
+    const { toast, showSuccess, showError, hideToast } = useToast();
     
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -176,22 +179,22 @@ const AddStaff = () => {
         
         // Enhanced validation with user-friendly messages
         if (!hotelId) {
-            alert('Không tìm thấy thông tin khách sạn. Vui lòng chọn khách sạn.');
+            showError('Không tìm thấy thông tin khách sạn. Vui lòng chọn khách sạn.');
             return;
         }
 
         if (!currentUserId) {
-            alert('Không tìm thấy thông tin người dùng hiện tại. Vui lòng đăng nhập lại.');
+            showError('Không tìm thấy thông tin người dùng hiện tại. Vui lòng đăng nhập lại.');
             return;
         }
 
         if (!isValidUUID(currentUserId)) {
-            alert('ID người dùng không hợp lệ. Vui lòng đăng nhập lại.');
+            showError('ID người dùng không hợp lệ. Vui lòng đăng nhập lại.');
             return;
         }
 
         if (!isValidUUID(hotelId)) {
-            alert('ID khách sạn không hợp lệ. Vui lòng liên hệ hỗ trợ.');
+            showError('ID khách sạn không hợp lệ. Vui lòng liên hệ hỗ trợ.');
             return;
         }
 
@@ -242,8 +245,8 @@ const AddStaff = () => {
                 throw lastError;
             }
             
-            alert(`Thêm nhân viên thành công!\n\nNhân viên ${formData.full_name} đã được thêm vào khách sạn ${selectedHotel.name}.`);
-            navigate('/hotel-owner/staff/list');
+            showSuccess(`Thêm nhân viên thành công! Nhân viên ${formData.full_name} đã được thêm vào khách sạn ${selectedHotel.name}.`);
+            setTimeout(() => navigate('/hotel-owner/staff/list'), 1500);
         } catch (error) {
             // Enhanced error messages
             let errorMessage = 'Thêm nhân viên thất bại';
@@ -262,7 +265,7 @@ const AddStaff = () => {
                 errorMessage = error.message;
             }
             
-            alert('Lỗi: ' + errorMessage);
+            showError('Lỗi: ' + errorMessage);
         } finally {
             setLoading(false);
         }
@@ -584,6 +587,16 @@ const AddStaff = () => {
                     </div>
                 </form>
             </div>
+
+            {/* Toast Notification */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={hideToast}
+                    duration={toast.duration}
+                />
+            )}
         </div>
     );
 };

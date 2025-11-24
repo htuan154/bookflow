@@ -27,6 +27,8 @@ import EditHotelModal from '../../../components/hotel/EditHotelModal';
 import useBankAccount from '../../../hooks/useBankAccount';
 import { CreditCardIcon, PlusIcon } from '@heroicons/react/24/outline';
 import useIM from '../../../hooks/useIM';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 // helper: lấy id khách sạn/amenity an toàn
 const getId = (obj) => obj?.hotelId ?? obj?.hotel_id ?? obj?.id ?? obj?._id ?? null;

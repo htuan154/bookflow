@@ -5,9 +5,12 @@ import { hotelApiService } from '../../../api/hotel.service';
 import roomTypeService from '../../../api/roomType.service';
 import ActionButton from '../../../components/common/ActionButton';
 import { usePricingState } from './PricingWrapper';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 const SeasonalPricingPage = () => {
   const navigate = useNavigate();
+  const { toast, showSuccess, showError, hideToast } = useToast();
   
   // Get shared state from wrapper
   const pricingState = usePricingState();
@@ -67,7 +70,7 @@ const SeasonalPricingPage = () => {
       setHotels(hotelsList);
     } catch (error) {
       console.error('Error loading hotels:', error);
-      alert('Không thể tải danh sách khách sạn');
+      showError('Không thể tải danh sách khách sạn');
     }
   };
 
@@ -85,7 +88,7 @@ const SeasonalPricingPage = () => {
       setRoomTypes(types);
     } catch (error) {
       console.error('Error loading room types:', error);
-      alert('Không thể tải danh sách loại phòng: ' + (error.message || ''));
+      showError('Không thể tải danh sách loại phòng: ' + (error.message || ''));
       setRoomTypes([]);
     } finally {
       setLoading(false);
@@ -168,6 +171,15 @@ const SeasonalPricingPage = () => {
             </div>
           )}
         </div>
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+          duration={toast.duration}
+        />
       )}
     </div>
   );

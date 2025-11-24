@@ -7,10 +7,13 @@ import {
 } from 'lucide-react';
 import { useHotelOwner } from '../../../hooks/useHotelOwner';
 import { useStaff } from '../../../context/StaffContext';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 const StaffList = () => {
     const { hotelData, fetchOwnerHotel } = useHotelOwner();
     const navigate = useNavigate();
+    const { toast, showSuccess, showError, hideToast } = useToast();
     
     // Use StaffContext instead of local state
     const {
@@ -66,9 +69,9 @@ const StaffList = () => {
     const handleStatusChange = async (staffId, newStatus) => {
         const result = await updateStaffStatus(staffId, newStatus);
         if (result.success) {
-            alert('Cập nhật trạng thái thành công!');
+            showSuccess('Cập nhật trạng thái thành công!');
         } else {
-            alert('Cập nhật trạng thái thất bại: ' + result.error);
+            showError('Cập nhật trạng thái thất bại: ' + result.error);
         }
     };
 
@@ -79,9 +82,9 @@ const StaffList = () => {
 
         const result = await deleteStaff(staffId);
         if (result.success) {
-            alert('Xóa nhân viên thành công!');
+            showSuccess('Xóa nhân viên thành công!');
         } else {
-            alert('Xóa nhân viên thất bại: ' + result.error);
+            showError('Xóa nhân viên thất bại: ' + result.error);
         }
     };
 
@@ -279,7 +282,7 @@ const StaffList = () => {
                                     const hotelId = selectedHotel.hotelId || selectedHotel.hotel_id || selectedHotel.id || selectedHotel._id;
                                     setSelectedHotel(selectedHotel); // Trigger reload via context
                                 } else {
-                                    alert('Không tìm thấy Hotel ID');
+                                    showError('Không tìm thấy Hotel ID');
                                 }
                             }}
                             className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
@@ -591,6 +594,17 @@ const StaffList = () => {
                     </div>
                 </div>
             )}
+
+            {/* Toast Notification */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={hideToast}
+                    duration={toast.duration}
+                />
+            )}
+
         </div>
     );
 };

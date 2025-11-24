@@ -57,7 +57,17 @@ const makeApiCall = async (url, options = {}) => {
             throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
 
-        return await response.json();
+        const responseText = await response.text();
+        if (!responseText) {
+            return null; 
+        }
+
+        try {
+            return JSON.parse(responseText);
+        } catch (e) {
+            console.warn('API response was not valid JSON, returning as plain text:', responseText);
+            return responseText;
+        }
     } catch (error) {
         // Chỉ log lỗi 1 lần, không spam
         if (!window._apiErrorLogged) {
