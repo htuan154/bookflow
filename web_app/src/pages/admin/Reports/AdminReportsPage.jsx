@@ -494,8 +494,6 @@ function SummaryTable() {
       
     } catch (error) {
       console.error('Error previewing payout:', error);
-      alert('❌ Lỗi: ' + (error.message || 'Không thể tải thông tin thanh toán'));
-    } finally {
       setCreatingPayout(false);
     }
   };
@@ -512,8 +510,7 @@ function SummaryTable() {
         cover_date: coverDate,
       });
 
-      // Show success message
-      alert('✅ Thanh toán đã được tạo thành công!');
+      
 
       // close modal and clear selection AFTER success
       setShowModal(false);
@@ -535,7 +532,6 @@ function SummaryTable() {
       }
     } catch (error) {
       console.error('Error creating payout:', error);
-      alert('❌ Lỗi: ' + (error.response?.data?.message || error.message));
     } finally {
       setCreatingPayout(false);
     }

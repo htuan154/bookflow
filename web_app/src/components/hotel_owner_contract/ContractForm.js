@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import useAuth from '../../hooks/useAuth';
 import useHotel from '../../hooks/useHotel';
+import { useToast } from '../../hooks/useToast';
+import Toast from '../common/Toast';
 
 // Helper to get default start_date: today + 7 days
 const getDefaultStartDate = () => {
@@ -57,6 +59,7 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
   const { user } = useAuth();
   const ownerId = user?.user_id || user?.id || user?.userId;
   const { activeApprovedHotels, fetchActiveApprovedHotels } = useHotel();
+  const { toast, showWarning, hideToast } = useToast();
 
   // FIXED useEffect - xử lý dữ liệu contract đúng cách
   useEffect(() => {
@@ -127,7 +130,7 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
       minDate.setHours(0, 0, 0, 0);
       selectedDate.setHours(0, 0, 0, 0);
       if (selectedDate < minDate) {
-        alert(`Ngày bắt đầu phải từ ${getMinStartDate()} trở đi!`);
+        showWarning(`Ngày bắt đầu phải từ ${getMinStartDate()} trở đi!`);
         return;
       }
     }
@@ -139,7 +142,7 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
         minEndDate.setHours(0, 0, 0, 0);
         selectedEndDate.setHours(0, 0, 0, 0);
         if (selectedEndDate < minEndDate) {
-          alert(`Ngày kết thúc phải sau ngày bắt đầu ít nhất 30 ngày (từ ${getMinEndDate(form.start_date)} trở đi)!`);
+          showWarning(`Ngày kết thúc phải sau ngày bắt đầu ít nhất 30 ngày (từ ${getMinEndDate(form.start_date)} trở đi)!`);
           return;
         }
       }
@@ -149,7 +152,7 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
       today.setHours(0, 0, 0, 0);
       selectedEndDate.setHours(0, 0, 0, 0);
       if (selectedEndDate < today) {
-        alert('Ngày kết thúc không thể trước ngày hiện tại!');
+        showWarning('Ngày kết thúc không thể trước ngày hiện tại!');
         return;
       }
     }
@@ -448,6 +451,16 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
           </button>
         </div>
       </form>
+      
+      {/* Toast notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+          duration={toast.duration}
+        />
+      )}
     </div>
   );
 };

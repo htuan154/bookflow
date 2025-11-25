@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useBlogContext } from '../../context/BlogContext';
 import useAuth from '../../hooks/useAuth';
+import { useToast } from '../../hooks/useToast';
+import Toast from '../common/Toast';
 
 const BlogForm = ({ 
     blog = null,
@@ -14,6 +16,7 @@ const BlogForm = ({
 }) => {
     const { user } = useAuth();
     const { createBlog, updateBlog, error, loading } = useBlogContext();
+    const { toast, showWarning, hideToast } = useToast();
 
     // Form state
     const [formData, setFormData] = useState({
@@ -222,7 +225,7 @@ const BlogForm = ({
     // Image management functions
     const handleAddImageFromUrl = () => {
         if (!imageUrlInput.trim()) {
-            alert('Vui lòng nhập URL hình ảnh');
+            showWarning('Vui lòng nhập URL hình ảnh');
             return;
         }
         
@@ -230,7 +233,7 @@ const BlogForm = ({
         try {
             new URL(imageUrlInput);
         } catch {
-            alert('URL không hợp lệ');
+            showWarning('URL không hợp lệ');
             return;
         }
         
@@ -724,6 +727,16 @@ const BlogForm = ({
                     </div>
                 </form>
             </div>
+            
+            {/* Toast notification */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={hideToast}
+                    duration={toast.duration}
+                />
+            )}
         </div>
     );
 };
