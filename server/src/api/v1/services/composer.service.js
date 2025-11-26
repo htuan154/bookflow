@@ -276,39 +276,47 @@ async function composeSpecificItem({ doc, targetItem, type, intent }) {
   
   if (type === 'place') {
     prompt = `
-Bạn là HƯỚNG DẪN VIÊN DU LỊCH am hiểu sâu sắc về Việt Nam (Expert Local Guide).
-Người dùng đang hỏi về: "${itemName}".
-Khu vực dữ liệu hiện tại: ${provinceName}.
+Bạn là Hướng dẫn viên du lịch địa phương (AI Local Guide).
+Phong cách: Thân thiện, am hiểu, ngôn ngữ đời thường, ngắn gọn và thực tế.
+LƯU Ý QUAN TRỌNG: Tuyệt đối KHÔNG sử dụng emoji hay icon trong câu trả lời.
+
+Người dùng hỏi về: "${itemName}".
+Khu vực dữ liệu: ${provinceName}.
 ${mergedInfo}
 
-Dữ liệu ghi chú từ hệ thống: "${dbHint}".
+Dữ liệu từ hệ thống: "${dbHint}".
 
 NHIỆM VỤ:
-1. Xác định chính xác địa danh này nằm ở đâu (đặc biệt nếu nó thuộc tỉnh cũ trước khi gộp dữ liệu).
-2. Dùng KIẾN THỨC NỘI TẠI (Internal Knowledge) để viết mô tả hấp dẫn, chi tiết.
+1. Xác định chính xác địa danh này (đặc biệt nếu thuộc tỉnh cũ trước khi sáp nhập).
+2. Viết theo PHONG CÁCH NGƯỜI BẠN ĐANG CHAT, không máy móc.
+3. Nếu địa danh thuộc tỉnh cũ đã sáp nhập, nói: "hiện thuộc tỉnh ${provinceName} (khu vực ... trước đây)"
 
-Yêu cầu trả về JSON:
+Trả về JSON theo FORMAT 3 PHẦN:
 {
-  "summary": "Đoạn văn 4-5 câu mô tả chi tiết bằng TIẾNG VIỆT. Nói rõ vị trí cụ thể (huyện/thị xã/tỉnh), lịch sử, kiến trúc hoặc trải nghiệm nổi bật.",
-  "tips": ["Mẹo 1 (thời gian đi đẹp nhất)", "Mẹo 2 (trang phục/lưu ý)", "Mẹo 3 (giá vé/đường đi)"]
+  "summary": "Đoạn văn 3-4 câu viết XUÔI tự nhiên. Phần 1: Xác nhận địa điểm và tỉnh. Phần 2: Mô tả vị trí, đặc điểm, trải nghiệm nổi bật. Phần 3: Thông tin giá vé/địa chỉ (nếu biết). KHÔNG gạch đầu dòng.",
+  "tips": ["Mẹo 1: Thời gian đi đẹp nhất và lưu ý thời tiết", "Mẹo 2: Trang phục/đồ dùng cần mang", "Mẹo 3: Lưu ý về di chuyển hoặc quãng đường (đặc biệt với merged provinces)"]
 }
 `;
   } else {
     // Prompt cho món ăn (Bún cá Châu Đốc, Bún chả cá Quy Nhơn...)
     prompt = `
-Bạn là CHUYÊN GIA ẨM THỰC Việt Nam.
+Bạn là Chuyên gia ẩm thực Việt Nam.
+Phong cách: Thân thiện, đời thường, như người bạn đang chia sẻ.
+LƯU Ý: Tuyệt đối KHÔNG dùng emoji.
+
 Người dùng hỏi về món: "${itemName}".
-Khu vực dữ liệu hiện tại: ${provinceName}.
+Khu vực dữ liệu: ${provinceName}.
 ${mergedInfo}
 
 NHIỆM VỤ:
-1. Xác định món ăn này là đặc sản gốc của tỉnh/thành nào (Ví dụ: "Bún chả cá Quy Nhơn" -> Bình Định, dù dữ liệu đang ở Gia Lai).
-2. Mô tả hương vị, nguyên liệu đặc trưng và cách thưởng thức đúng điệu.
+1. Xác định món ăn là đặc sản gốc của tỉnh nào (VD: "Bún chả cá Quy Nhơn" -> xác định đúng là Bình Định, dù data ở Gia Lai).
+2. Viết theo phong cách NGƯỜI BẠN TƯ VẤN, không máy móc.
+3. Mô tả hương vị cụ thể, không chung chung.
 
-Yêu cầu trả về JSON:
+Trả về JSON theo FORMAT 3 PHẦN:
 {
-  "summary": "Đoạn văn 4-5 câu mô tả hương vị, nguồn gốc và độ nổi tiếng của món ăn này bằng TIẾNG VIỆT.",
-  "tips": ["Ăn ở đâu ngon (gợi ý tên quán cụ thể nếu biết)", "Giá khoảng bao nhiêu", "Ăn kèm rau gì/nước chấm gì"]
+  "summary": "Đoạn văn 3-4 câu viết XUÔI. Phần 1: Xác nhận món ăn (VD: 'Nhắc đến Hà Nội thì chắc chắn phải thử Phở bò rồi.'). Phần 2: Mô tả hương vị, nguyên liệu, cách chế biến đặc trưng. Phần 3: Địa chỉ quán ngon (nếu biết) và giá. KHÔNG gạch đầu dòng, viết thành đoạn văn.",
+  "tips": ["Ăn ở đâu ngon - gợi ý tên quán CỤ THỂ nếu biết", "Giá khoảng bao nhiêu", "Mẹo: Ăn kèm rau gì, nước chấm gì để ngon hơn"]
 }
 `;
   }
@@ -348,7 +356,7 @@ Yêu cầu trả về JSON:
   }
 }
 
-function factsToPrompt({ doc, intent }) {
+function factsToPrompt({ doc, intent, queryType = 'overview' }) {
   const places = (doc.places || []).map(p => `- ${p.name}`).join('\n') || '-';
   const dishes = (doc.dishes || []).map(d => `- ${d.name}`).join('\n') || '-';
   const mergedFrom = Array.isArray(doc.merged_from) ? doc.merged_from.filter(x => x && x !== doc.name) : [];
@@ -356,6 +364,27 @@ function factsToPrompt({ doc, intent }) {
     ? `Lưu ý: dữ liệu tham khảo được gộp từ ${[doc.name, ...mergedFrom].join(', ')} nên có thể xuất hiện địa danh ngoài phạm vi ${doc.name}.\n`
     : '';
   const neighborList = mergedFrom.length ? mergedFrom.join(', ') : 'các tỉnh/thành lân cận';
+  
+  let conditionalInstructions = '';
+  if (queryType === 'overview') {
+    conditionalInstructions = `
+5. TÓM TẮT:
+   - Viết một đoạn văn ngắn (3-4 câu) giới thiệu chung về ${doc.name}, nhấn mạnh các điểm nổi bật và đặc trưng.
+   - Đặt đoạn văn này vào trường "summary".
+`;
+  } else if (queryType === 'places') {
+    conditionalInstructions = `
+5. TÓM TẮT:
+   - Viết một đoạn văn ngắn (3-4 câu) giới thiệu chung về các địa điểm du lịch nổi bật ở ${doc.name}.
+   - Đặt đoạn văn này vào trường "summary".
+`;
+  } else if (queryType === 'dishes') {
+    conditionalInstructions = `
+5. TÓM TẮT:
+   - Viết một đoạn văn ngắn (3-4 câu) giới thiệu chung về các món ăn đặc sản ở ${doc.name}.
+   - Đặt đoạn văn này vào trường "summary".
+`;
+  }
 
   return `
 Bạn là trợ lý du lịch tiếng Việt chuyên nghiệp. CHỈ dùng dữ kiện có sẵn, KHÔNG bịa tên mới.
@@ -396,7 +425,7 @@ YÊU CẦU BẮT BUỘC VỀ NỘI DUNG:
    - Nếu không biết quán cụ thể, gợi ý khu vực (vd: "Các quán quanh chợ Đà Lạt hoặc đường Nguyễn Thị Minh Khai").
    - Ví dụ TỐT: "Quán Cơm Hến Bà Hoa (17 Nguyễn Huệ) hoặc khu Đông Ba, Huế"
    - Ví dụ XẤU: "Có nhiều quán" (không hữu ích)
-
+${conditionalInstructions}
 4. KIỂM SOÁT ĐỊA LÝ:
    - KHÔNG được nhắc tới địa danh/món ăn thuộc tỉnh/thành khác ngoài ${doc.name}.
    - Nếu danh sách gốc có địa danh thuộc ${neighborList}, phải tự hỏi "địa danh này có thực sự thuộc ${doc.name} không?" Nếu không chắc, loại bỏ nó.
@@ -614,7 +643,16 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
     
     // GENERIC LIST MODE
     console.log('[compose] → GENERIC LIST MODE');
-    const prompt = factsToPrompt({ doc, intent: intent || nlu?.intent || 'generic' });
+    
+    // Lấy queryType từ NLU để quyết định cách AI trả lời
+    const queryType = nlu?.queryType || user_ctx?.queryType || 'overview';
+    console.log('[compose] QueryType detected:', queryType);
+    
+    const prompt = factsToPrompt({ 
+      doc, 
+      intent: intent || nlu?.intent || 'generic',
+      queryType  // Pass queryType vào prompt
+    });
     const raw = await generateJSON({ prompt, temperature: 0.2 });
     const safe = validateResponse(raw, doc);
 

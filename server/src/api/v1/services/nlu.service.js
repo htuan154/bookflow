@@ -76,6 +76,41 @@ function detectIntent(message = '', city = null) {
   return 'ask_both';
 }
 
+/**
+ * Phát hiện loại query: specific (hỏi chi tiết 1 item) vs overview (hỏi tổng quan)
+ * @param {string} normalized - Chuỗi đã chuẩn hóa
+ * @returns {'specific'|'overview'|'unknown'}
+ */
+function detectQueryType(normalized = '') {
+  // Từ khóa chỉ báo câu hỏi CHI TIẾT (hỏi về 1 món/địa danh cụ thể)
+  // VD: "Review Phở bò", "Bún chả ngon không", "Mô tả Chùa Bút Tháp"
+  const specificIndicators = /\b(review|danh gia|mo ta|chi tiet|thong tin ve|gioi thieu|noi ve|la gi|co tot khong|ngon khong|ngon ko|the nao|ra sao|nhu nao|ntn|hay khong|hay ko|tot khong|tot ko|dep khong|dep ko|tuyet khong)\b/;
+  
+  // Từ khóa chỉ báo câu hỏi TỔNG QUAN (hỏi về danh sách/nhiều items)
+  // VD: "Đặc sản Hà Nội", "Đi chơi Đà Lạt", "Món ăn Huế"
+  const overviewIndicators = /\b(dac san|di choi|tham quan|du lich|co gi|mon gi|dia danh nao|an gi|choi gi|danh sach|goi y|nhung mon|nhung dia danh|cac mon|cac dia danh)\b/;
+  
+  // Kiểm tra specific trước (priority cao hơn)
+  if (specificIndicators.test(normalized)) {
+    return 'specific';
+  }
+  
+  // Nếu có overview indicators
+  if (overviewIndicators.test(normalized)) {
+    return 'overview';
+  }
+  
+  // Heuristic bổ sung: câu ngắn (<=5 từ) KHÔNG có từ khóa overview -> có thể là specific
+  // VD: "Eo Gió", "Phở bò", "Bún chả cá"
+  const tokens = tokensOf(normalized);
+  if (tokens.length >= 1 && tokens.length <= 5 && !overviewIndicators.test(normalized)) {
+    // Nếu câu chỉ có tên món/địa danh mà không có từ khóa overview -> coi là specific
+    return 'specific';
+  }
+  
+  return 'unknown';
+}
+
 /** Nhận diện vùng/miền trong câu (đã normalize) */
 function detectRegion(normalized = '') {
   for (const r of REGION_DICT) {
@@ -155,15 +190,18 @@ function detectCity(normalized = '') {
   return null;
 }
 
-/** Hàm analyze DUY NHẤT (có city) */
+/** Hàm analyze DUY NHẤT (có city + queryType) */
 function analyze(message = '') {
   const normalized = normalize(message);
   const city = detectCity(normalized);
+  const queryType = detectQueryType(normalized);
+  
   return {
     normalized,
     intent: detectIntent(normalized, city),
     region: detectRegion(normalized),
     city,
+    queryType,  // Thêm queryType vào result
     top_n: extractTopN(normalized, 7),
     filters: extractFilters(normalized),
     tokens: tokensOf(normalized),
@@ -176,6 +214,7 @@ module.exports = {
   tokensOf,
   ngrams,
   detectIntent,
+  detectQueryType,  // Export hàm mới
   detectRegion,
   extractTopN,
   extractFilters,

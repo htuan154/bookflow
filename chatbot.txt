@@ -1,0 +1,209 @@
+# Báo cáo Kỹ thuật & Tiến độ Phát triển AI Chatbot Du lịch
+
+**Phiên bản:** 4.0 (Architecture: Database-First & Query Type Detection)  
+**Ngày cập nhật:** 26/11/2025  
+**Trạng thái:** Nâng cấp hoàn tất (v4.0 Stable) - Tích hợp System Prompt mới
+
+---
+
+## 1. TỔNG QUAN TIẾN ĐỘ
+
+Hệ thống đã nâng cấp lên **v4.0** với các cải tiến quan trọng về NLU và AI response quality.
+
+### ✅ Đã hoàn thành (v4.0)
+
+- **Query Type Detection (NLU):** AI tự động phân biệt câu hỏi CHI TIẾT (specific) vs TỔNG QUAN (overview) để trả lời đúng trọng tâm
+
+- **Enhanced Keyword Filtering:** Regex lọc từ khóa được mở rộng để bắt các câu hỏi review/đánh giá tốt hơn (thêm: "đánh giá", "có tốt không", "thế nào", "ntn", "ko", "hay", "tuyệt")
+
+- **System Prompt v4.0:** Cập nhật toàn bộ prompts với:
+  - Format 3 phần: Xác nhận + Thông tin + Mẹo
+  - Không sử dụng emoji
+  - Ngôn ngữ đời thường, thân thiện như người bạn chat
+  - Xử lý merged provinces chính xác (VD: "Eo Gió thuộc Gia Lai, khu vực Bình Định trước đây")
+
+- **Auto-Discovery (Tự động khám phá):** Code tự động quét tất cả collection trong MongoDB để tìm dữ liệu
+
+- **Smart Stripping (Cắt từ thông minh):** Tự động loại bỏ từ cảm thán và cắt tên tỉnh để tìm thực thể gốc
+
+- **AI Thinking Mode:** Kích hoạt chế độ "Chuyên gia" khi tìm thấy vật thể cụ thể
+
+### 🔄 Đang phát triển / Cần làm
+
+- **Caching Layer:** Tích hợp Redis để lưu kết quả tìm kiếm scanItemInDB
+
+- **Feedback Loop:** Thêm cơ chế để người dùng report câu trả lời sai
+
+- **Vector Search (Semantic):** Nâng cấp tìm kiếm theo ngữ nghĩa
+
+---
+
+## 2. LUỒNG HOẠT ĐỘNG (v4.0)
+
+```
+[User Input: "Phở bò Hà Nội ngon không?"]
+    ↓
+┌─────────────────────────────────────────────┐
+│ 1. NLU ANALYSIS (Phân tích ngôn ngữ)        │
+│ • normalize: "pho bo ha noi ngon khong"     │
+│ • detectCity: "Hà Nội"                      │
+│ • detectQueryType: "specific" ← MỚI v4.0    │
+│ • detectIntent: "ask_dishes"                │
+└─────────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────────┐
+│ 2. SUPER CLEANING & SCAN (Ưu tiên 1)       │
+│ • Lọc rác: bỏ "ngon không", "đánh giá"      │
+│ • Keyword: "Phở bò Hà Nội"                  │
+│ • Cắt Tỉnh: bỏ "Hà Nội"                     │
+│ • Keyword rút gọn: "Phở bò"                 │
+│ • Auto-Scan DB → MATCH!                     │
+└─────────────────────────────────────────────┘
+    ↓
+[Tìm thấy Item?] ─YES→ ┌──────────────────────┐
+                       │ 3. AI THINKING MODE  │
+                       │ (v4.0 Format)        │
+                       │ • Xác nhận món       │
+                       │ • Mô tả chi tiết     │
+                       │ • Tips thực tế       │
+                       │ • KHÔNG emoji        │
+                       └──────────────────────┘
+    ↓
+    NO → ┌─────────────────────────────────────┐
+          │ 4. GENERIC LIST MODE (v4.0)       │
+          │ • Dùng queryType để quyết định    │
+          │ • specific → 1 item focused       │
+          │ • overview → 3-4 items nổi bật   │
+          │ • Format 3 phần, không emoji      │
+          └─────────────────────────────────────┘
+```
+
+---
+
+## 3. SYSTEM PROMPT v4.0
+
+### Vai trò
+**Hướng dẫn viên du lịch địa phương (AI Local Guide)** - chuyên gia ẩm thực Việt Nam
+
+### Phong cách
+- Thân thiện, am hiểu
+- Ngôn ngữ đời thường như người bạn chat
+- Ngắn gọn, thực tế
+- **TUYỆT ĐỐI KHÔNG dùng emoji**
+
+### Format câu trả lời (3 PHẦN bắt buộc)
+1. **Phần 1 - Xác nhận**: Câu ngắn confirm địa điểm/món ăn và tỉnh
+2. **Phần 2 - Thông tin chính**: Mô tả chi tiết vị trí, đặc điểm, hương vị (viết XUÔI, không gạch đầu dòng)
+3. **Phần 3 - Tips**: 3 mẹo thực tế (thời gian, trang phục, địa chỉ quán...)
+
+### Xử lý Merged Provinces
+- Nếu địa danh thuộc tỉnh cũ đã sáp nhập → Nói: "hiện thuộc [Tỉnh Mới] (khu vực [Tỉnh Cũ] trước đây)"
+- VD: "Eo Gió hiện thuộc tỉnh Gia Lai (khu vực Quy Nhơn - Bình Định trước đây)"
+
+---
+
+## 4. BẢNG TEST CASE (v4.0 Updated)
+
+### Nhóm A: Specific Queries (Câu hỏi chi tiết - queryType: 'specific')
+*Mong đợi: Trả lời FOCUSED chỉ về 1 item, format 3 phần, không emoji*
+
+| STT | Câu hỏi | Mong đợi | Kiểm tra |
+|-----|---------|----------|----------|
+| A1 | "Phở bò Hà Nội ngon không?" | Chi tiết CHỈ về Phở bò, không list món khác | ✅ Specific, ✅ No emoji, ✅ 3 phần |
+| A2 | "Review Vịt quay Cao Bằng" | 1 lần trả lời đúng về Vịt quay, focused | ✅ scanItemInDB match ngay |
+| A3 | "Mô tả Chùa Bút Tháp" | Chi tiết về Chùa Bút Tháp (Bắc Ninh) | ✅ AI Thinking Mode |
+| A4 | "Bún chả cá Quy Nhơn thế nào?" | Chi tiết CHỈ về Bún chả cá | ✅ Keyword filter: "thế nào" |
+| A5 | "Eo Gió" | Chi tiết Eo Gió, có ghi chú merged | ✅ Câu ngắn, ✅ Merged province |
+| A6 | "Chùa Dơi có tốt không?" | Chi tiết Chùa Dơi (Cần Thơ) | ✅ Filter: "có tốt không" |
+| A7 | "Đánh giá Tương Bần Hưng Yên" | Chi tiết Tương Bần | ✅ Keyword: "đánh giá" |
+
+### Nhóm B: Overview Queries (Câu hỏi tổng quan - queryType: 'overview')
+*Mong đợi: Trả lời list 3-4 items nổi bật, format 3 phần, không emoji*
+
+| STT | Câu hỏi | Mong đợi | Kiểm tra |
+|-----|---------|----------|----------|
+| B1 | "Đặc sản Cao Bằng" | List 3-4 món nổi bật, KHÔNG toàn bộ data | ✅ Overview mode, ✅ Chọn lọc |
+| B2 | "Đi chơi Hà Nội" | List 3-4 địa danh hot nhất | ✅ Overview, ✅ Top picks |
+| B3 | "Ăn gì ở Huế?" | List 3-4 món đặc sản Huế | ✅ queryType: overview |
+| B4 | "Món ăn Đà Lạt" | List 3-4 món đặc trưng | ✅ Không list hết |
+| B5 | "Địa điểm du lịch Đà Nẵng" | List 3-4 địa danh nổi bật | ✅ Focus on highlights |
+
+### Nhóm C: Merged Province Handling (Xử lý tỉnh gộp)
+*Mong đợi: AI nhận diện đúng tỉnh gốc, có ghi chú sáp nhập*
+
+| STT | Câu hỏi | Mong đợi | Kiểm tra |
+|-----|---------|----------|----------|
+| C1 | "Kỳ Co" | "Kỳ Co... Gia Lai (khu vực Bình Định trước đây)" | ✅ Merged note |
+| C2 | "Eo Gió Quy Nhơn" | Xác định đúng Quy Nhơn (Bình Định → Gia Lai) | ✅ 1 lần đúng |
+| C3 | "Chùa Tam Chúc" | "Hà Nam (dù data ở Ninh Bình)" | ✅ AI identify |
+| C4 | "Gành Đá Đĩa" | "Phú Yên (dù data ở Đắk Lắk)" | ✅ Source tracking |
+
+### Nhóm D: Keyword Filtering Test (Kiểm tra lọc từ khóa v4.0)
+*Mong đợi: Regex mới bắt được các từ khóa review/đánh giá*
+
+| STT | Câu hỏi | Expected Cleaned Keyword | Tìm thấy? |
+|-----|---------|--------------------------|-----------|
+| D1 | "Review Vịt quay" | "Vịt quay" | ✅ Bỏ "review" |
+| D2 | "Đánh giá Phở bò" | "Phở bò" | ✅ Bỏ "đánh giá" |
+| D3 | "Có tốt không Bún bò Huế" | "Bún bò Huế" | ✅ Bỏ "có tốt không" |
+| D4 | "Thế nào Chùa Bút Tháp" | "Chùa Bút Tháp" | ✅ Bỏ "thế nào" |
+| D5 | "Ngon ko Bánh xèo" | "Bánh xèo" | ✅ Bỏ "ngon ko" |
+
+### Nhóm E: Edge Cases (Ca khó)
+*Kiểm tra khả năng chịu lỗi và fallback*
+
+| STT | Câu hỏi | Mong đợi | Ghi chú |
+|-----|---------| ----------|---------|
+| E1 | "Pa pỉnh tộp" | Tìm món cá nướng (Điện Biên) | Tên độc lạ |
+| E2 | "Hello bot" | Trả lời xã giao (Chitchat), không tìm DB | Intent: chitchat |
+| E3 | "Thời tiết Hà Nội" | Thông tin thời tiết CỤ THỂ | Intent: weather |
+| E4 | "Thời tiết Hà Nội tháng 12" | Thời tiết tháng 12 chi tiết | ✅ Extract month |
+
+### Nhóm F: Format Validation (Kiểm tra định dạng v4.0)
+*Tất cả response phải đáp ứng format v4.0*
+
+**Checklist cho mọi response:**
+- [ ] ✅ KHÔNG có emoji trong toàn bộ câu trả lời
+- [ ] ✅ Có đủ 3 phần (Xác nhận + Thông tin + Tips)
+- [ ] ✅ Phần thông tin viết XUÔI thành đoạn văn (không gạch đầu dòng)
+- [ ] ✅ Ngôn ngữ đời thường, thân thiện (VD: "Nhắc đến Hà Nội thì...")
+- [ ] ✅ Tips thực tế, cụ thể (tên quán, giá, địa chỉ)
+
+---
+
+## 5. FILES ĐÃ CẬP NHẬT (v4.0)
+
+1. **nlu.service.js** - Thêm `detectQueryType()`, cập nhật `analyze()`
+2. **chatbot.service.js** - Cải thiện keyword regex (line 709)
+3. **composer.service.js** - Cập nhật toàn bộ prompts v4.0, thêm queryType logic
+
+---
+
+## 6. HƯỚNG DẪN TEST
+
+### Bước 1: Khởi động server
+```bash
+cd d:\Project\bookflow\server
+npm start
+```
+
+### Bước 2: Truy cập web UI
+- URL: http://localhost:3000
+- Hoặc API: http://localhost:8080/api/v1/ai/chat
+
+### Bước 3: Test từng nhóm
+Thực hiện test theo từng nhóm A → B → C → D → E → F
+
+### Bước 4: Kiểm tra Console Logs
+Trong terminal server, xem logs để verify flow:
+```
+[scanItemInDB] 🔍 Đang tìm (Super Clean): ["Pho bo"]
+[scanItemInDB] ✅ MATCH! "Pho bo" -> "Phở bò" (Doc: Hà Nội)
+[suggestHybrid] => 🔥 Tìm thấy Item trong DB -> Kích hoạt AI Thinking Mode!
+[compose] QueryType detected: specific
+[composeSpecificItem] Thinking mode: "Phở bò" @ "Hà Nội" (Merged: NO)
+```
+
+---
+
+**Phiên bản v4.0 - Chatbot thông minh, thân thiện, chính xác!**

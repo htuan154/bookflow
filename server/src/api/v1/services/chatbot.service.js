@@ -706,12 +706,12 @@ async function scanItemInDB(db, message, nluCity = null) {
 
   // 1. Dọn dẹp từ khóa rác (Bổ sung thêm các từ cảm thán/hành động)
   // Mới thêm: mua, bán, đẹp, ngon, nổi tiếng, nhất, lắm, không, ở, tại...
-  const keywordsRegex = /mô tả|chi tiết|thông tin|giới thiệu|về|là gì|ở đâu|review|cho tôi|biết|ăn gì|chơi gì|có gì|tìm hiểu|cho hỏi|xem|như thế nào|ra sao|món|địa danh|địa điểm|đi|ăn|mua|bán|đẹp|ngon|nổi tiếng|nhất|lắm|không|tại|trong|ngoài/gi;
+  const keywordsRegex = /mô tả|chi tiết|thông tin|giới thiệu|về|là gì|ở đâu|review|đánh giá|có tốt không|có ngon không|thế nào|ra sao|như thế nào|ntn|cho tôi|biết|ăn gì|chơi gì|có gì|tìm hiểu|cho hỏi|xem|món|địa danh|địa điểm|đi|ăn|mua|bán|đẹp|ngon|nổi tiếng|nhất|lắm|tại|trong|ngoài|hay|tuyệt|có|ở/gi;
   
   let cleanQuery = message.replace(keywordsRegex, '').trim();
   // Xóa bớt ký tự đặc biệt còn sót (? ! .)
+  cleanQuery = cleanQuery.replace(/\s+(không|ko)\s*$/gi, '').trim(); // Loại "không/ko" cuối câu
   cleanQuery = cleanQuery.replace(/[?!.,;]/g, '').trim();
-  
   // Nếu dọn xong mà chuỗi rỗng (vd khách chỉ hỏi "đẹp không"), thì bỏ qua
   if (cleanQuery.length < 2) return null;
 
