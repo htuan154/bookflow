@@ -19,295 +19,51 @@ const USE_LLM = String(process.env.USE_LLM || 'false').toLowerCase() === 'true';
 
 
 // ---- IMPROVED Canonical Mapping for tricky provinces ----
-// Maps user input variations -> Exact DB Name (as stored in MongoDB)
-const CANONICAL_MAP = new Map([
-  // Hồ Chí Minh (most common variants)
-  ['hcm', 'Thành phố Hồ Chí Minh'],
-  ['hochiminh', 'Thành phố Hồ Chí Minh'],
-  ['ho chi minh', 'Thành phố Hồ Chí Minh'],
-  ['saigon', 'Thành phố Hồ Chí Minh'],
-  ['sai gon', 'Thành phố Hồ Chí Minh'],
-  ['tphcm', 'Thành phố Hồ Chí Minh'],
-  ['tp hcm', 'Thành phố Hồ Chí Minh'],
-  ['tp ho chi minh', 'Thành phố Hồ Chí Minh'],
-  ['thanh pho ho chi minh', 'Thành phố Hồ Chí Minh'],
-  
-  // Hà Nội
-  ['ha noi', 'Hà Nội'],
-  ['hanoi', 'Hà Nội'],
-  
-  // Huế / Thừa Thiên Huế
-  ['hue', 'Huế'],
-  ['thua thien hue', 'Huế'],
-  ['thuathienhue', 'Huế'],
-  
-  // Đà Nẵng
-  ['da nang', 'Đà Nẵng'],
-  ['danang', 'Đà Nẵng'],
-  
-  // Vũng Tàu / Bà Rịa Vũng Tàu
-  ['vung tau', 'Bà Rịa Vũng Tàu'],
-  ['vungtau', 'Bà Rịa Vũng Tàu'],
-  ['brvt', 'Bà Rịa Vũng Tàu'],
-  ['ba ria vung tau', 'Bà Rịa Vũng Tàu'],
-  ['bariavungtau', 'Bà Rịa Vũng Tàu'],
-  
-  // Đắk Lắk (fix critical issue)
-  ['dak lak', 'Đắk Lắk'],
-  ['daklak', 'Đắk Lắk'],
-  ['đak lak', 'Đắk Lắk'],
-  ['đaklak', 'Đắk Lắk'],
-  
-  // Other common variations
-  ['can tho', 'Cần Thơ'],
-  ['cantho', 'Cần Thơ'],
-  ['hai phong', 'Hải Phòng'],
-  ['haiphong', 'Hải Phòng'],
-  ['nha trang', 'Khánh Hòa'],
-  ['khanh hoa', 'Khánh Hòa'],
-  ['phu quoc', 'Kiên Giang'],
-  ['kien giang', 'Kiên Giang'],
-  ['da lat', 'Lâm Đồng'],
-  ['dalat', 'Lâm Đồng'],
-  ['lam dong', 'Lâm Đồng'],
-  ['sa pa', 'Lào Cai'],
-  ['sapa', 'Lào Cai'],
-  ['lao cai', 'Lào Cai'],
-  ['ha long', 'Quảng Ninh'],
-  ['halong', 'Quảng Ninh'],
-  ['quang ninh', 'Quảng Ninh'],
-  ['ninh binh', 'Ninh Bình'],
-  ['ninhbinh', 'Ninh Bình'],
-  ['phan thiet', 'Bình Thuận'],
-  ['mui ne', 'Bình Thuận'],
-  ['binh thuan', 'Bình Thuận'],
-  ['quy nhon', 'Bình Định'],
-  ['binh dinh', 'Bình Định'],
-]);
 
-/**
- * Get canonical DB name from user input
- * @param {string} text - User input (already normalized)
- * @returns {string|null} - Exact DB name or null
- */
-function canonicalFromText(text) {
-  if (!text) return null;
-  const normalized = normalize(String(text));
-  const noSpace = normalized.replace(/\s/g, '');
-  
-  // Try exact match first
-  if (CANONICAL_MAP.has(normalized)) {
-    return CANONICAL_MAP.get(normalized);
-  }
-  
-  // Try no-space variant
-  if (CANONICAL_MAP.has(noSpace)) {
-    return CANONICAL_MAP.get(noSpace);
-  }
-  
-  return null;
-}
 
-// Move filterDocByProvince outside both functions to share
+// ---- LOGIC LỌC DYNAMIC (DỰA TRÊN DATA JSON, KHÔNG HARD-CODE) ----
 function filterDocByProvince(doc, target) {
-  if (!doc || !target) return doc;
+  if (!doc) return doc;
   const norm = (s) => normalize(String(s || ''));
-  const targetN = norm(target);
-
-  // tên các tỉnh "khác" nằm trong merged_from/mergedFrom
-  const others = new Set(
+  
+  // 1. Tự động lấy danh sách tỉnh hợp lệ từ chính document
+  // Ví dụ: Doc Gia Lai có merged_from: ["Bình Định", "Gia Lai"] -> Code tự hiểu 2 tên này là "người nhà"
+  const validRegions = new Set(
     (doc.merged_from || doc.mergedFrom || [])
-      .map(norm).filter(x => x && x !== targetN)
+      .map(norm)
+      .filter(Boolean)
   );
-  if (!others.size) return doc;
-
-  const EXTRA = {
-  // Các cặp gộp hay gặp
-  'khanh hoa': [
-    'khanh hoa','nha trang','cam ranh','van phong','vinh van phong','hon mun','po nagar','yen sao'
-  ],
-  'ninh thuan': [
-    'ninh thuan','phan rang','phan rang thap cham','vinh hy','hang rai','mui dinh','po klong garai','poklong garai'
-  ],
-  'ca mau': [
-    'ca mau','mui ca mau','dat mui','nam can','u minh','rach goc','hon da bac','song trem'
-  ],
-  'bac lieu': [
-    'bac lieu','nha cong tu bac lieu','dien gio bac lieu','bien nha mat','banh tam cay','bun bo cay'
-  ],
-  'ha giang': [
-    'ha giang','dong van','meo vac','ma pi leng','lung cu','nho que','quan ba','pho bang'
-  ],
-  'tuyen quang': [
-    'tuyen quang','na hang','lam binh','tan trao','song gam','ho na hang','atk tan trao'
-  ],
-
-  // Big cities / tỉnh phổ biến để loại chéo
-  'ho chi minh': [
-    'ho chi minh','sai gon','saigon','hcm','tp hcm','ben thanh','nguyen hue','landmark 81'
-  ],
-  'ha noi': [
-    'ha noi','hoan kiem','pho co','van mieu','lang bac','tay ho','my dinh'
-  ],
-  'da nang': [
-    'da nang','son tra','ba na','ba na hills','ngu hanh son','hai van','my khe'
-  ],
-
-  // Một số tỉnh du lịch dễ lẫn với hàng xóm
-  // EXPANDED: Quảng Nam (hàng xóm của Đà Nẵng - filter out from Da Nang)
-  'quang nam': [
-    'quang nam','hoi an','hoi-an','pho co hoi an','my son','thanh dia my son',
-    'cu lao cham','cau cua dai','rung dua bay mau','vinwonders nam hoi an',
-    'an bang','tra que','cam thanh'
-  ],
+  // Luôn thêm tên chính của doc (vd: "gia lai")
+  validRegions.add(norm(doc.name));
   
-  'quang ninh': [
-    'quang ninh','ha long','halong','yen tu','co to','quan lan','tuan chau'
-  ],
-  'kien giang': [
-    'kien giang','phu quoc','phuquoc','rach gia','ha tien'
-  ],
-  'lam dong': [
-    'lam dong','da lat','dalat','langbiang','tuyen lam','xuan huong'
-  ],
-  'binh thuan': [
-    'binh thuan','phan thiet','mui ne','bau trang','ta cu'
-  ],
-  
-  // EXPANDED: Bà Rịa Vũng Tàu (hàng xóm của TP.HCM - filter out from HCM)
-  'ba ria vung tau': [
-    'ba ria vung tau','vung tau','ba ria','long hai','ho tram','ho coc',
-    'con dao','condao','bai sau','bai truoc','tuong chua kito','bach dinh',
-    'bai dau','binh chau','suoi nuoc nong','dat do'
-  ],
-  
-  // EXPANDED: Bình Dương (hàng xóm của TP.HCM - filter out from HCM)
-  'binh duong': [
-    'binh duong','kdl dai nam','lac canh dai nam','chua ba thien hau',
-    'thanh pho moi','aeon mall binh duong','thu dau mot','di an','thuan an'
-  ],
-  
-  'quang binh': [
-    'quang binh','phong nha','ke bang','son doong','thien duong'
-  ],
-  
-  // EXPANDED: Ninh Bình (hàng xóm của Hà Nam)
-  'ninh binh': [
-    'ninh binh','trang an','tam coc','bich dong','bai dinh','chua bai dinh','hoa lu',
-    'thung nham','van long','hang mua','cuc phuong','non nuoc','kenh ga'
-  ],
-  
-  // EXPANDED: Nam Định (hàng xóm của Hà Nam)
-  'nam dinh': [
-    'nam dinh','den tran','phu day','quat lam','thinh long','xuan thuy',
-    'nha tho do','nha tho phu nhai','nha tho keo','hai ly','hai hau','rung tram'
-  ],
-  
-  'thua thien hue': [
-    'thua thien hue','hue','kinh thanh hue','thien mu','truong tien','lang tam'
-  ],
-  
-  // EXPANDED: Phú Yên (hàng xóm của Đắk Lắk - filter out from Dak Lak)
-  'phu yen': [
-    'phu yen','ghenh da dia','ghanh da dia','ghe nh da dia','mui dien',
-    'bai xep','vung ro','dam o loan','vuc hom','mat ca ngu','tuy hoa'
-  ],
-  
-  'binh dinh': [
-    'binh dinh','quy nhon','ky co','eo gio'
-  ],
-  'quang ngai': [
-    'quang ngai','ly son','dao ly son'
-  ],
-  'quang tri': [
-    'quang tri','cua tung','cua viet','hien luong'
-  ],
-  'nghe an': [
-    'nghe an','cua lo'
-  ],
-  'thanh hoa': [
-    'thanh hoa','sam son','thanh nha ho','pu luong'
-  ],
-  'phu tho': [
-    'phu tho','den hung','hy cuong'
-  ],
-  'hai phong': [
-    'hai phong','do son','cat ba','catba'
-  ],
-  'tay ninh': [
-    'tay ninh','toa thanh tay ninh','nui ba den'
-  ],
-  'an giang': [
-    'an giang','chau doc','tra su','nui cam','nui sam'
-  ],
-  'dong thap': [
-    'dong thap','tram chim','sa dec'
-  ],
-  'can tho': [
-    'can tho','ben ninh kieu','ninh kieu','cai rang'
-  ],
-  'soc trang': [
-    'soc trang','chua doi'
-  ],
-  
-  // EXPANDED: Bến Tre (hàng xóm của Vĩnh Long - filter out from Vinh Long)
-  'ben tre': [
-    'ben tre','cai mon','con phung','con quy','keo dua','lang be',
-    'cho ben tre','rach mieu','chua vinh trang ben tre'
-  ],
-  
-  // EXPANDED: Trà Vinh (hàng xóm của Vĩnh Long - filter out from Vinh Long)
-  'tra vinh': [
-    'tra vinh','ao ba om','ba om','chua ang','bao tang khmer',
-    'bien ba dong','bun nuoc leo','cau ke gac','duyen hai'
-  ],
-  
-  // EXPANDED: Tiền Giang (hàng xóm của Đồng Tháp/Long An - filter out)
-  'tien giang': [
-    'tien giang','my tho','chua vinh trang','trai ran dong tam',
-    'con thoi son','cho noi cai be','tan thanh','go gong','cai be'
-  ],
-  
-  // EXPANDED: Đồng Nai (hàng xóm của Bình Phước)
-  'dong nai': [
-    'dong nai','bien hoa','kdl buu long','buu long','thac da han','da han',
-    'suoi mo dong nai','giang dien','vuon xao la','vuon du lich giang dien',
-    'song dong nai','chien khu d','vuon xoai','bo cap vang','nui chua chan',
-    'khu du lich tre nguyen','dat do','tan phu','dinh quan'
-  ]
-};
-
-
-  const isForeign = (name) => {
-    if (!name) return false; // Safety check
+  // 2. Logic kiểm tra: Item có hợp lệ không?
+  const isValidItem = (name) => {
+    if (!name) return false;
     const s = norm(name);
-    for (const o of others) {
-      if (s.includes(o)) return true;                    // chứa tên tỉnh khác
-      const extra = EXTRA[o] || [];
-      if (extra.some(k => s.includes(k))) return true;   // chứa city/địa danh đại diện
+
+    // RULE A: Nếu tên item chứa tên của bất kỳ vùng hợp lệ nào -> GIỮ LẠI
+    // VD: "Eo Gió (Bình Định)" chứa "binh dinh" (có trong merged_from) -> OK
+    for (const region of validRegions) {
+      if (s.includes(region)) return true;
     }
-    return false;
+    
+    // RULE B: Nếu không chứa tên tỉnh nào cả (VD: "Tháp Đôi") -> Mặc định GIỮ LẠI
+    // (Trừ khi bạn muốn làm chặt hơn thì thêm blacklist, nhưng hiện tại hãy để thoáng cho AI xử lý)
+    return true; 
   };
 
+  // 3. Thực hiện lọc
   return {
     ...doc,
     places: (doc.places || [])
-      .filter(p => p && (typeof p === 'string' || p.name)) // Ensure valid item
-      .filter(p => {
-        const name = typeof p === 'string' ? p : p.name;
-        return !isForeign(name);
-      }),
+      .filter(p => p && (typeof p === 'string' || p.name))
+      .filter(p => isValidItem(typeof p === 'string' ? p : p.name)),
+      
     dishes: (doc.dishes || [])
-      .filter(d => d && (typeof d === 'string' || d.name)) // Ensure valid item
-      .filter(d => {
-        const name = typeof d === 'string' ? d : d.name;
-        return !isForeign(name);
-      }),
-    tips: (doc.tips || []).filter(t => {
-      if (typeof t === 'string') return !isForeign(t);
-      if (t && t.name) return !isForeign(t.name);
-      return true; // Keep non-string tips without name
-    }),
+      .filter(d => d && (typeof d === 'string' || d.name))
+      .filter(d => isValidItem(typeof d === 'string' ? d : d.name)),
+      
+    tips: (doc.tips || []) // Tips thường chung chung, giữ nguyên
   };
 }
 
@@ -499,7 +255,7 @@ async function listHotelCities(opts = undefined) {
   return composeFromSQL('hotel_cities', {}, data, opts);
 }
 
-/* ========== MULTI-STRATEGY SEARCH ========== */
+/* ========== MULTI-STRATEGY SEARCH (DATA-DRIVEN VERSION) ========== */
 async function findProvinceDoc(db, nlu, firstDoc, queryText) {
   console.log('[findProvinceDoc] START - Input:', {
     nluCity: nlu?.city,
@@ -509,91 +265,35 @@ async function findProvinceDoc(db, nlu, firstDoc, queryText) {
 
   // 1) Use firstDoc if provided (from parallel query)
   let doc = firstDoc;
-  let targetCity = nlu?.city;
+  let targetCity = nlu?.city; // Tên city gốc từ NLU
 
-  // === FIX START: Chuẩn hóa targetCity từ NLU/History ngay lập tức ===
-  // Giúp biến "Hồ Chí Minh" thành "Thành phố Hồ Chí Minh" ngay từ đầu
-  // Điều này cực quan trọng cho các bước so sánh mismatch hoặc tạo skeleton ở cuối
-  const ctxCanonical = canonicalFromText(targetCity);
-  if (ctxCanonical) {
-    console.log('[findProvinceDoc] Canonicalized targetCity context:', targetCity, '->', ctxCanonical);
-    targetCity = ctxCanonical;
-  }
-  // === FIX END ===
-
-  // 2) STRATEGY 1: Canonical Mapping on QUERY TEXT (most reliable for tricky names)
-  const inputText = queryText || nlu?.city || '';
-  const canonicalName = canonicalFromText(inputText);
-  
-  if (!doc && canonicalName) {
-    console.log('[findProvinceDoc] STRATEGY 1 (Canonical): Found mapping:', {
-      input: inputText,
-      canonical: canonicalName
-    });
+  // 2) STRATEGY 1: Tìm kiếm chính xác bằng Alias trong DB (Mạnh nhất cho Data Gộp)
+  // VD: Khách nói "Quy Nhơn" -> Repo tìm trong mảng aliases -> Ra doc "Gia Lai"
+  if (!doc && (queryText || targetCity)) {
+    const q = normalize(queryText || targetCity);
+    const qNoSpace = q.replace(/\s/g, '');
     
-    // Nếu mapping ra khác targetCity hiện tại, cập nhật luôn
-    targetCity = canonicalName;
+    console.log('[findProvinceDoc] STRATEGY 1 (DB Aliases): searching for', q);
     
-    // Search by exact canonical name
-    const canonN = normalize(canonicalName);
-    doc = await repo.findByNorm(db, canonN).catch(() => null);
+    // Tìm có dấu cách
+    doc = await repo.findByAlias(db, q).catch(() => null);
     
+    // Tìm không dấu cách (dính liền)
     if (!doc) {
-      // Try findByProvinceExact (checks name + aliases + merged_from)
-      doc = await repo.findByProvinceExact(db, canonN).catch(() => null);
+       doc = await repo.findByAlias(db, qNoSpace).catch(() => null);
     }
     
     if (doc) {
-      console.log('[findProvinceDoc] ✓ Found via Canonical:', doc.name);
-      return doc;
+      console.log('[findProvinceDoc] ✓ Found via DB Alias:', doc.name);
+      return doc; 
     }
   }
 
-  // 3) STRATEGY 2: Direct norm field match
-  if (!doc && queryText) {
-    const msgN = normalize(String(queryText));
-    console.log('[findProvinceDoc] STRATEGY 2 (Norm): Searching for:', msgN);
-    
-    doc = await repo.findByNorm(db, msgN).catch(() => null);
-    
-    if (doc) {
-      console.log('[findProvinceDoc] ✓ Found via Norm:', doc.name);
-      targetCity = doc.name;
-      return doc;
-    }
-  }
-
-  // 4) STRATEGY 3: Aliases array search (with/without spaces)
-  if (!doc && queryText) {
-    const msgN = normalize(String(queryText));
-    const msgNNo = msgN.replace(/\s/g, '');
-    
-    console.log('[findProvinceDoc] STRATEGY 3 (Aliases):', { msgN, msgNNo });
-    
-    // Try with spaces
-    doc = await repo.findByAlias(db, msgN).catch(() => null);
-    
-    // Try without spaces
-    if (!doc) {
-      doc = await repo.findByAlias(db, msgNNo).catch(() => null);
-    }
-    
-    if (doc) {
-      console.log('[findProvinceDoc] ✓ Found via Aliases:', doc.name);
-      targetCity = doc.name;
-      return doc;
-    }
-  }
-
-  // 5) STRATEGY 4: Province Exact (comprehensive: name + aliases + merged_from)
-  if (!doc && targetCity) { // Dùng targetCity đã chuẩn hóa
+  // 3) STRATEGY 2: Province Exact Match
+  if (!doc && targetCity) {
     const normalized = normalize(String(targetCity));
-    
-    console.log('[findProvinceDoc] STRATEGY 4 (ProvinceExact):', normalized);
-    
     if (repo.findByProvinceExact) {
       doc = await repo.findByProvinceExact(db, normalized).catch(() => null);
-      
       if (doc) {
         console.log('[findProvinceDoc] ✓ Found via ProvinceExact:', doc.name);
         return doc;
@@ -601,50 +301,28 @@ async function findProvinceDoc(db, nlu, firstDoc, queryText) {
     }
   }
 
-  // 6) STRATEGY 5: Full-text search using NLU (last resort for items like "Chợ Bến Thành")
+  // 4) STRATEGY 3: Full-text search (Last resort)
   if (!doc) {
-    console.log('[findProvinceDoc] STRATEGY 5 (FullText): Using repo.findInText');
-    
+    console.log('[findProvinceDoc] STRATEGY 3 (FullText): Using repo.findInText');
     doc = await repo.findInText(db, nlu).catch(() => null);
     
     if (doc) {
       console.log('[findProvinceDoc] ✓ Found via FullText:', doc.name);
-      
-      // Verify the doc matches the target city
-      // Nhờ hàm sameProvince đã sửa + targetCity đã chuẩn hóa -> logic này giờ rất an toàn
+      // Logic kiểm tra mismatch
       if (targetCity && !sameProvince(targetCity, doc)) {
-        console.warn('[findProvinceDoc] FullText mismatch detected:', {
-          targetCity,
-          foundDoc: doc.name
-        });
-        
-        // Trust targetCity over full-text result if they really conflict
-        doc = { name: targetCity, places: [], dishes: [], tips: [] };
-      } else {
-        // Nếu khớp, cập nhật targetCity theo doc tìm được
-        targetCity = doc.name;
+         // Nếu NLU detect là Hà Nội mà TextSearch ra Sài Gòn -> Có vấn đề, ưu tiên NLU
+         console.warn('[findProvinceDoc] FullText mismatch. Trusting NLU target over FullText.');
+         doc = { name: targetCity, places: [], dishes: [], tips: [] };
       }
-      
       return doc;
     }
   }
-  
-  // 6.5) STRATEGY 6: QUÉT ITEM (Item Scan) - Sẽ được xử lý ở hàm scanItemInDB
-  // Do hàm này chỉ tìm tỉnh, còn scanItemInDB tìm item cụ thể và được gọi trước khi vào đây.
 
-  // 7) FALLBACK: Create skeleton if we have targetCity but no doc
+  // 5) FALLBACK: Create skeleton
   if (!doc && targetCity) {
     console.log('[findProvinceDoc] ✗ No doc found. Creating skeleton for:', targetCity);
-    // Vì targetCity đã được canonicalize ở đầu hàm, skeleton này sẽ có tên đúng
     doc = { name: targetCity, places: [], dishes: [], tips: [] };
-    return doc;
   }
-
-  console.log('[findProvinceDoc] END - Result:', {
-    found: !!doc,
-    docName: doc?.name,
-    targetCity
-  });
 
   return doc;
 }
@@ -700,34 +378,48 @@ async function suggest(db, { message, context = {} }) {
   return payload;
 }
 
-// --- [PHIÊN BẢN SUPER CLEAN] QUÉT DB TỰ ĐỘNG & LỌC TỪ KHÓA MẠNH ---
+// --- [PHIÊN BẢN SUPER CLEAN v5.3] FIX LỖI MẤT DẤU (Accent Preservation) ---
+// Khắc phục: "Phở bò Hà Nội" -> giữ "Phở bò" (có dấu) để khớp DB
 async function scanItemInDB(db, message, nluCity = null) {
   if (!message || message.length < 2) return null;
 
-  // 1. Dọn dẹp từ khóa rác (Bổ sung thêm các từ cảm thán/hành động)
-  // Mới thêm: mua, bán, đẹp, ngon, nổi tiếng, nhất, lắm, không, ở, tại...
-  const keywordsRegex = /mô tả|chi tiết|thông tin|giới thiệu|về|là gì|ở đâu|review|đánh giá|có tốt không|có ngon không|thế nào|ra sao|như thế nào|ntn|cho tôi|biết|ăn gì|chơi gì|có gì|tìm hiểu|cho hỏi|xem|món|địa danh|địa điểm|đi|ăn|mua|bán|đẹp|ngon|nổi tiếng|nhất|lắm|tại|trong|ngoài|hay|tuyệt|có|ở/gi;
+  // 1. Danh sách từ khóa rác
+  const stopWords = [
+    'cho tôi biết về', 'cho tôi biết', 'tìm hiểu về', 'giới thiệu về',
+    'mô tả', 'chi tiết', 'thông tin', 'giới thiệu', 'là gì', 'ở đâu', 
+    'review', 'đánh giá', 'có tốt không', 'có ngon không', 'ngon không', 'đẹp không',
+    'thế nào', 'ra sao', 'như thế nào', 'ntn', 'cho hỏi', 'tìm hiểu',
+    'món', 'địa danh', 'địa điểm', 'có gì', 'ăn gì', 'chơi gì',
+    'nổi tiếng', 'nhất', 'lắm', 'tại', 'trong', 'ngoài', 'hay', 'tuyệt', 'có', 'ở',
+    'đi', 'ăn', 'mua', 'bán', 'xem', 'biết'
+  ];
+
+  const pattern = stopWords.map(w => w.replace(/\s+/g, '\\s+')).join('|');
+  const keywordsRegex = new RegExp(`\\b(${pattern})\\b`, 'gi');
   
-  let cleanQuery = message.replace(keywordsRegex, '').trim();
-  // Xóa bớt ký tự đặc biệt còn sót (? ! .)
-  cleanQuery = cleanQuery.replace(/\s+(không|ko)\s*$/gi, '').trim(); // Loại "không/ko" cuối câu
-  cleanQuery = cleanQuery.replace(/[?!.,;]/g, '').trim();
-  // Nếu dọn xong mà chuỗi rỗng (vd khách chỉ hỏi "đẹp không"), thì bỏ qua
-  if (cleanQuery.length < 2) return null;
+  // Bước 1: Xóa từ khóa rác (Giữ nguyên dấu)
+  let cleanQuery = message.replace(keywordsRegex, ' ').trim();
+  cleanQuery = cleanQuery.replace(/[?!.,;:"'()]/g, '').replace(/\s+/g, ' ').trim();
+  
+  if (cleanQuery.length < 2) cleanQuery = message.replace(/[?!.,;]/g, '').trim();
 
   // 2. Tạo các biến thể tìm kiếm
   const searchVariations = [cleanQuery]; 
   
+  // Nếu có City, tạo thêm biến thể cắt bỏ City nhưng GIỮ NGUYÊN DẤU
   if (nluCity) {
-      const cityNorm = normalize(nluCity);
-      const cityRegex = new RegExp(cityNorm.replace(/\s+/g, '\\s*'), 'gi');
-      const stripped = normalize(cleanQuery).replace(cityRegex, '').trim();
-      if (stripped.length > 2 && stripped !== normalize(cleanQuery)) {
+      // Cách cũ (SAI): const stripped = normalize(cleanQuery)... -> Mất dấu
+      // Cách mới (ĐÚNG): Dùng RegExp để cắt city ra khỏi chuỗi gốc
+      const cityRegex = new RegExp(nluCity.trim().replace(/\s+/g, '\\s*'), 'gi');
+      const stripped = cleanQuery.replace(cityRegex, '').trim();
+      
+      // Chỉ thêm nếu stripped còn đủ dài và khác bản gốc
+      if (stripped.length > 1 && stripped !== cleanQuery) {
           searchVariations.push(stripped);
       }
   }
 
-  console.log('[scanItemInDB] 🔍 Đang tìm (Super Clean):', searchVariations);
+  console.log('[scanItemInDB] 🔍 Đang tìm:', searchVariations);
 
   try {
     const allCols = await db.listCollections().toArray();
@@ -742,30 +434,27 @@ async function scanItemInDB(db, message, nluCity = null) {
             const found = await db.collection(colName).findOne({
                 $or: [
                     { 'places.name': regex },
-                    { 'dishes.name': regex },
-                    { 'places': regex },
-                    { 'dishes': regex }
+                    { 'dishes.name': regex }
                 ]
             });
 
             if (found) {
-                let specificItem = null;
-                let type = 'place';
-                
-                const allPlaces = Array.isArray(found.places) ? found.places : [];
-                const matchPlace = allPlaces.find(p => (p.name || p).match(regex));
-                
-                const allDishes = Array.isArray(found.dishes) ? found.dishes : [];
-                const matchDish = allDishes.find(d => (d.name || d).match(regex));
+                const allItems = [
+                    ...(found.places || []).map(x => ({ ...x, type: 'place' })),
+                    ...(found.dishes || []).map(x => ({ ...x, type: 'dish' }))
+                ];
 
-                if (matchDish) { specificItem = matchDish; type = 'dish'; }
-                else if (matchPlace) { specificItem = matchPlace; type = 'place'; }
-                else { specificItem = { name: cleanQuery }; }
+                const match = allItems.find(item => {
+                    const iName = normalize(item.name || '');
+                    const qName = normalize(queryVariant);
+                    // Match 2 chiều
+                    return iName.includes(qName) || qName.includes(iName);
+                });
 
-                if (typeof specificItem === 'string') specificItem = { name: specificItem };
-
-                console.log(`[scanItemInDB] ✅ MATCH! "${queryVariant}" -> "${specificItem.name}" (Doc: ${found.name})`);
-                return { doc: found, item: specificItem, type };
+                if (match) {
+                    console.log(`[scanItemInDB] ✅ MATCH! "${queryVariant}" -> "${match.name}" (Doc: ${found.name})`);
+                    return { doc: found, item: match, type: match.type };
+                }
             }
         }
     }
@@ -775,20 +464,17 @@ async function scanItemInDB(db, message, nluCity = null) {
   return null;
 }
 
-// ================= PATCH USE: suggestHybrid (LOGIC MỚI NHẤT) =================
+// ================= PATCH USE: suggestHybrid (LOGIC v5.1 - FIXED CONTEXT STICKINESS) =================
 async function suggestHybrid(db, { message, context = {} }) {
   const started = Date.now();
-  
-  // 1. Phân tích NLU sơ bộ để lấy City (phục vụ việc cắt chữ cho scanItemInDB)
   const nlu = analyze(message);
   
-  // 2. === ƯU TIÊN 1: QUÉT DB TÌM ITEM CỤ THỂ ===
-  // Chạy ngay lập tức, bất chấp NLU là chitchat hay gì
-  // Lưu ý: scanItemInDB phải nhận tham số thứ 3 là nlu.city để cắt chữ "Hà Nội" trong "Phở bò Hà Nội"
+  // 1. === ƯU TIÊN 1: QUÉT DB TÌM ITEM CỤ THỂ ===
+  // Chạy ngay lập tức để bắt các câu hỏi "Review X", "Mô tả Y"
   const dbMatch = await scanItemInDB(db, message, nlu.city);
   
   if (dbMatch) {
-    console.log('[suggestHybrid] => 🔥 Tìm thấy Item trong DB -> Kích hoạt AI Thinking Mode!');
+    console.log('[suggestHybrid] => 🔥 Tìm thấy Item -> Thinking Mode!');
     
     // Chuẩn hóa document tỉnh tìm được
     const safeDoc = extractProvinceDoc(dbMatch.doc); 
@@ -810,13 +496,23 @@ async function suggestHybrid(db, { message, context = {} }) {
     return payload; // Trả về ngay lập tức
   }
 
-  // 3. === ƯU TIÊN 2: NLU CHITCHAT (Nếu không tìm thấy item ở bước 1) ===
+  // 2. === XỬ LÝ CONTEXT (CHỐNG DÍNH CONTEXT CŨ) ===
   const history = Array.isArray(context.history) ? context.history : [];
   const historyCity = history.find(t => t?.nlu?.city)?.nlu?.city || null;
-  const nluCtx = { ...nlu, city: nlu.city || historyCity }; // Merge context
-  const { intent, top_n = context.top_n || 10, filters = {} } = nluCtx;
+  
+  // FIX BUG: Nếu câu hỏi là Specific (hỏi chi tiết) mà không tìm thấy ở bước 1,
+  // KHÔNG được fallback về historyCity ngay. Chỉ fallback nếu câu hỏi là Generic (Ăn gì, chơi đâu).
+  // Ví dụ: Đang ở Phan Thiết, hỏi "Chùa Tam Chúc" -> QueryType=specific -> Không lấy Phan Thiết.
+  let targetCity = nlu.city;
+  if (!targetCity && nlu.queryType !== 'specific' && historyCity) {
+      targetCity = historyCity; 
+  }
 
-  if (intent === 'chitchat') {
+  const nluCtx = { ...nlu, city: targetCity }; // Context sạch
+
+  // 3. === ƯU TIÊN 2: NLU CHITCHAT ===
+  // Chỉ chitchat nếu không có địa điểm cụ thể nào được nhắm tới
+  if (nluCtx.intent === 'chitchat' && !targetCity) {
     const payload = await composeSmallTalk({ message, nlu: nluCtx, history });
     payload.latency_ms = Date.now() - started;
     payload.province = null;
@@ -826,14 +522,13 @@ async function suggestHybrid(db, { message, context = {} }) {
   // 4. === CÁC LUỒNG KHÁC (Weather, SQL, NoSQL Fallback) ===
   
   // 4.1 Weather
-  if (intent === 'ask_weather') {
-    const cityTarget = nluCtx.city || historyCity || null;
+  if (nluCtx.intent === 'ask_weather') {
     let safeDoc = null;
-    if (cityTarget) {
+    if (targetCity) {
       try {
-        const docRaw = await findProvinceDoc(db, { ...nluCtx, city: cityTarget }, null, message);
+        const docRaw = await findProvinceDoc(db, nluCtx, null, message);
         const extracted = extractProvinceDoc(docRaw);
-        safeDoc = filterDocByProvince(extracted, cityTarget);
+        safeDoc = filterDocByProvince(extracted, targetCity);
       } catch (err) {
         console.warn('[suggestHybrid] weather doc fetch failed:', err?.message || err);
       }
@@ -842,20 +537,21 @@ async function suggestHybrid(db, { message, context = {} }) {
     const askedMonth = monthMatch ? Math.max(1, Math.min(12, Number(monthMatch[1]))) : null;
     
     const payload = await composeCityFallback({
-      city: cityTarget,
-      intent,
+      city: targetCity,
+      intent: nluCtx.intent,
       message,
       history,
       month: askedMonth,
       doc: safeDoc
     });
     payload.latency_ms = Date.now() - started;
-    payload.province = safeDoc?.name || cityTarget || null;
+    payload.province = safeDoc?.name || targetCity || null;
     return payload;
   }
 
   // 4.2 Parallel Search (NoSQL + SQL RPC)
-  const nosqlTask = repo.findInText(db, nluCtx).catch(() => null);
+  // Text search dùng context đã làm sạch (nluCtx)
+  const nosqlTask = repo.findInText(db, { ...nluCtx, normalized: normalize(message) }).catch(() => null);
 
   const sqlTasks = [];
   const raw = String(message || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -865,32 +561,37 @@ async function suggestHybrid(db, { message, context = {} }) {
     p.then(rows => ({ tag, name: tag, params: {}, rows }))
      .catch(e => { console.error('[suggestHybrid] RPC fail', tag, e.message); return { tag, name: tag, params: {}, rows: [] }; });
 
-  const city = nluCtx.city;
-  console.log('[suggestHybrid] Query analysis:', { city, intent, wantHotel, wantPromo, top_n });
+  const city = targetCity; // Dùng targetCity đã fix
+  const top_n = context.top_n || nlu.top_n || 10;
+  const filters = nlu.filters || {};
+
+  console.log('[suggestHybrid] Query analysis:', { city, intent: nluCtx.intent, wantHotel, wantPromo, top_n });
   
-  if ((intent === 'hotels_top' || wantHotel) && city)
+  if ((nluCtx.intent === 'hotels_top' || wantHotel) && city)
     sqlTasks.push(wrap('hotels_top', getTopHotels(city, top_n, { llm: false })));
-  if ((intent === 'hotels_by_amenities' || (wantHotel && (filters?.amenities || context.filters?.amenities))) && city) {
+  if ((nluCtx.intent === 'hotels_by_amenities' || (wantHotel && (filters?.amenities || context.filters?.amenities))) && city) {
     const amenities = context.filters?.amenities || filters?.amenities || [];
     sqlTasks.push(wrap('hotels_by_amenities', getHotelsByAmenities(city, amenities, top_n, { llm: false })));
   }
   const year = context.year ?? nlu?.time?.year ?? new Date().getFullYear();
   const month = context.month ?? nlu?.time?.month ?? (new Date().getMonth() + 1);
-  if (intent === 'promotions_in_month' || (wantPromo && !city))
+  if (nluCtx.intent === 'promotions_in_month' || (wantPromo && !city))
     sqlTasks.push(wrap('promotions_in_month', getPromotionsInMonth(year, month, top_n, { llm: false })));
-  if ((intent === 'promotions_in_month_by_city' || (wantPromo && !!city)) && city)
+  if ((nluCtx.intent === 'promotions_in_month_by_city' || (wantPromo && !!city)) && city)
     sqlTasks.push(wrap('promotions_in_month_by_city', getPromotionsInMonthByCity(city, year, month, top_n, { llm: false })));
-  if ((intent === 'promotions_by_city' || (wantPromo && !!city)) && city)
+  if ((nluCtx.intent === 'promotions_by_city' || (wantPromo && !!city)) && city)
     sqlTasks.push(wrap('promotions_by_city', getPromotionsByCity(city, { llm: false })));
 
   const [docFirst, ...sqlDatasets] = await Promise.all([nosqlTask, ...sqlTasks]);
 
-  // 4.3 Tìm document tỉnh (nếu bước 1 chưa tìm thấy item cụ thể thì giờ tìm tỉnh để list generic)
+  // 4.3 Tìm document tỉnh
   const doc = await findProvinceDoc(db, nluCtx, docFirst, message);
   const safeDoc = extractProvinceDoc(doc);
-  const cityFinal = (nluCtx.city && sameProvince(nluCtx.city, safeDoc))
-    ? nluCtx.city
-    : (safeDoc?.name || nluCtx.city);
+  
+  // Logic hiển thị tên thành phố
+  const cityFinal = (targetCity && sameProvince(targetCity, safeDoc))
+    ? targetCity
+    : (safeDoc?.name || targetCity);
 
   const safeSql = sqlDatasets.length
     ? sqlDatasets.map(ds => ({
@@ -926,48 +627,54 @@ async function suggestHybrid(db, { message, context = {} }) {
   return payload;
 }
 
-// ==== ADD MISSING HELPERS (prevent ReferenceError: sameProvince is not defined) ====
+// ==== ADD MISSING HELPERS (Data-Driven Version) ====
 // Avoid redefining if hot-reloaded
 if (typeof sameProvince !== 'function') {
   function sameProvince(userCity, doc) {
     if (!userCity || !doc) return false;
     const q = normalize(String(userCity));
+    const qNoSpace = q.replace(/\s/g, '');
+
+    // 1. Kiểm tra tên chính
+    if (normalize(doc.name) === q) return true;
+    if (normalize(doc.name).replace(/\s/g, '') === qNoSpace) return true;
+
+    // 2. Kiểm tra danh sách Alias trong DB (Thay thế cho canonicalFromText)
+    // Doc nào cũng có mảng aliases (VD: Gia Lai có ["quy nhon", "binh dinh"...])
+    const aliases = Array.isArray(doc.aliases) ? doc.aliases : [];
     
-    // FIX: Kiểm tra Canonical trước (quan trọng cho HCM -> Thành phố Hồ Chí Minh)
-    const canon = canonicalFromText(userCity);
-    if (canon && normalize(canon) === normalize(doc.name)) {
-      return true;
-    }
+    // Check alias có dấu & không dấu
+    if (aliases.some(a => normalize(a) === q)) return true;
+    if (aliases.some(a => normalize(a).replace(/\s/g, '') === qNoSpace)) return true;
 
-    const names = new Set();
-    const add = v => { if (v) names.add(normalize(String(v))); };
+    // 3. Kiểm tra các trường merged/title khác
+    const extraNames = new Set();
+    const add = v => { if (v) extraNames.add(normalize(String(v))); };
 
-    add(doc.name); add(doc.province); add(doc.title);
-
-    const aliasFields = ['aliases','alias','aka','aka_list','alt_names'];
-    aliasFields.forEach(k => (Array.isArray(doc[k]) ? doc[k] : []).forEach(add));
-
+    add(doc.province); 
+    add(doc.title);
+    
     const mergedFields = ['merged_from','mergedFrom','merged','merge_from'];
     mergedFields.forEach(k => (Array.isArray(doc[k]) ? doc[k] : []).forEach(add));
 
-    // Fix: Kiểm tra cả biến thể dính liền của user input
-    if (names.has(q)) return true;
-    if (names.has(q.replace(/\s/g, ''))) return true;
+    if (extraNames.has(q)) return true;
+    if (extraNames.has(qNoSpace)) return true;
 
     return false;
   }
   // expose (optional)
   global.sameProvince = sameProvince;
 }
+
 if (typeof extractProvinceDoc !== 'function') {
   const _asArray = x => (Array.isArray(x) ? x : []);
   const _toNameItems = arr =>
     _asArray(arr)
       .map(i => {
-        if (!i) return null; // null/undefined
+        if (!i) return null; 
         if (typeof i === 'string') return { name: i };
-        if (typeof i === 'object' && i.name) return i; // Already has .name
-        return null; // Invalid object without .name
+        if (typeof i === 'object' && i.name) return i; 
+        return null; 
       })
       .filter(Boolean);
 
@@ -986,7 +693,7 @@ if (typeof extractProvinceDoc !== 'function') {
     if (!raw) return null;
 
     try {
-      // giữ bản gốc để fallback nếu lọc hết
+      // Giữ bản gốc để fallback nếu lọc hết
       const rawPlaces = _toNameItems(
         raw.places || raw.pois || raw.locations || raw.sites || raw['dia_danh'] || raw['địa_danh']
       );
@@ -995,7 +702,7 @@ if (typeof extractProvinceDoc !== 'function') {
       );
       const rawTips = _asArray(raw.tips);
 
-    // dedupe mềm: giữ bản đầu tiên theo key đã chuẩn hoá
+    // Dedupe mềm: giữ bản đầu tiên theo key đã chuẩn hoá
     let places = uniqBy(rawPlaces, x => x && x.name ? normKey(x.name) : null).filter(Boolean);
     let dishes = uniqBy(rawDishes, x => x && x.name ? normKey(x.name) : null).filter(Boolean);
     let tips   = uniqBy(rawTips, x => {
@@ -1004,11 +711,9 @@ if (typeof extractProvinceDoc !== 'function') {
       return x ? normKey(JSON.stringify(x)) : null;
     }).filter(Boolean);
 
-    // Fallback: nếu vì lý do nào đó lọc thành rỗng -> trả về bản gốc (để không "mất dữ liệu")
+    // Fallback: nếu lọc xong mà rỗng (do lỗi logic nào đó) -> trả về bản gốc
     if (places.length === 0 && rawPlaces.length) places = rawPlaces;
     if (dishes.length === 0 && rawDishes.length) dishes = rawDishes;
-
-    console.log(`[extractProvinceDoc] ${raw.name}: ${places.length} places, ${dishes.length} dishes, ${tips.length} tips`);
 
     return {
       name: raw.name || raw.title || raw.province || 'unknown',
@@ -1019,14 +724,10 @@ if (typeof extractProvinceDoc !== 'function') {
       merged_from: raw.merged_from || raw.mergedFrom || []
     };
     } catch (err) {
-      console.error('[extractProvinceDoc] Error:', err.message, 'Doc:', raw?._id || raw?.name);
+      console.error('[extractProvinceDoc] Error:', err.message);
       return {
-        name: raw?.name || raw?.title || 'unknown',
-        places: [],
-        dishes: [],
-        tips: [],
-        aliases: raw?.aliases || [],
-        merged_from: raw?.merged_from || raw?.mergedFrom || []
+        name: raw?.name || 'unknown',
+        places: [], dishes: [], tips: [], aliases: [], merged_from: []
       };
     }
   }
@@ -1034,7 +735,6 @@ if (typeof extractProvinceDoc !== 'function') {
 }
 
 module.exports = {
-  // SQL search helpers
   searchHotels,
   getHotelsByAnyAmenities,
   getHotelFull,
@@ -1044,12 +744,8 @@ module.exports = {
   promoCheckApplicability,
   promoUsageStats,
   listHotelCities,
-
-  // NoSQL/LLM compose
   suggest,
   suggestHybrid,
-
-  // Supabase RPC wrappers
   getTopHotels,
   getHotelsByAmenities,
   getPromotionsInMonth,

@@ -129,11 +129,13 @@ function findSpecificItem(doc, message = '') {
   const normMsg = normalize(String(message).toLowerCase());
   const msgWords = normMsg.split(/\s+/).filter(Boolean);
   
-  const isDetailQuery = /mo ta|chi tiet|thong tin|gioi thieu|noi ve|la gi|bao gom|dia chi|lich su|kien truc|dac diem|cung cap|hieu biet|tim hieu/.test(normMsg);
+  // FIX: Thêm từ khóa 'review', 'ngon', 'tot', 'dep', 'danh gia', 'the nao'
+  const isDetailQuery = /mo ta|chi tiet|thong tin|gioi thieu|noi ve|la gi|bao gom|dia chi|lich su|kien truc|dac diem|cung cap|hieu biet|tim hieu|review|danh gia|ngon|tot|dep|hay|the nao|ra sao|co khong/.test(normMsg);
   
   if (!isDetailQuery) return null;
   
   const fuzzyScore = (itemNorm, msgNorm, msgWordsArr) => {
+    // Ưu tiên khớp chính xác cụm từ
     if (msgNorm.includes(itemNorm)) return 1.0;
     if (itemNorm.includes(msgNorm) && msgNorm.length > 3) return 0.9;
     
@@ -156,7 +158,7 @@ function findSpecificItem(doc, message = '') {
   
   const places = Array.isArray(doc.places) ? doc.places : [];
   let bestMatch = null;
-  let bestScore = 0.4; 
+  let bestScore = 0.4; // Ngưỡng tối thiểu
   
   for (const place of places) {
     if (!place || !place.name) continue;
@@ -253,99 +255,72 @@ function alignWithDoc(payload, doc) {
   };
 }
 
-// === BƯỚC 2: AI THINKING MODE (Xử lý thông minh Data Gộp) ===
+// === BƯỚC 2: AI THINKING MODE (Data-Driven Logic) ===
 async function composeSpecificItem({ doc, targetItem, type, intent }) {
-  const itemName = targetItem.name || 'Địa điểm chưa rõ tên'; // VD: Bún chả cá Quy Nhơn
-  const provinceName = doc.name || 'Địa phương';             // VD: Gia Lai (nhưng data gộp Bình Định)
+  const itemName = targetItem.name || 'Địa điểm chưa rõ tên';
+  const provinceName = doc.name || 'Địa phương';
   
   // Lấy hint từ DB (nếu có)
   const dbHint = targetItem.hint || targetItem.description || ''; 
 
-  // --- LOGIC XỬ LÝ TỈNH GỘP (QUAN TRỌNG) ---
-  // Kiểm tra xem document này có phải là data gộp không (VD: Gia Lai gộp Bình Định)
-  // Nếu có, tạo một ghi chú đặc biệt để nhắc AI phân định rõ ràng.
-  const mergedList = doc.merged_from || doc.mergedFrom || []; // List các tỉnh bị gộp
+  // --- LOGIC XỬ LÝ TỈNH GỘP (DATA DRIVEN) ---
+  // Tự động đọc danh sách gộp từ JSON
+  const mergedList = doc.merged_from || doc.mergedFrom || []; 
+  
+  // Nếu có gộp, tạo context đặc biệt cho AI
   const mergedInfo = (mergedList.length > 0) 
-      ? `LƯU Ý QUAN TRỌNG: Dữ liệu hệ thống đang gộp chung các tỉnh: ${mergedList.join(', ')}. Hãy dùng kiến thức của bạn để xác định chính xác "${itemName}" thuộc tỉnh/thành nào trong số đó.`
+      ? `THÔNG TIN CẤU TRÚC DỮ LIỆU: Tỉnh **${provinceName}** trong hệ thống này bao gồm dữ liệu của các khu vực cũ: **${mergedList.join(', ')}**.`
       : '';
 
-  console.log(`[composeSpecificItem] Thinking mode: "${itemName}" @ "${provinceName}" (Merged: ${mergedList.length ? 'YES' : 'NO'})`);
+  console.log(`[composeSpecificItem] Thinking v4.0: "${itemName}" @ "${provinceName}" (Merged: ${mergedList.join('+')})`);
 
   // --- TẠO PROMPT ---
-  let prompt = '';
-  
-  if (type === 'place') {
-    prompt = `
-Bạn là Hướng dẫn viên du lịch địa phương (AI Local Guide).
-Phong cách: Thân thiện, am hiểu, ngôn ngữ đời thường, ngắn gọn và thực tế.
-LƯU Ý QUAN TRỌNG: Tuyệt đối KHÔNG sử dụng emoji hay icon trong câu trả lời.
+  const prompt = `
+Bạn là Hướng dẫn viên du lịch địa phương (AI Local Guide) thân thiện, am hiểu.
+Nhiệm vụ: Trả lời câu hỏi về "${itemName}" dựa trên dữ liệu và kiến thức của bạn.
+LƯU Ý: Tuyệt đối KHÔNG dùng emoji/icon.
 
-Người dùng hỏi về: "${itemName}".
-Khu vực dữ liệu: ${provinceName}.
+BỐI CẢNH DỮ LIỆU:
+- Item đang hỏi: "${itemName}"
+- Thuộc tệp dữ liệu của tỉnh: ${provinceName}
 ${mergedInfo}
+- Gợi ý từ DB: "${dbHint}"
 
-Dữ liệu từ hệ thống: "${dbHint}".
+YÊU CẦU SUY LUẬN & TRẢ LỜI:
+1. **Định vị chính xác:** Dựa vào tên "${itemName}", hãy xác định nó thuộc vùng nào trong số các khu vực gộp trên (${[provinceName, ...mergedList].join(', ')}).
+   - Ví dụ: Nếu hỏi "Eo Gió" (trong data Gia Lai), bạn phải biết nó nằm ở Quy Nhơn (Bình Định), không phải ở Pleiku.
+   
+2. **Cách diễn đạt:**
+   - Hãy nói rõ vị trí hiện tại. Ví dụ: "Eo Gió là điểm đến nổi tiếng tại Quy Nhơn, hiện thuộc khu vực duyên hải của tỉnh Gia Lai mở rộng."
+   - Phong cách: Tự nhiên, đời thường, như bạn bè chat với nhau.
 
-NHIỆM VỤ:
-1. Xác định chính xác địa danh này (đặc biệt nếu thuộc tỉnh cũ trước khi sáp nhập).
-2. Viết theo PHONG CÁCH NGƯỜI BẠN ĐANG CHAT, không máy móc.
-3. Nếu địa danh thuộc tỉnh cũ đã sáp nhập, nói: "hiện thuộc tỉnh ${provinceName} (khu vực ... trước đây)"
-
-Trả về JSON theo FORMAT 3 PHẦN:
+3. **Format JSON trả về (3 phần):**
 {
-  "summary": "Đoạn văn 3-4 câu viết XUÔI tự nhiên. Phần 1: Xác nhận địa điểm và tỉnh. Phần 2: Mô tả vị trí, đặc điểm, trải nghiệm nổi bật. Phần 3: Thông tin giá vé/địa chỉ (nếu biết). KHÔNG gạch đầu dòng.",
-  "tips": ["Mẹo 1: Thời gian đi đẹp nhất và lưu ý thời tiết", "Mẹo 2: Trang phục/đồ dùng cần mang", "Mẹo 3: Lưu ý về di chuyển hoặc quãng đường (đặc biệt với merged provinces)"]
+  "summary": "Đoạn văn xuôi 3-4 câu. Bắt đầu bằng lời xác nhận (VD: 'Nhắc đến X là nhắc đến...'). Mô tả vẻ đẹp/hương vị và VỊ TRÍ CHÍNH XÁC. Không gạch đầu dòng.",
+  "tips": ["Mẹo 1: Thời gian/Cách di chuyển", "Mẹo 2: Ăn uống/Trang phục"]
 }
 `;
-  } else {
-    // Prompt cho món ăn (Bún cá Châu Đốc, Bún chả cá Quy Nhơn...)
-    prompt = `
-Bạn là Chuyên gia ẩm thực Việt Nam.
-Phong cách: Thân thiện, đời thường, như người bạn đang chia sẻ.
-LƯU Ý: Tuyệt đối KHÔNG dùng emoji.
-
-Người dùng hỏi về món: "${itemName}".
-Khu vực dữ liệu: ${provinceName}.
-${mergedInfo}
-
-NHIỆM VỤ:
-1. Xác định món ăn là đặc sản gốc của tỉnh nào (VD: "Bún chả cá Quy Nhơn" -> xác định đúng là Bình Định, dù data ở Gia Lai).
-2. Viết theo phong cách NGƯỜI BẠN TƯ VẤN, không máy móc.
-3. Mô tả hương vị cụ thể, không chung chung.
-
-Trả về JSON theo FORMAT 3 PHẦN:
-{
-  "summary": "Đoạn văn 3-4 câu viết XUÔI. Phần 1: Xác nhận món ăn (VD: 'Nhắc đến Hà Nội thì chắc chắn phải thử Phở bò rồi.'). Phần 2: Mô tả hương vị, nguyên liệu, cách chế biến đặc trưng. Phần 3: Địa chỉ quán ngon (nếu biết) và giá. KHÔNG gạch đầu dòng, viết thành đoạn văn.",
-  "tips": ["Ăn ở đâu ngon - gợi ý tên quán CỤ THỂ nếu biết", "Giá khoảng bao nhiêu", "Mẹo: Ăn kèm rau gì, nước chấm gì để ngon hơn"]
-}
-`;
-  }
 
   try {
-    // Temperature 0.5 giúp AI sáng tạo nhưng vẫn bám sát thực tế
-    const raw = await generateJSON({ prompt, temperature: 0.5 });
-    
-    // --- BYPASS VALIDATION CỨNG ---
-    // Không dùng validateResponse() để tránh việc AI viết đúng tên tỉnh gốc (Bình Định) 
-    // nhưng lại bị bộ lọc (Gia Lai) xóa mất.
+    // Gọi LLM
+    const raw = await generateJSON({ prompt, temperature: 0.4 }); // Temp thấp để AI tập trung logic
 
     return sanitizePayload({
-      summary: raw.summary || `${itemName} là điểm nổi bật tại khu vực ${provinceName}.`,
+      summary: raw.summary || `${itemName} là điểm đến nổi bật thuộc khu vực ${provinceName}.`,
       
-      // Trả về chính item đó để UI hiển thị highlight
-      places: type === 'place' ? [{ name: itemName, hint: "Thông tin chi tiết từ AI Expert" }] : [],
+      // Highlight item chính
+      places: type === 'place' ? [{ name: itemName, hint: "Chi tiết từ AI Local Guide" }] : [],
       dishes: type === 'dish' ? [{ name: itemName, where: "Đặc sản địa phương" }] : [],
       
       tips: Array.isArray(raw.tips) ? raw.tips : [],
       promotions: [],
       hotels: [],
-      source: 'nosql+llm-thinking' // Đánh dấu nguồn là AI suy luận
+      source: 'nosql+llm-thinking'
     });
 
   } catch (error) {
-    console.error('[composeSpecificItem] Lỗi AI:', error.message);
-    
-    // Fallback an toàn nếu AI gặp sự cố
+    console.error('[composeSpecificItem] Error:', error.message);
+    // Fallback
     return sanitizePayload({
       summary: `${itemName} là một địa danh/món ăn nổi tiếng tại ${provinceName}.`,
       places: type === 'place' ? [{ name: itemName, hint: dbHint }] : [],
