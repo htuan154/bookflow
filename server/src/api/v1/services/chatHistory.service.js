@@ -22,6 +22,7 @@ async function saveTurn({
   nlu = {},
   source,
   latencyMs,
+  contextState = {}, // [NEW] Nhận thêm tham số này
   meta = {},
 }) {
   const db = getDb();
@@ -41,6 +42,12 @@ async function saveTurn({
       intent: nlu.intent ?? null,
       top_n: nlu.top_n ?? null,
       filters: sanitize(nlu.filters || {})
+    },
+    // [NEW] Lưu state để dùng cho các turn sau
+    context_state: {
+      last_entity_name: contextState.entity_name || null,
+      last_entity_type: contextState.entity_type || null,
+      last_city: contextState.city || null,
     },
     source,
     latency_ms: Number.isFinite(latencyMs) ? Number(latencyMs) : null,
@@ -97,10 +104,10 @@ async function recentTurns({ userId, sessionId, limit = 5 }) {
       message: 1,
       reply: 1,
       nlu: 1,
+      context_state: 1, // [NEW] Lấy thêm trường này ra
       created_at: 1,
       source: 1,
     })
     .toArray();
 }
-
 module.exports = { saveTurn, listSessions, listMessages, recentTurns };

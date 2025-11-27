@@ -72,6 +72,8 @@ function cacheRequest(userId, message, payload) {
   }
 }
 
+
+
 async function suggestHandler(req, res, next) {
   try {
     const db = req.app.locals.db;
@@ -96,6 +98,7 @@ async function suggestHandler(req, res, next) {
     const nlu = analyze(msg);
     let history = [];
     try {
+      // Lấy lịch sử (bao gồm cả context_state vừa thêm ở Bước 1)
       history = await recentTurns({ userId, sessionId, limit: 5 });
     } catch (e) {
       console.warn('[AI] recentTurns failed:', e?.message || e);
@@ -108,13 +111,19 @@ async function suggestHandler(req, res, next) {
     if (Number.isFinite(limit) && limit > 0 && limit <= 20) ctx.top_n = limit;
 
     const t0 = process.hrtime.bigint();
+    // Gọi xử lý logic
     const payload = await suggestHybrid(db, { message: msg, context: { ...ctx, session_id: sessionId } });
+    
+    // [NEW] Trích xuất next_context từ payload trả về (được tạo ra ở Bước 3)
+    const nextContext = payload.next_context || {};
+
     console.log('[AI] suggestHybrid result:', { 
       source: payload.source, 
       hasHotels: payload.hotels?.length || 0,
       hasPlaces: payload.places?.length || 0,
       hasDishes: payload.dishes?.length || 0,
-      summary: payload.summary?.slice(0, 100)
+      summary: payload.summary?.slice(0, 100),
+      nextContext // Log để kiểm tra
     });
     const t1 = process.hrtime.bigint();
     const latency = Number(t1 - t0) / 1e6;
@@ -122,10 +131,10 @@ async function suggestHandler(req, res, next) {
     res.set('X-Source', payload.source || 'sql+nosql+llm');
     res.set('X-Latency-ms', (payload.latency_ms ?? latency).toFixed(1));
 
-    // Cache this request/response to prevent duplicates
+    // Cache request
     cacheRequest(userId, msg, payload);
 
-    // (tuỳ chọn) lưu lịch sử hội thoại nếu bạn đang dùng saveTurn(...)
+    // Lưu lịch sử kèm contextState mới
     try {
       await saveTurn({
         userId,
@@ -136,9 +145,13 @@ async function suggestHandler(req, res, next) {
         nlu,
         source: payload.source || 'sql+nosql+llm',
         latencyMs: payload.latency_ms ?? latency,
+        contextState: nextContext, // [NEW] Lưu context vào DB
         meta: { ip: req.ip, ua: req.headers['user-agent'] }
       });
     } catch {}
+
+    // [Clean up] Xóa field nội bộ next_context trước khi trả về client để payload sạch
+    delete payload.next_context;
 
     return res.json(payload);
   } catch (e) { next(e); }
