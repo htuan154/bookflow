@@ -31,12 +31,50 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isLoadingChats = true;
   String? _errorMessage;
   User? _currentUser;
+  
+  // Filter states
+  String _bookingStatusFilter = 'all'; // 'all', 'pending', 'confirmed', 'canceled', 'completed', 'no_show'
+  String _paymentStatusFilter = 'all'; // 'all', 'pending', 'paid', 'refunded', 'failed'
 
   @override
   void initState() {
     super.initState();
     _loadUserBookings();
     _loadChatSessions();
+  }
+  
+  List<dynamic> get _filteredBookings {
+    return _bookings.where((booking) {
+      // Safely extract booking status
+      var bookingStatusRaw = booking['booking_status'];
+      if (bookingStatusRaw == null) {
+        bookingStatusRaw = booking['bookingStatus'];
+      }
+      final bookingStatus = bookingStatusRaw != null 
+          ? bookingStatusRaw.toString().toLowerCase() 
+          : 'pending';
+      
+      // Safely extract payment status
+      var paymentStatusRaw = booking['payment_status'];
+      if (paymentStatusRaw == null) {
+        paymentStatusRaw = booking['paymentStatus'];
+      }
+      final paymentStatus = paymentStatusRaw != null 
+          ? paymentStatusRaw.toString().toLowerCase() 
+          : 'pending';
+      
+      // Filter by booking status
+      if (_bookingStatusFilter != 'all' && bookingStatus != _bookingStatusFilter) {
+        return false;
+      }
+      
+      // Filter by payment status
+      if (_paymentStatusFilter != 'all' && paymentStatus != _paymentStatusFilter) {
+        return false;
+      }
+      
+      return true;
+    }).toList();
   }
 
   Future<void> _loadChatSessions() async {
@@ -272,16 +310,18 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           'Chat & Booking',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.orange,
+        automaticallyImplyLeading: false,
         elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh, color: Colors.black),
+            icon: Icon(Icons.refresh, color: Colors.white),
             onPressed: _refreshBookings,
           ),
         ],
@@ -442,6 +482,7 @@ class _ChatScreenState extends State<ChatScreen> {
       margin: EdgeInsets.only(right: 12),
       child: Card(
         elevation: 2,
+        color: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -679,17 +720,124 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _refreshBookings,
-      color: Colors.orange,
-      child: ListView.builder(
-        padding: EdgeInsets.all(16),
-        itemCount: _bookings.length,
-        itemBuilder: (context, index) {
-          final booking = _bookings[index];
-          return _buildBookingCard(booking);
-        },
-      ),
+    return Column(
+      children: [
+        // Filter section
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            border: Border(
+              bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Booking Status Filter
+              Row(
+                children: [
+                  Icon(Icons.bookmark_outline, size: 16, color: Colors.grey[700]),
+                  SizedBox(width: 8),
+                  Text(
+                    'Trạng thái booking:',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip('Tất cả', 'all', true),
+                    SizedBox(width: 6),
+                    _buildFilterChip('Chờ xác nhận', 'pending', true),
+                    SizedBox(width: 6),
+                    _buildFilterChip('Đã xác nhận', 'confirmed', true),
+                    SizedBox(width: 6),
+                    _buildFilterChip('Hoàn thành', 'completed', true),
+                    SizedBox(width: 6),
+                    _buildFilterChip('Đã hủy', 'canceled', true),
+                    SizedBox(width: 6),
+                    _buildFilterChip('Không đến', 'no_show', true),
+                  ],
+                ),
+              ),
+              SizedBox(height: 12),
+              // Payment Status Filter
+              Row(
+                children: [
+                  Icon(Icons.payment, size: 16, color: Colors.grey[700]),
+                  SizedBox(width: 8),
+                  Text(
+                    'Trạng thái thanh toán:',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip('Tất cả', 'all', false),
+                    SizedBox(width: 6),
+                    _buildFilterChip('Chờ thanh toán', 'pending', false),
+                    SizedBox(width: 6),
+                    _buildFilterChip('Đã thanh toán', 'paid', false),
+                    SizedBox(width: 6),
+                    _buildFilterChip('Thất bại', 'failed', false),
+                    SizedBox(width: 6),
+                    _buildFilterChip('Hoàn tiền', 'refunded', false),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Booking list
+        Expanded(
+          child: _filteredBookings.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.filter_list_off, size: 64, color: Colors.grey[400]),
+                      SizedBox(height: 16),
+                      Text(
+                        'Không có booking phù hợp với bộ lọc',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _refreshBookings,
+                  color: Colors.orange,
+                  child: ListView.builder(
+                    padding: EdgeInsets.all(16),
+                    itemCount: _filteredBookings.length,
+                    itemBuilder: (context, index) {
+                      final booking = _filteredBookings[index];
+                      return _buildBookingCard(booking);
+                    },
+                  ),
+                ),
+        ),
+      ],
     );
   }
 
@@ -932,6 +1080,11 @@ class _ChatScreenState extends State<ChatScreen> {
         textColor = Colors.blue.shade700;
         displayText = 'Hoàn thành';
         break;
+      case 'no_show':
+        backgroundColor = Colors.grey.shade300;
+        textColor = Colors.grey.shade800;
+        displayText = 'Không đến';
+        break;
       default:
         backgroundColor = Colors.grey.shade100;
         textColor = Colors.grey.shade700;
@@ -1074,5 +1227,42 @@ class _ChatScreenState extends State<ChatScreen> {
     // Navigator.pushNamed(context, '/login');
     // Or navigate to profile tab where login might be handled
     // Navigator.of(context).pop(); // Go back to previous screen
+  }
+  
+  Widget _buildFilterChip(String label, String value, bool isBookingStatus) {
+    final isSelected = isBookingStatus 
+        ? _bookingStatusFilter == value 
+        : _paymentStatusFilter == value;
+    
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (isBookingStatus) {
+            _bookingStatusFilter = value;
+          } else {
+            _paymentStatusFilter = value;
+          }
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.orange : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? Colors.orange : Colors.grey[300]!,
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey[700],
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -36,6 +36,20 @@ class BlogCommentController {
     }
 
     /**
+     * Lấy tất cả bình luận đã duyệt (approved) của một bài blog.
+     * GET /api/v1/blogs/:blogId/comments-approved
+     */
+    async getApprovedCommentsByBlog(req, res, next) {
+        try {
+            const { blogId } = req.params;
+            const comments = await BlogCommentService.getApprovedCommentsByBlog(blogId);
+            successResponse(res, comments);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
      * Xóa một bình luận.
      * DELETE /api/v1/comments/:commentId
      */

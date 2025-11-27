@@ -2,6 +2,7 @@
 
 const pool = require('../../../config/db');
 const TouristLocation = require('../../../models/touristLocation.model');
+const TouristLocationNearest = require('../../../models/touristLocationNearest.model');
 
 /**
  * Tạo một địa điểm du lịch mới.
@@ -97,6 +98,30 @@ const findByCityVn = async (city) => {
     return result.rows.map(row => new TouristLocation(row));
 };
 
+/**
+ * Tìm 10 địa điểm du lịch gần nhất theo vị trí (lat, lng).
+ * @param {number} lat - Vĩ độ.
+ * @param {number} lng - Kinh độ.
+ * @returns {Promise<TouristLocationNearest[]>}
+ */
+const findNearest = async (lat, lng) => {
+    const query = `
+        SELECT *,
+            (6371 * acos(
+                cos(radians($1)) 
+                * cos(radians(latitude)) 
+                * cos(radians(longitude) - radians($2)) 
+                + sin(radians($1)) 
+                * sin(radians(latitude))
+            )) AS distance_km
+        FROM tourist_locations
+        ORDER BY distance_km
+        LIMIT 10;
+    `;
+    const result = await pool.query(query, [lat, lng]);
+    return result.rows.map(row => new TouristLocationNearest(row));
+};
+
 module.exports = {
     create,
     findAll,
@@ -105,4 +130,5 @@ module.exports = {
     findByCityVn,
     update,
     deleteById,
+    findNearest,
 };

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../services/vietqr_service.dart';
+import '../../../services/booking_service.dart';
+import '../home_screen.dart';
 
 class PaymentScreen extends StatefulWidget {
   final String bookingId;
@@ -26,6 +28,7 @@ class PaymentScreen extends StatefulWidget {
 
 class _PaymentScreenState extends State<PaymentScreen> {
   final VietQRService _vietqrService = VietQRService();
+  final BookingService _bookingService = BookingService();
   
   Map<String, dynamic>? _qrData;
   String _paymentStatus = 'idle'; // 'idle', 'pending', 'paid', 'expired', 'error'
@@ -35,6 +38,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   String? _errorMessage;
   Timer? _countdownTimer;
   Timer? _pollingTimer;
+  bool _hasUpdatedBookingStatus = false; // Flag để tránh update nhiều lần
 
   @override
   void initState() {
@@ -212,6 +216,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
           _countdownTimer?.cancel();
           timer.cancel();
           
+          // Cập nhật booking status thành 'confirmed'
+          await _updateBookingStatusConfirmed();
+          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('✅ Thanh toán thành công!'),
@@ -219,10 +226,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
           );
           
-          // Delay 2 giây rồi quay về màn hình trước
+          // Delay 2 giây rồi về trang home
           Future.delayed(Duration(seconds: 2), () {
             if (mounted) {
-              Navigator.pop(context, true);
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => HomeScreen()),
+                (route) => false,
+              );
             }
           });
         }
@@ -268,6 +278,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
         _countdownTimer?.cancel();
         _pollingTimer?.cancel();
         
+        // Cập nhật booking status thành 'confirmed'
+        await _updateBookingStatusConfirmed();
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ Xác nhận thanh toán thành công!'),
@@ -277,7 +290,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
         
         Future.delayed(Duration(seconds: 2), () {
           if (mounted) {
-            Navigator.pop(context, true);
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (context) => HomeScreen()),
+              (route) => false,
+            );
           }
         });
       }
@@ -306,18 +322,167 @@ class _PaymentScreenState extends State<PaymentScreen> {
     return '${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} VNĐ';
   }
 
+  // Cập nhật booking status thành 'confirmed' khi thanh toán thành công
+  Future<void> _updateBookingStatusConfirmed() async {
+    if (_hasUpdatedBookingStatus) return; // Tránh update nhiều lần
+    _hasUpdatedBookingStatus = true;
+    try {
+      print('🔄 Updating booking status to confirmed for: ${widget.bookingId}');
+      final result = await _bookingService.updateBookingStatus(
+        widget.bookingId,
+        'confirmed',
+        notes: 'Thanh toán thành công',
+      );
+      if (result['success'] == true) {
+        print('✅ Booking status updated to confirmed');
+      } else {
+        print('⚠️ Failed to update booking status: ${result['message']}');
+      }
+    } catch (e) {
+      print('❌ Error updating booking status: $e');
+    }
+  }
+
+  // Cập nhật booking status thành 'canceled'
+  Future<void> _updateBookingStatusCanceled() async {
+    if (_hasUpdatedBookingStatus) return; // Tránh update nhiều lần
+    _hasUpdatedBookingStatus = true;
+    
+    try {
+      print('🔄 Updating booking status to canceled for: ${widget.bookingId}');
+      final result = await _bookingService.updateBookingStatus(
+        widget.bookingId,
+        'canceled',
+        notes: 'Người dùng hủy thanh toán',
+      );
+      
+      if (result['success'] == true) {
+        print('✅ Booking status updated to canceled');
+      } else {
+        print('⚠️ Failed to update booking status: ${result['message']}');
+      }
+    } catch (e) {
+      print('❌ Error updating booking status: $e');
+    }
+  }
+
+  // Xử lý khi người dùng nhấn back
+  Future<bool> _onWillPop() async {
+    if (_paymentStatus == 'paid') {
+      // Đã thanh toán thành công, cho phép back về home
+      return true;
+    }
+    
+    // Chưa thanh toán hoặc đang pending -> canceled booking
+    final shouldPop = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.symmetric(horizontal: 32),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 18,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.red[400], size: 44),
+              SizedBox(height: 14),
+              Text(
+                'Hủy thanh toán?',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 19,
+                  color: Colors.red[800],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Bạn có chắc muốn hủy thanh toán?\nĐơn đặt phòng sẽ bị hủy.',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.red[700],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.red[700],
+                        elevation: 0,
+                        side: BorderSide(color: Colors.red[200]!),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text('Tiếp tục thanh toán', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red[600],
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text('Hủy thanh toán', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    
+    if (shouldPop == true) {
+      // Cập nhật booking status thành canceled
+      await _updateBookingStatusCanceled();
+      return true;
+    }
+    
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Text(
           widget.paymentMethod == 'payos' 
               ? 'Thanh toán PayOS (VietQR)' 
               : 'Thanh toán VietQR',
+          style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
         elevation: 1,
       ),
       body: SafeArea(
@@ -355,6 +520,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   );
                 },
               ),
+      ),
       ),
     );
   }

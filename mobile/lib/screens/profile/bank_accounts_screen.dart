@@ -50,21 +50,21 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.orange,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Thông Tin Thanh Toán',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.add, color: Colors.black87),
+            icon: Icon(Icons.add, color: Colors.white),
             onPressed: () async {
               final result = await Navigator.push(
                 context,
@@ -107,7 +107,7 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
         },
         label: Text('Thêm tài khoản'),
         icon: Icon(Icons.add),
-        backgroundColor: Color(0xFF4CAF50),
+        backgroundColor: Colors.orange,
       ),
     );
   }
@@ -153,7 +153,7 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
             icon: Icon(Icons.add, color: Colors.black),
             label: Text('Thêm tài khoản', style: TextStyle(color: Colors.black)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF4CAF50),
+              backgroundColor: Colors.orange,
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               foregroundColor: Colors.black,
             ),
@@ -193,12 +193,12 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Color(0xFF4CAF50).withOpacity(0.1),
+                      color: Colors.orange.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       Icons.account_balance,
-                      color: Color(0xFF4CAF50),
+                      color: Colors.orange,
                       size: 24,
                     ),
                   ),
@@ -226,7 +226,7 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Color(0xFF4CAF50),
+                                  color: Colors.orange,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(

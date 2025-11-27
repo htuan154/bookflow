@@ -13,6 +13,9 @@ const router = express.Router();
 // GET /api/v1/tourist-locations -> Lấy tất cả các địa điểm
 router.get('/', touristLocationController.getAllLocations);
 
+// GET /api/v1/tourist-locations/nearest?lat=...&lng=... -> Lấy 10 địa điểm gần nhất
+router.get('/nearest', touristLocationController.getNearestLocations);
+
 // GET /api/v1/tourist-locations/city/:city -> Lấy địa điểm theo thành phố
 router.get('/city/:city', touristLocationController.getLocationsByCity);
 

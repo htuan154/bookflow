@@ -28,9 +28,9 @@ router.get('/user/:userId', bookingController.getUserBookings);
 
 router.get('/hotel/:hotelId', authorize(['hotel_owner', 'admin', 'hotel_staff']), bookingController.getBookingsByHotelId);
 
-router.patch('/:bookingId/status', authorize(['hotel_owner', 'admin', 'hotel_staff']), validate(updateStatusSchema), bookingController.updateBookingStatus);
+router.patch('/:bookingId/status', authorize(['hotel_owner', 'admin', 'hotel_staff', 'user']), validate(updateStatusSchema), bookingController.updateBookingStatus);
 
-router.patch('/:bookingId', authorize(['hotel_owner', 'admin', 'hotel_staff']), bookingController.updateBooking);
+router.patch('/:bookingId', authorize(['hotel_owner', 'admin', 'hotel_staff', 'user']), bookingController.updateBooking);
 router.use('/', historyRoutes);
 
 module.exports = router;

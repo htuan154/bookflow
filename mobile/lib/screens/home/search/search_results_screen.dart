@@ -27,62 +27,25 @@ class SearchResultsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String title = 'Kết quả tìm kiếm';
-    String subtitle = '';
-
-    if (searchType == 'availability') {
-      if (city != null && ward != null) {
-        subtitle = 'Phòng trống tại $ward, $city';
-      } else if (city != null) {
-        subtitle = 'Phòng trống tại $city';
-      }
-      
-      // Thêm thông tin ngày và số lượng với format đẹp hơn
-      if (searchParams != null) {
-        final checkInFormatted = searchParams!['checkInDateFormatted'] ?? searchParams!['checkInDate'];
-        final checkOutFormatted = searchParams!['checkOutDateFormatted'] ?? searchParams!['checkOutDate'];
-        final guests = searchParams!['guestCount'];
-        final rooms = searchParams!['roomCount'];
-        subtitle += '\n$checkInFormatted → $checkOutFormatted • $guests khách, $rooms phòng';
-      }
-    } else if (searchType == 'location' && city != null && ward != null) {
-      subtitle = 'Khách sạn tại $ward, $city';
-    } else if (searchType == 'city' && city != null) {
-      subtitle = 'Khách sạn tại $city';
-    }
+      // Removed subtitle variable as per the requirement
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.orange,
         elevation: 1,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
-            if (subtitle.isNotEmpty)
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                  fontWeight: FontWeight.normal,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-          ],
-        ),
+          ),
       ),
       body: hotels.isEmpty ? _buildEmptyState() : _buildHotelsList(),
     );
@@ -121,7 +84,7 @@ class SearchResultsScreen extends StatelessWidget {
   Widget _buildHotelsList() {
     return Column(
       children: [
-        // Header thông tin kết quả với search params
+        // Header chỉ giữ lại dòng tổng và khung cam
         Container(
           width: double.infinity,
           padding: EdgeInsets.all(16),
@@ -139,15 +102,6 @@ class SearchResultsScreen extends StatelessWidget {
                   color: Colors.grey[700],
                 ),
               ),
-              if (suitableRooms != null && suitableRooms!.isNotEmpty)
-                Text(
-                  '${suitableRooms!.length} loại phòng phù hợp điều kiện',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              // Hiển thị thông tin search params
               if (searchParams != null && searchType == 'availability')
                 Container(
                   margin: EdgeInsets.only(top: 8),

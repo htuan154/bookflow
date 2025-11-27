@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../classes/hotel_model.dart';
 import '../../../classes/hotel_image_model.dart';
 import '../../../classes/roomtypeavailability_model.dart'; // Thêm import này
+import '../../../classes/room_type_model.dart'; // Thêm import cho RoomType
 import '../../../services/hotel_service.dart';
 import '../../../classes/review_model.dart';
 import '../../../screens/home/review/review_detail_screen.dart';
@@ -35,6 +36,10 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
   int currentImageIndex = 0; // Index hiện tại của slider
   List<Review> reviews = [];
   bool isLoadingReviews = false;
+  List<RoomType> roomTypes = []; // Thêm danh sách room types
+  bool isLoadingRoomTypes = false;
+  double? minPrice; // Giá thấp nhất
+  double? maxPrice; // Giá cao nhất
 
   @override
   void initState() {
@@ -52,6 +57,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
     _loadAmenities();
     _loadHotelImages();
     _loadReviews(); // Thêm dòng này
+    _loadRoomTypes(); // Thêm dòng này để load room types
   }
 
   // Hàm load ảnh khách sạn
@@ -166,6 +172,70 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
     }
   }
 
+  Future<void> _loadRoomTypes() async {
+    setState(() {
+      isLoadingRoomTypes = true;
+    });
+
+    try {
+      final result = await HotelService().getRoomTypesByHotelId(
+        widget.hotel.hotelId,
+      );
+
+      if (result['success'] && result['data'] != null) {
+        List<RoomType> allRoomTypes = (result['data'] as List)
+            .map((json) => RoomType.fromJson(json))
+            .toList();
+
+        // Lọc chỉ giữ lại những room types có trong suitableRoomsForHotel
+        if (widget.suitableRoomsForHotel != null &&
+            widget.suitableRoomsForHotel!.isNotEmpty) {
+          List<String> suitableRoomTypeIds = widget.suitableRoomsForHotel!
+              .map((room) => room.roomTypeId)
+              .where((id) => id != null)
+              .cast<String>()
+              .toList();
+
+          roomTypes = allRoomTypes
+              .where((roomType) =>
+                  roomType.roomTypeId != null &&
+                  suitableRoomTypeIds.contains(roomType.roomTypeId))
+              .toList();
+        } else {
+          // Nếu không có suitableRoomsForHotel, lấy tất cả
+          roomTypes = allRoomTypes;
+        }
+
+        // Tính giá thấp nhất và cao nhất
+        if (roomTypes.isNotEmpty) {
+          List<double> prices =
+              roomTypes.map((room) => room.basePrice).toList();
+          minPrice = prices.reduce((a, b) => a < b ? a : b);
+          maxPrice = prices.reduce((a, b) => a > b ? a : b);
+        }
+
+        setState(() {});
+      } else {
+        setState(() {
+          roomTypes = [];
+          minPrice = null;
+          maxPrice = null;
+        });
+      }
+    } catch (e) {
+      print('Error loading room types: $e');
+      setState(() {
+        roomTypes = [];
+        minPrice = null;
+        maxPrice = null;
+      });
+    } finally {
+      setState(() {
+        isLoadingRoomTypes = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -176,22 +246,26 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          _buildSliverAppBar(),
-          SliverToBoxAdapter(
-            child: Column(
-              children: [
-                _buildHotelHeader(),
-                _buildTabBar(),
-                SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.6,
-                  child: _buildTabContent(),
-                ),
-              ],
+      backgroundColor: Colors.white,
+      body: Container(
+        color: Colors.white,
+        child: CustomScrollView(
+          slivers: [
+            _buildSliverAppBar(),
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
+                  _buildHotelHeader(),
+                  _buildTabBar(),
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.6,
+                    child: _buildTabContent(),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: _buildBookingSection(),
     );
@@ -595,7 +669,7 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
           Container(
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: widget.hotel.status == 'approved'
+              color: widget.hotel.status == 'active'
                   ? Colors.green
                   : Colors.orange,
               borderRadius: BorderRadius.circular(8),
@@ -1000,6 +1074,18 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
   }
 
   Widget _buildBookingSection() {
+    String priceText = 'Liên hệ';
+    
+    if (isLoadingRoomTypes) {
+      priceText = 'Đang tải...';
+    } else if (minPrice != null && maxPrice != null) {
+      if (minPrice == maxPrice) {
+        priceText = '${_formatPrice(minPrice!)} / Phòng';
+      } else {
+        priceText = '${_formatPrice(minPrice!)} - ${_formatPrice(maxPrice!)} / Phòng';
+      }
+    }
+
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1012,31 +1098,33 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Giá từ',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-                Text(
-                  'Liên hệ', // Giá tạm thời, sau này sẽ có API
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                  ),
-                ),
-              ],
+          // "Giá từ" trên một dòng
+          Text(
+            'Giá từ',
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+          ),
+          SizedBox(height: 4),
+          // Giá tiền trên dòng tiếp theo (canh phải)
+          SizedBox(
+            width: double.infinity,
+            child: Text(
+              priceText,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
             ),
           ),
-          SizedBox(width: 16),
-          Expanded(
-            flex: 2,
+          SizedBox(height: 12),
+          // Nút đặt phòng
+          SizedBox(
+            width: double.infinity,
             child: ElevatedButton(
               onPressed: _showBooking,
               style: ElevatedButton.styleFrom(
@@ -1056,6 +1144,10 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
         ],
       ),
     );
+  }
+
+  String _formatPrice(double price) {
+    return '${price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} VNĐ';
   }
 
   String _getStatusText(String status) {
