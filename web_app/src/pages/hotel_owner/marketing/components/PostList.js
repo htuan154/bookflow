@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Filter, Plus, Search, Loader } from 'lucide-react';
 import BlogCard from './BlogCard';
 import Pagination from './Pagination';
@@ -15,25 +15,52 @@ const PostList = ({
   onView, 
   onEdit, 
   onDelete, 
-  onShowComments, 
+  onShowComments,
+  onSubmit,
   onCreate,
   user,
-  paginationProps
+  paginationProps,
+  statusCounts
 }) => {
+  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+
+  useEffect(() => {
+    setLocalSearchTerm(searchTerm);
+  }, [searchTerm]);
+
+  const handleSearch = () => {
+    setSearchTerm(localSearchTerm);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-full">
       {/* Toolbar */}
       <div className="p-5 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <input
-            type="text"
-            placeholder="Tìm kiếm bài viết..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
-          />
-          <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+        <div className="relative flex-1 max-w-md flex gap-2">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Tìm kiếm bài viết..."
+              value={localSearchTerm}
+              onChange={(e) => setLocalSearchTerm(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+            />
+            <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+          </div>
+          <button
+            onClick={handleSearch}
+            className="px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm transition-all"
+          >
+            Tìm
+          </button>
         </div>
 
         {/* Filters & Actions */}
@@ -45,12 +72,12 @@ const PostList = ({
               onChange={(e) => setStatusFilter(e.target.value)}
               className="border-none text-sm text-gray-700 focus:ring-0 bg-transparent py-1.5 pl-2 pr-8 cursor-pointer"
             >
-              <option value="all">Tất cả trạng thái</option>
-              <option value="published">Đã xuất bản</option>
-              <option value="pending">Chờ duyệt</option>
-              <option value="draft">Bản nháp</option>
-              <option value="rejected">Bị từ chối</option>
-              <option value="archived">Lưu trữ</option>
+              <option value="all">Tất cả trạng thái {statusCounts ? `(${statusCounts.all})` : ''}</option>
+              <option value="published">Đã xuất bản {statusCounts ? `(${statusCounts.published})` : ''}</option>
+              <option value="pending">Chờ duyệt {statusCounts ? `(${statusCounts.pending})` : ''}</option>
+              <option value="draft">Bản nháp {statusCounts ? `(${statusCounts.draft})` : ''}</option>
+              <option value="rejected">Bị từ chối {statusCounts ? `(${statusCounts.rejected})` : ''}</option>
+              <option value="archived">Lưu trữ {statusCounts ? `(${statusCounts.archived})` : ''}</option>
             </select>
           </div>
 
@@ -61,7 +88,6 @@ const PostList = ({
           >
             <option value="newest">Mới nhất</option>
             <option value="oldest">Cũ nhất</option>
-            <option value="popular">Phổ biến nhất</option>
           </select>
 
           <button
@@ -102,6 +128,7 @@ const PostList = ({
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onShowComments={onShowComments}
+                  onSubmit={onSubmit}
                   user={user}
                 />
               ))}

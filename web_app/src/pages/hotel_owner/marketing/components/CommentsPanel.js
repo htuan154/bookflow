@@ -65,8 +65,35 @@ const CommentsPanel = ({ blog, onClose }) => {
   }, [sortBy, filter]);
 
   useEffect(() => {
-    setComments(organizeCommentsTree(flatComments));
+    const tree = organizeCommentsTree(flatComments);
+    setComments(tree);
   }, [flatComments]);
+  
+  // Filter và sort comments ở client-side
+  const filteredAndSortedComments = React.useMemo(() => {
+    let result = [...comments];
+    
+    // Filter by status
+    if (filter !== 'all') {
+      result = result.filter(comment => comment.status === filter);
+    }
+    
+    // Sort
+    result.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.created_at);
+      const dateB = new Date(b.createdAt || b.created_at);
+      
+      if (sortBy === 'newest') {
+        return dateB - dateA;
+      } else if (sortBy === 'oldest') {
+        return dateA - dateB;
+      }
+      return 0;
+    });
+    
+    return result;
+  }, [comments, filter, sortBy]);
+  
   // Debug: log comments and flatComments
   useEffect(() => {
     console.log('CommentsPanel flatComments:', flatComments);
@@ -110,7 +137,8 @@ const CommentsPanel = ({ blog, onClose }) => {
     if (isLoadMore) setLoadingMore(true);
     else setLoading(true);
     try {
-      const params = `page=${pageNum}&limit=${commentsPerPage}&sortBy=${sortBy}&filter=${filter}`;
+      // Chỉ gửi page và limit cho API
+      const params = `page=${pageNum}&limit=${commentsPerPage}`;
       const response = await commentService.getBlogCommentsWithUser(
         blog.blogId || blog.id,
         params
@@ -127,7 +155,15 @@ const CommentsPanel = ({ blog, onClose }) => {
         total = response.total || response.totalComments || newFlatComments.length || 0;
       }
       // Patch: inject user info and parentId for comments missing them
-      const patchedComments = newFlatComments.map(patchUserInfo);
+      // Also override status: Owner comments should be approved
+      const patchedComments = newFlatComments.map(c => {
+        const patched = patchUserInfo(c);
+        // If comment is from hotel_owner (roleId = 2) and status is pending, change to approved
+        if (patched.user?.roleId === 2 && patched.status === 'pending') {
+          patched.status = 'approved';
+        }
+        return patched;
+      });
       setTotalComments(total);
       if (isRefresh) {
         setFlatComments(patchedComments);
@@ -367,9 +403,9 @@ const CommentsPanel = ({ blog, onClose }) => {
                 <p className="text-gray-600">Đang tải bình luận...</p>
               </div>
             </div>
-          ) : comments.length > 0 ? (
+          ) : filteredAndSortedComments.length > 0 ? (
             <div className="divide-y divide-gray-100">
-              {comments.map((comment) => (
+              {filteredAndSortedComments.map((comment) => (
                 <CommentItem
                   key={comment.commentId || comment.comment_id}
                   comment={comment}
@@ -401,7 +437,7 @@ const CommentsPanel = ({ blog, onClose }) => {
                   </button>
                 </div>
               )}
-              {!hasMore && comments.length > 5 && (
+              {!hasMore && filteredAndSortedComments.length > 5 && (
                 <div className="p-4 text-center">
                   <div className="text-xs text-gray-500 bg-gray-50 py-2 px-4 rounded-lg inline-flex items-center">
                     <CheckCircle className="w-4 h-4 mr-2 text-green-500" />

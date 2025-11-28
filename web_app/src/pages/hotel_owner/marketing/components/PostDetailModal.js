@@ -95,7 +95,7 @@ const PostDetailModal = ({ blog, loading: externalLoading, error: externalError,
 
   return (
     <>
-      <style jsx>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
         }
