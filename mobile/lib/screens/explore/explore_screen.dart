@@ -9,10 +9,12 @@ import '../../services/tourist_location_service.dart';
 import '../../services/food_recommendation_service.dart';
 import '../../classes/tourist_location_model.dart';
 import '../../classes/food_recommendation_model.dart';
+import '../../classes/nearby_tourist_location.dart';
 import 'components/loading_indicator.dart';
 import 'components/location_dialog.dart';
 import 'components/food_marker_dialog.dart';
 import 'components/tourist_location_dialog.dart';
+import 'components/floating_nearby_locations_widget.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -53,6 +55,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
   List<TouristLocation> _touristLocations = [];
   List<FoodRecommendation> _foodRecommendations = [];
   String _currentCity = 'Hồ Chí Minh'; // Default city
+
+  // Danh sách địa điểm gần đây
+  List<NearbyTouristLocation> _nearbyLocations = [];
+  bool _showNearbyLocations = false;
 
   // Map styles
   final Map<String, String> _mapStyles = {
@@ -234,14 +240,98 @@ class _ExploreScreenState extends State<ExploreScreen> {
         });
         _updateMarkers();
       },
-      onSearchNearby: () {
-        // Placeholder for future functionality
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Chức năng tìm kiếm sẽ được bổ sung sau')),
-        );
+      onSearchNearbyTouristLocations: () {
+        _searchNearbyTouristLocations(location);
       },
     );
+  }
+
+  // Tìm kiếm các địa điểm tham quan gần vị trí được chọn
+  Future<void> _searchNearbyTouristLocations(LatLng location) async {
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: Colors.green),
+              SizedBox(height: 16),
+              Text(
+                'Đang tìm địa điểm gần đây...',
+                style: TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final result = await _touristLocationService.getNearestLocations(
+        location.latitude,
+        location.longitude,
+      );
+
+      // Close loading dialog
+      Navigator.pop(context);
+
+      if (result['success'] && result['data'] != null) {
+        final locations = result['data'] as List<NearbyTouristLocation>;
+        
+        if (locations.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Không tìm thấy địa điểm tham quan gần đây'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
+
+        // Move to the nearest location
+        if (locations.isNotEmpty) {
+          final nearest = locations.first.location;
+          if (nearest.latitude != null && nearest.longitude != null) {
+            _mapController.move(
+              LatLng(nearest.latitude!, nearest.longitude!),
+              15.0,
+            );
+          }
+        }
+
+        // Show floating widget with results
+        setState(() {
+          _nearbyLocations = locations;
+          _showNearbyLocations = true;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Không thể tìm kiếm địa điểm'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      Navigator.pop(context);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi khi tìm kiếm: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      debugPrint('Error searching nearby locations: $e');
+    }
   }
 
   // Kiểm tra permission GPS mà không yêu cầu ngay lập tức
@@ -625,29 +715,37 @@ class _ExploreScreenState extends State<ExploreScreen> {
           SizedBox(height: 10),
 
           // Province dropdown
-          DropdownButtonFormField<Province>(
-            value: _selectedProvince,
-            decoration: InputDecoration(
-              labelText: 'Chọn tỉnh/thành',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+          Theme(
+            data: Theme.of(context).copyWith(
+              canvasColor: Colors.white,
             ),
-            items: _filteredProvinces.map((province) {
-              return DropdownMenuItem(
-                value: province,
-                child: Text(province.name),
-              );
-            }).toList(),
-            onChanged: (value) {
-              _onProvinceSelected(value);
-              // Tự động đóng form sau khi chọn
-              Future.delayed(Duration(milliseconds: 500), () {
-                setState(() {
-                  _showProvinceSearch = false;
+            child: DropdownButtonFormField<Province>(
+              value: _selectedProvince,
+              decoration: InputDecoration(
+                labelText: 'Chọn tỉnh/thành',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                fillColor: Colors.white,
+                filled: true,
+              ),
+              dropdownColor: Colors.white,
+              items: _filteredProvinces.map((province) {
+                return DropdownMenuItem(
+                  value: province,
+                  child: Text(province.name),
+                );
+              }).toList(),
+              onChanged: (value) {
+                _onProvinceSelected(value);
+                // Tự động đóng form sau khi chọn
+                Future.delayed(Duration(milliseconds: 500), () {
+                  setState(() {
+                    _showProvinceSearch = false;
+                  });
                 });
-              });
-            },
+              },
+            ),
           ),
         ],
       ),
@@ -738,30 +836,37 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         ),
                       ),
                       // Hiển thị icon map style ở bên phải
-                      PopupMenuButton<String>(
-                        icon: Icon(Icons.layers, color: Colors.grey[600]),
-                        onSelected: (style) {
-                          setState(() {
-                            _selectedMapStyle = style;
-                          });
-                        },
-                        itemBuilder: (context) => _mapStyles.keys.map((style) {
-                          return PopupMenuItem<String>(
-                            value: style,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  _selectedMapStyle == style
-                                      ? Icons.radio_button_checked
-                                      : Icons.radio_button_unchecked,
-                                  color: Colors.orange,
-                                ),
-                                SizedBox(width: 8),
-                                Text(style[0].toUpperCase() + style.substring(1)),
-                              ],
-                            ),
-                          );
-                        }).toList(),
+                      Theme(
+                        data: Theme.of(context).copyWith(
+                          canvasColor: Colors.white,
+                          cardColor: Colors.white,
+                        ),
+                        child: PopupMenuButton<String>(
+                          icon: Icon(Icons.layers, color: Colors.grey[600]),
+                          color: Colors.white,
+                          onSelected: (style) {
+                            setState(() {
+                              _selectedMapStyle = style;
+                            });
+                          },
+                          itemBuilder: (context) => _mapStyles.keys.map((style) {
+                            return PopupMenuItem<String>(
+                              value: style,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _selectedMapStyle == style
+                                        ? Icons.radio_button_checked
+                                        : Icons.radio_button_unchecked,
+                                    color: Colors.orange,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(style[0].toUpperCase() + style.substring(1)),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
                       ),
                     ],
                   ),
@@ -803,55 +908,87 @@ class _ExploreScreenState extends State<ExploreScreen> {
               right: 16,
               child: LoadingIndicator(message: 'Đang lấy địa chỉ...'),
             ),
+
+          // Floating nearby locations widget
+          if (_showNearbyLocations && _nearbyLocations.isNotEmpty)
+            FloatingNearbyLocationsWidget(
+              locations: _nearbyLocations,
+              onLocationSelected: (nearbyLocation) {
+                final location = nearbyLocation.location;
+                // Move map to selected location
+                if (location.latitude != null && location.longitude != null) {
+                  _mapController.move(
+                    LatLng(location.latitude!, location.longitude!),
+                    16.0,
+                  );
+                  
+                  // Show location details dialog after a short delay
+                  Future.delayed(Duration(milliseconds: 300), () {
+                    _onTouristLocationMarkerTap(location);
+                  });
+                }
+              },
+              onClose: () {
+                setState(() {
+                  _showNearbyLocations = false;
+                  _nearbyLocations = [];
+                });
+              },
+            ),
         ],
       ),
 
-      // Floating action buttons
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          // Zoom in
-          FloatingActionButton(
-            mini: true,
-            onPressed: () {
-              _mapController.move(
-                _mapController.camera.center,
-                _mapController.camera.zoom + 1,
-              );
-            },
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
-            heroTag: "zoom_in",
-            child: Icon(Icons.add),
-          ),
+      // Floating action buttons - đặt ở đây để không bị che bởi widget khác
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(
+          bottom: _showNearbyLocations && _nearbyLocations.isNotEmpty ? 200 : 0,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            // Zoom in
+            FloatingActionButton(
+              mini: true,
+              onPressed: () {
+                _mapController.move(
+                  _mapController.camera.center,
+                  _mapController.camera.zoom + 1,
+                );
+              },
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              heroTag: "zoom_in",
+              child: Icon(Icons.add),
+            ),
 
-          SizedBox(height: 8),
+            SizedBox(height: 8),
 
-          // Zoom out
-          FloatingActionButton(
-            mini: true,
-            onPressed: () {
-              _mapController.move(
-                _mapController.camera.center,
-                _mapController.camera.zoom - 1,
-              );
-            },
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
-            heroTag: "zoom_out",
-            child: Icon(Icons.remove),
-          ),
+            // Zoom out
+            FloatingActionButton(
+              mini: true,
+              onPressed: () {
+                _mapController.move(
+                  _mapController.camera.center,
+                  _mapController.camera.zoom - 1,
+                );
+              },
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              heroTag: "zoom_out",
+              child: Icon(Icons.remove),
+            ),
 
-          SizedBox(height: 8),
+            SizedBox(height: 8),
 
-          // My location - chỉ yêu cầu GPS khi người dùng nhấn
-          FloatingActionButton(
-            onPressed: _getCurrentLocation,
-            backgroundColor: Colors.orange,
-            heroTag: "my_location",
-            child: Icon(Icons.my_location),
-          ),
-        ],
+            // My location - chỉ yêu cầu GPS khi người dùng nhấn
+            FloatingActionButton(
+              onPressed: _getCurrentLocation,
+              backgroundColor: Colors.orange,
+              heroTag: "my_location",
+              child: Icon(Icons.my_location),
+            ),
+          ],
+        ),
       ),
     );
   }

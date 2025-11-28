@@ -7,11 +7,14 @@ import '../../../services/user_service.dart';
 import '../../../services/booking_nightly_price_service.dart';
 import '../../../services/booking_discount_service.dart';
 import '../../../services/promotion_usage_service.dart';
+import '../../../services/bank_account_service.dart';
+import '../../../services/token_service.dart';
 import '../../../classes/user_model.dart';
 import '../../../classes/hotel_model.dart';
 import '../../../classes/booking_nightly_price_model.dart';
 import 'promotion_screen.dart';
 import '../payment/payment_screen.dart';
+import '../../profile/add_bank_account_screen.dart';
 
 class BookingDetailScreen extends StatefulWidget {
   final Hotel hotel; // Thêm dòng này
@@ -217,29 +220,27 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
             ],
           ),
           SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            value: _selectedPaymentMethod,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          // Chỉ còn thẻ tín dụng, không cho chọn nữa
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!),
             ),
-            items: [
-              DropdownMenuItem(
-                value: 'credit_card',
-                child: Text('Thẻ tín dụng'),
-              ),
-              DropdownMenuItem(
-                value: 'cash',
-                child: Text('Tiền mặt tại khách sạn'),
-              ),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _selectedPaymentMethod = value ?? 'credit_card';
-              });
-            },
+            child: Row(
+              children: [
+                Icon(Icons.credit_card, color: Colors.purple),
+                SizedBox(width: 8),
+                Text(
+                  'Thẻ tín dụng',
+                  style: TextStyle(fontSize: 16, color: Colors.black87),
+                ),
+                Spacer(),
+                Icon(Icons.check_circle, color: Colors.green, size: 20),
+              ],
+            ),
           ),
         ],
       ),
@@ -251,9 +252,9 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text('Xác nhận đặt phòng'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        title: Text('Xác nhận đặt phòng', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
         elevation: 1,
       ),
       body: Column(
@@ -1201,6 +1202,12 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       return;
     }
 
+    // Kiểm tra tài khoản ngân hàng mặc định
+    final hasDefaultAccount = await _checkDefaultBankAccount();
+    if (!hasDefaultAccount) {
+      return; // Dừng lại nếu chưa có tài khoản
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -1334,6 +1341,135 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  /// Kiểm tra tài khoản ngân hàng mặc định
+  Future<bool> _checkDefaultBankAccount() async {
+    try {
+      final token = await TokenService.getToken();
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Vui lòng đăng nhập lại'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return false;
+      }
+
+      final defaultAccount = await BankAccountService().getDefaultBankAccount(token);
+      
+      if (defaultAccount == null) {
+        // Chưa có tài khoản mặc định, hiển thị dialog
+        await _showBankAccountRequiredDialog();
+        return false;
+      }
+      
+      return true;
+    } catch (e) {
+      print('Error checking default bank account: $e');
+      await _showBankAccountRequiredDialog();
+      return false;
+    }
+  }
+
+  /// Hiển thị dialog yêu cầu thêm tài khoản ngân hàng
+  Future<void> _showBankAccountRequiredDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        icon: Icon(Icons.account_balance, color: Colors.orange, size: 64),
+        title: Text(
+          'Cần thêm thông tin thanh toán',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Để hoàn tất đặt phòng, bạn cần thêm thông tin tài khoản ngân hàng để thanh toán booking.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Tài khoản sẽ được đặt làm mặc định',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange[800],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Hủy',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Thêm tài khoản',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      // Mở màn hình thêm tài khoản ngân hàng
+      final addResult = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AddBankAccountScreen(autoSetDefault: true),
+        ),
+      );
+
+      if (addResult == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã thêm tài khoản thành công. Vui lòng thử đặt phòng lại.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     }
   }
 

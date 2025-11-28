@@ -89,6 +89,21 @@ class TouristLocationController {
             next(error);
         }
     }
+
+    /**
+     * Lấy 10 địa điểm du lịch gần nhất theo vị trí (lat, lng).
+     * GET /api/v1/tourist-locations/nearest?lat=...&lng=...
+     */
+    async getNearestLocations(req, res, next) {
+        try {
+            const lat = parseFloat(req.query.lat);
+            const lng = parseFloat(req.query.lng);
+            const locations = await TouristLocationService.getNearestLocations(lat, lng);
+            successResponse(res, locations);
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new TouristLocationController();

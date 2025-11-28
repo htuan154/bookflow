@@ -3,6 +3,8 @@ import 'edit_profile_screen.dart';
 import 'bank_accounts_screen.dart';
 import '../../classes/user_model.dart';
 import '../../services/user_service.dart';
+import '../login_form/login_form.dart';
+import '../../services/token_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -46,6 +48,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return Scaffold(
         backgroundColor: Colors.grey[50],
         appBar: AppBar(
+          title: Text(
+          'Hồ sơ cá nhân',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
@@ -57,14 +63,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
+        title: Text(
+          'Hồ sơ cá nhân',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
+        backgroundColor: Colors.orange,
+        elevation: 0,
+        automaticallyImplyLeading: false,
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(24.0),
@@ -75,49 +82,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
               margin: EdgeInsets.only(bottom: 32),
               child: Column(
                 children: [
-                  Stack(
-                    children: [
-                      Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: Color(0xFFFFD700), // Màu vàng như trong hình
-                          shape: BoxShape.circle,
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(60),
-                          child: Icon(
-                            Icons.person,
-                            size: 60,
-                            color: Colors.white,
-                          ),
-                        ),
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: Color(0xFFFFD700), // Màu vàng như trong hình
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      ((user?.fullName?.trim() ?? '').isNotEmpty)
+                          ? user!.fullName!.trim()[0].toUpperCase()
+                          : ((user?.username?.trim() ?? '').isNotEmpty)
+                              ? user!.username!.trim()[0].toUpperCase()
+                              : '?',
+                      style: TextStyle(
+                        fontSize: 56,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
                       ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 4,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.edit,
-                            size: 16,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   SizedBox(height: 16),
                   Text(
@@ -232,8 +216,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildActionRow(
                     icon: Icons.logout_outlined,
                     title: 'Đăng xuất',
-                    onTap: () {
-                      print('Logout tapped');
+                    onTap: () async {
+                      // Xóa toàn bộ token và user, chuyển về LoginScreen
+                      await TokenService.clearAll();
+                      await Future.delayed(Duration(milliseconds: 100));
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (context) => LoginScreen()),
+                        (route) => false,
+                      );
                     },
                     isLast: true,
                     textColor: Colors.red[600],

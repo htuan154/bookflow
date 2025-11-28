@@ -51,6 +51,7 @@ class _ReviewDetailScreenState extends State<ReviewDetailScreen> {
   Widget build(BuildContext context) {
     final review = widget.review;
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('Chi tiết đánh giá'),
         backgroundColor: Colors.orange,

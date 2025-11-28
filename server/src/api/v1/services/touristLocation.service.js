@@ -5,6 +5,19 @@ const { AppError } = require('../../../utils/errors');
 
 class TouristLocationService {
     /**
+     * Lấy 10 địa điểm du lịch gần nhất theo vị trí (lat, lng).
+     * @param {number} lat - Vĩ độ.
+     * @param {number} lng - Kinh độ.
+     * @returns {Promise<TouristLocationNearest[]>}
+     */
+    async getNearestLocations(lat, lng) {
+        if (typeof lat !== 'number' || typeof lng !== 'number') {
+            throw new AppError('lat and lng are required and must be numbers', 400);
+        }
+        return await touristLocationRepository.findNearest(lat, lng);
+    }
+
+    /**
      * Tạo một địa điểm du lịch mới (chỉ Admin).
      * @param {object} locationData - Dữ liệu của địa điểm.
      * @param {string} adminId - ID của Admin tạo địa điểm.

@@ -16,6 +16,53 @@ class ReportsRepository {
    * Lấy tổng hợp doanh thu theo ngày x khách sạn (daily_summary)
    */
   async getAdminDailyRevenue({ dateFrom, dateTo, hotelIds = null }) {
+    // ⭐ Query trực tiếp từ view admin_daily_revenue_by_hotel (đã tính đúng)
+    let sql = `
+      SELECT 
+        TO_CHAR(biz_date_vn, 'YYYY-MM-DD') as biz_date_vn, 
+        hotel_id, 
+        hotel_name, 
+        hotel_city,
+        bookings_count,
+        final_sum,
+        pg_fee_sum, 
+        admin_fee_sum, 
+        hotel_net_sum,
+        EXISTS (
+          SELECT 1 FROM payouts po
+          WHERE po.hotel_id = admin_daily_revenue_by_hotel.hotel_id 
+            AND po.cover_date = admin_daily_revenue_by_hotel.biz_date_vn
+        ) AS exists_in_payouts
+      FROM admin_daily_revenue_by_hotel
+      WHERE biz_date_vn BETWEEN $1::date AND $2::date
+    `;
+    
+    const params = [dateFrom, dateTo];
+
+    if (hotelIds && hotelIds.length > 0) {
+      sql += ` AND hotel_id = ANY($3::uuid[])`;
+      params.push(hotelIds);
+    }
+
+    sql += ` ORDER BY biz_date_vn DESC, hotel_name`;
+
+    try {
+      const { rows } = await pool.query(sql, params);
+      console.log('✅ getAdminDailyRevenue returned rows:', rows.length);
+      if (rows.length > 0) {
+        console.log('🔍 First row sample:', JSON.stringify(rows[0], null, 2));
+      }
+      return rows.map(row => new AdminDailyRevenueByHotelItem(row));
+    } catch (err) {
+      console.error('❌ Error in getAdminDailyRevenue:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * OLD CODE - Kept for reference if view is fixed later
+   */
+  async _getAdminDailyRevenueFromView_DEPRECATED({ dateFrom, dateTo, hotelIds = null }) {
     let sql = `
       SELECT TO_CHAR(biz_date_vn, 'YYYY-MM-DD') as biz_date_vn, 
              hotel_id, hotel_name, hotel_city,

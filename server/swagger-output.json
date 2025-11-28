@@ -2396,6 +2396,32 @@
         }
       }
     },
+    "/api/v1/tourist-locations/nearest": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/tourist-locations/city/{city}": {
       "get": {
         "description": "",
@@ -3964,6 +3990,26 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/blogs/blogs/{blogId}/comments-approved": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "blogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
           }
         }
       }
@@ -5870,6 +5916,26 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/blogs/{blogId}/comments-approved": {
+      "get": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "blogId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": ""
           }
         }
       }

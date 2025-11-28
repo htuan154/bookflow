@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:async'; // Import này để sử dụng Timer
+import 'dart:async';
+import 'dart:ui';
+import 'package:video_player/video_player.dart';
 import 'connect.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -9,45 +11,38 @@ class WelcomeScreen extends StatefulWidget {
   State<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen>
-    with TickerProviderStateMixin {
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+class _WelcomeScreenState extends State<WelcomeScreen> with SingleTickerProviderStateMixin {
+  late VideoPlayerController _videoController;
+  late AnimationController _logoAnimController;
+  late Animation<Offset> _logoSlideAnimation;
 
   @override
   void initState() {
     super.initState();
-
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+    _videoController = VideoPlayerController.asset('assets/video/loginform.mp4')
+      ..initialize().then((_) {
+        setState(() {});
+        _videoController.play();
+        _videoController.setLooping(true);
+      });
+    _logoAnimController = AnimationController(
       vsync: this,
+      duration: const Duration(milliseconds: 900),
     );
-
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
-
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.5), end: Offset.zero).animate(
-          CurvedAnimation(parent: _slideController, curve: Curves.easeOutBack),
-        );
-
-    // Start animations
-    _slideController.forward();
-    _fadeController.forward();
-
-    // Tự động chuyển sang ConnectScreen sau 2 giây
-    Timer(const Duration(seconds: 4), () {
+    _logoSlideAnimation = Tween<Offset>(
+      begin: const Offset(0, 1.2), // Start below the screen
+      end: const Offset(0, 0),     // End at target position
+    ).animate(CurvedAnimation(
+      parent: _logoAnimController,
+      curve: Curves.easeOutBack,
+    ));
+    // Start the logo animation after a short delay for effect
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) _logoAnimController.forward();
+    });
+    // Auto-navigate after 4.5 seconds
+    Timer(const Duration(milliseconds: 4500), () {
       if (mounted) {
-        // Kiểm tra widget còn tồn tại
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const ConnectScreen()),
@@ -58,78 +53,49 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
   @override
   void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
+    _videoController.dispose();
+    _logoAnimController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFFF5722), Color(0xFFFF5722)],
-          ),
-        ),
-        child: SlideTransition(
-          position: _slideAnimation,
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Video background
+          if (_videoController.value.isInitialized)
+            SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _videoController.value.size.width,
+                  height: _videoController.value.size.height,
+                  child: VideoPlayer(_videoController),
+                ),
+              ),
+            ),
+          // Logo at 1/3 from top, animating up from below
+          SafeArea(
+            child: Stack(
               children: [
-                const SizedBox(height: 20),
-
-                // Hình ảnh logo
-                Image.asset(
-                  'assets/welcome/welcome-image.png',
-                  width: 160,
-                  height: 160,
-                  filterQuality: FilterQuality.high,
-                ),
-
-                const SizedBox(height: 20),
-
-                // Tên ứng dụng
-                const Text(
-                  'BookFlow',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 48,
-                    fontWeight: FontWeight.w300,
-                    letterSpacing: 2.0,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black26,
-                        offset: Offset(0, 2),
-                        blurRadius: 10,
-                      ),
-                    ],
+                Center(
+                  child: SlideTransition(
+                    position: _logoSlideAnimation,
+                    child: Image.asset(
+                      'assets/welcome/logo.png',
+                      width: 360,
+                      height: 360,
+                      filterQuality: FilterQuality.high,
+                    ),
                   ),
                 ),
-
-                const SizedBox(height: 15),
-
-                // Phụ đề
-                Text(
-                  'Tiện từng bước, nhanh từng giây',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w300,
-                  ),
-                ),
-
-                const SizedBox(height: 50),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }

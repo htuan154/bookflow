@@ -75,6 +75,16 @@ class BlogCommentService {
     }
 
     /**
+     * Lấy các bình luận đã duyệt (approved) của một bài blog.
+     * @param {string} blogId - ID của bài blog.
+     * @returns {Promise<any[]>}
+     */
+    async getApprovedCommentsByBlog(blogId) {
+        const comments = await blogCommentRepository.findApprovedByBlogId(blogId);
+        return comments;
+    }
+
+    /**
      * Xóa một bình luận.
      * @param {string} commentId - ID của bình luận.
      * @param {object} currentUser - Thông tin người dùng hiện tại.

@@ -13,54 +13,98 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
+
 class _HomeScreenState extends State<HomeScreen> {
   List<BlogCustom> blogs = [];
   bool isLoadingBlogs = true;
   bool isLoadingProvince = true;
   String error = '';
 
-  // Computed property để check cả hai đã load xong chưa
+  int currentPage = 1;
+  final int pageSize = 10;
+  bool hasMore = true;
+  bool loadingMore = false;
+  late ScrollController _scrollController;
+
   bool get isLoading => isLoadingBlogs || isLoadingProvince;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     fetchAll();
   }
 
-  // Hàm load cả hai API cùng lúc
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 && hasMore && !loadingMore && !isLoadingBlogs) {
+      fetchMoreBlogs();
+    }
+  }
+
   Future<void> fetchAll() async {
     print('DEBUG HomeScreen: fetchAll() called');
     setState(() {
       isLoadingBlogs = true;
       isLoadingProvince = true;
       error = '';
+      blogs = [];
+      currentPage = 1;
+      hasMore = true;
     });
-
-    // Chỉ gọi fetchBlogs, province sẽ load qua ProvinceWardForm
-    await fetchBlogs();
-    setState(() {}); // Cập nhật UI sau khi blog load xong
+    await fetchBlogs(reset: true);
+    setState(() {});
   }
 
-  Future<void> fetchBlogs() async {
-    final result = await BlogService().getPublishedBlogs();
+  Future<void> fetchBlogs({bool reset = false}) async {
+    if (reset) {
+      blogs = [];
+      currentPage = 1;
+      hasMore = true;
+    }
+    final result = await BlogService().getPublishedBlogs(page: currentPage, limit: pageSize);
     print('DEBUG HomeScreen: Blog API result: ${result['success']}');
 
     if (result['success'] == true) {
-      blogs = List<BlogCustom>.from(result['data']);
+      List<BlogCustom> newBlogs = List<BlogCustom>.from(result['data']);
+      if (reset) {
+        blogs = newBlogs;
+      } else {
+        blogs.addAll(newBlogs);
+      }
+      // Kiểm tra còn dữ liệu không
+      if (newBlogs.length < pageSize) {
+        hasMore = false;
+      } else {
+        hasMore = true;
+      }
     } else {
       print('DEBUG HomeScreen: Blog Error: ${result['message']}');
       error = result['message'] ?? 'Lỗi khi lấy blog';
+      hasMore = false;
     }
     isLoadingBlogs = false;
+    loadingMore = false;
+    setState(() {});
+  }
+
+  Future<void> fetchMoreBlogs() async {
+    if (!hasMore || loadingMore) return;
+    loadingMore = true;
+    currentPage++;
+    await fetchBlogs();
   }
 
   Future<void> fetchProvince() async {
-    // Bỏ hàm này hoặc để trống
     print('DEBUG HomeScreen: Province will load via ProvinceWardForm callback');
   }
 
-  // Callback từ ProvinceWardForm khi province load xong
   void onProvinceLoaded() {
     setState(() {
       isLoadingProvince = false;
@@ -73,83 +117,88 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Chọn Tỉnh/Phường'),
-        backgroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.black),
-        titleTextStyle: const TextStyle(color: Colors.black, fontSize: 18),
+        title: Text(
+          'Trang chủ',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.orange,
+        iconTheme: const IconThemeData(color: Colors.white),
+        //titleTextStyle: const TextStyle(color: Colors.black, fontSize: 18),
         elevation: 0,
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          // Khi refresh chỉ load lại blog
-          await fetchBlogs();
-          setState(() {});
+          await fetchAll();
         },
-        child: SingleChildScrollView(
+        child: ListView(
+          controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Luôn hiển thị ProvinceWardForm để callback hoạt động
-              ProvinceWardForm(onLoadCompleted: onProvinceLoaded),
-              const SizedBox(height: 24),
-
-              // Hiển thị loading hoặc nội dung blog
-              if (isLoading)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(50.0),
-                    child: CircularProgressIndicator(),
-                  ),
-                )
-              else if (error.isNotEmpty)
-                Center(
-                  child: Text(error, style: const TextStyle(color: Colors.red)),
-                )
-              else ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Blogs',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('See all blogs clicked!'),
-                          ),
-                        );
-                      },
-                      child: const Text(
-                        'See all',
-                        style: TextStyle(
-                          color: Colors.orange,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
+          children: [
+            ProvinceWardForm(onLoadCompleted: onProvinceLoaded),
+            const SizedBox(height: 24),
+            if (isLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(50.0),
+                  child: CircularProgressIndicator(),
                 ),
-                const SizedBox(height: 16),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: blogs.length,
-                  itemBuilder: (context, index) {
+              )
+            else if (error.isNotEmpty)
+              Center(
+                child: Text(error, style: TextStyle(color: Colors.red)),
+              )
+            else ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Blogs',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  // GestureDetector(
+                  //   onTap: () {
+                  //     ScaffoldMessenger.of(context).showSnackBar(
+                  //       const SnackBar(
+                  //         content: Text('See all blogs clicked!'),
+                  //       ),
+                  //     );
+                  //   },
+                  //   child: const Text(
+                  //     'See all',
+                  //     style: TextStyle(
+                  //       color: Colors.orange,
+                  //       fontSize: 16,
+                  //       fontWeight: FontWeight.w500,
+                  //     ),
+                  //   ),
+                  // ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: blogs.length + (hasMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index < blogs.length) {
                     final blog = blogs[index];
                     return BlogCard(blog: blog);
-                  },
-                ),
-              ],
+                  } else {
+                    // Hiển thị loading ở cuối khi còn dữ liệu
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                },
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );

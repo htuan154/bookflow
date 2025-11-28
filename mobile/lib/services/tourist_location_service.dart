@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../classes/tourist_location_model.dart';
+import '../classes/nearby_tourist_location.dart';
 import 'api_config.dart';
 import 'token_service.dart';
 
@@ -53,6 +54,44 @@ class TouristLocationService {
         };
       }
     } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+
+  /// Lấy 10 địa điểm du lịch gần nhất theo vị trí (lat, lng)
+  /// GET /api/v1/tourist-locations/nearest?lat=...&lng=...
+  Future<Map<String, dynamic>> getNearestLocations(double lat, double lng) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/tourist-locations/nearest?lat=$lat&lng=$lng');
+      print('🔗 Request URL: $url');
+      
+      final response = await http.get(url, headers: _headers);
+      print('📡 Response status: ${response.statusCode}');
+      
+      final responseData = jsonDecode(response.body);
+      
+      if (response.statusCode == 200 && responseData['status'] == 'success') {
+        List<NearbyTouristLocation> locations = [];
+        if (responseData['data'] != null && responseData['data'] is List) {
+          locations = (responseData['data'] as List)
+              .map((json) => NearbyTouristLocation.fromJson(json))
+              .toList();
+        }
+        print('✅ Parsed ${locations.length} nearby locations');
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Lấy địa điểm gần nhất thành công',
+          'data': locations,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Lỗi khi lấy địa điểm gần nhất',
+        };
+      }
+    } catch (e, stackTrace) {
+      print('❌ Error in getNearestLocations: $e');
+      print('Stack: $stackTrace');
       return {'success': false, 'message': 'Lỗi kết nối: $e'};
     }
   }

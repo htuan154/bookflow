@@ -44,4 +44,8 @@ router.patch(
     blogCommentController.updateCommentStatus
 );
 
+// GET /api/v1/blogs/:blogId/comments-approved -> Lấy bình luận đã duyệt
+router.get('/blogs/:blogId/comments-approved', blogCommentController.getApprovedCommentsByBlog);
+
+
 module.exports = router;

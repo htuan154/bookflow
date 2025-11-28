@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
+
+import React, { useEffect, useState, useRef, useContext } from 'react';
 import { 
     Hotel, MessageCircle, Users, Send, X, 
-    Calendar, Clock, DollarSign, User, PlusCircle
+    Calendar, User, PlusCircle
 } from 'lucide-react';
 import { useHotelOwner } from '../../../hooks/useHotelOwner';
 import { useChat } from '../../../hooks/useChat';
-import { useContext } from 'react';
 import { AuthContext } from '../../../context/AuthContext';
 import { staffApiService } from '../../../api/staff.service';
 import { hotelApiService } from '../../../api/hotel.service';
@@ -16,6 +16,8 @@ import { useBooking } from '../../../hooks/useBooking';
 import { useBookingDetail } from '../../../hooks/useBookingDetail';
 import Toast from '../../../components/common/Toast';
 import { useToast } from '../../../hooks/useToast';
+import { bookingService } from '../../../api/booking.service';
+
 
 const CustomerSupportPage = () => {
     const { toast, showSuccess, showError, hideToast } = useToast();
@@ -47,19 +49,21 @@ const CustomerSupportPage = () => {
     const { createBookingForCustomer } = useBooking();
     // Lấy hook booking detail để dùng createBookingDetailForCustomer
     const { createBookingDetailForCustomer } = useBookingDetail();
-        const [newMessage, setNewMessage] = useState('');
-        const messagesEndRef = useRef(null);
-        const messagesContainerRef = useRef(null);
-        const [visibleCount, setVisibleCount] = useState(10);
-        const prevMessagesLengthRef = useRef(0);
-        const {
-            messages,
-            loading: loadingMessages,
-            error: chatError,
-            fetchMessages,
-            sendMessage: sendChatMessage,
-            setMessages,
-        } = useChat();
+    const [newMessage, setNewMessage] = useState('');
+    const messagesEndRef = useRef(null);
+    const messagesContainerRef = useRef(null);
+    const [visibleCount, setVisibleCount] = useState(10);
+    const prevMessagesLengthRef = useRef(0);
+    const {
+        messages,
+        loading: loadingMessages,
+        error: chatError,
+        fetchMessages,
+        sendMessage: sendChatMessage,
+        setMessages,
+    } = useChat();
+    const [userNoShowBookings, setUserNoShowBookings] = useState([]);
+    const [noShowCheckLoading, setNoShowCheckLoading] = useState(false);
 
     // Load danh sách khách sạn của owner hoặc load staff info cho hotel_staff
     useEffect(() => {
@@ -161,7 +165,18 @@ const CustomerSupportPage = () => {
         setSelectedBooking(booking);
         setChatOpen(true);
         setShowBookingForm(false);
+        setUserNoShowBookings([]);
+        setNoShowCheckLoading(true);
         await fetchMessages(booking.bookingId);
+        try {
+            const res = await bookingService.getUserNoShowBookings(booking.userId);
+            // Fix: API trả về {status, message, data: [...]}, phải lấy res.data
+            setUserNoShowBookings(res && Array.isArray(res.data) ? res.data : []);
+        } catch (err) {
+            setUserNoShowBookings([]);
+        } finally {
+            setNoShowCheckLoading(false);
+        }
     };
 
     const closeChat = () => {
@@ -1049,12 +1064,23 @@ const CustomerSupportPage = () => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button
-                                    className="flex items-center px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                                    onClick={handleOpenBookingForm}
-                                >
-                                    <PlusCircle size={18} className="mr-1" /> Đặt phòng
-                                </button>
+                                {selectedBooking?.bookingStatus === 'completed' && userNoShowBookings.length === 0 && !noShowCheckLoading && (
+                                    <button
+                                        className="flex items-center px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                                        onClick={handleOpenBookingForm}
+                                    >
+                                        <PlusCircle size={18} className="mr-1" /> Đặt phòng
+                                    </button>
+                                )}
+                                {selectedBooking?.bookingStatus === 'completed' && userNoShowBookings.length > 0 && !noShowCheckLoading && (
+                                    <span className="text-xs text-red-600 font-semibold px-2 py-1 bg-red-50 rounded block text-left">
+                                        Không thể đặt phòng: Tài khoản của khách hàng đang bị hạn chế đặt phòng.<br/>
+                                        Lý do: Lịch sử không đến ({userNoShowBookings.length} lần)
+                                    </span>
+                                )}
+                                {noShowCheckLoading && (
+                                    <span className="text-xs text-gray-400 px-2 py-1">Đang kiểm tra no-show...</span>
+                                )}
                                 <button 
                                     onClick={closeChat}
                                     className="text-gray-500 hover:bg-gray-100 p-2 rounded-full transition-colors"

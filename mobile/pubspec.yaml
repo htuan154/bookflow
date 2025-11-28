@@ -17,6 +17,8 @@ dependencies:
   geocoding: ^3.0.0
   shared_preferences: ^2.2.2
   qr_flutter: ^4.1.0
+  video_player: ^2.8.1
+  chewie: ^1.7.4
 
 dev_dependencies:
   flutter_test:
@@ -29,6 +31,7 @@ flutter:
   assets:
     - assets/welcome/welcome-image.png
     - assets/welcome/welcome-image-1.png
+    - assets/welcome/logo.png
     - assets/login_form/google.png
     - assets/banking/ACBank_logo.svg.png
     - assets/banking/Agribank_logo.png
@@ -48,3 +51,4 @@ flutter:
     - assets/banking/ViettinBank_logo.png
     - assets/banking/VPB_logo.jpg
     - assets/banking/WooriBankVietnam_logo.jpg
+    - assets/video/loginform.mp4
