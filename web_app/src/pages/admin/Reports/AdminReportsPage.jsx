@@ -4,6 +4,7 @@ import { AdminReportsProvider } from '../../../context/AdminReportsContext';
 import { HotelProvider } from '../../../context/HotelContext';
 import useAdminReports from '../../../hooks/useAdminReports';
 import { useHotel } from '../../../hooks/useHotel';
+import { exportAdminReportPDF } from '../../../utils/pdfExport';
 
 function FilterBar() {
   const { filters, setFilters, fetchSummary, fetchPayments, fetchPayouts } = useAdminReports(false);
@@ -563,8 +564,16 @@ function SummaryTable() {
             <h3 className="text-lg font-semibold text-gray-800">📊 Báo cáo tổng hợp theo ngày và khách sạn</h3>
             <p className="text-sm text-gray-600 mt-1">Chi tiết doanh thu và thanh toán từng khách sạn theo ngày</p>
           </div>
-          <div className="text-sm text-gray-500">
-            Tổng: <span className="font-medium text-gray-700">{totalItems}</span> bản ghi
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => exportAdminReportPDF({ filters, summary, rows: currentRows })}
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-rose-500 to-pink-500 text-white text-sm shadow hover:shadow-md"
+            >
+              ⬇️ Xuất PDF
+            </button>
+            <div className="text-sm text-gray-500">
+              Tổng: <span className="font-medium text-gray-700">{totalItems}</span> bản ghi
+            </div>
           </div>
         </div>
       </div>

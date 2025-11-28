@@ -7,6 +7,8 @@ import useAuth from '../../../hooks/useAuth';
 import { USER_ROLES } from '../../../config/roles';
 import { staffApiService } from '../../../api/staff.service';
 import { hotelApiService } from '../../../api/hotel.service';
+import ReportsOwnerService from '../../../api/reports.owner.service';
+import { exportOwnerReportPDF } from '../../../utils/pdfExport';
 
 function OwnerFilterBar() {
   const { filters, setFilters, setSelectedHotel,fetchPayments, fetchPayouts } = useOwnerReports(false);
@@ -203,26 +205,42 @@ function OwnerFilterBar() {
 }
 
 function OwnerKPICards() {
-  const { payments, loadingPayments } = useOwnerReports(false);
-  const totals = useMemo(() => {
+  const { payments, payouts, loadingPayments, loadingPayouts } = useOwnerReports(false);
+
+  const unpaidTotals = useMemo(() => {
     const rows = payments?.rows || [];
     let gross=0, pg=0, admin=0, net=0, count=0;
     for (const r of rows) {
-      gross += Number(r.finalAmount || 0);  // Backend model sử dụng finalAmount
-      pg    += Number(r.pgFeeAmount || 0);  // Backend model sử dụng pgFeeAmount
-      admin += Number(r.adminFeeAmount || 0);  // Backend model sử dụng adminFeeAmount
-      net   += Number(r.hotelNetAmount || 0);  // Backend model sử dụng hotelNetAmount
+      gross += Number(r.finalAmount || 0);
+      pg    += Number(r.pgFeeAmount || 0);
+      admin += Number(r.adminFeeAmount || 0);
+      net   += Number(r.hotelNetAmount || 0);
       count += 1;
     }
     return { gross, pg, admin, net, count };
   }, [payments]);
 
-  const kpiData = [
-    { label: '💰 Tổng doanh thu', value: totals.gross, color: 'from-green-500 to-emerald-600', icon: '💰' },
-    { label: '🏦 Phí thanh toán', value: totals.pg, color: 'from-blue-500 to-cyan-600', icon: '🏦' },
-    { label: '⚙️ Phí quản lý', value: totals.admin, color: 'from-purple-500 to-violet-600', icon: '⚙️' },
-    { label: '🏨 Thu nhập thực tế', value: totals.net, color: 'from-orange-500 to-red-600', icon: '🏨' },
-    { label: '📋 Số giao dịch', value: totals.count, color: 'from-indigo-500 to-blue-600', icon: '📋' }
+  const paidTotals = useMemo(() => {
+    const rows = (payouts?.rows || []).filter(p => (p.status || '').toLowerCase() === 'processed');
+    let amount = 0, count = 0;
+    for (const p of rows) {
+      amount += Number(p.total_net_amount || p.totalNetAmount || 0);
+      count += 1;
+    }
+    return { amount, count };
+  }, [payouts]);
+
+  const kpiDataUnpaid = [
+    { label: '💰 Doanh thu chưa thanh toán', value: unpaidTotals.gross, color: 'from-green-500 to-emerald-600', icon: '💰' },
+    { label: '🏦 Phí thanh toán', value: unpaidTotals.pg, color: 'from-blue-500 to-cyan-600', icon: '🏦' },
+    { label: '⚙️ Phí quản lý', value: unpaidTotals.admin, color: 'from-purple-500 to-violet-600', icon: '⚙️' },
+    { label: '🏨 Thu nhập thực tế (chưa nhận)', value: unpaidTotals.net, color: 'from-orange-500 to-red-600', icon: '🏨' },
+    { label: '📋 Giao dịch chưa thanh toán', value: unpaidTotals.count, color: 'from-indigo-500 to-blue-600', icon: '📋' }
+  ];
+
+  const kpiDataPaid = [
+    { label: '✅ Đã thanh toán (payout)', value: paidTotals.amount, color: 'from-green-600 to-teal-700', icon: '✅' },
+    { label: '🧾 Số lượt payout', value: paidTotals.count, color: 'from-sky-600 to-indigo-700', icon: '🧾' }
   ];
 
   const Card = ({ label, value, color, icon }) => (
@@ -237,7 +255,7 @@ function OwnerKPICards() {
     </div>
   );
 
-  if (loadingPayments) {
+  if (loadingPayments || loadingPayouts) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         {[...Array(5)].map((_, index) => (
@@ -248,11 +266,21 @@ function OwnerKPICards() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-      {kpiData.map((item, index) => (
-        <Card key={index} {...item} />
-      ))}
-    </div>
+    <>
+      <div className="mb-3 text-sm text-gray-700 font-medium">📊 Chưa thanh toán</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        {kpiDataUnpaid.map((item, index) => (
+          <Card key={`unpaid-${index}`} {...item} />
+        ))}
+      </div>
+
+      <div className="mb-3 text-sm text-gray-700 font-medium">💳 Đã thanh toán</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        {kpiDataPaid.map((item, index) => (
+          <Card key={`paid-${index}`} {...item} />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -698,7 +726,43 @@ function OwnerPayoutsTable() {
 }
 
 function OwnerReportsInner() {
-  const { error } = useOwnerReports(true); // auto fetch payments & payouts lần đầu
+  const { error, filters, payments, payouts } = useOwnerReports(true); // auto fetch payments & payouts lần đầu
+  const { user } = useAuth();
+  const isStaff = user?.roleId === USER_ROLES.HOTEL_STAFF;
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async (scope) => {
+    try {
+      setExporting(true);
+      // scope: 'selected' | 'all'
+      if (scope === 'all' && !isStaff) {
+        // Fetch ALL without changing UI filters
+        const [pms, pts] = await Promise.all([
+          ReportsOwnerService.getPayments({ ...filters, hotel_id: 'ALL' }),
+          ReportsOwnerService.getPayouts({ ...filters, hotel_id: 'ALL' })
+        ]);
+        exportOwnerReportPDF({
+          filters,
+          payments: pms?.data || pms?.rows || pms || [],
+          payouts: pts?.data || pts?.rows || pts || [],
+          scopeLabel: 'Tất cả khách sạn của tôi'
+        });
+      } else {
+        // Use current data in context
+        exportOwnerReportPDF({
+          filters,
+          payments: payments?.rows || [],
+          payouts: payouts?.rows || [],
+          scopeLabel: isStaff ? 'Khách sạn của nhân viên' : (filters.hotel_id === 'ALL' ? 'Tất cả khách sạn của tôi' : 'Khách sạn đang chọn')
+        });
+      }
+    } catch (e) {
+      console.error('Export PDF failed:', e);
+      alert('Xuất PDF thất bại: ' + (e?.message || 'Unknown error'));
+    } finally {
+      setExporting(false);
+    }
+  };
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50 to-emerald-100">
@@ -714,6 +778,36 @@ function OwnerReportsInner() {
               <p className="text-gray-600">Theo dõi thu nhập và thanh toán của các khách sạn bạn sở hữu</p>
             </div>
           </div>
+        </div>
+
+        {/* Export actions */}
+        <div className="mb-4 flex gap-2">
+          {isStaff || filters?.hotel_id === 'ALL' ? (
+            <button
+              onClick={() => handleExport('selected')}
+              disabled={exporting}
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm shadow hover:shadow-md disabled:opacity-50"
+            >
+              ⬇️ Xuất PDF
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => handleExport('selected')}
+                disabled={exporting}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm shadow hover:shadow-md disabled:opacity-50"
+              >
+                ⬇️ Xuất PDF (KS đang chọn)
+              </button>
+              <button
+                onClick={() => handleExport('all')}
+                disabled={exporting}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-sky-600 to-indigo-600 text-white text-sm shadow hover:shadow-md disabled:opacity-50"
+              >
+                ⬇️ Xuất PDF (Tất cả KS)
+              </button>
+            </>
+          )}
         </div>
 
         {/* Global error banner for owner reports (e.g., authentication/network) */}

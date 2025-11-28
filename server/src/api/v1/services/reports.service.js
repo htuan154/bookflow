@@ -105,7 +105,7 @@ class ReportsService {
     // const isOwner = await this._validateHotelOwnership(userId, hotelId);
     // if (!isOwner) throw new Error('Access denied: Not hotel owner');
     
-    const hotelIds = hotelId ? [hotelId] : null;
+    const hotelIds = hotelId && hotelId !== 'ALL' ? [hotelId] : null;
     
     const payments = await reportsRepository.getHotelOwnerPayments({
       hotelIds,
@@ -133,7 +133,7 @@ class ReportsService {
   async getOwnerPayoutsReport({ userId, hotelId, dateFrom, dateTo }) {
     // TODO: Implement ownership validation
     
-    const hotelIds = hotelId ? [hotelId] : null;
+    const hotelIds = hotelId && hotelId !== 'ALL' ? [hotelId] : null;
     
     const payouts = await reportsRepository.getHotelOwnerPayouts({
       hotelIds,
@@ -642,7 +642,8 @@ class ReportsService {
             hotel_id: revenue.hotelId,
             cover_date: revenue.bizDateVn,
             total_net_amount: revenue.hotelNetSum,
-            status: 'scheduled',
+            // Đã gôm và chuyển ngay trong daily job → đánh dấu processed
+            status: 'processed',
             note: `Auto-generated payout for ${revenue.bizDateVn}`
           });
           

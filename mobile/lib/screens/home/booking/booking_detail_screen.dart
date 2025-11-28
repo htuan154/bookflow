@@ -1306,8 +1306,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               // Thanh toán chưa hoàn thành hoặc bị hủy
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Đặt phòng thành công. Vui lòng hoàn tất thanh toán.'),
-                  backgroundColor: Colors.orange,
+                  content: Text('Đặt phòng thành công!'),
+                  backgroundColor: Colors.green,
                 ),
               );
             }

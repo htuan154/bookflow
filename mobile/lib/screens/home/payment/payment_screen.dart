@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../services/vietqr_service.dart';
 import '../../../services/booking_service.dart';
-import '../home_screen.dart';
+import '../../../models/navbar.dart';
 
 class PaymentScreen extends StatefulWidget {
   final String bookingId;
@@ -226,11 +226,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
           );
           
-          // Delay 2 giây rồi về trang home
+          // Delay 2 giây rồi về trang home (NavBar)
           Future.delayed(Duration(seconds: 2), () {
             if (mounted) {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => HomeScreen()),
+                MaterialPageRoute(builder: (context) => NavBar()),
                 (route) => false,
               );
             }
@@ -291,7 +291,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         Future.delayed(Duration(seconds: 2), () {
           if (mounted) {
             Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => HomeScreen()),
+              MaterialPageRoute(builder: (context) => NavBar()),
               (route) => false,
             );
           }
