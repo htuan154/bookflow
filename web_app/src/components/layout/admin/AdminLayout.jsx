@@ -33,7 +33,7 @@ const AdminLayout = () => {
             subItems: [
                 { name: 'Danh sách KM', path: '/admin/promotions' },
                 { name: 'Tạo KM mới', path: '/admin/promotions/create' },
-                { name: 'Phân tích KM', path: '/admin/promotions/analytics' }
+                // { name: 'Phân tích KM', path: '/admin/promotions/analytics' }
             ]
         },
         

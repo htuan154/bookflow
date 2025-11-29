@@ -1286,7 +1286,7 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
 
           // 6. Nếu chọn phương thức thanh toán thẻ tín dụng, mở màn hình thanh toán
           if (_selectedPaymentMethod == 'credit_card') {
-            final paymentResult = await Navigator.push(
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => PaymentScreen(
@@ -1298,19 +1298,8 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                 ),
               ),
             );
-
-            if (paymentResult == true) {
-              // Thanh toán thành công
-              _showSuccessDialog(bookingId);
-            } else {
-              // Thanh toán chưa hoàn thành hoặc bị hủy
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Đặt phòng thành công!'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            }
+            // Thanh toán sẽ tự động navigate về NavBar khi thành công
+            // hoặc pop về đây khi hủy
           } else {
             // Các phương thức khác: hiển thị dialog thành công ngay
             _showSuccessDialog(bookingId);
