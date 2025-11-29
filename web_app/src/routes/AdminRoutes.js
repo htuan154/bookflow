@@ -43,7 +43,7 @@ import { ContractProvider } from '../context/ContractContext';
 import { PromotionsProvider } from '../context/PromotionsContext';
 import { BlogProvider } from '../context/BlogContext';
 import { CustomerProvider }  from '../context/CustomerContext';
-import { BlogCommentProvider } from '../context/BlogCommentContext'; // Thêm dòng này
+import { BlogCommentProvider } from '../context/BlogCommentContext';
 import AdminMessagesPage from '../pages/admin/messages';
 import { IMProvider } from '../context/IMContext';
 import { TouristLocationProvider } from '../context/TouristLocationContext';
@@ -62,6 +62,7 @@ import AdminReportsPage from '../pages/admin/Reports/AdminReportsPage';
 import AdminBankAccountsPage from '../pages/admin/BankAccounts/AdminBankAccountsPage';
 import SeasonManagementPage from '../pages/admin/Season/SeasonManagementPage';
 import ProfilePage from '../pages/shared/ProfilePage';
+import AdminDataSyncPage from '../pages/admin/ChatBotAi/AdminDataSyncPage';
 
 const AdminRoutes = () => {
     const { isAuthenticated, user } = useAuth();
@@ -94,7 +95,7 @@ const AdminRoutes = () => {
                 <Route path="seasons" element={<SeasonManagementPage />} />
                 <Route path="profile" element={<ProfilePage />} />
                 
-                {/* Customer Management - BỔ SUNG */}
+                {/* Customer Management */}
                 <Route
                     path="customers"
                     element={
@@ -201,6 +202,7 @@ const AdminRoutes = () => {
                     <Route path="view/:id" element={<PromotionView />} />
                     <Route path="analytics" element={<PromotionAnalytics />} />
                 </Route>
+
                 <Route
                     path="messages"
                     element={
@@ -209,7 +211,7 @@ const AdminRoutes = () => {
                         </IMProvider>
                     }
                 />
-
+                
                 {/* Comment Management */}
                 <Route
                     path="comments"
@@ -220,7 +222,7 @@ const AdminRoutes = () => {
                     }
                 />
                 <Route path="suggestions" element={<AdminSuggestionsPage />} />
-                
+                <Route path="data-sync" element={<AdminDataSyncPage />} />
                 {/* Tourist Locations Management */}
                 <Route
                     path="tourist-locations"

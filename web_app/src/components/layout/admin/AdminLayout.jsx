@@ -5,7 +5,7 @@ import useAuth from '../../../hooks/useAuth';
 
 import {
     LayoutDashboard, FileText, Briefcase, Users, Ticket, MessageSquare,
-    MapPin, BarChart2, Bell, FileSignature, BadgePercent, CreditCard, Calendar, User,
+    MapPin, BarChart2, Bell, FileSignature, BadgePercent, CreditCard, Calendar, User,Database,Landmark
 } from 'lucide-react';
 
 const AdminLayout = () => {
@@ -48,7 +48,8 @@ const AdminLayout = () => {
         },
         { name: 'Quản lý bình luận', icon: <MessageSquare size={20} />, path: '/admin/comments' },
         { name: 'Gợi ý địa danh', icon: <MapPin size={20} />, path: '/admin/suggestions' },
-        { name: 'Danh lam thắng cảnh', icon: <MapPin size={20} />, path: '/admin/tourist-locations' },
+        { name: 'Quản lý dữ liệu AI', icon: <Database size={20} />, path: '/admin/data-sync' },
+        { name: 'Danh lam thắng cảnh', icon: <Landmark size={20} />, path: '/admin/tourist-locations' },
         { name: 'Quản lý tiện nghi', icon: <LayoutDashboard size={20} />, path: '/admin/amenities' },
         
         // TIN NHẮN

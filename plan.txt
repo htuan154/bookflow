@@ -1,83 +1,66 @@
+### GIAI ĐOẠN 1: NÂNG CẤP TRÍ TUỆ HỘI THOẠI & TÌM KIẾM NGỮ NGHĨA (HOÀN TẤT)
+
+#### 1.1. Xử lý hội thoại đa lượt (Multi-turn Context Memory) ✅ DONE
+* **Vấn đề giải quyết:** Khách hỏi "Ở trỏng có gì ngon?" (ẩn chủ ngữ).
+* **Giải pháp kỹ thuật:**
+    * **Deep History Scan:** Quét ngược 5 tin nhắn gần nhất để tìm `last_city` và `last_entity`.
+    * **Context Trigger:** Tự động kích hoạt chế độ nhớ khi gặp từ khóa: "ở trỏng", "chỗ đó", "nó", "giá bao nhiêu".
+    * **Sticky Context:** Ưu tiên giữ ngữ cảnh địa phương (Local Context) trước khi tìm kiếm toàn cục.
+
+#### 1.2. Tích hợp Tìm kiếm Vector (Semantic Search / RAG) ✅ DONE
+* **Vấn đề giải quyết:** Tìm kiếm theo ý nghĩa (VD: "cổ kính" -> ra "Đại Nội") thay vì đúng từ khóa.
+* **Giải pháp kỹ thuật:**
+    * **AI Auto-Tagging (Data Enrichment):** Sử dụng Ollama để tự động gắn thẻ (Tags) cho dữ liệu khi nạp (Phân loại rõ Món ăn vs Địa điểm).
+    * **2-Step Search Strategy (Chiến lược 2 bước):**
+        1. **Strict Mode:** Tìm Vector trong tỉnh hiện tại (Threshold 0.20).
+        2. **Global Mode:** Nếu không thấy, tìm trên toàn bộ dữ liệu (Threshold 0.22).
+    * **Hybrid Fallback:** Nếu Vector thất bại hoàn toàn, tự động chuyển sang Text Search truyền thống để "vớt vát" kết quả.
 
 
-### GIAI ĐOẠN 1: NÂNG CẤP TRÍ TUỆ HỘI THOẠI & TÌM KIẾM NGỮ NGHĨA
-**Mục tiêu:** Giúp AI hiểu tiếng Việt "mềm dẻo" hơn (không bắt buộc đúng từ khóa chính xác) và có khả năng nhớ ngữ cảnh hội thoại liên tục.
+### GIAI ĐOẠN 1.3: AUTO-SYNC API (XÂY DỰNG PIPELINE DỮ LIỆU TỰ ĐỘNG) 🚀 NEXT STEP
 
-#### 1.1. Xử lý hội thoại đa lượt (Multi-turn Context Memory)
-[cite_start]Hiện tại, hệ thống đã có cơ chế chống dính context[cite: 142], nhưng cần nâng cấp để AI "nhớ" thông minh hơn.
-* **Vấn đề:** Khách hỏi: *"Review Eo Gió"*. Sau đó hỏi tiếp: *"Vé vào cổng bao nhiêu?"* -> Hệ thống hiện tại có thể không hiểu "Vé" là của Eo Gió.
-* **Chi tiết triển khai:**
-    * Xây dựng bộ nhớ đệm (Session Memory) lưu trữ `current_topic` (chủ đề đang nói), `last_mentioned_entity` (địa điểm vừa nhắc).
-    * Logic phân giải đại từ: Khi gặp các từ "nó", "chỗ đó", "ở đấy", hệ thống tự động map vào `last_mentioned_entity`.
-    * Context Window: Giới hạn bộ nhớ trong khoảng 3-5 cặp câu thoại gần nhất để tránh nhiễu thông tin cũ.
+**Mục tiêu:** Loại bỏ việc chạy script thủ công (`node scripts/sync...`). Admin chỉ cần gọi API là dữ liệu vào thẳng Database và Vector Search.
 
-#### 1.2. Tích hợp Tìm kiếm Vector (Semantic Search / RAG)
-[cite_start]Thay vì chỉ dựa vào Regex và Text Search[cite: 98, 99], hãy dùng công nghệ Vector để tìm kiếm theo ý nghĩa.
-* **Vấn đề:** Khách hỏi *"Chỗ nào chill chill ngắm hoàng hôn?"*. Regex sẽ trượt vì không có từ khóa khớp tên địa danh.
-* **Chi tiết triển khai:**
-    * **Embedding Data:** Chạy lại toàn bộ data JSON hiện có qua mô hình Embedding (ví dụ: OpenAI `text-embedding-3-small` hoặc mô hình tiếng Việt `viser-bert`) để chuyển text mô tả thành Vector.
-    * **Vector Database:** Lưu trữ Vector vào MongoDB Atlas Vector Search hoặc Supabase pgvector (vì bạn đang dùng Supabase).
-    * **Hybrid Search:** Kết hợp kết quả từ Keyword Search (v5.3 hiện tại) + Vector Search để đạt độ chính xác cao nhất.
+**Công việc cần làm:**
+1.  **Tạo Controller mới (`data.controller.js`):**
+    * API thêm địa điểm: `POST /api/v1/data/place`
+    * API thêm món ăn: `POST /api/v1/data/dish`
+2.  **Tích hợp Logic AI:**
+    * Khi nhận dữ liệu -> Gọi Ollama sinh Tags (tái sử dụng logic từ `sync-real-data.js`).
+    * Gọi Ollama tạo Vector Embedding.
+    * Lưu song song vào MongoDB (để hiển thị) và Supabase (để tìm kiếm).
+3.  **Bảo mật:** Thêm Key bảo vệ API (Admin Secret) để tránh người lạ spam dữ liệu.
 
-#### 1.3. Cơ chế tự sửa lỗi chính tả (Typo Correction)
-* **Chi tiết:** Tích hợp module sửa lỗi chính tả trước khi đưa vào NLU.
-* *Ví dụ:* "E gío uy nhơn" -> Tự sửa thành "Eo Gió Quy Nhơn" trước khi query DB.
+#### 1.4. Cơ chế tự sửa lỗi chính tả (Typo Correction) 📋 BACKLOG
+* *Mô tả:* Tích hợp module sửa lỗi chính tả trước khi đưa vào NLU.
+* *Trạng thái:* Đẩy lùi sau Phase 1.3 (vì Vector Search hiện tại đã chịu lỗi khá tốt).
 
 ---
 
 ### GIAI ĐOẠN 2: MỞ RỘNG TÍNH NĂNG "TRAVEL AGENT" (LẬP KẾ HOẠCH & TIỆN ÍCH)
-**Mục tiêu:** Chuyển từ việc "hỏi đâu đáp đó" sang "tư vấn giải pháp trọn gói".
 
-#### 2.1. Tính năng Lập lịch trình tự động (Itinerary Generator)
-* **Mô tả:** AI tự động tạo lịch trình du lịch dựa trên input: *Điểm đến, Số ngày, Sở thích (nghỉ dưỡng/khám phá), Ngân sách*.
-* **Chi tiết triển khai:**
-    * Phân loại địa điểm trong DB thành các tag: `morning`, `afternoon`, `evening`, `adventure`, `relax`.
-    * Xây dựng thuật toán (hoặc Prompt Chain) để ghép các điểm gần nhau về địa lý vào cùng một buổi/ngày.
-    * Output format: Timeline rõ ràng (Sáng - Trưa - Chiều - Tối).
+#### 2.1. Tích hợp dữ liệu thời gian thực (Real-time API)
+* Kết nối OpenWeatherMap (Thời tiết) và Google Maps (Khoảng cách).
+* Giúp Bot trả lời: "Đà Nẵng nay có mưa không?", "Từ Cầu Rồng qua Bà Nà bao xa?".
 
-#### 2.2. Tích hợp dữ liệu thời gian thực (Real-time API)
-* [cite_start]**Vấn đề:** Hiện tại AI chỉ đưa ra lời khuyên chung chung về thời tiết[cite: 205].
-* **Chi tiết triển khai:**
-    * Kết nối API thời tiết (OpenWeatherMap/AccuWeather).
-    * Khi khách hỏi "Thời tiết Đà Lạt", gọi API lấy nhiệt độ thực tế và đưa ra lời khuyên (VD: "Đang 18 độ, nhớ mang áo ấm").
-    * Kết nối Google Maps API để tính khoảng cách/thời gian di chuyển thực tế giữa 2 điểm.
+#### 2.2. Tính năng Lập lịch trình tự động (Itinerary Generator)
+* Phân loại địa điểm: Sáng/Chiều/Tối.
+* Thuật toán ghép điểm tham quan dựa trên vị trí địa lý.
 
 #### 2.3. Module Booking & Giá vé
-* **Mô tả:** Cho phép AI kiểm tra tình trạng phòng hoặc vé (giả lập hoặc kết nối thật).
-* **Chi tiết triển khai:**
-    * Mở rộng Schema DB: Thêm trường `price_range`, `opening_hours`, `booking_link`.
-    * Xây dựng luồng hội thoại thu thập thông tin đặt phòng (Slot Filling): *Ngày đi? Số người? Loại phòng?* -> Gửi yêu cầu về hệ thống Booking.
+* Mở rộng DB: Thêm giá vé, giờ mở cửa.
+* Thu thập thông tin đặt phòng (Slot Filling).
 
 ---
 
 ### GIAI ĐOẠN 3: TỐI ƯU VẬN HÀNH & CÁ NHÂN HÓA (ECOSYSTEM)
-**Mục tiêu:** Xây dựng hệ thống quản trị dữ liệu chuyên nghiệp và cá nhân hóa trải nghiệm người dùng.
 
 #### 3.1. Xây dựng CMS Admin (Quản trị dữ liệu)
-* [cite_start]**Vấn đề:** Hiện tại bạn đang nạp file JSON thủ công[cite: 140].
-* **Chi tiết triển khai:**
-    * Xây dựng giao diện Web Admin.
-    * Tính năng: Thêm/Sửa/Xóa địa điểm, Món ăn.
-    * Quản lý `merged_from` (sáp nhập tỉnh) bằng giao diện trực quan thay vì sửa code.
-    * Nút "Sync to AI": Khi bấm nút, hệ thống tự động cập nhật lại Index tìm kiếm và Vector.
+* Giao diện Web để quản lý địa điểm (thay thế Postman).
+* Nút bấm "Sync All Vectors" để làm mới dữ liệu AI.
 
 #### 3.2. Cá nhân hóa người dùng (User Personalization)
-* **Mô tả:** AI nhớ sở thích của khách hàng để gợi ý phù hợp hơn.
-* **Chi tiết triển khai:**
-    * Lưu Profile người dùng: *Thích ăn cay? Ghét leo núi? Hay đi du lịch một mình?*
-    * Khi gợi ý (Compose), inject thông tin Profile vào Prompt.
-    * *Ví dụ:* Khách thích "sang chảnh" -> Ưu tiên gợi ý Resort 5 sao thay vì Homestay giá rẻ.
+* Nhớ sở thích người dùng (Thích sang chảnh hay bụi bặm).
 
-#### 3.3. Analytics & Feedback Loop (Vòng lặp cải tiến)
-* **Chi tiết:**
-    * Dashboard thống kê: Những địa điểm nào được hỏi nhiều nhất? Tỉnh nào hot nhất?
-    * Log những câu hỏi AI không trả lời được (Fallback) để bổ sung dữ liệu.
-    * Thêm nút Like/Dislike vào câu trả lời của Bot để Fine-tune lại Prompt.
-
----
-
-### TỔNG KẾT LỘ TRÌNH
-1.  **Giai đoạn 1 (Thông minh hơn):** Tập trung vào Backend, Logic xử lý hội thoại, Vector Search.
-2.  **Giai đoạn 2 (Hữu ích hơn):** Tập trung vào tính năng Lập lịch trình, Thời tiết, Booking.
-3.  **Giai đoạn 3 (Chuyên nghiệp hơn):** Tập trung vào Admin Tool, Cá nhân hóa và Báo cáo.
-
+#### 3.3. Analytics
+* Thống kê câu hỏi phổ biến và các câu Bot chưa trả lời được (Fallback).

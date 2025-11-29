@@ -1,18 +1,13 @@
 'use strict';
 
 /**
- * AI Controller — gom pipeline Hybrid (SQL + NoSQL + LLM)
- * - Nếu LLM bật (per-request hoặc .env USE_LLM=true):
- *     → suggestHybrid() để hợp nhất RPC + NoSQL + LLM
- * - Nếu LLM tắt:
- *     → Rẽ SQL theo intent (hotel/promo) hoặc fallback suggest() (NoSQL)
+ * AI Controller
  */
 
 const { analyze, normalize } = require('../services/nlu.service');
 const { saveTurn, recentTurns } = require('../services/chatHistory.service');
 
 const {
-  // SQL search helpers / RPC
   searchHotels,
   getHotelsByAnyAmenities,
   getHotelFull,
@@ -22,12 +17,10 @@ const {
   promoCheckApplicability,
   promoUsageStats,
   listHotelCities,
-
-  // NoSQL/LLM compose
+  suggestHandler, // Note: This self-reference might be wrong in your original code, usually controllers don't import themselves.
+                  // I will assume you meant suggestHybrid/suggest from service.
   suggest,
   suggestHybrid,
-
-  // Supabase RPC wrappers
   getTopHotels,
   getHotelsByAmenities,
   getPromotionsInMonth,
@@ -38,8 +31,8 @@ const {
 const USE_LLM = String(process.env.USE_LLM || 'false').toLowerCase() === 'true';
 
 // ===== REQUEST DEDUPE MECHANISM =====
-const recentRequests = new Map(); // key: user_id + message hash -> { timestamp, payload }
-const REQUEST_DEDUPE_WINDOW_MS = 2000; // 2 seconds (reduced to allow more retries)
+const recentRequests = new Map(); 
+const REQUEST_DEDUPE_WINDOW_MS = 2000;
 
 function makeRequestKey(userId, message) {
   const msgHash = normalize(String(message || '')).slice(0, 100);
@@ -53,17 +46,14 @@ function checkDuplicateRequest(userId, message) {
   
   if (recent && (now - recent.timestamp) < REQUEST_DEDUPE_WINDOW_MS) {
     console.warn('[AI] Duplicate request detected:', { userId, message: message?.slice(0, 50) });
-    return recent.payload; // Return cached response
+    return recent.payload; 
   }
-  
   return null;
 }
 
 function cacheRequest(userId, message, payload) {
   const key = makeRequestKey(userId, message);
   recentRequests.set(key, { timestamp: Date.now(), payload });
-  
-  // Cleanup old entries
   if (recentRequests.size > 500) {
     const cutoff = Date.now() - REQUEST_DEDUPE_WINDOW_MS;
     for (const [k, v] of recentRequests.entries()) {
@@ -72,9 +62,11 @@ function cacheRequest(userId, message, payload) {
   }
 }
 
+// =================================================================
+// MAIN HANDLER
+// =================================================================
 
-
-async function suggestHandler(req, res, next) {
+async function mainSuggestHandler(req, res, next) {
   try {
     const db = req.app.locals.db;
     if (!db) return res.status(503).json({ error: 'DB_NOT_READY' });
@@ -86,7 +78,7 @@ async function suggestHandler(req, res, next) {
     const userId = req.user?.id || 'anonymous';
     const sessionId = req.headers['x-session-id'] || session_id || 'default';
     
-    // Check for duplicate request
+    // Dedupe
     const cachedResponse = checkDuplicateRequest(userId, msg);
     if (cachedResponse) {
       console.log('[AI] Returning cached response (dedupe)');
@@ -94,70 +86,75 @@ async function suggestHandler(req, res, next) {
       return res.json(cachedResponse);
     }
 
-    console.log('[AI] Processing new request:', msg);
+    console.log('[AI] Processing new request:', msg, `(User: ${userId})`);
+    
+    // NLU & History
     const nlu = analyze(msg);
     let history = [];
     try {
-      // Lấy lịch sử (bao gồm cả context_state vừa thêm ở Bước 1)
       history = await recentTurns({ userId, sessionId, limit: 5 });
     } catch (e) {
       console.warn('[AI] recentTurns failed:', e?.message || e);
     }
+    
     console.log('[AI] NLU result:', { city: nlu.city, intent: nlu.intent, top_n: nlu.top_n, hist: history.length });
     const limit = Number(top_n || nlu.top_n || 10);
 
-    // Luôn bật LLM + truyền context chung cho composer
     const ctx = { use_llm: true, filters: typeof filters === 'object' ? filters : {}, history };
     if (Number.isFinite(limit) && limit > 0 && limit <= 20) ctx.top_n = limit;
 
     const t0 = process.hrtime.bigint();
-    // Gọi xử lý logic
+    
+    // --- GỌI SERVICE ---
     const payload = await suggestHybrid(db, { message: msg, context: { ...ctx, session_id: sessionId } });
     
-    // [NEW] Trích xuất next_context từ payload trả về (được tạo ra ở Bước 3)
     const nextContext = payload.next_context || {};
 
     console.log('[AI] suggestHybrid result:', { 
       source: payload.source, 
       hasHotels: payload.hotels?.length || 0,
-      hasPlaces: payload.places?.length || 0,
-      hasDishes: payload.dishes?.length || 0,
-      summary: payload.summary?.slice(0, 100),
-      nextContext // Log để kiểm tra
+      summary: payload.summary?.slice(0, 50) + '...',
+      nextContext 
     });
+    
     const t1 = process.hrtime.bigint();
     const latency = Number(t1 - t0) / 1e6;
 
     res.set('X-Source', payload.source || 'sql+nosql+llm');
     res.set('X-Latency-ms', (payload.latency_ms ?? latency).toFixed(1));
 
-    // Cache request
     cacheRequest(userId, msg, payload);
 
-    // Lưu lịch sử kèm contextState mới
+    // --- DEBUG HISTORY SAVING ---
     try {
+      console.log(`[History] Saving turn... User: ${userId}, Session: ${sessionId}`);
       await saveTurn({
         userId,
-        sessionId: req.headers['x-session-id'] || session_id || 'default',
+        sessionId,
         messageText: msg,
         messageRaw: req.body,
         replyPayload: payload,
         nlu,
         source: payload.source || 'sql+nosql+llm',
         latencyMs: payload.latency_ms ?? latency,
-        contextState: nextContext, // [NEW] Lưu context vào DB
+        contextState: nextContext, 
         meta: { ip: req.ip, ua: req.headers['user-agent'] }
       });
-    } catch {}
+      console.log('[History] Save OK.');
+    } catch (err) {
+      console.error('❌ [History] Save Failed:', err.message);
+    }
 
-    // [Clean up] Xóa field nội bộ next_context trước khi trả về client để payload sạch
+    // Cleanup response
     delete payload.next_context;
 
     return res.json(payload);
   } catch (e) { next(e); }
 }
 
-// ==== SQL endpoints giữ nguyên (nếu bật .env USE_LLM=true, có thể trả payload AI khi bạn truyền opts.llm=true từ route) ====
+// =================================================================
+// SQL ENDPOINTS (Giữ nguyên)
+// =================================================================
 
 async function topHotelsHandler(req, res, next) {
   try {
@@ -336,21 +333,22 @@ async function promotionsByKeywordCityMonthHandler(req, res, next) {
 
 async function promoCheckHandler(req, res, next) {
   try {
-    const { promotion_id = '', booking_date, city, user_id, amount } = req.body || {};
-    if (!promotion_id) return res.status(400).json({ error: 'promotion_id is required' });
+    const { promotion_id = '', code = '', booking_date, city, user_id, amount } = req.query || {};
+    const promoId = promotion_id || code; 
+    if (!promoId) return res.status(400).json({ error: 'promotion_id or code is required' });
 
     const t0 = process.hrtime.bigint();
     const data = await promoCheckApplicability(
-      promotion_id,
+      promoId,
       user_id,
-      amount,
+      Number(amount) || 0,
       booking_date ? String(booking_date) : undefined,
       { llm: USE_LLM, context: { filters: { city }, user_id, amount, booking_date } }
     );
     const t1 = process.hrtime.bigint();
     res.set('X-Source', USE_LLM ? 'sql+llm' : 'sql:promo-check');
     res.set('X-Latency-ms', (Number(t1 - t0) / 1e6).toFixed(1));
-    return res.json({ success: true, promotion_id, booking_date, city, data });
+    return res.json({ success: true, promotion_id: promoId, booking_date, city, data });
   } catch (e) { next(e); }
 }
 
@@ -380,18 +378,14 @@ async function hotelCitiesHandler(req, res, next) {
 }
 
 module.exports = {
-  // AI entry
-  suggestHandler,
+  suggestHandler: mainSuggestHandler, // Export logic chính
 
-  // Hotel
   topHotelsHandler,
   hotelsByAmenitiesHandler,
   searchHotelsHandler,
   hotelsByAnyAmenitiesHandler,
   hotelFullHandler,
   hotelCitiesHandler,
-
-  // Promotions
   promotionsByMonthHandler,
   promotionsByMonthCityHandler,
   promotionsByCityHandler,

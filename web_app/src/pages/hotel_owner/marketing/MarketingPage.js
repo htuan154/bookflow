@@ -152,6 +152,11 @@ const MarketingPage = () => {
     loadPosts();
   }, [loadPosts]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, searchTerm, sortBy]);
+
   // Backend handles filtering and sorting, so we just use the posts directly
   const currentPosts = posts;
 

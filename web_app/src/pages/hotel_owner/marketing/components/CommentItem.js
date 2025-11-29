@@ -70,9 +70,6 @@ const CommentItem = ({
     'from-orange-500 to-red-500',    // depth 3
     'from-indigo-500 to-blue-500',   // depth 4+
   ];
-  // Note: depth 0 is root, handled by parent loop usually, but if we use this recursively, depth 0 is root.
-  // If depth > 0, use gradient. If depth 0, use solid blue (default in parent).
-  // Let's stick to the logic: depth 0 is root.
   
   const avatarClass = depth === 0 
     ? "bg-blue-600" 
@@ -80,21 +77,18 @@ const CommentItem = ({
 
   return (
     <div
-      className={`flex items-start mt-2 ${depth === 0 ? 'hover:bg-blue-50 transition' : ''}`}
+      className={`${depth === 0 ? 'p-4 hover:bg-blue-50 transition-colors' : 'p-3'}`}
       style={{
-        borderLeft: depth > 0 ? '2px solid #e0e7ef' : 'none',
-        minWidth: '340px',
-        maxWidth: '720px',
         marginLeft: depth > 0 ? '24px' : '0',
-        fontSize: depth > 0 ? '0.97em' : '1.05em',
-        boxShadow: depth === 0 ? '0 4px 16px rgba(0,0,0,0.06)' : 'none',
-        background: depth > 0 ? '#f8fafc' : '#fff',
-        borderRadius: '16px',
-        alignItems: 'flex-start',
-        padding: '16px 20px',
       }}
     >
-      <div className="flex space-x-3">
+      <div 
+        className={`flex items-start space-x-3 ${depth === 0 ? 'bg-white rounded-lg shadow-sm border border-gray-100' : 'bg-gray-50 rounded-lg'}`}
+        style={{
+          padding: depth === 0 ? '16px' : '12px',
+          borderLeft: depth > 0 ? '2px solid #e0e7ef' : 'none',
+        }}
+      >
         {/* Avatar */}
         <div className={`w-8 h-8 ${avatarClass} rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0`}>
           {(comment.fullName || comment.username || comment.user?.full_name || 'U')[0].toUpperCase()}
@@ -103,24 +97,24 @@ const CommentItem = ({
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* User Info */}
-          <div className="flex items-center space-x-2 mb-1">
-            <h4 className="font-semibold text-gray-900 text-sm truncate">
+          <div className="flex items-center space-x-2 mb-1 flex-wrap">
+            <h4 className="font-semibold text-gray-900 text-sm">
               {comment.fullName || comment.username || comment.user?.full_name || 'Người dùng'}
             </h4>
             <span className="text-xs text-gray-500">
               {formatTimeAgo(comment.createdAt || comment.created_at)}
             </span>
-             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+             <span className={`text-xs px-2.5 py-1 rounded font-semibold ${
                comment.status === 'approved' ? 'bg-green-100 text-green-700' :
                comment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
                comment.status === 'rejected' ? 'bg-red-100 text-red-700' :
-               comment.status === 'hidden' ? 'bg-gray-100 text-gray-700' :
+               comment.status === 'hidden' ? 'bg-gray-200 text-gray-700' :
                'bg-gray-100 text-gray-500'
              }`}>
-              {comment.status === 'approved' ? 'Đã duyệt' :
-               comment.status === 'pending' ? 'Chờ duyệt' : 
-               comment.status === 'rejected' ? 'Từ chối' :
-               comment.status === 'hidden' ? 'Ẩn' : '?'}
+              {comment.status === 'approved' ? '✓ Đã duyệt' :
+               comment.status === 'pending' ? '⏱ Chờ duyệt' : 
+               comment.status === 'rejected' ? '✕ Từ chối' :
+               comment.status === 'hidden' ? '👁 Đã ẩn' : '?'}
              </span>
           </div>
 
@@ -133,15 +127,13 @@ const CommentItem = ({
           <div className="flex items-center space-x-3 text-xs">
             <button
               onClick={() => onToggleReply(comment)}
-              className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
-              style={{padding: '2px 8px', borderRadius: '6px', background: 'none', border: 'none'}}>
+              className="text-blue-600 hover:text-blue-800 font-medium transition-colors px-2 py-1 rounded hover:bg-blue-50">
               {isReplying ? 'Hủy' : '↩ Trả lời'}
             </button>
             {comment.replies && comment.replies.length > 0 && (
               <button
                 onClick={() => onToggleExpand(commentId)}
-                className="text-gray-600 hover:text-gray-800 font-medium transition-colors"
-                style={{padding: '2px 8px', borderRadius: '6px', background: 'none', border: 'none'}}>
+                className="text-gray-600 hover:text-gray-800 font-medium transition-colors px-2 py-1 rounded hover:bg-gray-100">
                 {isExpanded ? '▲ Ẩn' : `▼ ${comment.replies.length} phản hồi`}
               </button>
             )}

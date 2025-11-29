@@ -76,71 +76,56 @@ function cityMonthContext(city, month) {
 
 async function composeSpecificItem({ doc, targetItem, userMessage }) {
   const itemName = targetItem.name || 'Địa điểm này';
+  const itemType = targetItem.type || 'place'; // Nhận type từ logic search
   const provinceName = doc.name || 'Địa phương';
   
-  // [FIX 1] Xử lý Merged Province: Nếu doc này là gộp (VD: Gia Lai gộp Bình Định), hãy báo cho AI biết
-  const mergedList = doc.merged_from || doc.mergedFrom || [];
-  const mergedInfo = (mergedList.length > 0)
-    ? `(LƯU Ý: Dữ liệu tỉnh ${provinceName} đang bao gồm cả các địa danh thuộc: ${mergedList.join(', ')}. Nếu ${itemName} thuộc một trong các tỉnh này, hãy trả lời chính xác theo thực tế.)`
-    : '';
-
-  const dbInfo = targetItem.hint || targetItem.description || targetItem.content || ''; 
-  const address = targetItem.where || targetItem.location || targetItem.address || '';
-  
-  console.log(`[Composer] Thinking Mode: Item="${itemName}" | Query="${userMessage}"`);
+  // Prompt chỉ thị rõ ràng theo loại
+  let specificInstruction = "";
+  if (itemType === 'dish') {
+      specificInstruction = `Đây là MÓN ĂN đặc sản. Hãy mô tả hương vị, nguyên liệu và độ ngon. Tuyệt đối KHÔNG mô tả phong cảnh hay địa điểm check-in.`;
+  } else {
+      specificInstruction = `Đây là ĐỊA ĐIỂM du lịch. Hãy mô tả vẻ đẹp kiến trúc, thiên nhiên, không khí và hoạt động tham quan.`;
+  }
 
   const prompt = `
-Bạn là Hướng dẫn viên du lịch địa phương (AI Local Guide) thân thiện.
-KHÔNG dùng emoji. KHÔNG bịa đặt thông tin sai lệch.
+Bạn là Hướng dẫn viên du lịch địa phương (AI Local Guide).
 
-BỐI CẢNH DỮ LIỆU (Context):
-- Địa danh/Món ăn: "${itemName}"
-- Thuộc tập dữ liệu vùng: ${provinceName} ${mergedInfo}
-- Thông tin từ DB: "${dbInfo}"
-- Địa chỉ/Vị trí: "${address}"
+THÔNG TIN ĐẦU VÀO:
+- Khách hỏi: "${userMessage}"
+- Hệ thống tìm được: "${itemName}" (${itemType}) tại "${provinceName}".
 
-CÂU HỎI CỦA KHÁCH: "${userMessage}"
+YÊU CẦU:
+1. Giới thiệu ngắn gọn, hấp dẫn về "${itemName}".
+2. ${specificInstruction}
+3. Trả lời đúng trọng tâm câu hỏi. Nếu khách hỏi "ở đâu", hãy chỉ đường. Nếu khách hỏi "ngon không", hãy tả vị.
+4. Giọng điệu: Tự nhiên, nhiệt tình, như bạn bè.
 
-NHIỆM VỤ:
-1. Trả lời câu hỏi của khách dựa trên Context và KIẾN THỨC CHUNG của bạn.
-2. [QUAN TRỌNG] Nếu thông tin từ DB ("${dbInfo}") bị trống hoặc quá ngắn: 
-   -> HÃY DÙNG KIẾN THỨC CỦA BẠN để mô tả hấp dẫn về địa điểm này. Đừng nói "không tìm thấy thông tin".
-3. Xác định đúng vị trí thực tế của "${itemName}" (Ví dụ: Eo Gió thực tế ở Bình Định, dù dữ liệu có thể gộp chung với Gia Lai).
-4. Nếu khách hỏi giá vé/giờ mở cửa mà bạn không chắc chắn, hãy đưa ra ước lượng hợp lý hoặc khuyên kiểm tra tại chỗ.
-
-FORMAT JSON TRẢ VỀ:
+JSON OUTPUT:
 {
-  "summary": "Câu trả lời của bạn (3-5 câu). Viết tự nhiên, đúng trọng tâm.",
-  "tips": ["Mẹo nhỏ 1", "Mẹo nhỏ 2"]
+  "summary": "Câu trả lời của bạn (khoảng 3 câu).",
+  "tips": ["Mẹo 1", "Mẹo 2"]
 }
 `;
 
   try {
-    const raw = await generateJSON({ prompt, temperature: 0.3 });
+    const raw = await generateJSON({ prompt, temperature: 0.4 }); // Temperature 0.4 để cân bằng sáng tạo/chính xác
     
-    const summary = (raw && raw.summary)
-      ? raw.summary 
-      : `${itemName} là điểm đến nổi tiếng. ${mergedInfo ? 'Nó có thể thuộc khu vực ' + mergedList.join('/') : ''}.`;
-
     return sanitizePayload({
-      summary: summary,
-      places: [{ name: itemName, hint: dbInfo || 'Điểm đến hấp dẫn' }], 
-      dishes: [],
-      tips: Array.isArray(raw?.tips) ? raw.tips : [],
-      source: 'ai-thinking'
+      summary: raw.summary || `${itemName} là một lựa chọn tuyệt vời tại ${provinceName}.`,
+      places: itemType === 'place' ? [{ name: itemName, hint: 'Gợi ý từ AI' }] : [], 
+      dishes: itemType === 'dish' ? [{ name: itemName, where: 'Đặc sản địa phương' }] : [],
+      tips: raw.tips || [],
+      source: 'ai-flex-knowledge'
     });
 
   } catch (error) {
-    console.error('[composeSpecificItem] AI Error:', error.message);
-    return sanitizePayload({
-      summary: `Hiện mình chưa lấy được chi tiết về ${itemName}, nhưng đây là một địa điểm đáng chú ý ở khu vực ${provinceName}.`,
-      places: [{ name: itemName, hint: dbInfo }],
-      tips: [],
-      source: 'fallback-error'
+    return sanitizePayload({ 
+        summary: `Mời bạn tham khảo ${itemName} tại ${provinceName}. Đây là một ${itemType === 'dish' ? 'món ăn' : 'địa điểm'} nổi tiếng.`,
+        places: [{ name: itemName, hint: '' }],
+        source: 'fallback-error' 
     });
   }
 }
-
 // ==============================================================================
 // 4. GENERIC MODE
 // ==============================================================================

@@ -69,16 +69,37 @@ const CommentsPanel = ({ blog, onClose }) => {
     setComments(tree);
   }, [flatComments]);
   
+  // Recursive filter function to filter comments and their replies
+  const filterCommentsByStatus = (commentsList, statusFilter) => {
+    if (statusFilter === 'all') return commentsList;
+    
+    return commentsList
+      .filter(comment => comment.status === statusFilter)
+      .map(comment => {
+        // If comment has replies, filter them too
+        if (comment.replies && comment.replies.length > 0) {
+          return {
+            ...comment,
+            replies: filterCommentsByStatus(comment.replies, statusFilter)
+          };
+        }
+        return comment;
+      });
+  };
+  
   // Filter và sort comments ở client-side
   const filteredAndSortedComments = React.useMemo(() => {
-    let result = [...comments];
+    console.log('🔍 Filter applied:', filter);
+    console.log('📊 Total comments before filter:', comments.length);
+    console.log('📝 Comment statuses:', comments.map(c => ({ id: c.commentId || c.comment_id, status: c.status })));
     
-    // Filter by status
-    if (filter !== 'all') {
-      result = result.filter(comment => comment.status === filter);
-    }
+    // First, filter by status (recursively)
+    let result = filterCommentsByStatus([...comments], filter);
     
-    // Sort
+    console.log('✅ Comments after filter:', result.length);
+    console.log('📝 Filtered comment statuses:', result.map(c => ({ id: c.commentId || c.comment_id, status: c.status })));
+    
+    // Then sort
     result.sort((a, b) => {
       const dateA = new Date(a.createdAt || a.created_at);
       const dateB = new Date(b.createdAt || b.created_at);
@@ -446,24 +467,21 @@ const CommentsPanel = ({ blog, onClose }) => {
                 </div>
               )}
             </div>
-          ) : flatComments.length > 0 ? (
-            <div className="divide-y divide-gray-100">
-              {/* Fallback: render raw comments if tree is empty */}
-              {flatComments.map((comment, idx) => {
-                const key = comment.commentId || comment.comment_id || idx;
-                return (
-                  <div key={key} className="p-4">
-                    <div className="font-medium text-gray-800">{comment.content}</div>
-                  </div>
-                );
-              })}
-            </div>
           ) : (
             <div className="flex items-center justify-center py-12 h-full">
               <div className="text-center">
                 <MessageCircle className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                <h3 className="text-sm font-medium text-gray-900 mb-1">Chưa có bình luận</h3>
-                <p className="text-xs text-gray-500">Hãy là người đầu tiên bình luận!</p>
+                <h3 className="text-sm font-medium text-gray-900 mb-1">
+                  {filter === 'all' ? 'Chưa có bình luận' : `Không có bình luận ${
+                    filter === 'approved' ? 'đã duyệt' :
+                    filter === 'pending' ? 'chờ duyệt' :
+                    filter === 'rejected' ? 'bị từ chối' :
+                    filter === 'hidden' ? 'đã ẩn' : ''
+                  }`}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  {filter === 'all' ? 'Hãy là người đầu tiên bình luận!' : 'Thử chọn bộ lọc khác'}
+                </p>
               </div>
             </div>
           )}
