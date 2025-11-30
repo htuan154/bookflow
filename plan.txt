@@ -1,66 +1,73 @@
-### GIAI ĐOẠN 1: NÂNG CẤP TRÍ TUỆ HỘI THOẠI & TÌM KIẾM NGỮ NGHĨA (HOÀN TẤT)
+GIAI ĐOẠN 1: NÂNG CẤP TRÍ TUỆ HỘI THOẠI & QUẢN LÝ DỮ LIỆU (HOÀN TẤT)
+1.1. Xử lý hội thoại đa lượt (Multi-turn Context Memory) ✅ DONE
 
-#### 1.1. Xử lý hội thoại đa lượt (Multi-turn Context Memory) ✅ DONE
-* **Vấn đề giải quyết:** Khách hỏi "Ở trỏng có gì ngon?" (ẩn chủ ngữ).
-* **Giải pháp kỹ thuật:**
-    * **Deep History Scan:** Quét ngược 5 tin nhắn gần nhất để tìm `last_city` và `last_entity`.
-    * **Context Trigger:** Tự động kích hoạt chế độ nhớ khi gặp từ khóa: "ở trỏng", "chỗ đó", "nó", "giá bao nhiêu".
-    * **Sticky Context:** Ưu tiên giữ ngữ cảnh địa phương (Local Context) trước khi tìm kiếm toàn cục.
-
-#### 1.2. Tích hợp Tìm kiếm Vector (Semantic Search / RAG) ✅ DONE
-* **Vấn đề giải quyết:** Tìm kiếm theo ý nghĩa (VD: "cổ kính" -> ra "Đại Nội") thay vì đúng từ khóa.
-* **Giải pháp kỹ thuật:**
-    * **AI Auto-Tagging (Data Enrichment):** Sử dụng Ollama để tự động gắn thẻ (Tags) cho dữ liệu khi nạp (Phân loại rõ Món ăn vs Địa điểm).
-    * **2-Step Search Strategy (Chiến lược 2 bước):**
-        1. **Strict Mode:** Tìm Vector trong tỉnh hiện tại (Threshold 0.20).
-        2. **Global Mode:** Nếu không thấy, tìm trên toàn bộ dữ liệu (Threshold 0.22).
-    * **Hybrid Fallback:** Nếu Vector thất bại hoàn toàn, tự động chuyển sang Text Search truyền thống để "vớt vát" kết quả.
+Trạng thái: Đã hoàn thành xử lý deep history scan và context trigger.
 
 
-### GIAI ĐOẠN 1.3: AUTO-SYNC API (XÂY DỰNG PIPELINE DỮ LIỆU TỰ ĐỘNG) 🚀 NEXT STEP
+Kết quả: Bot đã nhớ được ngữ cảnh địa phương (Local Context) và xử lý các đại từ như "nó", "ở trỏng".
 
-**Mục tiêu:** Loại bỏ việc chạy script thủ công (`node scripts/sync...`). Admin chỉ cần gọi API là dữ liệu vào thẳng Database và Vector Search.
+1.2. Tích hợp Tìm kiếm Vector (Semantic Search / RAG) ✅ DONE
 
-**Công việc cần làm:**
-1.  **Tạo Controller mới (`data.controller.js`):**
-    * API thêm địa điểm: `POST /api/v1/data/place`
-    * API thêm món ăn: `POST /api/v1/data/dish`
-2.  **Tích hợp Logic AI:**
-    * Khi nhận dữ liệu -> Gọi Ollama sinh Tags (tái sử dụng logic từ `sync-real-data.js`).
-    * Gọi Ollama tạo Vector Embedding.
-    * Lưu song song vào MongoDB (để hiển thị) và Supabase (để tìm kiếm).
-3.  **Bảo mật:** Thêm Key bảo vệ API (Admin Secret) để tránh người lạ spam dữ liệu.
+Trạng thái: Đã hoàn thành tìm kiếm theo ý nghĩa và Auto-Tagging.
 
-#### 1.4. Cơ chế tự sửa lỗi chính tả (Typo Correction) 📋 BACKLOG
-* *Mô tả:* Tích hợp module sửa lỗi chính tả trước khi đưa vào NLU.
-* *Trạng thái:* Đẩy lùi sau Phase 1.3 (vì Vector Search hiện tại đã chịu lỗi khá tốt).
 
----
+Kết quả: Hệ thống chạy ổn định với chiến lược tìm kiếm 2 bước (Strict/Global) và Hybrid Fallback.
 
-### GIAI ĐOẠN 2: MỞ RỘNG TÍNH NĂNG "TRAVEL AGENT" (LẬP KẾ HOẠCH & TIỆN ÍCH)
+1.3. Auto-Sync API (Pipeline dữ liệu tự động) ✅ DONE
 
-#### 2.1. Tích hợp dữ liệu thời gian thực (Real-time API)
-* Kết nối OpenWeatherMap (Thời tiết) và Google Maps (Khoảng cách).
-* Giúp Bot trả lời: "Đà Nẵng nay có mưa không?", "Từ Cầu Rồng qua Bà Nà bao xa?".
+Trạng thái: Đã chuyển đổi từ script thủ công sang API tự động.
 
-#### 2.2. Tính năng Lập lịch trình tự động (Itinerary Generator)
-* Phân loại địa điểm: Sáng/Chiều/Tối.
-* Thuật toán ghép điểm tham quan dựa trên vị trí địa lý.
+Tính năng đã có:
 
-#### 2.3. Module Booking & Giá vé
-* Mở rộng DB: Thêm giá vé, giờ mở cửa.
-* Thu thập thông tin đặt phòng (Slot Filling).
+API Endpoint đồng bộ tổng hợp (/sync) và thêm mới từng địa điểm/món ăn (/place, /dish).
 
----
+Service tự động gọi Ollama sinh từ khóa và vector embedding ngay khi có data mới.
 
-### GIAI ĐOẠN 3: TỐI ƯU VẬN HÀNH & CÁ NHÂN HÓA (ECOSYSTEM)
 
-#### 3.1. Xây dựng CMS Admin (Quản trị dữ liệu)
-* Giao diện Web để quản lý địa điểm (thay thế Postman).
-* Nút bấm "Sync All Vectors" để làm mới dữ liệu AI.
+Hiệu quả: Admin thêm quán mới là Bot trả lời được ngay (Real-time Knowledge), không cần thao tác terminal.
 
-#### 3.2. Cá nhân hóa người dùng (User Personalization)
-* Nhớ sở thích người dùng (Thích sang chảnh hay bụi bặm).
+1.4. Cơ chế tự sửa lỗi chính tả (Typo Correction) 📋 BACKLOG
 
-#### 3.3. Analytics
-* Thống kê câu hỏi phổ biến và các câu Bot chưa trả lời được (Fallback).
+Trạng thái: Tiếp tục giữ ở backlog vì Vector Search hiện tại đang xử lý lỗi nhập liệu khá tốt, chưa cần ưu tiên gấp.
+
+GIAI ĐOẠN 2: MỞ RỘNG TÍNH NĂNG "TRAVEL AGENT" (LẬP KẾ HOẠCH & TIỆN ÍCH)
+2.1. Tích hợp Dữ liệu thời gian thực (Real-time API) ✅ DONE
+
+Trạng thái: Đã hoàn thành kết nối Weather và Map Service.
+
+
+Kết quả:
+
+Logic "Pure AI" không hard-code từ khóa, tự động suy luận điểm đến.
+
+Bot trả lời được thời tiết (OpenWeatherMap) và khoảng cách (Google Maps) dựa trên ngữ cảnh cũ.
+
+2.2. Tính năng Lập lịch trình tự động (Itinerary Generator) 🚀 NEXT STEP
+Mục tiêu: Bot có thể gợi ý lịch trình đi chơi cụ thể (Sáng đi đâu, chiều ăn gì) thay vì chỉ gợi ý địa điểm lẻ tẻ.
+
+Công việc cần làm:
+
+
+Phân loại dữ liệu: Gắn nhãn thời gian phù hợp cho địa điểm (Ví dụ: Chợ đêm -> Tối, Bảo tàng -> Sáng/Chiều).
+
+
+Thuật toán ghép điểm: Xây dựng logic ghép các điểm tham quan gần nhau về vị trí địa lý vào cùng một buổi.
+
+Prompt Engineering: Tối ưu prompt để LLM sinh ra output dạng lịch trình (Timeline) dễ đọc.
+
+2.3. Module Booking & Giá vé (Pending)
+
+Kế hoạch: Mở rộng DB để thêm trường giá vé, giờ mở cửa và thu thập thông tin đặt phòng (Slot Filling).
+
+GIAI ĐOẠN 3: TỐI ƯU VẬN HÀNH & CÁ NHÂN HÓA (ECOSYSTEM)
+3.1. Xây dựng CMS Admin (Quản trị dữ liệu)
+
+Kế hoạch: Xây dựng giao diện Web để quản lý địa điểm thay vì dùng Postman, tích hợp nút "Sync All Vectors".
+
+3.2. Cá nhân hóa người dùng (User Personalization)
+
+Kế hoạch: Lưu trữ và nhớ sở thích du lịch của người dùng (sang chảnh, bụi bặm, v.v.).
+
+3.3. Analytics
+
+Kế hoạch: Thống kê câu hỏi phổ biến và các trường hợp Bot phải dùng Fallback để cải thiện dữ liệu.

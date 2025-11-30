@@ -148,7 +148,20 @@ function AssistantReply({ message }) {
       : <div className="text-base">(payload)</div>;
   }
 
-  // 2a) Clarify / no data gợi ý
+  // Trích xuất các mảng dữ liệu
+  const hotels = p.hotels || p.data?.hotels || [];
+  const promos = p.promotions || p.data?.promotions || [];
+  const places = p.places || p.destinations || p.diem_den || [];
+  const foods  = p.dishes || p.foods || p.mon_an || p.specialties || [];
+  const tips   = p.tips || p.ghi_chu || p.notes || [];
+  const hasAny = hotels.length || promos.length || places.length || foods.length || tips.length;
+
+  // ✅ PRIORITY 1: Nếu có summary VÀ không có data phức tạp -> Hiển thị summary (weather, map, chitchat)
+  if (summary && !hasAny && !p.clarify_required) {
+    return <div className="text-base leading-relaxed whitespace-pre-wrap">{summary}</div>;
+  }
+
+  // PRIORITY 2: Clarify / no data gợi ý
   if (p.clarify_required || (Array.isArray(p.suggestions) && p.suggestions.length === 0)) {
     return (
       <div className="space-y-3">
@@ -163,15 +176,8 @@ function AssistantReply({ message }) {
     );
   }
 
-  // Trích xuất các mảng dữ liệu
-  const hotels = p.hotels || p.data?.hotels || [];
-  const promos = p.promotions || p.data?.promotions || [];
-  const places = p.places || p.destinations || p.diem_den || [];
-  const foods  = p.dishes || p.foods || p.mon_an || p.specialties || [];
-  const tips   = p.tips || p.ghi_chu || p.notes || [];
-
-  // Kiểm tra hoàn toàn rỗng
-  const allEmpty = hotels.length === 0 && promos.length === 0 && places.length === 0 && foods.length === 0 && tips.length === 0;
+  // PRIORITY 3: Kiểm tra rỗng
+  const allEmpty = !hasAny;
 
   if (allEmpty && (p.hotels !== undefined || p.promotions !== undefined || p.places !== undefined || p.dishes !== undefined || p.foods !== undefined)) {
     return (
@@ -187,8 +193,7 @@ function AssistantReply({ message }) {
     );
   }
 
-  const hasAny = hotels.length || promos.length || places.length || foods.length || tips.length;
-
+  // PRIORITY 4: Có data phức tạp
   if (hasAny) {
     return (
       <div className="space-y-5">
