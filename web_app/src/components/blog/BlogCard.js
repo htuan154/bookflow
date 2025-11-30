@@ -11,7 +11,9 @@ const BlogCard = ({
     onChangeStatus, // chỉ dùng tên này
     showActions = true,
     isAdmin = false,
-    loading = false
+    loading = false,
+    showEditButton = true, // New prop to control edit button visibility
+    showStatusActions = true // New prop to control status actions visibility
 }) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -20,7 +22,8 @@ const BlogCard = ({
             draft: 'bg-gray-100 text-gray-800',
             pending: 'bg-yellow-100 text-yellow-800',
             published: 'bg-green-100 text-green-800',
-            rejected: 'bg-red-100 text-red-800'
+            rejected: 'bg-red-100 text-red-800',
+            archived: 'bg-blue-100 text-blue-800',
         };
         return colors[status] || 'bg-gray-100 text-gray-800';
     };
@@ -30,7 +33,8 @@ const BlogCard = ({
             draft: 'Bản nháp',
             pending: 'Chờ duyệt',
             published: 'Đã xuất bản',
-            rejected: 'Bị từ chối'
+            rejected: 'Bị từ chối',
+            archived: 'Đã lưu trữ'
         };
         return texts[status] || status;
     };
@@ -85,7 +89,7 @@ const BlogCard = ({
 
     // Thêm các nút chuyển trạng thái cho admin
     const renderStatusActions = () => {
-        if (!isAdmin || !onChangeStatus) return null;
+        if (!isAdmin || !onChangeStatus || !showStatusActions) return null;
         switch (blog.status) {
             case 'draft':
                 return (
@@ -122,46 +126,46 @@ const BlogCard = ({
             case 'published':
                 return (
                     <>
-                        <button
+                        {/* <button
                             onClick={() => handleStatusChange('archived')}
                             disabled={loading}
                             className="inline-flex items-center px-2 py-1 border border-blue-400 rounded text-blue-700 bg-blue-50 hover:bg-blue-100 text-xs font-medium mr-1"
                             title="Lưu trữ"
                         >
                             <Archive className="w-3 h-3" />
-                        </button>
-                        <button
+                        </button> */}
+                        {/* <button
                             onClick={() => handleStatusChange('draft')}
                             disabled={loading}
                             className="inline-flex items-center px-2 py-1 border border-yellow-400 rounded text-yellow-700 bg-yellow-50 hover:bg-yellow-100 text-xs font-medium"
                             title="Rút lại"
                         >
                             <ArrowDown className="w-3 h-3" />
-                        </button>
+                        </button> */}
                     </>
                 );
-            case 'rejected':
-                return (
-                    <button
-                        onClick={() => handleStatusChange('draft')}
-                        disabled={loading}
-                        className="inline-flex items-center px-2 py-1 border border-gray-400 rounded text-gray-700 bg-gray-50 hover:bg-gray-100 text-xs font-medium"
-                        title="Chỉnh sửa lại"
-                    >
-                        Chỉnh sửa
-                    </button>
-                );
-            case 'archived':
-                return (
-                    <button
-                        onClick={() => handleStatusChange('draft')}
-                        disabled={loading}
-                        className="inline-flex items-center px-2 py-1 border border-gray-400 rounded text-gray-700 bg-gray-50 hover:bg-gray-100 text-xs font-medium"
-                        title="Khôi phục về nháp"
-                    >
-                        Khôi phục
-                    </button>
-                );
+            // case 'rejected':
+            //     return (
+            //         <button
+            //             onClick={() => handleStatusChange('draft')}
+            //             disabled={loading}
+            //             className="inline-flex items-center px-2 py-1 border border-gray-400 rounded text-gray-700 bg-gray-50 hover:bg-gray-100 text-xs font-medium"
+            //             title="Chỉnh sửa lại"
+            //         >
+            //             Chỉnh sửa
+            //         </button>
+            //     );
+            // case 'archived':
+            //     return (
+            //         <button
+            //             onClick={() => handleStatusChange('draft')}
+            //             disabled={loading}
+            //             className="inline-flex items-center px-2 py-1 border border-gray-400 rounded text-gray-700 bg-gray-50 hover:bg-gray-100 text-xs font-medium"
+            //             title="Khôi phục về nháp"
+            //         >
+            //             Khôi phục
+            //         </button>
+            //     );
             default:
                 return null;
         }
@@ -267,21 +271,23 @@ const BlogCard = ({
                         </button>
 
                         <div className="flex items-center space-x-2">
-                            {/* Edit Button */}
-                            <button
-                                onClick={handleEdit}
-                                disabled={loading}
-                                className="inline-flex items-center p-2 border border-transparent rounded-md text-blue-600 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50"
-                                title="Chỉnh sửa"
-                            >
-                                {loading ? (
-                                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                                ) : (
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                )}
-                            </button>
+                            {/* Edit Button - Conditionally shown */}
+                            {showEditButton && (
+                                <button
+                                    onClick={handleEdit}
+                                    disabled={loading}
+                                    className="inline-flex items-center p-2 border border-transparent rounded-md text-blue-600 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50"
+                                    title="Chỉnh sửa"
+                                >
+                                    {loading ? (
+                                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    )}
+                                </button>
+                            )}
 
                             {/* Admin Status Actions */}
                             {isAdmin && onChangeStatus && (

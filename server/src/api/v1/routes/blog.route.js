@@ -15,9 +15,14 @@ const router = express.Router();
 // Các route cụ thể trước
 router.get('/id/:blogId', blogController.getBlogById);
 
+// Lấy danh sách blog theo hotel_id (có phân trang)
+router.get('/hotel/:hotelId', blogController.getBlogsByHotel);
+
 // Route tìm kiếm blog theo tiêu đề (phân trang, mặc định 10)
 router.get('/search', blogController.searchBlogs);
 
+// Route lấy tất cả blogs (không filter status)
+router.get('/all', blogController.getAllBlogs);
 
 // --- ADMIN ROUTES ---
 // ✅ SỬA: Thêm route /admin/blogs/stats 
@@ -53,7 +58,7 @@ router.get('/admin/blogs',
 router.patch(
     '/admin/:blogId/status',
     authenticate,
-    authorize(['admin','hotel_owner']), // chỉ admin , ngày 3/10/2025 tôi có sửa là thêm hotel owner
+    authorize(['admin','hotel_owner', 'hotel_staff']), // chỉ admin , ngày 3/10/2025 tôi có sửa là thêm hotel owner
     blogController.updateBlogStatus
 );
 // --- Route mới: lấy danh sách blog publish kèm like_count, comment_count ---
@@ -67,7 +72,7 @@ router.get(
 router.get(
     '/hotel-owner/blogs',
     authenticate,
-    authorize(['hotel_owner']),
+    authorize(['hotel_owner', 'hotel_staff']),
     blogController.getOwnerBlogs
 );
 // Route này thêm vào ngày 9/10/2025 lấy danh sách blog do admin đăng (lọc theo role, phân trang, trạng thái)

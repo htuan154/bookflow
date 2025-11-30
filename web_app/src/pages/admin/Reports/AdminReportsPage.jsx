@@ -4,6 +4,7 @@ import { AdminReportsProvider } from '../../../context/AdminReportsContext';
 import { HotelProvider } from '../../../context/HotelContext';
 import useAdminReports from '../../../hooks/useAdminReports';
 import { useHotel } from '../../../hooks/useHotel';
+import { exportAdminReportPDF } from '../../../utils/pdfExport';
 
 function FilterBar() {
   const { filters, setFilters, fetchSummary, fetchPayments, fetchPayouts } = useAdminReports(false);
@@ -314,15 +315,15 @@ function PayoutDetailModal({ isOpen, onClose, payoutData, onConfirm, loading }) 
               </h4>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Tổng doanh thu:</span>
+                  <span className="text-gray-600">Tổng doanh thu từ đặt phòng:</span>
                   <span className="font-bold text-lg text-gray-900">
                     {calculation.total_amount?.toLocaleString('vi-VN')} ₫
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-red-600">
-                  <span>Hoa hồng ({calculation.commission_rate}%):</span>
+                <div className="flex justify-between items-center text-purple-600">
+                  <span>Tỷ lệ hoa hồng hợp đồng:</span>
                   <span className="font-semibold">
-                    - {calculation.commission_amount?.toLocaleString('vi-VN')} ₫
+                    {calculation.commission_rate}% ({calculation.commission_amount?.toLocaleString('vi-VN')} ₫)
                   </span>
                 </div>
                 <div className="border-t border-blue-200 pt-3 mt-3">
@@ -332,6 +333,9 @@ function PayoutDetailModal({ isOpen, onClose, payoutData, onConfirm, loading }) 
                       {calculation.payout_amount?.toLocaleString('vi-VN')} ₫
                     </span>
                   </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 = {calculation.total_amount?.toLocaleString('vi-VN')} ₫ - {calculation.commission_rate}% ({calculation.commission_amount?.toLocaleString('vi-VN')} ₫)
+                  </p>
                 </div>
               </div>
             </div>
@@ -494,8 +498,9 @@ function SummaryTable() {
       
     } catch (error) {
       console.error('Error previewing payout:', error);
-      alert('❌ Lỗi: ' + (error.message || 'Không thể tải thông tin thanh toán'));
+      alert('Lỗi: ' + error.message);
     } finally {
+      // QUAN TRỌNG: Reset trạng thái loading sau khi preview xong
       setCreatingPayout(false);
     }
   };
@@ -512,9 +517,6 @@ function SummaryTable() {
         cover_date: coverDate,
       });
 
-      // Show success message
-      alert('✅ Thanh toán đã được tạo thành công!');
-
       // close modal and clear selection AFTER success
       setShowModal(false);
       setSelectedPayout(null);
@@ -522,20 +524,12 @@ function SummaryTable() {
       // Force refresh summary to update exists_in_payouts flag
       await fetchSummary();
 
-      // open hotel daily revenue page in a new tab for quick verification
-      // (Hotel owner's view filtered by hotel and date)
-      if (typeof window !== 'undefined' && hotelId) {
-        try {
-          const origin = window.location.origin || '';
-          const ownerRevenuePath = `/hotel-owner/reports?date_from=${encodeURIComponent(coverDate || '')}&date_to=${encodeURIComponent(coverDate || '')}&hotel_id=${encodeURIComponent(hotelId)}`;
-          window.open(origin + ownerRevenuePath, '_blank');
-        } catch (openErr) {
-          console.error('Failed to open hotel revenue page:', openErr);
-        }
-      }
+      // Show success message
+      alert('✅ Tạo thanh toán thành công!');
+      
     } catch (error) {
       console.error('Error creating payout:', error);
-      alert('❌ Lỗi: ' + (error.response?.data?.message || error.message));
+      alert('❌ Lỗi: ' + error.message);
     } finally {
       setCreatingPayout(false);
     }
@@ -570,8 +564,16 @@ function SummaryTable() {
             <h3 className="text-lg font-semibold text-gray-800">📊 Báo cáo tổng hợp theo ngày và khách sạn</h3>
             <p className="text-sm text-gray-600 mt-1">Chi tiết doanh thu và thanh toán từng khách sạn theo ngày</p>
           </div>
-          <div className="text-sm text-gray-500">
-            Tổng: <span className="font-medium text-gray-700">{totalItems}</span> bản ghi
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => exportAdminReportPDF({ filters, summary, rows: currentRows })}
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-rose-500 to-pink-500 text-white text-sm shadow hover:shadow-md"
+            >
+              ⬇️ Xuất PDF
+            </button>
+            <div className="text-sm text-gray-500">
+              Tổng: <span className="font-medium text-gray-700">{totalItems}</span> bản ghi
+            </div>
           </div>
         </div>
       </div>

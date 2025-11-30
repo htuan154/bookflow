@@ -10,7 +10,10 @@ async function addMember({ conversation_id, user_id, role }) {
   const now = new Date();
   await db.collection('participants').updateOne(
     { conversation_id: oid(conversation_id), user_id },
-    { $setOnInsert: { conversation_id: oid(conversation_id), user_id, role, joined_at: now } },
+    {
+      $setOnInsert: { conversation_id: oid(conversation_id), user_id, joined_at: now },
+      $set: { role } // Always update role even if participant exists
+    },
     { upsert: true }
   );
   return true;

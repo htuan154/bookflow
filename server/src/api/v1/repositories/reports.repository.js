@@ -16,6 +16,53 @@ class ReportsRepository {
    * Lấy tổng hợp doanh thu theo ngày x khách sạn (daily_summary)
    */
   async getAdminDailyRevenue({ dateFrom, dateTo, hotelIds = null }) {
+    // ⭐ Query trực tiếp từ view admin_daily_revenue_by_hotel (đã tính đúng)
+    let sql = `
+      SELECT 
+        TO_CHAR(biz_date_vn, 'YYYY-MM-DD') as biz_date_vn, 
+        hotel_id, 
+        hotel_name, 
+        hotel_city,
+        bookings_count,
+        final_sum,
+        pg_fee_sum, 
+        admin_fee_sum, 
+        hotel_net_sum,
+        EXISTS (
+          SELECT 1 FROM payouts po
+          WHERE po.hotel_id = admin_daily_revenue_by_hotel.hotel_id 
+            AND po.cover_date = admin_daily_revenue_by_hotel.biz_date_vn
+        ) AS exists_in_payouts
+      FROM admin_daily_revenue_by_hotel
+      WHERE biz_date_vn BETWEEN $1::date AND $2::date
+    `;
+    
+    const params = [dateFrom, dateTo];
+
+    if (hotelIds && hotelIds.length > 0) {
+      sql += ` AND hotel_id = ANY($3::uuid[])`;
+      params.push(hotelIds);
+    }
+
+    sql += ` ORDER BY biz_date_vn DESC, hotel_name`;
+
+    try {
+      const { rows } = await pool.query(sql, params);
+      console.log('✅ getAdminDailyRevenue returned rows:', rows.length);
+      if (rows.length > 0) {
+        console.log('🔍 First row sample:', JSON.stringify(rows[0], null, 2));
+      }
+      return rows.map(row => new AdminDailyRevenueByHotelItem(row));
+    } catch (err) {
+      console.error('❌ Error in getAdminDailyRevenue:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * OLD CODE - Kept for reference if view is fixed later
+   */
+  async _getAdminDailyRevenueFromView_DEPRECATED({ dateFrom, dateTo, hotelIds = null }) {
     let sql = `
       SELECT TO_CHAR(biz_date_vn, 'YYYY-MM-DD') as biz_date_vn, 
              hotel_id, hotel_name, hotel_city,
@@ -274,30 +321,37 @@ class ReportsRepository {
    * Lấy danh sách thanh toán của chủ khách sạn
    */
   async getHotelOwnerPayments({ hotelIds, dateFrom, dateTo }) {
-    // Try view first
+    // Try view first - với filter loại bỏ payments đã có payout
     let sql = `
-      SELECT *
-      FROM hotel_owner_payment_list
+      SELECT hopl.*
+      FROM hotel_owner_payment_list hopl
       WHERE 1=1
+        -- ⭐ Loại bỏ những payment đã được tạo payout (đã thanh toán cho khách sạn)
+        AND NOT EXISTS (
+          SELECT 1 FROM payouts po
+          WHERE po.hotel_id = hopl.hotel_id 
+            AND po.cover_date = hopl.biz_date_vn
+            AND po.status IN ('processed', 'scheduled')
+        )
     `;
     const params = [];
 
     if (hotelIds && hotelIds.length > 0) {
       params.push(hotelIds);
-      sql += ` AND hotel_id = ANY($${params.length}::uuid[])`;
+      sql += ` AND hopl.hotel_id = ANY($${params.length}::uuid[])`;
     }
 
     if (dateFrom) {
       params.push(dateFrom);
-      sql += ` AND biz_date_vn >= $${params.length}`;
+      sql += ` AND hopl.biz_date_vn >= $${params.length}`;
     }
 
     if (dateTo) {
       params.push(dateTo);
-      sql += ` AND biz_date_vn <= $${params.length}`;
+      sql += ` AND hopl.biz_date_vn <= $${params.length}`;
     }
 
-    sql += ` ORDER BY paid_at DESC`;
+    sql += ` ORDER BY hopl.paid_at DESC`;
 
     try {
       const { rows } = await pool.query(sql, params);
@@ -369,6 +423,13 @@ class ReportsRepository {
       LEFT JOIN hotels h ON h.hotel_id = p.hotel_id
       WHERE p.status = 'paid'
         AND p.paid_at IS NOT NULL
+        -- ⭐ Loại bỏ những payment đã được tạo payout (đã thanh toán cho khách sạn)
+        AND NOT EXISTS (
+          SELECT 1 FROM payouts po
+          WHERE po.hotel_id = p.hotel_id 
+            AND po.cover_date = (p.paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+            AND po.status IN ('processed', 'scheduled')
+        )
     `;
     const params = [];
 
@@ -485,7 +546,7 @@ class ReportsRepository {
       payoutData.hotel_id,
       payoutData.cover_date,
       payoutData.total_net_amount,
-      payoutData.status || 'scheduled',
+      payoutData.status || 'processed', // ⭐ Admin xác nhận = đã xử lý thanh toán (processed)
       payoutData.note // Chứa JSON với thông tin bank account, commission, etc.
     ];
 

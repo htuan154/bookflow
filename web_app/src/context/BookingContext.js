@@ -63,6 +63,8 @@ export function BookingProvider({ hotelId = null, children }) {
     fetchStatistics,
     filterBookings,
     updateBooking,
+    getUserNoShowBookings,
+    createBookingForCustomer,
   } = useBooking(hotelId);
 
   // ===== Phần “tiện ích” giống BlogContext
@@ -178,6 +180,8 @@ export function BookingProvider({ hotelId = null, children }) {
     fetchStatistics,
     filterBookings,
     updateBooking,
+    getUserNoShowBookings,
+    createBookingForCustomer,
 
     // ===== Utilities (bổ sung cho tiện như BlogContext)
     refreshBookings,
@@ -208,6 +212,7 @@ export function BookingProvider({ hotelId = null, children }) {
     fetchStatistics,
     filterBookings,
     updateBooking,
+    getUserNoShowBookings,
 
     refreshBookings,
     clearError,

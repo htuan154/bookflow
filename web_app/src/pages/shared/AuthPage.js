@@ -1,53 +1,29 @@
-import React, { useState } from 'react';
+import React from 'react';
 import LoginForm from '../../components/auth/LoginForm';
-import RegisterForm from '../../components/auth/RegisterForm';
-import SocialButton from '../../components/ui/SocialButton';
-import { GoogleIcon, FacebookIcon, AppleIcon } from '../../components/icons';
+import ImageSlider from '../../components/auth/ImageSlider';
 
 const AuthPage = () => {
-    const [isLogin, setIsLogin] = useState(true);
-
-    const handleRegisterSuccess = () => {
-        console.log('Đăng ký thành công! Tự động chuyển sang trang đăng nhập.');
-        setIsLogin(true);
-    };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
-                <div className="bg-white rounded-2xl shadow-xl p-8">
-                    {isLogin 
-                        ? <LoginForm /> 
+        <div className="min-h-screen relative overflow-hidden">
+            {/* Full-screen background slider with blur */}
+            <div className="absolute inset-0">
+                <ImageSlider />
+            </div>
 
-                        : <RegisterForm onRegisterSuccess={handleRegisterSuccess} />
-                    }
-
-                    {/* Divider */}
-                    <div className="my-6 flex items-center">
-                        <div className="flex-1 border-t border-gray-300"></div>
-                        <div className="px-4 text-sm text-gray-500">Or sign {isLogin ? 'in' : 'up'} with</div>
-                        <div className="flex-1 border-t border-gray-300"></div>
+            {/* Content overlay - 2 columns on large screens */}
+            <div className="relative z-10 min-h-screen flex items-center justify-center p-8 lg:p-12">
+                <div className="w-full max-w-6xl flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
+                    {/* Left: Clear image preview (hidden on mobile) */}
+                    <div className="hidden lg:block lg:w-1/2">
+                        <ImageSlider showClearImage={true} />
                     </div>
 
-                    {/* Social Login */}
-                    <div className="grid grid-cols-3 gap-3 mb-6">
-                       <SocialButton icon={<GoogleIcon />} aria-label="Sign in with Google" />
-                       <SocialButton icon={<FacebookIcon />} aria-label="Sign in with Facebook" />
-                       <SocialButton icon={<AppleIcon />} aria-label="Sign in with Apple" />
-                    </div>
-
-                    {/* Toggle Between Login/Register */}
-                    <div className="text-center">
-                        <p className="text-sm text-gray-600">
-                            {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
-                            <button
-                                type="button"
-                                onClick={() => setIsLogin(!isLogin)}
-                                className="text-orange-600 hover:text-orange-700 font-medium"
-                            >
-                                {isLogin ? 'Sign up' : 'Sign in'}
-                            </button>
-                        </p>
+                    {/* Right: Login form */}
+                    <div className="w-full lg:w-1/2 max-w-md">
+                        <div className="bg-white rounded-2xl shadow-2xl p-8">
+                            <LoginForm />
+                        </div>
                     </div>
                 </div>
             </div>

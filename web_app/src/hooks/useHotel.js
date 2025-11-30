@@ -17,18 +17,21 @@ export const useHotel = () => {
     // State (theo HotelContext đã cập nhật)
     hotels,
     approvedHotels,                 // NEW
+    activeApprovedHotels,
     pendingRejectedHotels,          // NEW
     loading,
     error,
     currentHotel,
     totalCount,
     approvedCount,                  // NEW
+    activeApprovedCount,
     pendingRejectedCount,           // NEW
     currentPage,
     pageSize,
     
     fetchAllHotels,
     fetchApprovedHotels,            // NEW
+    fetchActiveApprovedHotels,
     fetchPendingRejectedHotels,     // NEW
     setPage,
     clearError
@@ -45,6 +48,11 @@ export const useHotel = () => {
   const hasApprovedHotels = approvedHotels.length > 0;
   const approvedHotelCount = approvedHotels.length;
   const totalApprovedHotels = approvedCount;
+
+  // NEW - Utility functions cho active/approved hotels
+  const hasActiveApprovedHotels = (activeApprovedHotels || []).length > 0;
+  const activeApprovedHotelCount = (activeApprovedHotels || []).length;
+  const totalActiveApprovedHotels = activeApprovedCount;
 
   // NEW - Utility functions cho pending/rejected hotels
   const hasPendingRejectedHotels = pendingRejectedHotels.length > 0;
@@ -64,6 +72,10 @@ export const useHotel = () => {
     // Tìm trong danh sách approved
     hotel = approvedHotels.find(hotel => hotel.hotel_id === hotelId);
     if (hotel) return hotel;
+
+    // Tìm trong danh sách active/approved
+    hotel = (activeApprovedHotels || []).find(hotel => hotel.hotel_id === hotelId);
+    if (hotel) return hotel;
     
     // Tìm trong danh sách pending/rejected
     hotel = pendingRejectedHotels.find(hotel => hotel.hotel_id === hotelId);
@@ -78,6 +90,7 @@ export const useHotel = () => {
   const hotelExists = useCallback((hotelId) => {
     return hotels.some(hotel => hotel.hotel_id === hotelId) ||
            approvedHotels.some(hotel => hotel.hotel_id === hotelId) ||
+           (activeApprovedHotels || []).some(hotel => hotel.hotel_id === hotelId) ||
            pendingRejectedHotels.some(hotel => hotel.hotel_id === hotelId);
   }, [hotels, approvedHotels, pendingRejectedHotels]);
 
@@ -91,6 +104,15 @@ export const useHotel = () => {
   }, [hotels]);
 
   /**
+   * Lấy danh sách loại phòng còn trống của 1 khách sạn
+   * @param {string} hotelId
+   * @param {string} checkInDate
+   * @param {string} checkOutDate
+   * @returns {Promise<Array>}
+   */
+  const getAvailableRoomsByHotelId = context.getAvailableRoomsByHotelId;
+
+  /**
    * NEW - Lọc approved hotels theo điều kiện
    * @param {Function} filterFn - Function để lọc
    * @returns {Array} Danh sách approved hotels đã lọc
@@ -98,6 +120,10 @@ export const useHotel = () => {
   const getFilteredApprovedHotels = useCallback((filterFn) => {
     return approvedHotels.filter(filterFn);
   }, [approvedHotels]);
+
+  const getFilteredActiveApprovedHotels = useCallback((filterFn) => {
+    return (activeApprovedHotels || []).filter(filterFn);
+  }, [activeApprovedHotels]);
 
   /**
    * NEW - Lọc pending/rejected hotels theo điều kiện
@@ -212,6 +238,19 @@ export const useHotel = () => {
     );
   }, [approvedHotels]);
 
+  const searchActiveApprovedHotels = useCallback((searchTerm) => {
+    if (!searchTerm) return activeApprovedHotels || [];
+    const term = searchTerm.toLowerCase();
+    return (activeApprovedHotels || []).filter(hotel => 
+      hotel.name?.toLowerCase().includes(term) ||
+      hotel.address?.toLowerCase().includes(term) ||
+      hotel.city?.toLowerCase().includes(term) ||
+      hotel.description?.toLowerCase().includes(term) ||
+      hotel.email?.toLowerCase().includes(term) ||
+      hotel.phone_number?.includes(term)
+    );
+  }, [activeApprovedHotels]);
+
   /**
    * NEW - Tìm kiếm trong pending/rejected hotels
    * @param {string} searchTerm - Từ khóa tìm kiếm
@@ -252,11 +291,13 @@ export const useHotel = () => {
     totalCount,
     currentPage,
     pageSize,
-    
+
     // State - NEW
     approvedHotels,
+    activeApprovedHotels,
     pendingRejectedHotels,
     approvedCount,
+    activeApprovedCount,
     pendingRejectedCount,
 
     // Computed state - Existing
@@ -265,11 +306,14 @@ export const useHotel = () => {
     hasHotels,
     hotelCount,
     totalHotels,
-    
+
     // Computed state - NEW
     hasApprovedHotels,
     approvedHotelCount,
     totalApprovedHotels,
+    hasActiveApprovedHotels,
+    activeApprovedHotelCount,
+    totalActiveApprovedHotels,
     hasPendingRejectedHotels,
     pendingRejectedHotelCount,
     totalPendingRejectedHotels,
@@ -278,9 +322,10 @@ export const useHotel = () => {
     fetchAllHotels,
     setPage,
     clearError,
-    
+
     // Available actions - NEW
     fetchApprovedHotels,
+    fetchActiveApprovedHotels,
     fetchPendingRejectedHotels,
 
     // Utility functions - Existing (updated)
@@ -290,17 +335,20 @@ export const useHotel = () => {
     getHotelCountByStatus,
     searchHotels,
     refreshHotels,
-    
+
     // Utility functions - NEW
     getFilteredApprovedHotels,
+    getFilteredActiveApprovedHotels,
     getFilteredPendingRejectedHotels,
     getHotelStatistics,
     refreshAllHotels,
     refreshApprovedHotels,
     refreshPendingRejectedHotels,
     searchApprovedHotels,
+    searchActiveApprovedHotels,
     searchPendingRejectedHotels,
-    searchAllHotels
+    searchAllHotels,
+    getAvailableRoomsByHotelId
   };
 };
 

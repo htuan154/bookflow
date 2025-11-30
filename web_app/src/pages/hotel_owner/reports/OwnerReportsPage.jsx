@@ -3,28 +3,63 @@ import { OwnerReportsProvider } from '../../../context/OwnerReportsContext';
 import { HotelProvider } from '../../../context/HotelContext';
 import useOwnerReports from '../../../hooks/useOwnerReports';
 import { useHotel } from '../../../hooks/useHotel';
+import useAuth from '../../../hooks/useAuth';
+import { USER_ROLES } from '../../../config/roles';
+import { staffApiService } from '../../../api/staff.service';
+import { hotelApiService } from '../../../api/hotel.service';
+import ReportsOwnerService from '../../../api/reports.owner.service';
+import { exportOwnerReportPDF } from '../../../utils/pdfExport';
 
 function OwnerFilterBar() {
   const { filters, setFilters, setSelectedHotel,fetchPayments, fetchPayouts } = useOwnerReports(false);
   const { fetchApprovedHotels, approvedHotels } = useHotel();
+  const { user } = useAuth();
   const [loadingHotels, setLoadingHotels] = useState(false);
+  const [loadingStaffInfo, setLoadingStaffInfo] = useState(false);
+  const [staffHotel, setStaffHotel] = useState(null);
   
   const update = (k, v) => setFilters(prev => ({ ...prev, [k]: v }));
 
-  // Load hotels for dropdown
+  const isStaff = user?.roleId === USER_ROLES.HOTEL_STAFF;
+
+  // Load hotels for owner or staff hotel for staff
   useEffect(() => {
-    const loadHotels = async () => {
-      try {
-        setLoadingHotels(true);
-        await fetchApprovedHotels();
-      } catch (error) {
-        console.error('Error loading hotels:', error);
-      } finally {
-        setLoadingHotels(false);
+    const loadData = async () => {
+      if (isStaff) {
+        // Auto-load staff's hotel
+        try {
+          setLoadingStaffInfo(true);
+          const staffData = await staffApiService.getStaffByUserId(user.userId || user.user_id || user.id);
+          const staff = staffData?.data || staffData;
+          
+          if (staff?.hotel_id) {
+            const hotelData = await hotelApiService.getHotelById(staff.hotel_id);
+            const hotel = hotelData?.data || hotelData;
+            setStaffHotel(hotel);
+            
+            // Auto-set filters with staff's hotel
+            update('hotel_id', String(staff.hotel_id));
+            setSelectedHotel(hotel);
+          }
+        } catch (error) {
+          console.error('Error loading staff hotel:', error);
+        } finally {
+          setLoadingStaffInfo(false);
+        }
+      } else {
+        // Load hotels for owner
+        try {
+          setLoadingHotels(true);
+          await fetchApprovedHotels();
+        } catch (error) {
+          console.error('Error loading hotels:', error);
+        } finally {
+          setLoadingHotels(false);
+        }
       }
     };
-    loadHotels();
-  }, [fetchApprovedHotels]);
+    loadData();
+  }, [isStaff, user?.userId, user?.user_id, user?.id, fetchApprovedHotels]);
 
   const presets = useMemo(() => ([
     { label: 'Hôm qua', range: () => {
@@ -79,7 +114,22 @@ function OwnerFilterBar() {
           <input
             type="date"
             value={filters.date_from}
-            onChange={e => update('date_from', e.target.value)}
+            onChange={e => {
+              const newFrom = e.target.value;
+              let newTo = filters.date_to;
+              if (newTo && newFrom) {
+                const fromDate = new Date(newFrom);
+                const toDate = new Date(newTo);
+                // If toDate is not at least 1 day after fromDate, set toDate = fromDate + 1 day
+                if (toDate <= fromDate) {
+                  const nextDay = new Date(fromDate);
+                  nextDay.setDate(fromDate.getDate() + 1);
+                  newTo = nextDay.toISOString().slice(0, 10);
+                  update('date_to', newTo);
+                }
+              }
+              update('date_from', newFrom);
+            }}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
           />
         </div>
@@ -94,35 +144,37 @@ function OwnerFilterBar() {
           />
         </div>
         
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">🏨 Khách sạn</label>
-          <select
-            value={filters.hotel_id || ''}
-            onChange={e => handleHotelChange(e.target.value)}
-            disabled={loadingHotels}
-            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors disabled:bg-gray-100"
-          >
-            <option value="">Vui lòng chọn khách sạn</option>
-            <option value="ALL">Tất cả khách sạn của tôi</option>
-           {approvedHotels.map((hotel, idx) => {
-   const id =
-     hotel.hotel_id ??
-     hotel.hotelId ??
-     hotel.id ??
-     `tmp-${idx}`; // fallback cuối cùng để tránh trùng key
-   const name = hotel.name ?? hotel.hotel_name ?? 'Khách sạn';
-   const city = hotel.city ?? hotel.hotel_city ?? '';
-   return (
-     <option key={String(id)} value={String(id)}>
-       {name} - {city}
-     </option>
-   );
- })}
-          </select>
-          {loadingHotels && (
-            <p className="text-xs text-green-500 mt-1">Đang tải danh sách khách sạn...</p>
-          )}
-        </div>
+        {!isStaff && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">🏨 Khách sạn</label>
+            <select
+              value={filters.hotel_id || ''}
+              onChange={e => handleHotelChange(e.target.value)}
+              disabled={loadingHotels}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors disabled:bg-gray-100"
+            >
+              <option value="">Vui lòng chọn khách sạn</option>
+              <option value="ALL">Tất cả khách sạn của tôi</option>
+             {approvedHotels.map((hotel, idx) => {
+     const id =
+       hotel.hotel_id ??
+       hotel.hotelId ??
+       hotel.id ??
+       `tmp-${idx}`; // fallback cuối cùng để tránh trùng key
+     const name = hotel.name ?? hotel.hotel_name ?? 'Khách sạn';
+     const city = hotel.city ?? hotel.hotel_city ?? '';
+     return (
+       <option key={String(id)} value={String(id)}>
+         {name} - {city}
+       </option>
+     );
+   })}
+            </select>
+            {loadingHotels && (
+              <p className="text-xs text-green-500 mt-1">Đang tải danh sách khách sạn...</p>
+            )}
+          </div>
+        )}
         
         <div>
           <button 
@@ -153,26 +205,42 @@ function OwnerFilterBar() {
 }
 
 function OwnerKPICards() {
-  const { payments, loadingPayments } = useOwnerReports(false);
-  const totals = useMemo(() => {
+  const { payments, payouts, loadingPayments, loadingPayouts } = useOwnerReports(false);
+
+  const unpaidTotals = useMemo(() => {
     const rows = payments?.rows || [];
     let gross=0, pg=0, admin=0, net=0, count=0;
     for (const r of rows) {
-      gross += Number(r.finalAmount || 0);  // Backend model sử dụng finalAmount
-      pg    += Number(r.pgFeeAmount || 0);  // Backend model sử dụng pgFeeAmount
-      admin += Number(r.adminFeeAmount || 0);  // Backend model sử dụng adminFeeAmount
-      net   += Number(r.hotelNetAmount || 0);  // Backend model sử dụng hotelNetAmount
+      gross += Number(r.finalAmount || 0);
+      pg    += Number(r.pgFeeAmount || 0);
+      admin += Number(r.adminFeeAmount || 0);
+      net   += Number(r.hotelNetAmount || 0);
       count += 1;
     }
     return { gross, pg, admin, net, count };
   }, [payments]);
 
-  const kpiData = [
-    { label: '💰 Tổng doanh thu', value: totals.gross, color: 'from-green-500 to-emerald-600', icon: '💰' },
-    { label: '🏦 Phí thanh toán', value: totals.pg, color: 'from-blue-500 to-cyan-600', icon: '🏦' },
-    { label: '⚙️ Phí quản lý', value: totals.admin, color: 'from-purple-500 to-violet-600', icon: '⚙️' },
-    { label: '🏨 Thu nhập thực tế', value: totals.net, color: 'from-orange-500 to-red-600', icon: '🏨' },
-    { label: '📋 Số giao dịch', value: totals.count, color: 'from-indigo-500 to-blue-600', icon: '📋' }
+  const paidTotals = useMemo(() => {
+    const rows = (payouts?.rows || []).filter(p => (p.status || '').toLowerCase() === 'processed');
+    let amount = 0, count = 0;
+    for (const p of rows) {
+      amount += Number(p.total_net_amount || p.totalNetAmount || 0);
+      count += 1;
+    }
+    return { amount, count };
+  }, [payouts]);
+
+  const kpiDataUnpaid = [
+    { label: '💰 Doanh thu chưa thanh toán', value: unpaidTotals.gross, color: 'from-green-500 to-emerald-600', icon: '💰' },
+    { label: '🏦 Phí thanh toán', value: unpaidTotals.pg, color: 'from-blue-500 to-cyan-600', icon: '🏦' },
+    { label: '⚙️ Phí quản lý', value: unpaidTotals.admin, color: 'from-purple-500 to-violet-600', icon: '⚙️' },
+    { label: '🏨 Thu nhập thực tế (chưa nhận)', value: unpaidTotals.net, color: 'from-orange-500 to-red-600', icon: '🏨' },
+    { label: '📋 Giao dịch chưa thanh toán', value: unpaidTotals.count, color: 'from-indigo-500 to-blue-600', icon: '📋' }
+  ];
+
+  const kpiDataPaid = [
+    { label: '✅ Đã thanh toán (payout)', value: paidTotals.amount, color: 'from-green-600 to-teal-700', icon: '✅' },
+    { label: '🧾 Số lượt payout', value: paidTotals.count, color: 'from-sky-600 to-indigo-700', icon: '🧾' }
   ];
 
   const Card = ({ label, value, color, icon }) => (
@@ -187,7 +255,7 @@ function OwnerKPICards() {
     </div>
   );
 
-  if (loadingPayments) {
+  if (loadingPayments || loadingPayouts) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         {[...Array(5)].map((_, index) => (
@@ -198,11 +266,21 @@ function OwnerKPICards() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-      {kpiData.map((item, index) => (
-        <Card key={index} {...item} />
-      ))}
-    </div>
+    <>
+      <div className="mb-3 text-sm text-gray-700 font-medium">📊 Chưa thanh toán</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        {kpiDataUnpaid.map((item, index) => (
+          <Card key={`unpaid-${index}`} {...item} />
+        ))}
+      </div>
+
+      <div className="mb-3 text-sm text-gray-700 font-medium">💳 Đã thanh toán</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        {kpiDataPaid.map((item, index) => (
+          <Card key={`paid-${index}`} {...item} />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -648,7 +726,43 @@ function OwnerPayoutsTable() {
 }
 
 function OwnerReportsInner() {
-  const { error } = useOwnerReports(true); // auto fetch payments & payouts lần đầu
+  const { error, filters, payments, payouts } = useOwnerReports(true); // auto fetch payments & payouts lần đầu
+  const { user } = useAuth();
+  const isStaff = user?.roleId === USER_ROLES.HOTEL_STAFF;
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async (scope) => {
+    try {
+      setExporting(true);
+      // scope: 'selected' | 'all'
+      if (scope === 'all' && !isStaff) {
+        // Fetch ALL without changing UI filters
+        const [pms, pts] = await Promise.all([
+          ReportsOwnerService.getPayments({ ...filters, hotel_id: 'ALL' }),
+          ReportsOwnerService.getPayouts({ ...filters, hotel_id: 'ALL' })
+        ]);
+        exportOwnerReportPDF({
+          filters,
+          payments: pms?.data || pms?.rows || pms || [],
+          payouts: pts?.data || pts?.rows || pts || [],
+          scopeLabel: 'Tất cả khách sạn của tôi'
+        });
+      } else {
+        // Use current data in context
+        exportOwnerReportPDF({
+          filters,
+          payments: payments?.rows || [],
+          payouts: payouts?.rows || [],
+          scopeLabel: isStaff ? 'Khách sạn của nhân viên' : (filters.hotel_id === 'ALL' ? 'Tất cả khách sạn của tôi' : 'Khách sạn đang chọn')
+        });
+      }
+    } catch (e) {
+      console.error('Export PDF failed:', e);
+      alert('Xuất PDF thất bại: ' + (e?.message || 'Unknown error'));
+    } finally {
+      setExporting(false);
+    }
+  };
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-green-50 to-emerald-100">
@@ -664,6 +778,36 @@ function OwnerReportsInner() {
               <p className="text-gray-600">Theo dõi thu nhập và thanh toán của các khách sạn bạn sở hữu</p>
             </div>
           </div>
+        </div>
+
+        {/* Export actions */}
+        <div className="mb-4 flex gap-2">
+          {isStaff || filters?.hotel_id === 'ALL' ? (
+            <button
+              onClick={() => handleExport('selected')}
+              disabled={exporting}
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm shadow hover:shadow-md disabled:opacity-50"
+            >
+              ⬇️ Xuất PDF
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => handleExport('selected')}
+                disabled={exporting}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm shadow hover:shadow-md disabled:opacity-50"
+              >
+                ⬇️ Xuất PDF (KS đang chọn)
+              </button>
+              <button
+                onClick={() => handleExport('all')}
+                disabled={exporting}
+                className="px-4 py-2 rounded-lg bg-gradient-to-r from-sky-600 to-indigo-600 text-white text-sm shadow hover:shadow-md disabled:opacity-50"
+              >
+                ⬇️ Xuất PDF (Tất cả KS)
+              </button>
+            </>
+          )}
         </div>
 
         {/* Global error banner for owner reports (e.g., authentication/network) */}

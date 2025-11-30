@@ -9,11 +9,14 @@ import useAuth  from '../../../hooks/useAuth';
 import { staffApiService } from '../../../api/staff.service';
 import { USER_ROLES } from '../../../config/roles';
 import { API_ENDPOINTS } from '../../../config/apiEndpoints';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 const AddStaff = () => {
     const navigate = useNavigate();
     const { hotelData, fetchOwnerHotel } = useHotelOwner();
     const { user } = useAuth();
+    const { toast, showSuccess, showError, hideToast } = useToast();
     
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -27,33 +30,31 @@ const AddStaff = () => {
         phone: '',
         address: '',
         confirmPassword: '',
-        
         // Staff data  
-        position: '',
-        start_date: new Date().toISOString().split('T')[0],
-        salary: 0,
-        notes: ''
+        position: 'Staff',
+        start_date: new Date().toISOString().split('T')[0]
     });
     
     const [errors, setErrors] = useState({});
 
+    const location = typeof window !== 'undefined' ? require('react-router-dom').useLocation() : {};
     useEffect(() => {
         fetchOwnerHotel();
     }, []);
 
     // Set default hotel when hotelData is available
     useEffect(() => {
-        console.log('useEffect - Hotel data changed:', hotelData);
-        
-        if (hotelData && Array.isArray(hotelData) && hotelData.length > 0) {
-            // If no hotel is selected, select the first one by default
+        // Ưu tiên lấy selectedHotel từ location.state nếu có
+        if (location && location.state && location.state.selectedHotel) {
+            setSelectedHotel(location.state.selectedHotel);
+        } else if (hotelData && Array.isArray(hotelData) && hotelData.length > 0) {
+            // Nếu không có thì lấy hotel đầu tiên
             if (!selectedHotel) {
                 const firstHotel = hotelData[0];
                 setSelectedHotel(firstHotel);
-                console.log('Selected default hotel for AddStaff:', firstHotel);
             }
         }
-    }, [hotelData]);
+    }, [hotelData, location]);
 
     // Enhanced user ID detection with better fallbacks
     const getCurrentUserId = () => {
@@ -178,22 +179,22 @@ const AddStaff = () => {
         
         // Enhanced validation with user-friendly messages
         if (!hotelId) {
-            alert('Không tìm thấy thông tin khách sạn. Vui lòng chọn khách sạn.');
+            showError('Không tìm thấy thông tin khách sạn. Vui lòng chọn khách sạn.');
             return;
         }
 
         if (!currentUserId) {
-            alert('Không tìm thấy thông tin người dùng hiện tại. Vui lòng đăng nhập lại.');
+            showError('Không tìm thấy thông tin người dùng hiện tại. Vui lòng đăng nhập lại.');
             return;
         }
 
         if (!isValidUUID(currentUserId)) {
-            alert('ID người dùng không hợp lệ. Vui lòng đăng nhập lại.');
+            showError('ID người dùng không hợp lệ. Vui lòng đăng nhập lại.');
             return;
         }
 
         if (!isValidUUID(hotelId)) {
-            alert('ID khách sạn không hợp lệ. Vui lòng liên hệ hỗ trợ.');
+            showError('ID khách sạn không hợp lệ. Vui lòng liên hệ hỗ trợ.');
             return;
         }
 
@@ -215,8 +216,7 @@ const AddStaff = () => {
                 job_position: formData.position,
                 start_date: formData.start_date,
                 contact: formData.phone,
-                hired_by: currentUserId,
-                notes: formData.notes || '' // Provide empty string for optional field
+                hired_by: currentUserId
             };
             
             // Try multiple API methods with better error handling
@@ -245,8 +245,8 @@ const AddStaff = () => {
                 throw lastError;
             }
             
-            alert(`Thêm nhân viên thành công!\n\nNhân viên ${formData.full_name} đã được thêm vào khách sạn ${selectedHotel.name}.`);
-            navigate('/hotel-owner/staff/list');
+            showSuccess(`Thêm nhân viên thành công! Nhân viên ${formData.full_name} đã được thêm vào khách sạn ${selectedHotel.name}.`);
+            setTimeout(() => navigate('/hotel-owner/staff/list'), 1500);
         } catch (error) {
             // Enhanced error messages
             let errorMessage = 'Thêm nhân viên thất bại';
@@ -265,7 +265,7 @@ const AddStaff = () => {
                 errorMessage = error.message;
             }
             
-            alert('Lỗi: ' + errorMessage);
+            showError('Lỗi: ' + errorMessage);
         } finally {
             setLoading(false);
         }
@@ -318,7 +318,7 @@ const AddStaff = () => {
                 </div>
 
                 {/* Hotel Selection */}
-                {hotelData.length > 1 && (
+                {hotelData.length > 1 && !selectedHotel && (
                     <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Chọn khách sạn: *
@@ -471,14 +471,12 @@ const AddStaff = () => {
                                 </label>
                                 <input
                                     type="text"
-                                    value={formData.position}
-                                    onChange={(e) => handleInputChange('position', e.target.value)}
-                                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
-                                        errors.position ? 'border-red-500' : 'border-gray-300'
-                                    }`}
-                                    placeholder="Ví dụ: Lễ tân, Housekeeping, Bảo vệ..."
+                                    value="Staff"
+                                    readOnly
+                                    disabled
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed focus:outline-none"
                                 />
-                                {errors.position && <p className="text-red-500 text-sm mt-1">{errors.position}</p>}
+                                <p className="text-xs text-gray-500 mt-1">Vị trí công việc cố định là Staff</p>
                             </div>
 
                             {/* Start Date */}
@@ -495,21 +493,6 @@ const AddStaff = () => {
                                     }`}
                                 />
                                 {errors.start_date && <p className="text-red-500 text-sm mt-1">{errors.start_date}</p>}
-                            </div>
-
-                            {/* Salary - Keep for UI but don't send to backend */}
-                            <div className="md:col-span-2">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Mức lương (VNĐ) - <span className="text-xs text-gray-500">(chỉ để tham khảo, không lưu vào DB)</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    value={formData.salary}
-                                    onChange={(e) => handleInputChange('salary', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                                    placeholder="Ví dụ: 15000000"
-                                    min="0"
-                                />
                             </div>
                         </div>
                     </div>
@@ -573,19 +556,7 @@ const AddStaff = () => {
                         </div>
                     </div>
 
-                    {/* Notes */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Ghi chú thêm
-                        </label>
-                        <textarea
-                            rows={4}
-                            value={formData.notes}
-                            onChange={(e) => handleInputChange('notes', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors resize-none"
-                            placeholder="Ghi chú về kỹ năng, kinh nghiệm, hoặc thông tin đặc biệt khác..."
-                        />
-                    </div>
+
 
                     {/* Submit Buttons */}
                     <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
@@ -616,6 +587,16 @@ const AddStaff = () => {
                     </div>
                 </form>
             </div>
+
+            {/* Toast Notification */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={hideToast}
+                    duration={toast.duration}
+                />
+            )}
         </div>
     );
 };

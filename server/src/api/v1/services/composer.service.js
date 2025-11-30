@@ -3,94 +3,175 @@
 const { generateJSON } = require('../../../config/ollama');
 const { validateResponse } = require('./guardrails.service');
 const { cache, makeKey } = require('../../../config/cache');
-const { normalize } = require('./nlu.service'); // ADDED for dedupe keys
+const { normalize } = require('./nlu.service');
 
-/* ========== NoSQL (địa danh/món ăn) – logic cũ, giữ nguyên ========== */
+// ==============================================================================
+// 1. DATA SANITIZATION & HELPERS
+// ==============================================================================
 
-function factsToPrompt({ doc, intent }) {
-  const places = (doc.places || []).map(p => `- ${p.name}`).join('\n') || '-';
-  const dishes = (doc.dishes || []).map(d => `- ${d.name}`).join('\n') || '-';
+const CJK_REGEX = /[\u3400-\u9fff]/g;
+const sanitizeText = (s = '') => String(s || '').replace(CJK_REGEX, '').trim();
 
-  return `
-Bạn là trợ lý du lịch tiếng Việt. CHỈ dùng dữ kiện có sẵn, KHÔNG bịa tên mới.
-Trả về duy nhất một JSON theo schema:
-{
-  "province": string,
-  "places": [{ "name": string, "hint": string }],
-  "dishes": [{ "name": string, "where": string }],
-  "tips": string[],
-  "source": "nosql+llm"
+const sanitizePayload = (p = {}) => {
+  return {
+    ...p,
+    summary: sanitizeText(p.summary || ''), 
+    places: Array.isArray(p.places) ? p.places : [],
+    dishes: Array.isArray(p.dishes) ? p.dishes : [],
+    tips: Array.isArray(p.tips) ? p.tips.filter(Boolean) : [],
+    promotions: Array.isArray(p.promotions) ? p.promotions : [],
+    hotels: Array.isArray(p.hotels) ? p.hotels : [],
+    province: p.province || null,
+    source: p.source || 'unknown'
+  };
+};
+
+const stripDegrees = (text = '') => {
+  if (!text) return '';
+  const repl = 'nhiệt độ dễ chịu';
+  return String(text)
+    .replace(/(?:khoảng|từ)?\s*\d+\s*[-–]\s*\d+\s*(?:độ|do|°)\s*c/gi, repl)
+    .replace(/(?:khoảng|từ)?\s*\d+\s*(?:độ|do|°)\s*c/gi, repl)
+    .replace(/\b\d+\s*(?:độ|do|°)\b/gi, repl)
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+};
+
+// ==============================================================================
+// 2. CONTEXT HELPERS
+// ==============================================================================
+
+function monthContext(m) {
+  if (!m || m < 1 || m > 12) return '';
+  if (m >= 5 && m <= 10) return 'Đang là mùa mưa ở nhiều nơi, hãy chuẩn bị ô hoặc áo mưa.';
+  if (m >= 11 || m <= 4) return 'Thời tiết khô ráo, rất thích hợp để tham quan ngoài trời.';
+  return '';
 }
 
-Tỉnh: ${doc.name}
-Địa danh:
-${places}
-Món ăn:
-${dishes}
+const CITY_MONTH_OVERRIDES = [
+  {
+    cities: ['Đà Nẵng', 'Quảng Nam', 'Thừa Thiên Huế', 'Quảng Ngãi', 'Bình Định', 'Phú Yên'],
+    overrides: {
+      9: 'Miền Trung bắt đầu vào mùa mưa bão, cần theo dõi dự báo thời tiết.',
+      10: 'Miền Trung đang cao điểm mưa bão, hạn chế các hoạt động biển.',
+      11: 'Vẫn còn mưa lớn và biển động ở miền Trung, hãy chuẩn bị phương án dự phòng.'
+    }
+  }
+];
 
-Yêu cầu BẮT BUỘC:
-- Luôn trả cả hai danh sách "places" và "dishes" (tối đa 5–7 mỗi loại).
-- MỖI địa danh PHẢI có "hint" (gợi ý ngắn gọn 8-15 từ về đặc điểm, lịch sử, hoặc lý do nên đến).
-- MỖI món ăn PHẢI có "where" (gợi ý địa điểm thưởng thức, quán nổi tiếng, hoặc khu vực, 8-15 từ).
-- Không thêm tên mới ngoài danh sách đã cho.
-- Nếu một danh sách không có dữ liệu thì trả mảng rỗng [].
-- "hint" và "where" phải mang tính thông tin, hữu ích cho du khách.
+function cityMonthContext(city, month) {
+  if (!city || !month) return '';
+  const normCity = normalize(String(city));
+  for (const group of CITY_MONTH_OVERRIDES) {
+    if (group.cities.some(name => normalize(name) === normCity)) {
+      return group.overrides?.[month] || '';
+    }
+  }
+  return '';
+}
 
-Ví dụ:
-- places: [{ "name": "Hồ Hoàn Kiếm", "hint": "Trung tâm Hà Nội, nơi thờ tướng Trần Hưng Đạo, đẹp vào buổi sáng sớm" }]
-- dishes: [{ "name": "Phở bò", "where": "Phở Thìn Bờ Hồ (13 Lò Đúc) hoặc Phở 10 Lý Quốc Sư" }]
+// ==============================================================================
+// 3. AI THINKING MODE [UPDATED FIX]
+// ==============================================================================
 
-(intent gốc: ${intent})
+async function composeSpecificItem({ doc, targetItem, userMessage }) {
+  const itemName = targetItem.name || 'Địa điểm này';
+  const itemType = targetItem.type || 'place'; // Nhận type từ logic search
+  const provinceName = doc.name || 'Địa phương';
+  
+  // Prompt chỉ thị rõ ràng theo loại
+  let specificInstruction = "";
+  if (itemType === 'dish') {
+      specificInstruction = `Đây là MÓN ĂN đặc sản. Hãy mô tả hương vị, nguyên liệu và độ ngon. Tuyệt đối KHÔNG mô tả phong cảnh hay địa điểm check-in.`;
+  } else {
+      specificInstruction = `Đây là ĐỊA ĐIỂM du lịch. Hãy mô tả vẻ đẹp kiến trúc, thiên nhiên, không khí và hoạt động tham quan.`;
+  }
+
+  const prompt = `
+Bạn là Hướng dẫn viên du lịch địa phương (AI Local Guide).
+
+THÔNG TIN ĐẦU VÀO:
+- Khách hỏi: "${userMessage}"
+- Hệ thống tìm được: "${itemName}" (${itemType}) tại "${provinceName}".
+
+YÊU CẦU:
+1. Giới thiệu ngắn gọn, hấp dẫn về "${itemName}".
+2. ${specificInstruction}
+3. Trả lời đúng trọng tâm câu hỏi. Nếu khách hỏi "ở đâu", hãy chỉ đường. Nếu khách hỏi "ngon không", hãy tả vị.
+4. Giọng điệu: Tự nhiên, nhiệt tình, như bạn bè.
+
+JSON OUTPUT:
+{
+  "summary": "Câu trả lời của bạn (khoảng 3 câu).",
+  "tips": ["Mẹo 1", "Mẹo 2"]
+}
+`;
+
+  try {
+    const raw = await generateJSON({ prompt, temperature: 0.4 }); // Temperature 0.4 để cân bằng sáng tạo/chính xác
+    
+    return sanitizePayload({
+      summary: raw.summary || `${itemName} là một lựa chọn tuyệt vời tại ${provinceName}.`,
+      places: itemType === 'place' ? [{ name: itemName, hint: 'Gợi ý từ AI' }] : [], 
+      dishes: itemType === 'dish' ? [{ name: itemName, where: 'Đặc sản địa phương' }] : [],
+      tips: raw.tips || [],
+      source: 'ai-flex-knowledge'
+    });
+
+  } catch (error) {
+    return sanitizePayload({ 
+        summary: `Mời bạn tham khảo ${itemName} tại ${provinceName}. Đây là một ${itemType === 'dish' ? 'món ăn' : 'địa điểm'} nổi tiếng.`,
+        places: [{ name: itemName, hint: '' }],
+        source: 'fallback-error' 
+    });
+  }
+}
+// ==============================================================================
+// 4. GENERIC MODE
+// ==============================================================================
+
+function factsToPrompt({ doc, queryType = 'overview', intent }) {
+  const places = (doc.places || []).slice(0, 10).map(p => p.name).join(', ');
+  const dishes = (doc.dishes || []).slice(0, 10).map(d => d.name).join(', ');
+  const mergedList = doc.merged_from || doc.mergedFrom || [];
+  const mergedNote = mergedList.length ? `(Bao gồm dữ liệu của: ${mergedList.join(', ')})` : '';
+
+  let conditionalInstructions = '';
+  if (queryType === 'dishes') conditionalInstructions = 'Tập trung giới thiệu ẩm thực.';
+  else if (queryType === 'places') conditionalInstructions = 'Tập trung giới thiệu cảnh đẹp.';
+  else conditionalInstructions = 'Giới thiệu tổng quan.';
+
+  return `
+Bạn là trợ lý du lịch chuyên nghiệp.
+Vùng dữ liệu: ${doc.name} ${mergedNote}.
+Địa danh: ${places}
+Món ăn: ${dishes}
+
+YÊU CẦU:
+1. Viết summary (3-4 câu) giới thiệu du lịch khu vực này. ${conditionalInstructions}
+2. Chọn 5 địa điểm + 5 món ăn tiêu biểu.
+3. Tạo "hint" (địa điểm) và "where" (món ăn) ngắn gọn.
+
+JSON OUTPUT:
+{
+  "summary": "...",
+  "places": [{ "name": "Tên", "hint": "Mô tả" }],
+  "dishes": [{ "name": "Tên", "where": "Địa chỉ" }],
+  "tips": []
+}
+(intent: ${intent})
 `;
 }
 
-function fallbackFromDoc(doc, intent) {
-  const pick = (arr) => Array.isArray(arr) ? arr.slice(0, 7) : [];
-  return {
-    province: doc.name,
-    // Luôn trả cả hai thay vì lọc theo intent, giữ hint/where nếu có
-    places: pick(doc.places).map(x => ({ 
-      name: x.name, 
-      hint: x.hint || x.description || '' 
-    })),
-    dishes: pick(doc.dishes).map(x => ({ 
-      name: x.name,
-      where: x.where || x.location || ''
-    })),
-    tips: doc.tips || [],
-    source: 'fallback',
-  };
-}
-
-/* ========== Helpers cho SQL ========== */
+// ==============================================================================
+// 5. SQL HELPERS & MAIN COMPOSE
+// ==============================================================================
 
 function normRow(x, tag = '') {
   if (!x || typeof x !== 'object') return null;
-
-  const name =
-    x.name || x.title || x.promotion_name || x.hotel_name ||
-    x.code || x.place || x.dish || x.city || x.id || null;
+  const name = x.name || x.title || x.hotel_name || x.promotion_name || x.code || x.id || null;
   if (!name) return null;
-
-  // Chuẩn hoá các field FE đang render
-  const discount_value =
-    x.discount_value ?? x.discount_percent ?? x.discount ?? x.percent ?? x.amount_off ?? x.value ?? null;
-
-  // FE dùng "valid_from" & "valid_until"
-  const valid_from = x.valid_from ?? x.start_date ?? x.from ?? x.begin_at ?? null;
-  const valid_until = x.valid_until ?? x.valid_to ?? x.end_date ?? x.to ?? x.expire_at ?? null;
-
-  const city = x.city ?? x.province ?? x.location ?? null;
-
-  return {
-    ...x,
-    name,
-    discount_value,
-    valid_from,
-    valid_until,
-    city,
-    _tag: tag
-  };
+  return { ...x, name, _tag: tag };
 }
 
 function normRows(rows, tag = '') {
@@ -98,41 +179,23 @@ function normRows(rows, tag = '') {
   return rows.map(r => normRow(r, tag)).filter(Boolean);
 }
 
-function detectSqlMode(sql = []) {
-  const anyPromo = sql.some(ds =>
-    /promo|promotion/i.test(ds?.tag || ds?.name || '') ||
-    (ds?.rows || []).some(r => 'code' in r || 'promotion_name' in r || 'discount_value' in r)
-  );
-  if (anyPromo) return 'promotions';
-
-  const anyHotel = sql.some(ds =>
-    /hotel/i.test(ds?.tag || ds?.name || '') ||
-    (ds?.rows || []).some(r => 'hotel_name' in r || 'star_rating' in r)
-  );
-  if (anyHotel) return 'hotels';
-
-  return 'generic';
-}
-
-// ==== DEDUPE HELPERS (ADDED) ====
 const uniqBy = (arr, keyFn) => {
   const seen = new Set();
   return (arr || []).filter(x => {
-    try {
-      const k = keyFn(x);
-      if (!k || seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    } catch {
-      return false;
-    }
+    try { const k = keyFn(x); if (!k || seen.has(k)) return false; seen.add(k); return true; } catch { return false; }
   });
 };
 const normKey = v => normalize(String(v || ''));
 
-/* ========== COMPOSE (hợp nhất NoSQL + SQL) ========== */
-
 async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, intent }) {
+  if (user_ctx && user_ctx.forcedItem && doc) {
+      return await composeSpecificItem({
+          doc,
+          targetItem: user_ctx.forcedItem,
+          userMessage: user_ctx.userMessage || nlu?.normalized || '' 
+      });
+  }
+
   const key = makeKey({
     doc_key: doc?.name || doc?.province || 'no-doc',
     sql_tags: (sql || []).map(ds => ds?.tag || ds?.name).join('|') || 'no-sql',
@@ -143,147 +206,83 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
   const cached = cache.get(key);
   if (cached) return cached;
 
-  // 1) SQL datasets
   if (Array.isArray(sql) && sql.length > 0) {
-    const mode = detectSqlMode(sql);
-    const topN = Number.isFinite(user_ctx?.top_n) ? user_ctx.top_n : 10;
-
-    // Gộp + chuẩn hoá
-    let items = [];
-    for (const ds of sql) {
-      const tag = ds?.name || ds?.tag || 'dataset';
-      const rows = normRows(ds?.rows || [], tag);
-      items.push(...rows);
-    }
-
-    // Dedupe theo mode
-    if (mode === 'promotions') {
-      items = uniqBy(items, r => r.code ? normKey(r.code) : `${normKey(r.name)}|${normKey(r.city)}`);
-    } else if (mode === 'hotels') {
-      items = uniqBy(items, r => r.hotel_id ? normKey(r.hotel_id) : normKey(r.name));
-    } else {
-      items = uniqBy(items, r => normKey(r.name));
-    }
-
-    const pick = items.slice(0, topN);
-
-    let out;
-    if (mode === 'promotions') {
-      const promos = pick.map(p => ({
-        promotion_id: p.promotion_id ?? p.id,
-        name: p.name,
-        code: p.code ?? null,
-        discount_value: p.discount_value ?? null,
-        valid_from: p.valid_from ?? null,
-        valid_until: p.valid_until ?? null,
-        city: p.city ?? null,
-        description: p.description ?? p.note ?? null,
-        _tag: p._tag
-      }));
-      out = {
-        summary: `Tìm thấy ${items.length} khuyến mãi, hiển thị ${promos.length} ưu đãi tiêu biểu.`,
-        promotions: promos,
-        hotels: [],
-        places: [],
-        dishes: [],
-        tips: [],
-        source: 'sql+nosql+llm'
-      };
-    } else if (mode === 'hotels') {
-      const hotels = pick.map(h => ({
-        hotel_id: h.hotel_id ?? h.id,
-        name: h.name,
-        address: h.address ?? null,
-        star_rating: h.star_rating ?? h.stars ?? null,
-        average_rating: h.average_rating ?? null,
-        amenities: h.amenities ?? null,
-        phone_number: h.phone_number ?? null,
-        _tag: h._tag
-      }));
-      out = {
-        summary: `Gợi ý ${hotels.length} khách sạn.`,
-        hotels,
-        promotions: [],
-        places: [],
-        dishes: [],
-        tips: [],
-        source: 'sql+nosql+llm'
-      };
-    } else {
-      out = {
-        summary: `Tìm thấy ${pick.length} kết quả.`,
-        data: { items: pick },
-        promotions: [],
-        hotels: [],
-        places: [],
-        dishes: [],
-        tips: [],
-        source: 'sql+nosql+llm'
-      };
-    }
-
+    const items = [];
+    for (const ds of sql) items.push(...normRows(ds?.rows || [], ds?.name || 'dataset'));
+    const isHotel = items.some(i => i.hotel_id || i.star_rating);
+    const isPromo = items.some(i => i.promotion_id || i.discount_value);
+    
+    const out = sanitizePayload({
+        summary: `Tìm thấy ${items.length} kết quả phù hợp.`,
+        hotels: isHotel ? items.slice(0, 10) : [],
+        promotions: isPromo ? items.slice(0, 10) : [],
+        source: 'sql+llm'
+    });
     cache.set(key, out);
     return out;
   }
 
-  // 2) NoSQL
   if (!doc || !doc.name) {
-    const fb = { summary: 'Chưa đủ dữ kiện để trả lời.', sections: [], promotions: [], hotels: [], places: [], dishes: [], tips: [], source: 'nosql+llm' };
-    cache.set(key, fb);
-    return fb;
+    const fb = await composeCityFallback({ city: user_ctx?.city, message: nlu?.normalized }).catch(() => null);
+    return fb || sanitizePayload({ summary: 'Chưa đủ dữ kiện.', source: 'empty' });
   }
 
   try {
-    const prompt = factsToPrompt({ doc, intent: intent || nlu?.intent || 'generic' });
+    const queryType = nlu?.queryType || 'overview';
+    const prompt = factsToPrompt({ doc, queryType, intent: intent || 'generic' });
     const raw = await generateJSON({ prompt, temperature: 0.2 });
     const safe = validateResponse(raw, doc);
 
-    const pickSlice = (arr, n = 7) => (Array.isArray(arr) ? arr.slice(0, n) : []);
-    
-    // Ưu tiên kết quả từ LLM (có hint/where), nếu không có thì lấy từ doc (chỉ có name)
-    let places = (safe.places && safe.places.length)
-      ? safe.places
-      : pickSlice(doc.places || [], 7).map(x => ({ 
-          name: x.name, 
-          hint: x.hint || x.description || '' // Giữ hint nếu có trong doc
-        }));
-    let dishes = (safe.dishes && safe.dishes.length)
-      ? safe.dishes
-      : pickSlice(doc.dishes || [], 7).map(x => ({ 
-          name: x.name,
-          where: x.where || x.location || '' // Giữ where nếu có trong doc
-        }));
-    let tips = (safe.tips && safe.tips.length) ? safe.tips : (doc.tips || []);
-
-    // Dedupe NoSQL
-    places = uniqBy(places, x => normKey(x.name));
-    dishes = uniqBy(dishes, x => normKey(x.name));
-    tips = uniqBy(tips, x => (typeof x === 'string' ? normKey(x) : normKey(x.name || x.hint || JSON.stringify(x))));
-
-    const emptyBoth = places.length === 0 && dishes.length === 0;
-
-    const out = emptyBoth
-      ? {
-          summary: `Chưa có dữ liệu địa danh/món ăn cho “${doc.name}”.`,
-          promotions: [], hotels: [], places: [], dishes: [], tips,
-          source: 'nosql+llm'
-        }
-      : {
-          promotions: [], hotels: [], places, dishes, tips,
-          source: 'nosql+llm'
-        };
+    const out = sanitizePayload({
+      summary: safe.summary || `Thông tin du lịch ${doc.name}.`,
+      places: uniqBy(safe.places, x => normKey(x.name)),
+      dishes: uniqBy(safe.dishes, x => normKey(x.name)),
+      tips: safe.tips || [],
+      source: 'nosql-generic'
+    });
 
     cache.set(key, out);
     return out;
-  } catch {
-    const fb0 = fallbackFromDoc(doc, intent || nlu?.intent || 'generic');
-    const places = uniqBy(fb0.places, x => normKey(x.name));
-    const dishes = uniqBy(fb0.dishes, x => normKey(x.name));
-    const tips = uniqBy(fb0.tips, x => (typeof x === 'string' ? normKey(x) : normKey(x.name || JSON.stringify(x))));
-    const out = { promotions: [], hotels: [], places, dishes, tips, source: 'nosql+llm' };
+  } catch (e) {
+    const out = sanitizePayload({
+      summary: `Du lịch ${doc.name} có rất nhiều điều thú vị.`,
+      places: (doc.places || []).slice(0, 5).map(x => ({ name: x.name, hint: '' })),
+      dishes: [],
+      tips: [],
+      source: 'nosql-fallback'
+    });
     cache.set(key, out);
     return out;
   }
 }
 
-module.exports = { compose, fallbackFromDoc };
+async function composeSmallTalk({ message = '' }) {
+  const prompt = `Bạn là trợ lý du lịch. User nói: "${message}". Hãy trả lời vui vẻ 2-3 câu. JSON: {"summary": "..."}`;
+  try {
+    const resp = await generateJSON({ prompt, temperature: 0.5 });
+    return sanitizePayload({ summary: resp?.summary || 'Chào bạn!', source: 'llm-chitchat' });
+  } catch {
+    return sanitizePayload({ summary: 'Xin chào!', source: 'chitchat-static' });
+  }
+}
+
+async function composeCityFallback({ city, message = '' }) {
+    const prompt = `User hỏi về "${city || 'địa điểm'}" (dữ liệu DB chưa có). Nội dung: "${message}". Trả lời xã giao, gợi ý chung chung. JSON: {"summary": "..."}`;
+    try {
+        const raw = await generateJSON({ prompt, temperature: 0.5 });
+        return sanitizePayload({ summary: raw?.summary || 'Mình chưa có thông tin chi tiết.', source: 'llm-pure-fallback' });
+    } catch {
+        return sanitizePayload({ summary: 'Xin lỗi, mình chưa có thông tin.', source: 'empty' });
+    }
+}
+
+function fallbackFromDoc(doc) {
+  return sanitizePayload({
+    province: doc.name,
+    places: (doc.places || []).slice(0,5),
+    dishes: (doc.dishes || []).slice(0,5),
+    source: 'static'
+  });
+}
+
+module.exports = { compose, composeSmallTalk, fallbackFromDoc, composeCityFallback };

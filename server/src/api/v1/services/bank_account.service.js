@@ -4,6 +4,16 @@ const bankAccountRepository = require('../repositories/bank_account.repository')
 const BankAccount = require('../../../models/bank_account.model');
 
 class BankAccountService {
+    /**
+     * Bỏ mặc định tất cả tài khoản ngân hàng của hotel (set is_default = false)
+     */
+    async unsetDefaultByHotelId(hotelId, userId, userRole = 'user') {
+      // TODO: Validate hotel ownership for non-admin
+      if (userRole !== 'admin') {
+        // Implement hotel ownership check if needed
+      }
+      return await bankAccountRepository.unsetDefaultByHotelId(hotelId);
+    }
   /**
    * Lấy tất cả tài khoản ngân hàng trong hệ thống (Admin only)
    */

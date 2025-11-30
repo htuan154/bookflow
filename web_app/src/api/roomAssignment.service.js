@@ -47,3 +47,13 @@ export const getAvailableRooms = async ({ roomTypeId, checkInDate, checkOutDate,
   });
   return res.json();
 };
+
+export const releaseRoomsByBooking = async (bookingId) => {
+  const res = await fetch(API_ENDPOINTS.ROOM_ASSIGNMENTS.RELEASE_ROOMS(bookingId), {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${getToken()}`
+    }
+  });
+  return res.json();
+};

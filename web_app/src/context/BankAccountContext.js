@@ -85,6 +85,41 @@ export function BankAccountProvider({ children }) {
   }, []);
 
   /**
+   * Tạo tài khoản ngân hàng mới
+   */
+  const createBankAccount = useCallback(async (accountData) => {
+    setLoading(true);
+    setError(null);
+    setValidationErrors({});
+
+    try {
+      const response = await BankAccountService.createBankAccount(accountData);
+      
+      // Update local state
+      const newAccount = response.data;
+      setAccounts(prev => [...prev, newAccount]);
+
+      // Update default account if this is set as default
+      if (newAccount.isDefault) {
+        setDefaultAccount(newAccount);
+      }
+
+      return response;
+    } catch (err) {
+      const errorMsg = err?.response?.data?.message || err?.message || 'Lỗi khi tạo tài khoản';
+      setError(errorMsg);
+      
+      if (err?.response?.data?.errors) {
+        setValidationErrors(err.response.data.errors);
+      }
+      
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /**
    * Cập nhật tài khoản ngân hàng
    */
   const updateBankAccount = useCallback(async (accountId, updateData) => {
@@ -215,6 +250,25 @@ export function BankAccountProvider({ children }) {
     }
   }, []);
 
+    /**
+   * Bỏ mặc định tất cả tài khoản ngân hàng của hotel
+   */
+  const unsetDefaultBankAccountsByHotel = useCallback(async (hotelId) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await BankAccountService.unsetDefaultBankAccountsByHotel(hotelId);
+      // Optionally update local state if needed (refetch accounts)
+      return response;
+    } catch (err) {
+      const errorMsg = err?.response?.data?.message || err?.message || 'Lỗi khi bỏ mặc định tài khoản';
+      setError(errorMsg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // =========================================
   // ACTIONS - POPULAR BANKS
   // =========================================
@@ -314,8 +368,9 @@ export function BankAccountProvider({ children }) {
     validationErrors,
     
     // Actions - User accounts
-  fetchUserAccounts,
-  updateBankAccount,
+    fetchUserAccounts,
+    createBankAccount,
+    updateBankAccount,
     setAccountAsDefault,
     deleteBankAccount,
 
@@ -324,6 +379,7 @@ export function BankAccountProvider({ children }) {
     
     // Actions - Hotel accounts
     fetchHotelAccounts,
+    unsetDefaultBankAccountsByHotel,
     
     // Actions - Popular banks
     fetchPopularBanks,
@@ -343,7 +399,7 @@ export function BankAccountProvider({ children }) {
     accounts, defaultAccount, popularBanks, statistics,
     loading, loadingDefault, loadingBanks, loadingStats, creating, updating, deleting,
     error, validationErrors,
-    fetchUserAccounts, updateBankAccount,
+    fetchUserAccounts, createBankAccount, updateBankAccount,
     setAccountAsDefault, deleteBankAccount, fetchHotelAccounts,
     fetchPopularBanks, fetchBankAccountStatistics, fetchAllBankAccounts, clearError, resetState
   ]);

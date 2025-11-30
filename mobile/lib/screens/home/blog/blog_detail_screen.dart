@@ -156,11 +156,11 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
         return;
       }
 
-      final result = await _blogService.getBlogComments(
+      final result = await _blogService.getApprovedBlogComments(
         blog!.blogId,
         token: token,
       );
-      print('DEBUG: getBlogComments result: $result');
+      print('DEBUG: getApprovedBlogComments result: $result');
       if (result['success']) {
         final List<dynamic> commentData = result['data'] ?? [];
         print('DEBUG: commentData length: ${commentData.length}');
@@ -175,13 +175,13 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
           isLoadingComments = false;
         });
       } else {
-        print('DEBUG: getBlogComments error: ${result['message']}');
+        print('DEBUG: getApprovedBlogComments error: ${result['message']}');
         setState(() {
           isLoadingComments = false;
         });
       }
     } catch (e) {
-      print('DEBUG: getBlogComments exception: $e');
+      print('DEBUG: getApprovedBlogComments exception: $e');
       setState(() {
         isLoadingComments = false;
       });
@@ -264,37 +264,29 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
       }
     }
 
-    // Gắn children vào parent comments
-    for (var commentId in childrenMap.keys) {
-      if (childrenMap[commentId]!.isNotEmpty &&
-          commentMap.containsKey(commentId)) {
-        final parentComment = commentMap[commentId]!;
-        final updatedParent = parentComment.copyWith(
-          replies: childrenMap[commentId],
-        );
-        commentMap[commentId] = updatedParent;
-
-        // Cập nhật trong rootComments nếu là root comment
-        final rootIndex = rootComments.indexWhere(
-          (c) => c.commentId == commentId,
-        );
-        if (rootIndex != -1) {
-          rootComments[rootIndex] = updatedParent;
-        }
+    // Hàm đệ quy để build cây comment đầy đủ
+    BlogComment buildCommentWithChildren(BlogComment comment) {
+      final children = childrenMap[comment.commentId] ?? [];
+      if (children.isEmpty) {
+        return comment;
       }
+      
+      // Đệ quy build children của children
+      final nestedChildren = children.map((child) => buildCommentWithChildren(child)).toList();
+      
+      // Sắp xếp children theo thời gian (cũ nhất trước cho replies)
+      nestedChildren.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      
+      return comment.copyWith(replies: nestedChildren);
     }
 
-    // Sắp xếp comments theo thời gian tạo (mới nhất trước)
-    rootComments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    // Build cây đệ quy cho tất cả root comments
+    final builtRootComments = rootComments.map((comment) => buildCommentWithChildren(comment)).toList();
 
-    // Sắp xếp replies theo thời gian tạo (cũ nhất trước cho replies)
-    for (var comment in rootComments) {
-      if (comment.replies != null && comment.replies!.isNotEmpty) {
-        comment.replies!.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      }
-    }
+    // Sắp xếp root comments theo thời gian tạo (mới nhất trước)
+    builtRootComments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    return rootComments;
+    return builtRootComments;
   }
 
   // Thêm hàm xử lý like
@@ -364,9 +356,9 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(blog?.title ?? 'Blog Detail'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        title: Text('Chi tiết bài viết', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
         elevation: 1,
       ),
       body: isLoading
@@ -555,9 +547,7 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: isLiked
-                      ? Colors.red.withOpacity(0.1)
-                      : Colors.grey[100],
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isLiked ? Colors.red : Colors.grey[300]!,
@@ -630,6 +620,9 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                ),
                 onPressed: isSubmittingComment ? null : _submitComment,
                 child: isSubmittingComment
                     ? const SizedBox(
@@ -637,7 +630,7 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Gửi'),
+                    : const Text('Gửi', style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -664,21 +657,29 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
     }
 
     final rootComments = _buildCommentTree(comments);
+    final screenWidth = MediaQuery.of(context).size.width;
 
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: rootComments.length,
-      itemBuilder: (context, index) {
-        return BlogCommentTree(
-          comment: rootComments[index],
-          onReply: (parentComment) {
-            // Handle reply logic
-            _showReplyDialog(parentComment);
-          },
-          onDelete: (comment) {
-            // Handle delete logic
-            _showDeleteDialog(comment);
+    return FutureBuilder(
+      future: UserService.getUser(),
+      builder: (context, snapshot) {
+        final currentUser = snapshot.data;
+        final currentUserId = currentUser?.userId;
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: rootComments.length,
+          itemBuilder: (context, index) {
+            return BlogCommentTree(
+              comment: rootComments[index],
+              onReply: (parentComment) {
+                _showReplyDialog(parentComment);
+              },
+              onDelete: (comment) {
+                _showDeleteDialog(comment);
+              },
+              currentUserId: currentUserId,
+              screenWidth: screenWidth,
+            );
           },
         );
       },
@@ -693,6 +694,10 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           title: Text('Trả lời ${parentComment.authorName}'),
           content: TextField(
             controller: replyController,
@@ -708,6 +713,16 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
               child: const Text('Hủy'),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                elevation: 0,
+              ),
               onPressed: isReplying
                   ? null
                   : () async {
@@ -730,8 +745,7 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                         blog!.blogId,
                         replyController.text.trim(),
                         token,
-                        parentCommentId:
-                            parentComment.commentId, // Thêm dòng này
+                        parentCommentId: parentComment.commentId,
                       );
 
                       if (result['success']) {
@@ -759,7 +773,7 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
                   ? SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Text('Gửi'),
             ),
@@ -788,6 +802,10 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
         title: const Text('Xóa bình luận'),
         content: const Text('Bạn có chắc chắn muốn xóa bình luận này?'),
         actions: [
@@ -820,7 +838,7 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Xóa'),
+            child: const Text('Xóa', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

@@ -51,6 +51,7 @@ router.get('/search/location', hotelController.getHotelsByCityAndWard);
 router.post('/search/availability', hotelController.searchAvailableRoomsPost); // Thêm POST
 router.get('/count/location', hotelController.countHotelsByCityAndWard);
 router.get('/popular', hotelController.getPopularHotels);
+router.get('/:hotelId/available-rooms', hotelController.getAvailableRoomsByHotelId);
 
 // Authenticated specific routes BEFORE /:id
 router.get('/my-hotels/dropdown', authenticate, hotelController.getApprovedHotelsDropdown);
@@ -76,6 +77,7 @@ router.use('/admin', adminRouter);
 // ===============================================
 
 // Owner routes
+router.get('/owner/:ownerId/active-or-approved', authenticate, hotelController.getActiveOrApprovedHotelsByOwner);
 router.get('/owner/:ownerId', authenticate, hotelController.getHotelsByOwner);
 
 // These MUST be at the very end

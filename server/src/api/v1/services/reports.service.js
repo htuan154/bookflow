@@ -105,7 +105,7 @@ class ReportsService {
     // const isOwner = await this._validateHotelOwnership(userId, hotelId);
     // if (!isOwner) throw new Error('Access denied: Not hotel owner');
     
-    const hotelIds = hotelId ? [hotelId] : null;
+    const hotelIds = hotelId && hotelId !== 'ALL' ? [hotelId] : null;
     
     const payments = await reportsRepository.getHotelOwnerPayments({
       hotelIds,
@@ -133,7 +133,7 @@ class ReportsService {
   async getOwnerPayoutsReport({ userId, hotelId, dateFrom, dateTo }) {
     // TODO: Implement ownership validation
     
-    const hotelIds = hotelId ? [hotelId] : null;
+    const hotelIds = hotelId && hotelId !== 'ALL' ? [hotelId] : null;
     
     const payouts = await reportsRepository.getHotelOwnerPayouts({
       hotelIds,
@@ -361,17 +361,23 @@ class ReportsService {
     });
     
     // ========================================
-    // TÍNH TOÁN SỐ TIỀN SAU KHI TRỪ HOA HỒNG
+    // ⭐ LƯU Ý: hotel_net_sum ĐÃ TRỪ admin_fee_amount RỒI
+    // Không cần trừ commission nữa, chỉ lưu thông tin để hiển thị
     // ========================================
-    const totalAmount = parseFloat(payoutData.total_net_amount);
-    const commissionAmount = totalAmount * (commissionRate / 100);
-    const payoutAmount = totalAmount - commissionAmount;
+    const hotelNetAmount = parseFloat(payoutData.total_net_amount); // Đã trừ phí quản lý
+    const payoutAmount = hotelNetAmount; // Không trừ gì nữa
+    
+    // Tính ngược lại total_amount và commission_amount để hiển thị
+    // total_amount = hotel_net_amount / (1 - commission_rate/100)
+    const totalAmount = hotelNetAmount / (1 - commissionRate / 100);
+    const commissionAmount = totalAmount - hotelNetAmount;
     
     console.log('💰 Payout calculation:', {
-      totalAmount: `${totalAmount.toFixed(2)} VND`,
+      totalAmount: `${totalAmount.toFixed(2)} VND (doanh thu gốc)`,
       commissionRate: `${commissionRate}%`,
       commissionAmount: `${commissionAmount.toFixed(2)} VND`,
-      payoutAmount: `${payoutAmount.toFixed(2)} VND`
+      hotelNetAmount: `${hotelNetAmount.toFixed(2)} VND (ĐÃ TRỪ PHÍ QUẢN LÝ)`,
+      payoutAmount: `${payoutAmount.toFixed(2)} VND (= hotel_net_sum)`
     });
     
     // ========================================
@@ -379,10 +385,11 @@ class ReportsService {
     // ========================================
     const payoutDetails = {
       calculation: {
-        total_amount: totalAmount,
-        commission_rate: commissionRate,
-        commission_amount: commissionAmount,
-        payout_amount: payoutAmount
+        total_amount: totalAmount,        // Tổng doanh thu gốc (chưa trừ gì)
+        commission_rate: commissionRate,  // Tỷ lệ hoa hồng %
+        commission_amount: commissionAmount, // Số tiền hoa hồng
+        hotel_net_amount: hotelNetAmount, // Số tiền hotel nhận được (đã trừ phí quản lý)
+        payout_amount: payoutAmount       // = hotel_net_amount (không trừ gì thêm)
       },
       bank_account: {
         bank_account_id: bankAccount.bank_account_id,
@@ -401,7 +408,7 @@ class ReportsService {
     // Ghi đè note với thông tin chi tiết
     payoutData.note = JSON.stringify(payoutDetails);
     
-    // Update total_net_amount to actual payout amount
+    // Keep total_net_amount as-is (already net of admin fee)
     payoutData.total_net_amount = payoutAmount;
     
     // Validate payout data
@@ -536,25 +543,32 @@ class ReportsService {
     
     const bankAccount = bankResult.rows[0];
     
-    // Calculate payout
-    const commissionAmount = totalAmount * (commissionRate / 100);
-    const payoutAmount = totalAmount - commissionAmount;
+    // ⭐ Calculate payout: hotel_net_sum ĐÃ TRỪ admin_fee rồi, không trừ thêm
+    const hotelNetAmount = totalAmount; // Đã trừ phí quản lý
+    const payoutAmount = hotelNetAmount; // Không trừ gì nữa
+    
+    // Tính ngược lại total_amount và commission_amount để hiển thị
+    // total_amount = hotel_net_amount / (1 - commission_rate/100)
+    const grossAmount = hotelNetAmount / (1 - commissionRate / 100);
+    const commissionAmount = grossAmount - hotelNetAmount;
     
     console.log('💰 Preview calculation:', {
-      totalAmount: `${totalAmount.toFixed(2)} VND`,
+      grossAmount: `${grossAmount.toFixed(2)} VND (doanh thu gốc)`,
       commissionRate: `${commissionRate}%`,
       commissionAmount: `${commissionAmount.toFixed(2)} VND`,
-      payoutAmount: `${payoutAmount.toFixed(2)} VND`
+      hotelNetAmount: `${hotelNetAmount.toFixed(2)} VND (ĐÃ TRỪ PHÍ QUẢN LÝ)`,
+      payoutAmount: `${payoutAmount.toFixed(2)} VND (= hotel_net_sum)`
     });
     
     // Return preview details (NOT saved to DB)
     return {
       details: {
         calculation: {
-          total_amount: totalAmount,
-          commission_rate: commissionRate,
-          commission_amount: commissionAmount,
-          payout_amount: payoutAmount
+          total_amount: grossAmount,        // Tổng doanh thu gốc (chưa trừ gì)
+          commission_rate: commissionRate,  // Tỷ lệ hoa hồng %
+          commission_amount: commissionAmount, // Số tiền hoa hồng
+          hotel_net_amount: hotelNetAmount, // Số tiền hotel nhận được (đã trừ phí quản lý)
+          payout_amount: payoutAmount       // = hotel_net_amount (không trừ gì thêm)
         },
         bank_account: {
           bank_account_id: bankAccount.bank_account_id,
@@ -628,7 +642,8 @@ class ReportsService {
             hotel_id: revenue.hotelId,
             cover_date: revenue.bizDateVn,
             total_net_amount: revenue.hotelNetSum,
-            status: 'scheduled',
+            // Đã gôm và chuyển ngay trong daily job → đánh dấu processed
+            status: 'processed',
             note: `Auto-generated payout for ${revenue.bizDateVn}`
           });
           

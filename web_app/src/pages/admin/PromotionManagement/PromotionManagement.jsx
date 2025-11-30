@@ -1,6 +1,7 @@
 import React, { useState} from 'react';
 import promotionService from '../../../api/promotions.service';
-import { useToast, ToastContainer } from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
+import Toast from '../../../components/common/Toast';
 import {
   PromotionList,
   PromotionFilters,
@@ -253,7 +254,7 @@ const PromotionManagement = () => {
       </PromotionModal>
 
       {/* Toast Container */}
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      
     </div>
   );
 };

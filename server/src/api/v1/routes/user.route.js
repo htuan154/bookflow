@@ -13,7 +13,7 @@ const upload = require('../middlewares/upload.middleware');
 
 // Áp dụng middleware xác thực và phân quyền cho tất cả các route bên dưới
 router.use(authenticate);
-router.use(authorize(['admin', 'user', 'hotel_owner']));
+router.use(authorize(['admin', 'user', 'hotel_owner', 'hotel_staff']));
 
 // Route lấy danh sách hotel owners
 router.get('/hotel-owners', userController.getHotelOwners);

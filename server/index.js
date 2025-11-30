@@ -61,6 +61,7 @@ const bankAccountRoutes = require('./src/api/v1/routes/bank_account.route');
 const vietqrRoutes = require('./src/api/v1/routes/vietqr.route');
 const bookingNightlyPriceRoutes = require('./src/api/v1/routes/bookingNightlyPrice.route');
 const bookingDiscountRoutes = require('./src/api/v1/routes/bookingDiscount.route');
+const dataRoutes = require('./src/api/v1/routes/data.routes'); // AI Auto-Sync API
 
 // --- App ---
 const app = express();
@@ -140,6 +141,9 @@ app.use('/api/v1', reportsRoutes);
 app.use('/api/v1', bankAccountRoutes);
 app.use('/api/v1/booking-nightly-prices', bookingNightlyPriceRoutes);
 app.use('/api/v1/booking-discounts', bookingDiscountRoutes);
+
+// --- AI Data Sync (Mongo + Supabase Vector) ---
+app.use('/api/v1/data', dataRoutes); // POST /api/v1/data/place, /api/v1/data/dish
 
 // Debug endpoint to test routes
 app.get('/api/v1/test-bank', (req, res) => {

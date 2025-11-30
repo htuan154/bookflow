@@ -114,34 +114,38 @@ class _RoomTypeDetailScreenState extends State<RoomTypeDetailScreen> {
     final seasonalPricings = widget.seasonalPricings ?? [];
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          _buildSliverAppBar(),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildRoomTypeHeader(isRoomSuitable),
-                  SizedBox(height: 24),
-                  _buildRoomSuitabilityInfo(isRoomSuitable),
-                  SizedBox(height: 24),
-                  _buildRoomTypeDetails(),
-                  if (widget.calculatedPrice != null && isRoomSuitable) ...[
+      backgroundColor: Colors.white,
+      body: Container(
+        color: Colors.white,
+        child: CustomScrollView(
+          slivers: [
+            _buildSliverAppBar(),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildRoomTypeHeader(isRoomSuitable),
                     SizedBox(height: 24),
-                    _buildPriceBredown(),
-                  ],
-                  if (seasonalPricings.isNotEmpty && isRoomSuitable) ...[
+                    _buildRoomSuitabilityInfo(isRoomSuitable),
                     SizedBox(height: 24),
-                    _buildSeasonalPricingInfo(),
+                    _buildRoomTypeDetails(),
+                    if (widget.calculatedPrice != null && isRoomSuitable) ...[
+                      SizedBox(height: 24),
+                      _buildPriceBredown(),
+                    ],
+                    if (seasonalPricings.isNotEmpty && isRoomSuitable) ...[
+                      SizedBox(height: 24),
+                      _buildSeasonalPricingInfo(),
+                    ],
+                    SizedBox(height: 100), // Space for bottom button
                   ],
-                  SizedBox(height: 100), // Space for bottom button
-                ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: _buildBookingButton(isRoomSuitable),
     );

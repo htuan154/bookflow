@@ -57,7 +57,17 @@ const makeApiCall = async (url, options = {}) => {
             throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
 
-        return await response.json();
+        const responseText = await response.text();
+        if (!responseText) {
+            return null; 
+        }
+
+        try {
+            return JSON.parse(responseText);
+        } catch (e) {
+            console.warn('API response was not valid JSON, returning as plain text:', responseText);
+            return responseText;
+        }
     } catch (error) {
         // Chỉ log lỗi 1 lần, không spam
         if (!window._apiErrorLogged) {
@@ -162,6 +172,35 @@ const blogService = {
             }
             throw error;
         }
+    },
+
+    /**
+     * Get a blog by ID and verify it belongs to a specific hotel
+     * @param {string} hotelId - Hotel ID to validate
+     * @param {string} blogId - Blog ID
+     * @returns {Promise<object>} - Blog data if belongs to hotel
+     */
+    getBlogByHotelID: async (hotelId, blogId) => {
+        if (!hotelId || !blogId) {
+            throw new Error('hotelId and blogId are required');
+        }
+
+        const result = await blogService.getBlogById(blogId);
+        const blog = result?.data || result;
+
+        // Some APIs return blog object directly, others wrap in data
+        const blogHotelId = blog?.hotel_id || blog?.hotelId || blog?.hotel || null;
+
+        if (blogHotelId == null) {
+            // If backend doesn't expose hotel id, just return the blog
+            return result;
+        }
+
+        if (String(blogHotelId) !== String(hotelId)) {
+            throw new Error('Blog does not belong to the specified hotel');
+        }
+
+        return result;
     },
 
     /**

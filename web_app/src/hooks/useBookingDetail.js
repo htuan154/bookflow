@@ -10,6 +10,28 @@ export const useBookingDetail = () => {
   const [error, setError] = useState(null);
 
   /**
+   * Tạo booking detail cho khách hàng (for-customer, không kiểm tra userId)
+   */
+  const createBookingDetailForCustomer = useCallback(async (bookingId, detailData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('🔄 [useBookingDetail] Creating booking detail for customer:', bookingId, detailData);
+      const response = await bookingDetailApiService.createBookingDetailForCustomer(bookingId, detailData);
+      toast.success('Tạo chi tiết booking cho khách hàng thành công');
+      console.log('✅ [useBookingDetail] Booking detail for customer created');
+      return response.data;
+    } catch (err) {
+      console.error('❌ [useBookingDetail] Error creating booking detail for customer:', err);
+      setError(err.message || 'Không thể tạo chi tiết booking cho khách hàng');
+      toast.error('Không thể tạo chi tiết booking cho khách hàng');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /**
    * Lấy chi tiết booking
    */
   const fetchBookingDetails = useCallback(async (bookingId) => {
@@ -142,6 +164,7 @@ export const useBookingDetail = () => {
     fetchBookingDetails,
     fetchFullBookingInfo,
     createBookingDetail,
+    createBookingDetailForCustomer,
     updateBookingDetail,
     deleteBookingDetail
   };

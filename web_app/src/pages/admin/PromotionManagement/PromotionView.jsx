@@ -21,7 +21,6 @@ const PromotionView = () => {
                            currentPromotion.promotion_type === 'room_specific';
     
     if (isRoomSpecific) {
-      alert('⚠️ Không thể chỉnh sửa khuyến mãi loại "Theo phòng". Vui lòng sử dụng chức năng quản lý chi tiết khuyến mãi.');
       return;
     }
     

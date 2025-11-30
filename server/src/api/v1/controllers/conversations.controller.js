@@ -24,7 +24,7 @@ exports.createGroupA = async (req, res, next) => {
     const conv = await convSvc.createGroupA({
       hotel_id: value.hotel_id,
       name: value.name,
-      created_by: req.user.user_id,
+      created_by: req.user.id,
       owner_id: value.owner_id,
       admin_ids: value.admin_ids || [],
       staff_ids: value.staff_ids || []
@@ -79,9 +79,21 @@ exports.addMember = async (req, res, next) => {
 exports.listByHotelAndUser = async (req, res, next) => {
   try {
     const hotel_id = req.query.hotel_id;
+    const type = req.query.type; // 'dm' hoặc 'group' (optional)
     const user_id = req.user.id; // tuỳ hệ thống
     if (!hotel_id || !user_id) return res.status(400).json({ error: 'Missing hotel_id or user_id' });
-    const convs = await convSvc.listByHotelAndUser({ hotel_id, user_id });
+    const convs = await convSvc.listByHotelAndUser({ hotel_id, user_id, type });
     res.json(convs);
+  } catch (e) { next(e); }
+};
+
+/** Tìm Group B theo hotel_id (không cần kiểm tra member) - dành cho staff tìm group để join */
+exports.findGroupB = async (req, res, next) => {
+  try {
+    const hotel_id = req.query.hotel_id;
+    if (!hotel_id) return res.status(400).json({ error: 'Missing hotel_id' });
+    const conv = await convSvc.findGroupB(hotel_id);
+    if (!conv) return res.status(404).json({ error: 'Group B not found' });
+    res.json(conv);
   } catch (e) { next(e); }
 };

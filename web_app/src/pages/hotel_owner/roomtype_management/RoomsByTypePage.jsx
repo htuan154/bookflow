@@ -5,6 +5,8 @@ import { useRoomTypeList } from '../../../hooks/useRoomType';
 import { useRoomsOfType, useRoomEditor } from '../../../hooks/useRoom';
 import { useRoomContext } from '../../../context/RoomContext';
 import { useLocation, useNavigate } from 'react-router-dom';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 /** Helpers: đọc id/số phòng/tầng an toàn dù API đặt tên khác nhau */
 const getRoomId = (r) => r?.room_id ?? r?.roomId ?? r?.roomID ?? r?.id ?? r?._id ?? null;
@@ -25,6 +27,7 @@ export default function RoomsByTypePage() {
   // ====== Navigation state ======
   const location = useLocation();
   const navigate = useNavigate();
+  const { toast, showSuccess, showError, hideToast } = useToast();
   const stateFromNav = location.state || {};
   const { hotel: hotelFromNav, roomType: roomTypeFromNav, lockHotel = false, lockRoomType = false, returnTo } = stateFromNav;
 
@@ -121,7 +124,7 @@ export default function RoomsByTypePage() {
     // Validate UUID cho roomTypeId
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(roomTypeId)) {
-      alert('Room Type ID không hợp lệ');
+      showError('Room Type ID không hợp lệ');
       return;
     }
 
@@ -143,10 +146,12 @@ export default function RoomsByTypePage() {
       } else {
         await createRoom(payload);
       }
+
       await refresh();
+      showSuccess(editingId ? 'Cập nhật phòng thành công' : 'Thêm phòng thành công');
       cancelForm();
     } catch (error) {
-      alert('Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
+      showError('Có lỗi xảy ra: ' + (error.response?.data?.message || error.message));
     }
     // Không cần finally nếu dùng useRoomEditor, vì hook đã tự reset pending
   };
@@ -154,6 +159,7 @@ export default function RoomsByTypePage() {
   const remove = async (id, label) => {
     if (!window.confirm(`Bạn có chắc muốn xóa phòng ${label || ''}?`)) return;
     await deleteRoom(id);
+    showSuccess('Xóa phòng thành công');
     await refresh();
   };
 
@@ -422,6 +428,15 @@ export default function RoomsByTypePage() {
         <div className="text-red-600 font-semibold mb-4">
           Không thể kết nối tới server hoặc lấy dữ liệu phòng. Vui lòng kiểm tra lại kết nối hoặc liên hệ admin.
         </div>
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+          duration={toast.duration}
+        />
       )}
     </div>
   );

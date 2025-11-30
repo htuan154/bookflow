@@ -15,15 +15,13 @@ const LoginForm = () => {
     // Navigate khi user và isAuthenticated được update
     useEffect(() => {
         if (isAuthenticated && user) {
-            if (
-                user.roleId === USER_ROLES.ADMIN ||
-                user.roleId === USER_ROLES.HOTEL_OWNER
-            ) {
-                if (user.roleId === USER_ROLES.ADMIN) {
-                    navigate('/admin/dashboard', { replace: true });
-                } else {
-                    navigate('/hotel-owner', { replace: true });
-                }
+            console.log('[LoginForm] Navigating user with roleId:', user.roleId);
+            
+            if (user.roleId === USER_ROLES.ADMIN) {
+                navigate('/admin/dashboard', { replace: true });
+            } else if (user.roleId === USER_ROLES.HOTEL_OWNER || user.roleId === USER_ROLES.HOTEL_STAFF) {
+                // Both hotel_owner and hotel_staff go to hotel-owner routes
+                navigate('/hotel-owner', { replace: true });
             } else {
                 navigate('/unauthorized', { replace: true });
             }
@@ -42,8 +40,13 @@ const LoginForm = () => {
         try {
             const response = await authService.login(formData.identifier, formData.password);
 
+            console.log('[LoginForm] Login response:', response.data);
+            
             const userData = response?.data?.data?.user;
             const token = response?.data?.data?.token;
+
+            console.log('[LoginForm] userData:', userData);
+            console.log('[LoginForm] userData.roleId:', userData?.roleId);
 
             if (!userData || !token) {
                 setError('Dữ liệu đăng nhập không hợp lệ');
@@ -64,6 +67,13 @@ const LoginForm = () => {
     return (
         <>
             <div className="text-center mb-8">
+                {/* Logo */}
+                <div className="mb-6">
+                    <span className="inline-flex items-center space-x-1">
+                        <span className="text-orange-600 text-3xl font-extrabold tracking-tight">Book</span>
+                        <span className="text-orange-600 text-3xl font-light">Flow</span>
+                    </span>
+                </div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Sign In</h1>
                 <p className="text-gray-600 text-sm">Welcome back! Please enter your details.</p>
             </div>
@@ -84,11 +94,11 @@ const LoginForm = () => {
                     onChange={handleChange}
                     placeholder="Enter your password"
                 />
-                <div className="text-right">
+                {/* <div className="text-right">
                     <button type="button" className="text-sm text-orange-600 hover:text-orange-700 font-medium underline">
                         Forgot Password?
                     </button>
-                </div>
+                </div> */}
                 {error && <p className="text-sm text-red-600 text-center">{error}</p>}
                 <button
                     type="submit"

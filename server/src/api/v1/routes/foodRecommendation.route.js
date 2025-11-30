@@ -8,13 +8,13 @@ const { createFoodSchema, updateFoodSchema } = require('../../../validators/food
 
 const router = express.Router();
 
-
 // --- PUBLIC ROUTE ---
 // GET /api/v1/food-recommendations/:locationId/food-recommendations -> Lấy gợi ý món ăn của một địa điểm
 // Đây là route public, không cần xác thực
 router.get('/:locationId/food-recommendations', foodRecommendationController.getRecommendationsByLocation);
 
-
+// GET /api/v1/food-recommendations/city/:city -> Lấy gợi ý món ăn theo thành phố
+router.get('/city/:city', foodRecommendationController.getRecommendationsByCity);
 
 // --- ADMIN-ONLY ROUTES ---
 

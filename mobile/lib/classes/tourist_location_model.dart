@@ -13,6 +13,8 @@ class TouristLocation {
   final String? imageUrl;
   final String? createdBy;
   final DateTime createdAt;
+  final double? latitude;
+  final double? longitude;
 
   // Quan hệ với các model khác
   final User? creator;
@@ -26,6 +28,8 @@ class TouristLocation {
     this.imageUrl,
     this.createdBy,
     required this.createdAt,
+    this.latitude,
+    this.longitude,
     this.creator,
     this.foodRecommendations,
   });
@@ -39,6 +43,8 @@ class TouristLocation {
       imageUrl: json['image_url'] as String?,
       createdBy: json['created_by'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
+      latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
+      longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
       creator: json['creator'] != null ? User.fromJson(json['creator']) : null,
       foodRecommendations: json['food_recommendations'] != null
           ? (json['food_recommendations'] as List)
@@ -57,6 +63,8 @@ class TouristLocation {
       'image_url': imageUrl,
       'created_by': createdBy,
       'created_at': createdAt.toIso8601String(),
+      'latitude': latitude,
+      'longitude': longitude,
       if (creator != null) 'creator': creator!.toJson(),
       if (foodRecommendations != null)
         'food_recommendations': foodRecommendations!.map((food) => food.toJson()).toList(),
@@ -71,6 +79,8 @@ class TouristLocation {
     String? imageUrl,
     String? createdBy,
     DateTime? createdAt,
+    double? latitude,
+    double? longitude,
     User? creator,
     List<FoodRecommendation>? foodRecommendations,
   }) {
@@ -82,6 +92,8 @@ class TouristLocation {
       imageUrl: imageUrl ?? this.imageUrl,
       createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       creator: creator ?? this.creator,
       foodRecommendations: foodRecommendations ?? this.foodRecommendations,
     );

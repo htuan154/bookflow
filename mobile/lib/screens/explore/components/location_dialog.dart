@@ -66,7 +66,7 @@ class LocationDialog {
     required LatLng location,
     required String address,
     required VoidCallback onClose,
-    required VoidCallback onSearchNearby,
+    required VoidCallback onSearchNearbyTouristLocations,
   }) {
     showDialog(
       context: context,
@@ -95,7 +95,7 @@ class LocationDialog {
                 width: double.infinity,
                 padding: EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.red[50],
+                  color: Colors.orange,
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(20),
                     topRight: Radius.circular(20),
@@ -107,12 +107,12 @@ class LocationDialog {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
                         Icons.location_pin,
-                        color: Colors.white,
+                        color: Colors.orange,
                         size: 22,
                       ),
                     ),
@@ -122,7 +122,7 @@ class LocationDialog {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
+                        color: Colors.white,
                       ),
                     ),
                   ],
@@ -184,58 +184,65 @@ class LocationDialog {
                     SizedBox(height: 24),
                     
                     // Buttons
-                    Row(
+                    Column(
                       children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 50,
-                            child: OutlinedButton(
-                              onPressed: () {
-                                onClose();
-                                Navigator.pop(context);
-                              },
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.grey[700],
-                                side: BorderSide(color: Colors.grey[300]!, width: 1.5),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                                backgroundColor: Colors.grey[50],
+                        // Nút tìm địa điểm - hiển thị full width
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              onSearchNearbyTouristLocations();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
                               ),
-                              child: Text(
-                                'Xóa',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.explore, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Tìm địa điểm tham quan gần đây',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
                         ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: SizedBox(
-                            height: 50,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                                onSearchNearby();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
+                        SizedBox(height: 12),
+                        // Nút xóa
+                        SizedBox(
+                          width: double.infinity,
+                          height: 45,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              onClose();
+                              Navigator.pop(context);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.grey[700],
+                              side: BorderSide(color: Colors.grey[300]!, width: 1.5),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
                               ),
-                              child: Text(
-                                'Tìm khách sạn gần đây',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              backgroundColor: Colors.grey[50],
+                            ),
+                            child: Text(
+                              'Xóa vị trí',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),

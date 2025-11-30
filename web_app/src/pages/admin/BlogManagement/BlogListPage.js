@@ -1,4 +1,3 @@
-
 // src/pages/admin/BlogManagement/BlogListPage.js
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -6,9 +5,12 @@ import { Plus, XCircle, Edit } from 'lucide-react';
 import { useBlogContext } from '../../../context/BlogContext';
 import useAuth from '../../../hooks/useAuth';
 import BlogList from '../../../components/blog/BlogList';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 const BlogListPage = () => {
     const navigate = useNavigate();
+    const { toast, showSuccess, showError, hideToast } = useToast();
     
     const { user } = useAuth();
     const { 
@@ -76,16 +78,16 @@ const BlogListPage = () => {
                 };
                 await createBlog(blogData);
                 setShowCreateModal(false);
-                alert('Tạo bài viết thành công!');
+                showSuccess('Tạo bài viết thành công!');
             } else if (showEditModal) {
                 await updateBlog(currentBlog.blog_id, formData);
                 setShowEditModal(false);
-                alert('Cập nhật bài viết thành công!');
+                showSuccess('Cập nhật bài viết thành công!');
             }
             await fetchBlogs({ adminView: true });
         } catch (error) {
             console.error('Failed to save blog:', error);
-            alert('Có lỗi xảy ra: ' + error.message);
+            showError('Có lỗi xảy ra: ' + error.message);
         }
     };
 
@@ -117,7 +119,7 @@ const BlogListPage = () => {
             await fetchBlogs({ adminView: true });
         } catch (error) {
             console.error('Failed to update blog status:', error);
-            alert('Cập nhật trạng thái thất bại: ' + error.message);
+            showError('Cập nhật trạng thái thất bại: ' + error.message);
         } finally {
             setActionLoading(null);
         }
@@ -133,7 +135,7 @@ const BlogListPage = () => {
                 await fetchBlogs({ adminView: true });
             } catch (error) {
                 console.error('Failed to delete blog:', error);
-                alert('Xóa bài viết thất bại: ' + error.message);
+                showError('Xóa bài viết thất bại: ' + error.message);
             } finally {
                 setActionLoading(null);
             }
@@ -327,5 +329,4 @@ const BlogListPage = () => {
         </div>
     );
 };
-
 export default BlogListPage;

@@ -42,7 +42,8 @@ class BookingService {
     async findBookingsByHotelId(hotelId) {
         return await bookingRepository.findBookingsByHotelId(hotelId);
     }
-        /**
+    
+    /**
      * Khách hàng tạo một đơn đặt phòng mới.
      * @param {object} bookingData - Dữ liệu đặt phòng từ client.
      * @param {string} userId - ID của người dùng đặt phòng.
@@ -112,6 +113,41 @@ class BookingService {
             throw error;
         } finally {
             // Luôn trả client về pool sau khi xong việc
+            client.release();
+        }
+    }
+
+    /**
+     * Khách sạn tạo booking cho khách hàng (userId truyền vào)
+     * @param {object} bookingData - Dữ liệu đặt phòng từ client.
+     * @param {string} userId - ID của người dùng đặt phòng (truyền vào, không lấy từ token)
+     * @returns {Promise<{booking: Booking, details: BookingDetail[]}>}
+     */
+    async createBookingForCustomer(bookingData, userId) {
+        // Logic giống hệt createBooking nhưng userId lấy từ tham số
+        const { hotel_id, check_in_date, check_out_date, total_guests } = bookingData;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            // 1. Kiểm tra user có booking no_show không
+            const noShowBookings = await bookingRepository.findNoShowByUserId(userId);
+            const defaultStatus = noShowBookings.length > 0 ? 'pending' : 'confirmed';
+            // 4. Tạo bản ghi chính (master booking) với status động
+            const masterBookingData = {
+                ...bookingData,
+                user_id: userId,
+                booking_status: defaultStatus,
+            };
+            const newBooking = await bookingRepository.create(masterBookingData, client);
+            await client.query('COMMIT');
+            return {
+                booking: newBooking,
+                details: []
+            };
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
             client.release();
         }
     }

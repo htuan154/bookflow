@@ -134,13 +134,14 @@ class _ReviewViewEditScreenState extends State<ReviewViewEditScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           'Đánh giá của bạn',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
         elevation: 1,
       ),
       body: Form(
@@ -152,12 +153,12 @@ class _ReviewViewEditScreenState extends State<ReviewViewEditScreen> {
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
+                color: Colors.orange[50],
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 children: [
-                  Icon(Icons.rate_review, size: 48, color: Colors.blue),
+                  Icon(Icons.rate_review, size: 48, color: Colors.orange),
                   SizedBox(height: 8),
                   Text(
                     'Xem và chỉnh sửa đánh giá',
@@ -466,7 +467,7 @@ class _ReviewViewEditScreenState extends State<ReviewViewEditScreen> {
                 child: ElevatedButton(
                   onPressed: _isSubmitting ? null : _updateReview,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: Colors.orange,
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -538,7 +539,7 @@ class _ReviewViewEditScreenState extends State<ReviewViewEditScreen> {
         children: [
           Row(
             children: [
-              Icon(icon, color: Colors.blue, size: 24),
+              Icon(icon, color: Colors.orange, size: 24),
               SizedBox(width: 8),
               Text(
                 title,
@@ -551,14 +552,14 @@ class _ReviewViewEditScreenState extends State<ReviewViewEditScreen> {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.blue[100],
+                  color: Colors.orange[100],
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '${rating.toInt()}/5',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue[800],
+                    color: Colors.orange[800],
                   ),
                 ),
               ),
@@ -570,7 +571,7 @@ class _ReviewViewEditScreenState extends State<ReviewViewEditScreen> {
             min: 1,
             max: 5,
             divisions: 4,
-            activeColor: Colors.blue,
+            activeColor: Colors.orange,
             inactiveColor: Colors.grey[300],
             onChanged: onChanged,
           ),
@@ -580,7 +581,7 @@ class _ReviewViewEditScreenState extends State<ReviewViewEditScreen> {
               return Icon(
                 Icons.star,
                 size: 20,
-                color: index < rating ? Colors.blue : Colors.grey[300],
+                color: index < rating ? Colors.orange : Colors.grey[300],
               );
             }),
           ),

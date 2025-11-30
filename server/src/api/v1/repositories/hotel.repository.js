@@ -481,6 +481,70 @@ const findAvailableRoomsByCity = async (city, checkInDate, checkOutDate, ward = 
   return result.rows.map(row => new RoomTypeAvailability(row));
 };
 
+const findAvailableRoomsByHotelId = async (hotelId, checkInDate, checkOutDate) => {
+  const query = `
+    WITH rooms_avail AS (
+      SELECT
+        rt.hotel_id,
+        rt.room_type_id,
+        COUNT(*)::int AS total_physical_available
+      FROM room_types rt
+      JOIN rooms r
+        ON r.room_type_id = rt.room_type_id
+       AND r.status IN ('available','occupied','cleaning')
+      GROUP BY rt.hotel_id, rt.room_type_id
+    ),
+    booked AS (
+      SELECT
+        b.hotel_id,
+        bd.room_type_id,
+        COALESCE(SUM(bd.quantity), 0)::int AS total_booked
+      FROM bookings b
+      JOIN booking_details bd
+        ON bd.booking_id = b.booking_id
+      WHERE b.booking_status IN ('pending','confirmed')
+        AND b.check_in_date  < $2
+        AND b.check_out_date > $1
+        AND b.hotel_id = $3
+      GROUP BY b.hotel_id, bd.room_type_id
+    )
+    SELECT
+      h.hotel_id,
+      rt.room_type_id,
+      rt.name AS room_type_name,
+      COALESCE(ra.total_physical_available, 0) AS number_of_rooms,
+      rt.max_occupancy,
+      COALESCE(bk.total_booked, 0) AS total_rooms_booked,
+      GREATEST(COALESCE(ra.total_physical_available,0) - COALESCE(bk.total_booked,0), 0) AS available_rooms
+    FROM room_types rt
+    JOIN hotels h ON rt.hotel_id = h.hotel_id
+    LEFT JOIN rooms_avail ra ON ra.hotel_id = h.hotel_id AND ra.room_type_id = rt.room_type_id
+    LEFT JOIN booked bk ON bk.hotel_id = h.hotel_id AND bk.room_type_id = rt.room_type_id
+    WHERE h.hotel_id = $3
+      AND h.status = 'active'
+    ORDER BY h.hotel_id, rt.room_type_id;
+  `;
+  const values = [checkInDate, checkOutDate, hotelId];
+  const result = await pool.query(query, values);
+  return result.rows;
+};
+
+/**
+ * Lấy khách sạn của chủ sở hữu với status 'active' hoặc 'approved'
+ * @param {string} ownerId
+ * @returns {Promise<Array<Hotel>>}
+ */
+const findActiveOrApprovedByOwner = async (ownerId) => {
+  const query = `
+    SELECT * FROM hotels
+    WHERE owner_id = $1
+      AND status IN ('active', 'approved')
+    ORDER BY created_at DESC
+  `;
+  const result = await pool.query(query, [ownerId]);
+  return result.rows.map(row => new Hotel(row));
+};
+
 module.exports = {
   // CRUD cơ bản
   create,
@@ -501,8 +565,10 @@ module.exports = {
   findByRating,
   findWithFilters,
   findAvailableRoomsByCity,
+  findAvailableRoomsByHotelId,
   findByOwnerAndStatus,
   // Tiện ích
   countByStatus,
-  exists
+  exists,
+  findActiveOrApprovedByOwner
 };

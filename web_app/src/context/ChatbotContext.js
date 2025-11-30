@@ -55,7 +55,7 @@ function reducer(state, action) {
           {
             id: crypto.randomUUID(),
             role: 'assistant',
-            // Hiển thị “thân thiện” nếu BE không trả gì hữu ích
+            // Hiển thị "thân thiện" nếu BE không trả gì hữu ích
             content: stringifyAssistantPayload(action.payload.data),
             ts: Date.now(),
           }
@@ -137,32 +137,47 @@ function reducer(state, action) {
   }
 }
 
-/** Xây “assistant bubble” dễ đọc nếu data rỗng */
+/** Xây "assistant bubble" dễ đọc nếu data rỗng */
 function stringifyAssistantPayload(data) {
   try {
     if (!data || typeof data !== 'object') {
       return 'Mình chưa có dữ liệu phù hợp. Bạn thử mô tả rõ hơn nhé!';
     }
 
-    // Nếu có danh sách hotels/promotions nhưng trống -> trả lời mặc định
-    if (Array.isArray(data.hotels) && data.hotels.length === 0) {
-      return 'Chưa tìm thấy khách sạn phù hợp theo tiêu chí. Bạn thử đổi bộ lọc hoặc tỉnh/thành khác nhé!';
+    // ✅ FIX: Ưu tiên hiển thị summary trước (cho weather, map, chitchat...)
+    const summary = data.summary || data.text || '';
+    
+    // Nếu có summary và không có data phức tạp -> chỉ hiển thị summary
+    const hotels = Array.isArray(data.hotels) ? data.hotels : [];
+    const promos = Array.isArray(data.promotions) ? data.promotions : [];
+    const places = Array.isArray(data.places) ? data.places : [];
+    const dishes = Array.isArray(data.dishes) ? data.dishes : [];
+    const tips   = Array.isArray(data.tips) ? data.tips : [];
+    
+    const hasData = hotels.length || promos.length || places.length || dishes.length || tips.length;
+    
+    // CASE 1: Có summary và không có data phức tạp
+    if (summary && !hasData && !data.clarify_required) {
+      return summary;
     }
-    if (Array.isArray(data.promotions) && data.promotions.length === 0) {
-      return 'Hiện chưa có khuyến mãi phù hợp. Bạn thử tháng khác, từ khoá khác, hoặc tỉnh khác nhé!';
-    }
+
+    // CASE 2: Clarify required
     if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
       return buildClarifyMessage(data.suggestions);
     }
 
-    // Với fallback nosql+llm: chuẩn hoá khi “suggestions”: [] hoặc places/dishes rỗng
-    if (data.source === 'nosql+llm') {
+    // CASE 3: Có data nhưng trống (SQL empty results)
+    if (hotels.length === 0 && data.hotels !== undefined) {
+      return 'Chưa tìm thấy khách sạn phù hợp theo tiêu chí. Bạn thử đổi bộ lọc hoặc tỉnh/thành khác nhé!';
+    }
+    if (promos.length === 0 && data.promotions !== undefined) {
+      return 'Hiện chưa có khuyến mãi phù hợp. Bạn thử tháng khác, từ khoá khác, hoặc tỉnh khác nhé!';
+    }
+
+    // CASE 4: Có data phức tạp (NoSQL + LLM response)
+    if (data.source === 'nosql+llm' || hasData) {
       const pieces = [];
       if (data.province) pieces.push(`**${String(data.province).trim()}**`);
-
-      const places = Array.isArray(data.places) ? data.places : [];
-      const dishes = Array.isArray(data.dishes) ? data.dishes : [];
-      const tips   = Array.isArray(data.tips)   ? data.tips   : [];
 
       if (places.length) {
         pieces.push('• Địa điểm gợi ý:');
@@ -177,12 +192,18 @@ function stringifyAssistantPayload(data) {
         pieces.push(...tips.slice(0, 5).map((t, i) => `   - ${t}`));
       }
 
+      if (pieces.length === 0 && summary) {
+        return summary; // Fallback to summary
+      }
       if (pieces.length === 0) {
         return 'Mình chưa có gợi ý phù hợp. Bạn có thể chỉ rõ **tỉnh/thành** hoặc **món/điểm đến** cụ thể hơn nhé!';
       }
       return pieces.join('\n');
     }
 
+    // CASE 5: Fallback - summary hoặc JSON
+    if (summary) return summary;
+    
     // Nếu đã có dữ liệu (sql:top/sql:amenities/...) thì stringify có kiểm soát
     return JSON.stringify(data, null, 2);
   } catch {
@@ -192,7 +213,7 @@ function stringifyAssistantPayload(data) {
 
 /** Tin nhắn clarify */
 function buildClarifyMessage(suggestions) {
-  const list = (suggestions || []).map(s => `“${s}”`).join(' • ');
+  const list = (suggestions || []).map(s => `"${s}"`).join(' • ');
   if (!list) {
     return 'Bạn vui lòng cung cấp **tỉnh/thành** để mình tư vấn chính xác hơn!';
   }
@@ -328,7 +349,7 @@ export function ChatbotProvider({ children }) {
         hasMore,
         sessionId,
       });
-      // khi người dùng “tiếp tục chat” từ phiên cũ
+      // khi người dùng "tiếp tục chat" từ phiên cũ
       sessionRef.current = sessionId;
       return items;
     } catch (err) {
@@ -337,7 +358,7 @@ export function ChatbotProvider({ children }) {
     }
   };
 
-  /** Bắt đầu một phiên mới (UI có thể gán nút “New chat”) */
+  /** Bắt đầu một phiên mới (UI có thể gán nút "New chat") */
   const startNewSession = () => {
     sessionRef.current = crypto.randomUUID();
     dispatch({ type: 'SET_ACTIVE_SESSION', sessionId: sessionRef.current });

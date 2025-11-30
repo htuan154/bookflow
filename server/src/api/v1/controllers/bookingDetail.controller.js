@@ -52,6 +52,22 @@ class BookingDetailController {
             next(error);
         }
     }
+
+        /**
+     * Thêm booking details cho khách hàng (không kiểm tra userId, cho phép admin/hotel_owner thao tác cho khách hàng).
+     * POST /api/v1/booking-details/booking/:bookingId/for-customer
+     */
+    async addBookingDetailsForCustomer(req, res, next) {
+        try {
+            const { bookingId } = req.params;
+            const roomDetails = req.body.room_details;
+            // Không kiểm tra user từ token, cho phép admin/hotel_owner thao tác
+            const result = await BookingDetailService.addBookingDetailsForCustomer(bookingId, roomDetails);
+            successResponse(res, result, 'Booking details added for customer successfully', 201);
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new BookingDetailController();

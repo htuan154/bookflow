@@ -875,8 +875,6 @@ const HotelDetailPage = () => {
                               });
                               
                               if (!roomTypeId) {
-                                console.error('❌ Cannot navigate: Room Type ID is undefined');
-                                alert('Không thể xem chi tiết: Thiếu ID loại phòng');
                                 return;
                               }
                               

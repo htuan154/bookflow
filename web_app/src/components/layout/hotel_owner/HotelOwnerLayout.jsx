@@ -8,22 +8,28 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import useAuth from '../../../hooks/useAuth';
 import { AmenityProvider } from '../../../context/AmenityContext';
 import { HotelAmenityProvider } from '../../../context/HotelAmenityContext';
+import { USER_ROLES } from '../../../config/roles';
+
 const HotelOwnerLayout = () => {
     const { user, handleLogout } = useAuth();
     const location = useLocation();
+    
+    // Check if user is hotel_staff
+    const isHotelStaff = user?.roleId === USER_ROLES.HOTEL_STAFF;
 
     // Hàm tiện ích để kiểm tra link nào đang active
     const isActive = (path) => location.pathname.startsWith(path);
 
     // Danh sách các link điều hướng trong sidebar
-    const navLinks = [
-        { name: 'Dashboard', icon: <BarChart3 size={20} />, path: '/hotel-owner/dashboard' },
+    const allNavLinks = [
+        { name: 'Dashboard', icon: <BarChart3 size={20} />, path: '/hotel-owner/dashboard', ownerOnly: true },
         
         // Quản lý khách sạn
         { 
             name: 'Quản lý khách sạn', 
             icon: <Building2 size={20} />, 
             path: '/hotel-owner/hotel/info',
+            ownerOnly: true
             // subItems: [
             //     { name: 'Thông tin khách sạn', path: '/hotel-owner/hotel/info' }
             // ]
@@ -34,8 +40,9 @@ const HotelOwnerLayout = () => {
             name: 'Quản lý phòng', 
             icon: <Bed size={20} />, 
             path: '/hotel-owner/rooms/management',
+            ownerOnly: true
             // subItems: [
-            //     { name: 'Sắp Xếp Phòng', path: '/hotel-owner/rooms/management' }
+            //     { name: 'Sắp Xếp Phòng', path: '/hotel-owner/rooms/management' }
             // ]
         },
 
@@ -44,6 +51,7 @@ const HotelOwnerLayout = () => {
             name: 'Giá & Khuyến mãi', 
             icon: <DollarSign size={20} />, 
             path: '/hotel-owner/pricing',
+            ownerOnly: true,
             subItems: [
                 { name: 'Giá theo Mùa', path: '/hotel-owner/pricing/seasonal' },
                 { name: 'Khuyến Mãi', path: '/hotel-owner/pricing/promotions' }
@@ -54,7 +62,8 @@ const HotelOwnerLayout = () => {
         { 
             name: 'Tài khoản ngân hàng', 
             icon: <CreditCard size={20} />, 
-            path: '/hotel-owner/bank-accounts'
+            path: '/hotel-owner/bank-accounts',
+            ownerOnly: true
         },
 
         // Quản lý đặt phòng
@@ -75,6 +84,7 @@ const HotelOwnerLayout = () => {
             name: 'Nhân viên', 
             icon: <Users2 size={20} />, 
             path: '/hotel-owner/staff',
+            ownerOnly: true
           
         },
 
@@ -82,12 +92,12 @@ const HotelOwnerLayout = () => {
         { 
             name: 'Đánh giá', 
             icon: <Star size={20} />, 
-            path: '/hotel-owner/reviews',
-            subItems: [
-                { name: 'Tất cả đánh giá', path: '/hotel-owner/reviews/all' },
-                { name: 'Phản hồi đánh giá', path: '/hotel-owner/reviews/responses' },
-                { name: 'Thống kê đánh giá', path: '/hotel-owner/reviews/analytics' }
-            ]
+            path: '/hotel-owner/reviews'
+            // subItems: [
+            //     { name: 'Tất cả đánh giá', path: '/hotel-owner/reviews/all' },
+            //     { name: 'Phản hồi đánh giá', path: '/hotel-owner/reviews/responses' },
+            //     { name: 'Thống kê đánh giá', path: '/hotel-owner/reviews/analytics' }
+            // ]
         },
 
         // Hỗ trợ khách hàng
@@ -112,8 +122,7 @@ const HotelOwnerLayout = () => {
         { 
             name: 'Báo cáo & Thống kê', 
             icon: <BarChart3 size={20} />, 
-            path: '/hotel-owner/reports',
-            
+            path: '/hotel-owner/reports'
         },
 
         // Hợp đồng
@@ -121,6 +130,7 @@ const HotelOwnerLayout = () => {
             name: 'Hợp đồng', 
             icon: <FileText size={20} />, 
             path: '/hotel-owner/contracts',
+            ownerOnly: true
             /*
             subItems: [
                 { name: 'Xem hợp đồng', path: '/hotel-owner/contracts/view' },
@@ -137,6 +147,11 @@ const HotelOwnerLayout = () => {
         }
             
     ];
+    
+    // Filter nav links based on user role - hotel_staff cannot see ownerOnly items
+    const navLinks = isHotelStaff 
+        ? allNavLinks.filter(link => !link.ownerOnly)
+        : allNavLinks;
 
     // Hàm render menu item với sub-items
     const renderMenuItem = (link) => {
@@ -224,24 +239,47 @@ const HotelOwnerLayout = () => {
                 
                 {/* Navigation - có thể scroll */}
                 <nav className="flex-1 overflow-y-auto p-4 space-y-1 min-h-0 scrollbar-thin">
-                    <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Tổng quan</p>
-                    {navLinks.slice(0, 1).map(renderMenuItem)}
-                    
-                    <div className="my-4 border-t border-gray-200"></div>
-                    <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Quản lý khách sạn</p>
-                    {navLinks.slice(1, 3).map(renderMenuItem)}
-                    
-                    <div className="my-4 border-t border-gray-200"></div>
-                    <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Kinh doanh</p>
-                    {navLinks.slice(3, 6).map(renderMenuItem)}
-                    
-                    <div className="my-4 border-t border-gray-200"></div>
-                    <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Nhân sự & Khách hàng</p>
-                    {navLinks.slice(6, 10).map(renderMenuItem)}
-                    
-                    <div className="my-4 border-t border-gray-200"></div>
-                    <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Báo cáo & Hợp đồng</p>
-                    {navLinks.slice(10).map(renderMenuItem)}
+                    {isHotelStaff ? (
+                        <>
+                            {/* Staff menu - grouped correctly */}
+                            <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Kinh doanh</p>
+                            {navLinks.filter(link => link.path === '/hotel-owner/bookings').map(renderMenuItem)}
+                            
+                            <div className="my-4 border-t border-gray-200"></div>
+                            <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Nhân sự & Khách hàng</p>
+                            {navLinks.filter(link => 
+                                ['/hotel-owner/reviews', '/hotel-owner/support', '/hotel-owner/messages'].includes(link.path)
+                            ).map(renderMenuItem)}
+                            
+                            <div className="my-4 border-t border-gray-200"></div>
+                            <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Báo cáo & Hợp đồng</p>
+                            {navLinks.filter(link => 
+                                ['/hotel-owner/marketing', '/hotel-owner/reports', '/hotel-owner/profile'].includes(link.path)
+                            ).map(renderMenuItem)}
+                        </>
+                    ) : (
+                        <>
+                            {/* Owner menu - original structure */}
+                            <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Tổng quan</p>
+                            {navLinks.slice(0, 1).map(renderMenuItem)}
+                            
+                            <div className="my-4 border-t border-gray-200"></div>
+                            <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Quản lý khách sạn</p>
+                            {navLinks.slice(1, 3).map(renderMenuItem)}
+                            
+                            <div className="my-4 border-t border-gray-200"></div>
+                            <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Kinh doanh</p>
+                            {navLinks.slice(3, 6).map(renderMenuItem)}
+                            
+                            <div className="my-4 border-t border-gray-200"></div>
+                            <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Nhân sự & Khách hàng</p>
+                            {navLinks.slice(6, 10).map(renderMenuItem)}
+                            
+                            <div className="my-4 border-t border-gray-200"></div>
+                            <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Báo cáo & Hợp đồng</p>
+                            {navLinks.slice(10).map(renderMenuItem)}
+                        </>
+                    )}
                 </nav>
 
                 {/* Footer cố định */}
@@ -295,7 +333,7 @@ const HotelOwnerLayout = () => {
                         </div>
                     </div>
                 </header>
-                <main className="flex-1 bg-gray-50 overflow-hidden relative">
+                <main className="flex-1 bg-gray-50 overflow-y-auto overflow-x-hidden relative">
                     <AmenityProvider>
                         <HotelAmenityProvider>
                             <Outlet />
