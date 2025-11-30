@@ -358,6 +358,40 @@ class HotelController {
       next(error);
     }
   }
+
+  /**
+   * Lấy loại phòng còn trống của 1 khách sạn chỉ định
+   * GET /api/v1/hotels/:hotelId/available-rooms?checkInDate=YYYY-MM-DD&checkOutDate=YYYY-MM-DD
+   */
+  async getAvailableRoomsByHotelId(req, res, next) {
+    try {
+      const { hotelId } = req.params;
+      const { checkInDate, checkOutDate } = req.query;
+      const result = await hotelService.getAvailableRoomsByHotelId(hotelId, checkInDate, checkOutDate);
+      successResponse(res, result.data, 'Lấy danh sách phòng còn trống thành công');
+    } catch (error) {
+      next(error);
+    }
+  }
+
+    /**
+   * Lấy khách sạn active hoặc approved của chủ sở hữu
+   * GET /api/v1/hotels/owner/:ownerId/active-or-approved
+   */
+  async getActiveOrApprovedHotelsByOwner(req, res, next) {
+    try {
+      const { ownerId } = req.params;
+      // Chỉ admin hoặc chính chủ sở hữu mới được xem
+      if (req.user.role !== 'admin' && req.user.id !== ownerId) {
+        throw new AppError('Không có quyền truy cập', 403);
+      }
+      const result = await hotelService.getActiveOrApprovedHotelsByOwner(ownerId);
+      successResponse(res, result.data);
+    } catch (error) {
+      next(error);
+    }
+  }
+  
 }
 
 module.exports = new HotelController();

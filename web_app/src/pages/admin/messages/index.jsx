@@ -173,7 +173,7 @@ export default function AdminMessagesPage() {
       });
       await imService.sendFile({
         conversation_id: String(active._id),
-        text: file.name,
+        text: 'Đây là file gửi kèm',
         attachments: [{
           file_name: meta.file_name || file.name,
           file_type: file.type || 'application/octet-stream'
@@ -189,7 +189,7 @@ export default function AdminMessagesPage() {
     try {
       await imService.sendFile({
         conversation_id: String(active._id),
-        text: urlInput.trim(),
+        text: 'Đây là file gửi kèm',
         attachments: [{
           file_name: urlInput.trim(),
           file_type: urlInput.match(/\.(png|jpg|jpeg|gif|webp)$/i) ? 'image' : 'link'
@@ -331,6 +331,10 @@ export default function AdminMessagesPage() {
             }
             const mine = actualUserId && String(m.sender_id) === String(actualUserId);
             const isFile = m.kind === 'file' && m.attachments?.length;
+            const isImageAttachment = isFile && m.attachments?.[0]?.file_name && (
+              m.attachments[0].file_name.startsWith('http') &&
+              (m.attachments[0].file_type?.includes('image') || m.attachments[0].file_name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+            );
             return (
               <div key={m._id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                 <div
@@ -339,25 +343,26 @@ export default function AdminMessagesPage() {
                   }`}
                 >
                   {m.text && <div>{m.text}</div>}
-                  {isFile && (
+
+                  {isFile && isImageAttachment && (
                     <div className={`mt-1.5 text-[11px] ${mine ? 'text-white/90' : 'text-gray-600'}`}>
-                      {m.attachments[0]?.file_name?.startsWith('http') &&
-                      (m.attachments[0]?.file_type?.includes('image') ||
-                        m.attachments[0]?.file_name?.match(/\.(jpg|jpeg|png|gif|webp)$/i)) ? (
-                        <div className="mb-1">
-                          <img
-                            src={m.attachments[0].file_name}
-                            alt="Shared"
-                            className="max-w-52 max-h-52 rounded-lg object-cover"
-                            onError={(e) => { e.target.style.display = 'none'; }}
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5">
-                          <FileText size={14} />
-                          <span className="truncate">{m.attachments[0]?.file_name}</span>
-                        </div>
-                      )}
+                      <div className="mb-1">
+                        <img
+                          src={m.attachments[0].file_name}
+                          alt="Shared"
+                          className="max-w-52 max-h-52 rounded-lg object-cover"
+                          onError={(e) => { e.target.onerror = null; e.target.src = '/image/placeholder.png'; }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {isFile && !isImageAttachment && (
+                    <div className={`mt-1.5 text-[11px] ${mine ? 'text-white/90' : 'text-gray-600'}`}>
+                      <div className="flex items-center gap-1.5">
+                        <FileText size={14} />
+                        <span className="truncate">{m.attachments[0]?.file_name}</span>
+                      </div>
                     </div>
                   )}
                   <div className={`text-[9px] mt-1.5 ${mine ? 'text-white/70' : 'text-gray-500'}`}>

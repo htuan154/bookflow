@@ -284,5 +284,20 @@ export const staffApiService = {
             console.error('Error updating staff salary:', error);
             throw error;
         }
+    },
+
+    /**
+     * Lấy tất cả staff record của một user (ở tất cả khách sạn)
+     * @param {string} userId - ID user
+     * @returns {Promise} Response với danh sách staff
+     */
+    async getStaffByUserId(userId) {
+        try {
+            const response = await axiosClient.get(API_ENDPOINTS.STAFF.GET_BY_USER_ID(userId));
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching staff by userId:', error);
+            throw error;
+        }
     }
 };

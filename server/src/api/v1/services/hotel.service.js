@@ -350,6 +350,27 @@ class HotelService {
     };
   }
 
+  async getAvailableRoomsByHotelId(hotelId, checkInDate, checkOutDate) {
+  if (!hotelId || !checkInDate || !checkOutDate) {
+    throw new AppError('Thiếu thông tin hotelId, checkInDate hoặc checkOutDate', 400);
+  }
+  const rooms = await hotelRepository.findAvailableRoomsByHotelId(hotelId, checkInDate, checkOutDate);
+  return {
+    success: true,
+    data: rooms
+  };
+}
+
+  /**
+   * Lấy khách sạn active hoặc approved của chủ sở hữu
+   */
+  async getActiveOrApprovedHotelsByOwner(ownerId) {
+    const hotels = await hotelRepository.findActiveOrApprovedByOwner(ownerId);
+    return {
+      success: true,
+      data: hotels
+    };
+  }
 }
 
 module.exports = new HotelService();

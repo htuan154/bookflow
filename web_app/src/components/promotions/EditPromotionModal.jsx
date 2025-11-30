@@ -1,7 +1,8 @@
 // src/components/promotions/EditPromotionModal.jsx
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, DollarSign, AlertTriangle, Lock } from 'lucide-react';
-import { useToast, ToastContainer } from '../common/Toast';
+import { useToast } from '../../hooks/useToast';
+import Toast from '../common/Toast';
 import promotionService from '../../api/promotions.service';
 
 const EditPromotionModal = ({ isOpen, onClose, promotion, onSuccess }) => {
@@ -282,7 +283,7 @@ const EditPromotionModal = ({ isOpen, onClose, promotion, onSuccess }) => {
 
   return (
     <>
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           {/* Header */}

@@ -29,7 +29,9 @@ import BlogListPage from '../pages/admin/BlogManagement/BlogListPage';
 import AdminSuggestionsPage from '../pages/admin/ChatBotAi/AdminSuggestionsPage';
 import ContractListPage from '../pages/admin/ContractManagement/ContractListPage';
 import HotelDetailPage from '../pages/admin/HotelManagement/HotelDetailPage';
-
+import TouristLocationsPage from '../pages/admin/TouristLocation/TouristLocationsPage';
+import TouristLocationDetailPage from '../pages/admin/TouristLocation/TouristLocationDetailPage';
+import FoodRecommendationDetailPage from '../pages/admin/TouristLocation/FoodRecommendationDetailPage';
 
 import CustomerManagement from '../pages/admin/CustomerManagement/CustomerManagement';
 import CommentManagementPage from '../pages/admin/CommentManagement/CommentManagementPage';
@@ -41,9 +43,13 @@ import { ContractProvider } from '../context/ContractContext';
 import { PromotionsProvider } from '../context/PromotionsContext';
 import { BlogProvider } from '../context/BlogContext';
 import { CustomerProvider }  from '../context/CustomerContext';
-import { BlogCommentProvider } from '../context/BlogCommentContext'; // Thêm dòng này
+import { BlogCommentProvider } from '../context/BlogCommentContext';
 import AdminMessagesPage from '../pages/admin/messages';
 import { IMProvider } from '../context/IMContext';
+import { TouristLocationProvider } from '../context/TouristLocationContext';
+import { FoodRecommendationProvider } from '../context/FoodRecommendationContext';
+import { AmenityProvider } from '../context/AmenityContext';
+import AmenityManagementPage from '../pages/admin/AmenityManagement/AmenityManagementPage';
 // Promotion pages
 import {
     PromotionManagement,
@@ -56,6 +62,7 @@ import AdminReportsPage from '../pages/admin/Reports/AdminReportsPage';
 import AdminBankAccountsPage from '../pages/admin/BankAccounts/AdminBankAccountsPage';
 import SeasonManagementPage from '../pages/admin/Season/SeasonManagementPage';
 import ProfilePage from '../pages/shared/ProfilePage';
+import AdminDataSyncPage from '../pages/admin/ChatBotAi/AdminDataSyncPage';
 
 const AdminRoutes = () => {
     const { isAuthenticated, user } = useAuth();
@@ -88,7 +95,7 @@ const AdminRoutes = () => {
                 <Route path="seasons" element={<SeasonManagementPage />} />
                 <Route path="profile" element={<ProfilePage />} />
                 
-                {/* Customer Management - BỔ SUNG */}
+                {/* Customer Management */}
                 <Route
                     path="customers"
                     element={
@@ -195,6 +202,7 @@ const AdminRoutes = () => {
                     <Route path="view/:id" element={<PromotionView />} />
                     <Route path="analytics" element={<PromotionAnalytics />} />
                 </Route>
+
                 <Route
                     path="messages"
                     element={
@@ -203,7 +211,7 @@ const AdminRoutes = () => {
                         </IMProvider>
                     }
                 />
-
+                
                 {/* Comment Management */}
                 <Route
                     path="comments"
@@ -214,6 +222,49 @@ const AdminRoutes = () => {
                     }
                 />
                 <Route path="suggestions" element={<AdminSuggestionsPage />} />
+                <Route path="data-sync" element={<AdminDataSyncPage />} />
+                {/* Tourist Locations Management */}
+                <Route
+                    path="tourist-locations"
+                    element={
+                        <TouristLocationProvider>
+                            <FoodRecommendationProvider>
+                                <TouristLocationsPage />
+                            </FoodRecommendationProvider>
+                        </TouristLocationProvider>
+                    }
+                />
+                <Route
+                    path="tourist-locations/:locationId"
+                    element={
+                        <TouristLocationProvider>
+                            <FoodRecommendationProvider>
+                                <TouristLocationDetailPage />
+                            </FoodRecommendationProvider>
+                        </TouristLocationProvider>
+                    }
+                />
+                <Route
+                    path="food-recommendations/:foodId"
+                    element={
+                        <TouristLocationProvider>
+                            <FoodRecommendationProvider>
+                                <FoodRecommendationDetailPage />
+                            </FoodRecommendationProvider>
+                        </TouristLocationProvider>
+                    }
+                />
+                
+                {/* Amenity Management */}
+                <Route
+                    path="amenities"
+                    element={
+                        <AmenityProvider>
+                            <AmenityManagementPage />
+                        </AmenityProvider>
+                    }
+                />
+                
                 <Route path="*" element={<NotFoundPage />} />
             </Route>
         </Routes>

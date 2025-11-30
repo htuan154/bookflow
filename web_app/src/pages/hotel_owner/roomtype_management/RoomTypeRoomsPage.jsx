@@ -1,5 +1,5 @@
 // src/pages/hotel_owner/roomtype_management/RoomTypeRoomsPage.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, DoorClosed, BrushCleaning, Wrench, Ban, Users } from 'lucide-react';
 import roomService from '../../../api/room.service';
@@ -33,6 +33,8 @@ export default function RoomTypeRoomsPage() {
   const [roomType, setRoomType] = useState(null);
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Status filter state
+  const [filter, setFilter] = useState('all');
   const [roomStats, setRoomStats] = useState({
     available: 0,
     occupied: 0,
@@ -207,13 +209,30 @@ export default function RoomTypeRoomsPage() {
         </div>
 
         {/* Rooms List */}
-        <div className="bg-white rounded-lg shadow">
+          <div className="bg-white rounded-lg shadow">
           <div className="p-4 border-b">
             <h2 className="text-lg font-semibold">Danh sách phòng ({rooms.length})</h2>
           </div>
 
+          {/* Filter control */}
+          <div className="p-4 border-b bg-white">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Lọc theo trạng thái</label>
+            <select
+              className="w-60 border rounded-lg px-3 py-2"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            >
+              {STATUS_OPTIONS.map(s => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="divide-y">
-            {rooms.map((room) => (
+            {/** use filteredRooms so the list reflects the selected status */}
+            {(() => {
+              const filteredRooms = (filter === 'all') ? rooms : rooms.filter(r => (r.status || '').toLowerCase() === filter);
+              return filteredRooms.map((room) => (
               <div key={room.roomId || room.id} className="p-4 flex items-center gap-4">
                 <div className="flex-1">
                   <div className="font-medium">Phòng {room.roomNumber}</div>
@@ -228,7 +247,8 @@ export default function RoomTypeRoomsPage() {
                   title="Chỉnh sửa phòng" 
                 />
               </div>
-            ))}
+              ));
+            })()}
             {!rooms.length && (
               <div className="p-6 text-gray-500">Không có phòng nào.</div>
             )}

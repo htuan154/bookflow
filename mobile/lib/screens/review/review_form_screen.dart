@@ -44,13 +44,14 @@ class _ReviewFormScreenState extends State<ReviewFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           'Viết đánh giá',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
         elevation: 1,
       ),
       body: Form(
@@ -151,12 +152,7 @@ class _ReviewFormScreenState extends State<ReviewFormScreen> {
                 contentPadding: EdgeInsets.all(16),
               ),
               validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Vui lòng nhập nhận xét';
-                }
-                if (value.trim().length < 10) {
-                  return 'Nhận xét phải có ít nhất 10 ký tự';
-                }
+                // Comment is optional, so always return null (no error)
                 return null;
               },
             ),

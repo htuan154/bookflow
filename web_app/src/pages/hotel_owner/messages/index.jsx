@@ -6,9 +6,12 @@ import { Paperclip, Send, Search, FileText, Loader2, AlertCircle, Users, Image a
 import useIM from '../../../hooks/useIM';
 import useAuth from '../../../hooks/useAuth';
 import useHotel from '../../../hooks/useHotel';
+import { USER_ROLES } from '../../../config/roles';
 
 import imService from '../../../api/im.service';
+import { staffApiService } from '../../../api/staff.service';
 import axiosClient from '../../../config/axiosClient';
+import { API_ENDPOINTS } from '../../../config/apiEndpoints';
 
 /* ----------------------------- Hotel Picker ----------------------------- */
 function HotelPickerInline({ onPicked }) {
@@ -81,7 +84,7 @@ function HotelPickerInline({ onPicked }) {
 function OwnerMessagesPage() {
   const { user } = useAuth();
   const { selectedHotel, setSelectedHotel } = useHotel();
-  const { startStream, messages, sendText } = useIM();
+  const { startStream, messages, sendText, createGroup } = useIM();
 
   const [conversations, setConversations] = useState([]);
   const [active, setActive] = useState(null);
@@ -91,9 +94,10 @@ function OwnerMessagesPage() {
   const [cursor, setCursor] = useState(null);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState('');
-  const [filterType, setFilterType] = useState('dm'); // 'dm' hoặc 'group'
+  const [filterType, setFilterType] = useState(user?.roleId === USER_ROLES.HOTEL_STAFF ? 'group' : 'dm'); // Staff chỉ xem group
   const [allConversations, setAllConversations] = useState([]); // lưu tất cả conversations
   const ensuredRef = useRef(false);
+  const [staffHotelId, setStaffHotelId] = useState(null); // hotel_id của staff
 
   const [historyLocal, setHistory] = useState([]);
   const [pageError, setPageError] = useState('');
@@ -104,26 +108,68 @@ function OwnerMessagesPage() {
     !!localStorage.getItem('current_hotel_id')
   );
 
-  const hotelId = hasSelectedHotel ? (selectedHotel?.hotelId || selectedHotel?.hotel_id || localStorage.getItem('current_hotel_id')) : null;
+  // Nếu là staff thì dùng staffHotelId, nếu là owner thì dùng selectedHotel
+  const hotelId = user?.roleId === USER_ROLES.HOTEL_STAFF 
+    ? staffHotelId 
+    : (hasSelectedHotel ? (selectedHotel?.hotelId || selectedHotel?.hotel_id || localStorage.getItem('current_hotel_id')) : null);
 
   const [myHotels, setMyHotels] = useState([]);
+  
+  // Fetch hotel_id từ staff record nếu là staff
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await axiosClient.get('/hotels/my-hotels');
-        const rows = res?.data?.data ?? res?.data ?? [];
-        console.log('My hotels raw data:', res.data);
-        console.log('My hotels processed:', rows);
-        if (rows.length > 0) {
-          console.log('First hotel structure:', JSON.stringify(rows[0], null, 2));
-          console.log('Hotel fields:', Object.keys(rows[0]));
+    if (user?.roleId === USER_ROLES.HOTEL_STAFF && user?.userId) {
+      (async () => {
+        try {
+          console.log('[Staff] Fetching staff info for userId:', user.userId);
+          const staffData = await staffApiService.getStaffByUserId(user.userId);
+          console.log('[Staff] Staff API response:', staffData);
+          const staffRecords = staffData?.data || [];
+          console.log('[Staff] Staff records:', staffRecords);
+          
+          if (staffRecords.length > 0) {
+            const staff = staffRecords[0];
+            console.log('[Staff] First staff record:', staff);
+            // Try both hotelId and hotel_id (API may return either)
+            const hid = staff.hotelId || staff.hotel_id;
+            console.log('[Staff] Extracted hotel_id:', hid);
+            
+            if (hid) {
+              setStaffHotelId(hid);
+              setHasSelectedHotel(true);
+              console.log('[Staff] Auto-loaded hotel_id:', hid);
+            } else {
+              console.warn('[Staff] No hotel_id found in staff record');
+            }
+          } else {
+            console.warn('[Staff] No staff records found');
+          }
+        } catch (e) {
+          console.error('[Staff] Failed to load hotel_id:', e);
         }
-        setMyHotels(rows);
-      } catch (e) {
-        console.error('load my-hotels failed', e);
-      }
-    })();
-  }, []);
+      })();
+    }
+  }, [user]);
+
+  // Fetch my hotels (chỉ cho owner)
+  useEffect(() => {
+    if (user?.roleId === USER_ROLES.HOTEL_OWNER) {
+      (async () => {
+        try {
+          const res = await axiosClient.get('/hotels/my-hotels');
+          const rows = res?.data?.data ?? res?.data ?? [];
+          console.log('My hotels raw data:', res.data);
+          console.log('My hotels processed:', rows);
+          if (rows.length > 0) {
+            console.log('First hotel structure:', JSON.stringify(rows[0], null, 2));
+            console.log('Hotel fields:', Object.keys(rows[0]));
+          }
+          setMyHotels(rows);
+        } catch (e) {
+          console.error('load my-hotels failed', e);
+        }
+      })();
+    }
+  }, [user]);
   const [hotelNameMap, setHotelNameMap] = useState({}); // { [hotel_id]: 'Hotel Name' }
 
 async function ensureHotelName(hid) {
@@ -335,6 +381,127 @@ function getConvTitle(c) {
     }
   }
 
+  // Auto-create Group B when switching to group filter (OWNER ONLY)
+  const groupEnsuredRef = useRef(false);
+  async function ensureGroupB(currentRows = []) {
+    // Staff KHÔNG được tạo Group B
+    if (user?.roleId === USER_ROLES.HOTEL_STAFF) {
+      console.log('[ensureGroupB] Staff cannot create Group B');
+      return;
+    }
+
+    const hasGroupB = (currentRows || []).some(
+      (c) => c.type === 'group' && c.subtype === 'owner_all_staff'
+    );
+    const actualUserId = user?.userId || user?.user_id || user?.id;
+    console.log('ensureGroupB check:', {
+      currentRows: currentRows,
+      hasGroupB: hasGroupB,
+      hotelId: hotelId,
+      actualUserId: actualUserId,
+      userRole: user?.roleId
+    });
+    if (hasGroupB || !hotelId || !actualUserId) {
+      console.log('Skipping Group B creation:', { hasGroupB, hotelId: !!hotelId, actualUserId: !!actualUserId });
+      return;
+    }
+
+    if (groupEnsuredRef.current) return;
+    groupEnsuredRef.current = true;
+    try {
+      const ownerId = await resolveOwnerId();
+      // Get hotel name
+      let hotelName = 'Khách sạn';
+      try {
+        const h = myHotels.find(hotel => 
+          (hotel.hotelId || hotel.hotel_id || hotel.id) === hotelId
+        );
+        if (h) hotelName = h.name || h.hotelName || hotelName;
+      } catch {}
+      
+      const payload = {
+        hotel_id: hotelId,
+        owner_id: ownerId,
+        name: `Nhóm nội bộ ${hotelName}`,
+        staff_ids: [] // Backend will auto-fetch or client can pass
+      };
+      console.debug('[createGroupB] payload:', payload);
+      const conv = await createGroup(payload);
+      setAllConversations(prev => [conv, ...prev]);
+      setConversations(prev => [conv, ...prev]);
+      await openConversation(conv);
+    } catch (e) {
+      const msg = e?.response?.data?.message || e.message || 'Tạo Group B thất bại';
+      setPageError(msg);
+      console.error('ensureGroupB error:', e);
+      groupEnsuredRef.current = false;
+    }
+  }
+
+  // Auto-add staff to Group B when staff enters page
+  const staffAddedRef = useRef(false);
+  useEffect(() => {
+    if (user?.roleId !== USER_ROLES.HOTEL_STAFF || !hotelId) return;
+    (async () => {
+      try {
+        const actualUserId = user?.userId || user?.user_id || user?.id;
+        if (!actualUserId) return;
+        
+        const staffData = await staffApiService.getStaffByUserId(actualUserId);
+        const staffRecords = staffData?.data || [];
+        if (staffRecords.length === 0) return;
+        
+        // Find Group B using dedicated endpoint (không cần là member)
+        try {
+          const res = await axiosClient.get(API_ENDPOINTS.IM.FIND_GROUP_B, {
+            params: { hotel_id: hotelId }
+          });
+          const groupB = res?.data;
+          
+          if (groupB) {
+            // Add staff as participant
+            try {
+              await axiosClient.post(API_ENDPOINTS.IM.ADD_MEMBER, {
+                conversation_id: String(groupB._id),
+                user_id: actualUserId,
+                role: 'hotel_staff'
+              });
+              console.log('[Staff auto-join] Added to Group B:', groupB._id);
+
+              // In-app refresh: reload conversations and open the Group B conversation
+              if (!staffAddedRef.current) {
+                staffAddedRef.current = true;
+                try {
+                  const updatedRows = await imService.listMyConversations({ hotel_id: hotelId });
+                  setAllConversations(updatedRows || []);
+                  const filtered = (updatedRows || []).filter(c => c.type === filterType);
+                  setConversations(filtered);
+
+                  // Try to find the exact conversation by id, fallback to owner_all_staff group
+                  const groupConv = (updatedRows || []).find(c => String(c._id) === String(groupB._id))
+                    || (updatedRows || []).find(c => c.type === 'group' && c.subtype === 'owner_all_staff');
+                  if (groupConv) {
+                    await openConversation(groupConv);
+                  }
+                } catch (refreshErr) {
+                  console.error('[Staff auto-join] Refresh conversations failed:', refreshErr);
+                }
+              }
+            } catch (err) {
+              console.warn('[Staff auto-join] Failed (may already be member):', err.response?.data || err.message);
+            }
+          } else {
+            console.warn('[Staff auto-join] No Group B found for hotel:', hotelId);
+          }
+        } catch (err) {
+          console.warn('[Staff auto-join] Group B not found:', err.response?.data || err.message);
+        }
+      } catch (e) {
+        console.error('[Staff auto-join] Error:', e);
+      }
+    })();
+  }, [user?.roleId, hotelId]);
+
   useEffect(() => {
     console.log('useEffect triggered:', { 
       hotelId, 
@@ -373,7 +540,12 @@ function getConvTitle(c) {
       console.log('Starting API call with hotelId:', hotelId);
       setLoadingList(true);
       try {
-        const rows = await imService.listMyConversations({ hotel_id: hotelId });
+        // Staff chỉ lấy group conversations, owner lấy tất cả
+        const params = { hotel_id: hotelId };
+        if (user?.roleId === USER_ROLES.HOTEL_STAFF) {
+          params.type = 'group';
+        }
+        const rows = await imService.listMyConversations(params);
         console.log('My conversations:', rows);
         if (rows.length > 0) {
           console.log('First conversation structure:', JSON.stringify(rows[0], null, 2));
@@ -386,7 +558,13 @@ function getConvTitle(c) {
         setConversations(filtered);
         
         if (filtered.length) openConversation(filtered[0]);
-        else await ensureDefaultDM(rows);
+        else {
+          if (filterType === 'dm') {
+            await ensureDefaultDM(rows);
+          } else if (filterType === 'group') {
+            await ensureGroupB(rows);
+          }
+        }
       } catch (err) {
         console.error('listMyConversations failed:', err);
         await ensureDefaultDM([]);
@@ -402,6 +580,11 @@ function getConvTitle(c) {
     if (allConversations.length > 0) {
       const filtered = allConversations.filter(c => c.type === filterType);
       setConversations(filtered);
+      
+      // Auto-create Group B if switching to group and none exists
+      if (filterType === 'group' && filtered.length === 0) {
+        ensureGroupB(allConversations);
+      }
       
       // Nếu conversation hiện tại không thuộc filter mới, chọn conversation đầu tiên
       if (active && active.type !== filterType) {
@@ -430,7 +613,17 @@ function getConvTitle(c) {
   }
 }, [myHotels]);
 
+  // Staff không cần chọn khách sạn (tự động lấy từ staff record)
   if (!hasSelectedHotel || !hotelId) {
+    if (user?.roleId === USER_ROLES.HOTEL_STAFF) {
+      return (
+        <div className="h-[calc(100vh-120px)] grid place-items-center">
+          <div className="text-center">
+            <div className="text-sm text-gray-500">Đang tải thông tin khách sạn...</div>
+          </div>
+        </div>
+      );
+    }
     return (
       <HotelPickerInline
         onPicked={(id) => {
@@ -445,39 +638,42 @@ function getConvTitle(c) {
   return (
     <div className="h-[calc(100vh-120px)] grid grid-cols-12">
       {/* LEFT */}
-      <aside className="col-span-4 border-r bg-white flex flex-col">
+      <aside className="col-span-4 border-r bg-white flex flex-col max-h-[calc(100vh-120px)]">
         <div className="p-3">
-          <select
-            className="w-full mb-2 border rounded-lg px-3 py-2 bg-white"
-            value={hotelId || ''}
-            onChange={(e) => {
-              const id = e.target.value || '';
-              if (id) {
-                localStorage.setItem('current_hotel_id', id);
-                setSelectedHotel?.({ hotelId: id });
-                setHasSelectedHotel(true);
-              } else {
-                localStorage.removeItem('current_hotel_id');
-                setSelectedHotel?.(null);
-                setHasSelectedHotel(false);
-              }
-              setConversations([]);
-              setActive(null);
-              setHistory([]);
-              setCursor(null);
-            }}
-          >
-            <option value="">Vui lòng chọn khách sạn</option>
-            {myHotels.map((h, i) => {
-              // console.log('Main dropdown hotel item:', h);
-              const hid = h?.hotelId ?? h?.hotel_id ?? h?.id ?? h?._id ?? `row-${i}`;
-              return (
-                <option key={hid} value={hid}>
-                  {h.name} {h.city ? `• ${h.city}` : ''}
-                </option>
-              );
-            })}
-          </select>
+          {/* Chỉ hiện hotel selector cho owner, không hiện cho staff */}
+          {user?.roleId !== USER_ROLES.HOTEL_STAFF && (
+            <select
+              className="w-full mb-2 border rounded-lg px-3 py-2 bg-white"
+              value={hotelId || ''}
+              onChange={(e) => {
+                const id = e.target.value || '';
+                if (id) {
+                  localStorage.setItem('current_hotel_id', id);
+                  setSelectedHotel?.({ hotelId: id });
+                  setHasSelectedHotel(true);
+                } else {
+                  localStorage.removeItem('current_hotel_id');
+                  setSelectedHotel?.(null);
+                  setHasSelectedHotel(false);
+                }
+                setConversations([]);
+                setActive(null);
+                setHistory([]);
+                setCursor(null);
+              }}
+            >
+              <option value="">Vui lòng chọn khách sạn</option>
+              {myHotels.map((h, i) => {
+                // console.log('Main dropdown hotel item:', h);
+                const hid = h?.hotelId ?? h?.hotel_id ?? h?.id ?? h?._id ?? `row-${i}`;
+                return (
+                  <option key={hid} value={hid}>
+                    {h.name} {h.city ? `• ${h.city}` : ''}
+                  </option>
+                );
+              })}
+            </select>
+          )}
 
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100">
             <Search size={18} className="text-gray-500" />
@@ -486,25 +682,28 @@ function getConvTitle(c) {
         </div>
 
         <div className="px-3 flex gap-2">
-          <button
-            onClick={() => {
-              setFilterType('dm');
-              if (filterType !== 'dm') {
-                // Nếu chuyển sang dm mà chưa có DM nào, tạo mới
-                const dmConversations = allConversations.filter(c => c.type === 'dm');
-                if (dmConversations.length === 0) {
-                  ensureDefaultDM([]);
+          {/* Staff chỉ xem nhóm, không xem DM */}
+          {user?.roleId !== USER_ROLES.HOTEL_STAFF && (
+            <button
+              onClick={() => {
+                setFilterType('dm');
+                if (filterType !== 'dm') {
+                  // Nếu chuyển sang dm mà chưa có DM nào, tạo mới
+                  const dmConversations = allConversations.filter(c => c.type === 'dm');
+                  if (dmConversations.length === 0) {
+                    ensureDefaultDM([]);
+                  }
                 }
-              }
-            }}
-            className={`text-xs px-3 py-1.5 rounded flex items-center gap-1 ${
-              filterType === 'dm' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            + Chat với Admin
-          </button>
+              }}
+              className={`text-xs px-3 py-1.5 rounded flex items-center gap-1 ${
+                filterType === 'dm' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              + Chat với Admin
+            </button>
+          )}
           <button
             onClick={() => setFilterType('group')}
             className={`text-xs px-3 py-1.5 rounded flex items-center gap-1 ${
@@ -523,7 +722,7 @@ function getConvTitle(c) {
         {pageError && (
           <div className="px-3 pb-2 text-xs text-red-600">{pageError}</div>
         )}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto max-h-[calc(100vh-220px)]">
           {loadingList ? (
             <div className="p-4 text-sm text-gray-500">Đang tải…</div>
           ) : conversations.length === 0 ? (
@@ -557,7 +756,7 @@ function getConvTitle(c) {
       </aside>
 
       {/* RIGHT */}
-      <section className="col-span-8 flex flex-col">
+      <section className="col-span-8 flex flex-col h-full max-h-[calc(100vh-120px)]">
         {!active ? (
           <div className="flex-1 grid place-items-center text-gray-500">
             <div className="flex items-center gap-2 text-sm">
@@ -574,7 +773,7 @@ function getConvTitle(c) {
               <div className="text-xs text-gray-500">{active?.type === 'dm' ? 'Đoạn chat' : 'Nhóm'}</div>
             </div>
 
-            <div ref={listRef} className="flex-1 overflow-y-auto bg-gray-50 p-4">
+            <div ref={listRef} className="flex-1 overflow-y-auto bg-gray-50 p-4" style={{ minHeight: 0 }}>
               {cursor && (
                 <div className="flex justify-center my-2">
                   <button

@@ -26,7 +26,7 @@ const create = async (commentData) => {
  * @returns {Promise<BlogComment[]>}
  */
 const findByBlogId = async (blogId) => {
-    const query = 'SELECT blog_comments.*, users.username FROM blog_comments JOIN users On users.user_id = blog_comments.user_id WHERE blog_id = $1 AND status = \'approved\' ORDER BY created_at ASC';
+    const query = 'SELECT blog_comments.*, users.username FROM blog_comments JOIN users On users.user_id = blog_comments.user_id WHERE blog_id = $1 ORDER BY created_at ASC';
         const result = await pool.query(query, [blogId]);
 
         // Return plain objects with consistent camelCase fields so the
@@ -113,14 +113,22 @@ const updateStatus = async (commentId, status) => {
 
 
 /**
- * Xóa một bình luận.
+ * Xóa một bình luận và tất cả các bình luận con (reply) của nó (đệ quy).
  * @param {string} commentId - ID của bình luận.
  * @returns {Promise<boolean>}
  */
 const deleteById = async (commentId) => {
+    // Xóa tất cả các comment con trước (đệ quy)
+    const childQuery = 'SELECT comment_id FROM blog_comments WHERE parent_comment_id = $1';
+    const childResult = await pool.query(childQuery, [commentId]);
+    for (const row of childResult.rows) {
+        await deleteById(row.comment_id);
+    }
+    // Xóa comment hiện tại
     const result = await pool.query('DELETE FROM blog_comments WHERE comment_id = $1', [commentId]);
     return result.rowCount > 0;
 };
+
 // Thêm 
 /**
  * Admin hoặc chủ khách sạn trả lời bình luận.
@@ -225,9 +233,34 @@ const findPendingComments = async () => {
     return result.rows.map(row => new BlogComment(row));
 };
 
+/**
+ * Tìm tất cả các bình luận đã duyệt (approved) của một bài blog.
+ * @param {string} blogId - ID của bài blog.
+ * @returns {Promise<BlogComment[]>}
+ */
+const findApprovedByBlogId = async (blogId) => {
+    const query = `SELECT blog_comments.*, users.username FROM blog_comments JOIN users ON users.user_id = blog_comments.user_id WHERE blog_id = $1 AND status = 'approved' ORDER BY created_at ASC`;
+    const result = await pool.query(query, [blogId]);
+    return result.rows.map(row => ({
+        commentId: row.comment_id,
+        blogId: row.blog_id,
+        userId: row.user_id,
+        parentCommentId: row.parent_comment_id,
+        content: row.content,
+        status: row.status,
+        likeCount: row.like_count,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        // user info
+        fullName: row.full_name || null,
+        username: row.username || null
+    }));
+};
+
 module.exports = {
     create,
     findByBlogId,
+    findApprovedByBlogId,
     findById,
     updateContent,
     updateStatus,

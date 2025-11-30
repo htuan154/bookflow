@@ -9,12 +9,47 @@ export function IMProvider({ children }) {
   const [conversationId, setConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
   const stopRef = useRef(null);
+  const pollingRef = useRef(null);
+  const lastMessageIdRef = useRef(null);
 
   const stopStream = useCallback(() => {
     if (stopRef.current) {
       stopRef.current();
       stopRef.current = null;
     }
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  // Polling fallback: Fetch messages every 2 seconds
+  const startPolling = useCallback((convId) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    
+    const fetchMessages = async () => {
+      try {
+        const data = await imService.getMessages({ conversation_id: convId, limit: 50 });
+        const msgs = data?.messages || [];
+        
+        // Only update if there are new messages
+        if (msgs.length > 0) {
+          const latestId = msgs[msgs.length - 1]?._id;
+          if (latestId !== lastMessageIdRef.current) {
+            lastMessageIdRef.current = latestId;
+            setMessages(msgs);
+          }
+        }
+      } catch (err) {
+        console.error('[Polling] Error fetching messages:', err);
+      }
+    };
+
+    // Initial fetch
+    fetchMessages();
+    
+    // Poll every 2 seconds
+    pollingRef.current = setInterval(fetchMessages, 2000);
   }, []);
 
   const startStream = useCallback((convId) => {
@@ -22,12 +57,25 @@ export function IMProvider({ children }) {
     stopStream(); // đóng stream cũ
     setConversationId(convId);
     setMessages([]);
+    lastMessageIdRef.current = null;
+    
+    // Try SSE first
     stopRef.current = openIMStream(convId, {
-      onMessage: (evt) => setMessages((prev) => [...prev, evt.message]),
+      onMessage: (evt) => {
+        setMessages((prev) => [...prev, evt.message]);
+        lastMessageIdRef.current = evt.message._id;
+      },
       onPing: () => {},
-      onError: (e) => console.error('SSE error', e),
+      onError: (e) => {
+        console.warn('[SSE] Error, falling back to polling:', e.message);
+        // Start polling as fallback
+        startPolling(convId);
+      },
     });
-  }, [stopStream]);
+    
+    // Also start polling as safety net (Change Stream may not work)
+    startPolling(convId);
+  }, [stopStream, startPolling]);
 
 
   // gửi text (SSE sẽ tự đẩy message.new về, không cần push tay)
@@ -43,8 +91,19 @@ export function IMProvider({ children }) {
     return conv;
   }, []);
 
+  // tạo Group (Group B) — wrapper gọi service an toàn
+  const createGroup = useCallback(async (payload) => {
+    const conv = await imService.createGroup(payload);
+    return conv;
+  }, []);
+
   // dọn khi unmount
-  useEffect(() => () => stopStream(), [stopStream]);
+  useEffect(() => {
+    return () => {
+      stopStream();
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [stopStream]);
 
   const value = {
     conversationId,
@@ -53,6 +112,7 @@ export function IMProvider({ children }) {
     stopStream,
     sendText,
     createDM,
+    createGroup,
     // TODO: uploadBase64 + gửi file nếu cần (đã có imService.uploadBase64)
   };
 

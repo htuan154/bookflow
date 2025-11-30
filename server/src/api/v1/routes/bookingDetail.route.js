@@ -30,4 +30,12 @@ router.post(
     bookingDetailController.addBookingDetails
 );
 
+// POST /api/v1/booking-details/booking/:bookingId/for-customer
+router.post(
+    '/booking/:bookingId/for-customer',
+    // Có thể thêm authorize(['admin', 'hotel_owner']) nếu muốn hạn chế quyền
+    validate(addBookingDetailsSchema),
+    bookingDetailController.addBookingDetailsForCustomer
+);
+
 module.exports = router;

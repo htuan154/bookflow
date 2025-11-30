@@ -50,7 +50,7 @@ class BookingStatusHistoryService {
         }
 
         // Phân quyền: Chỉ admin, chủ khách sạn, hoặc người đặt phòng mới được xem
-        if (currentUser.role !== 'admin' && currentUser.role !== 'hotel_owner' && booking.userId !== currentUser.userId) {
+        if (currentUser.role !== 'admin' && currentUser.role !== 'hotel_owner' && currentUser.role !== 'hotel_staff' && booking.userId !== currentUser.userId) {
             throw new AppError('Forbidden: You do not have permission to view this history', 403);
         }
 

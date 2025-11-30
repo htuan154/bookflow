@@ -585,6 +585,7 @@ class _ProvinceWardFormState extends State<ProvinceWardForm> {
               fillColor: Colors.white,
               filled: true,
             ),
+            dropdownColor: Colors.white,
           ),
           SizedBox(height: 16),
           
@@ -618,6 +619,7 @@ class _ProvinceWardFormState extends State<ProvinceWardForm> {
               fillColor: Colors.white,
               filled: true,
             ),
+            dropdownColor: Colors.white,
           ),
           SizedBox(height: 16),
 
@@ -689,11 +691,12 @@ class _ProvinceWardFormState extends State<ProvinceWardForm> {
                   ? SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : Icon(Icons.search),
-              label: Text(_isSearching ? 'Đang tìm...' : 'Tìm kiếm'),
+                  : Icon(Icons.search, color: Colors.white),
+              label: Text(_isSearching ? 'Đang tìm...' : 'Tìm kiếm', style: TextStyle(fontSize: 16, color: Colors.white)),
               style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
                 padding: EdgeInsets.symmetric(vertical: 16),
                 textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),

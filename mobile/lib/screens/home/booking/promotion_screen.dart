@@ -143,9 +143,9 @@ class _PromotionScreenState extends State<PromotionScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text('Chọn mã giảm giá'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        title: Text('Chọn mã giảm giá', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
         elevation: 1,
       ),
       body: _isLoading

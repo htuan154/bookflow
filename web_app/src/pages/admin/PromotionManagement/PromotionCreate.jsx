@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PromotionForm from '../../../components/promotions/PromotionForm';
-import { useToast, ToastContainer } from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
+import Toast from '../../../components/common/Toast';
 import promotionService from '../../../api/promotions.service';
 
 const PromotionCreate = () => {
@@ -101,7 +102,7 @@ const PromotionCreate = () => {
       </div>
 
       {/* Toast Container */}
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      
     </div>
   );
 };

@@ -55,7 +55,7 @@ function HotelsList({ hotels = [] }) {
       <div className="font-semibold text-lg">Khách sạn nổi bật</div>
       <ul className="list-disc pl-6 space-y-2">
         {hotels.map((h, i) => (
-          <li key={h?.hotel_id || i} className="text-base leading-relaxed">
+          <li key={`hotel-${h?.hotel_id || 'unknown'}-${i}`} className="text-base leading-relaxed">
             <span className="font-medium">{h?.name || 'Khách sạn'}</span>
             {h?.address && <span className="text-gray-600"> — {h.address}</span>}
             {(h?.star_rating || h?.average_rating) && (
@@ -86,7 +86,7 @@ function PromotionsList({ promotions = [] }) {
             (p?.valid_from || p?.valid_until ? ' → ' : '') +
             (fmtDate(p?.valid_until) || '');
           return (
-            <li key={p?.promotion_id || i} className="text-base leading-relaxed">
+            <li key={`promo-${p?.promotion_id || p?.code || 'unknown'}-${i}`} className="text-base leading-relaxed">
               <span className="font-medium">
                 {p?.name || p?.code || 'Ưu đãi'}
               </span>
@@ -148,7 +148,20 @@ function AssistantReply({ message }) {
       : <div className="text-base">(payload)</div>;
   }
 
-  // 2a) Clarify / no data gợi ý
+  // Trích xuất các mảng dữ liệu
+  const hotels = p.hotels || p.data?.hotels || [];
+  const promos = p.promotions || p.data?.promotions || [];
+  const places = p.places || p.destinations || p.diem_den || [];
+  const foods  = p.dishes || p.foods || p.mon_an || p.specialties || [];
+  const tips   = p.tips || p.ghi_chu || p.notes || [];
+  const hasAny = hotels.length || promos.length || places.length || foods.length || tips.length;
+
+  // ✅ PRIORITY 1: Nếu có summary VÀ không có data phức tạp -> Hiển thị summary (weather, map, chitchat)
+  if (summary && !hasAny && !p.clarify_required) {
+    return <div className="text-base leading-relaxed whitespace-pre-wrap">{summary}</div>;
+  }
+
+  // PRIORITY 2: Clarify / no data gợi ý
   if (p.clarify_required || (Array.isArray(p.suggestions) && p.suggestions.length === 0)) {
     return (
       <div className="space-y-3">
@@ -163,15 +176,8 @@ function AssistantReply({ message }) {
     );
   }
 
-  // Trích xuất các mảng dữ liệu
-  const hotels = p.hotels || p.data?.hotels || [];
-  const promos = p.promotions || p.data?.promotions || [];
-  const places = p.places || p.destinations || p.diem_den || [];
-  const foods  = p.dishes || p.foods || p.mon_an || p.specialties || [];
-  const tips   = p.tips || p.ghi_chu || p.notes || [];
-
-  // Kiểm tra hoàn toàn rỗng
-  const allEmpty = hotels.length === 0 && promos.length === 0 && places.length === 0 && foods.length === 0 && tips.length === 0;
+  // PRIORITY 3: Kiểm tra rỗng
+  const allEmpty = !hasAny;
 
   if (allEmpty && (p.hotels !== undefined || p.promotions !== undefined || p.places !== undefined || p.dishes !== undefined || p.foods !== undefined)) {
     return (
@@ -187,8 +193,7 @@ function AssistantReply({ message }) {
     );
   }
 
-  const hasAny = hotels.length || promos.length || places.length || foods.length || tips.length;
-
+  // PRIORITY 4: Có data phức tạp
   if (hasAny) {
     return (
       <div className="space-y-5">
@@ -254,9 +259,18 @@ export default function AdminSuggestionsPage() {
     setActiveSession(sid);
     setLoadingMsgs(true);
     try {
+      console.log('[DEBUG] Fetching messages for session:', sid);
       const res = await getChatMessages(sid, 1, 500, headers);
-      setMessages(res?.items || []);
-    } catch {
+      console.log('[DEBUG] Response:', res);
+      
+      // ✅ FIX: Backend trả về { success, items, total }, nhưng có thể wrapped trong data
+      const items = res?.items || res?.data?.items || [];
+      console.log('[DEBUG] Items:', items);
+      console.log('[DEBUG] Items length:', items?.length);
+      
+      setMessages(items);
+    } catch (err) {
+      console.error('[DEBUG] Error fetching messages:', err);
       setMessages([]);
     } finally {
       setLoadingMsgs(false);
@@ -442,8 +456,14 @@ export default function AdminSuggestionsPage() {
         <div className="px-4 py-3 text-sm text-gray-500 shrink-0 border-b bg-gray-50 font-medium">Phiên gần đây</div>
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2 min-h-0 scrollbar-thin">
           {sessions.map((s) => {
-            const sid = s._id || s.session_id;
+            const sid = s._id || s.session_id || s.id;
             const active = activeSession === sid;
+            
+            // Fix: Sử dụng đúng field names từ backend
+            const sessionTitle = s.title || s.name || s.subject || 'Untitled';
+            const sessionTime = s.updated_at || s.createdAt || s.last_at;
+            const turnCount = s.turns || s.count || s.total || 0;
+            
             return (
               <button
                 key={sid}
@@ -455,10 +475,10 @@ export default function AdminSuggestionsPage() {
                     : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm'
                 )}
               >
-                <div className="text-xs text-gray-500 font-medium">{fmtTime(s.last_at)}</div>
-                <div className="text-sm font-semibold line-clamp-2 leading-snug mt-1.5 text-gray-800">{s.last_question || 'Untitled'}</div>
+                <div className="text-xs text-gray-500 font-medium">{fmtTime(sessionTime)}</div>
+                <div className="text-sm font-semibold line-clamp-2 leading-snug mt-1.5 text-gray-800">{sessionTitle}</div>
                 <div className="text-xs text-gray-500 mt-2 flex items-center gap-1.5">
-                  <span className="px-1.5 py-0.5 bg-gray-100 rounded">{s.turns || 0} turns</span>
+                  <span className="px-1.5 py-0.5 bg-gray-100 rounded">{turnCount} turns</span>
                   {s.last_source && <span className="text-gray-400">•</span>}
                   {s.last_source && <span>{s.last_source}</span>}
                 </div>
@@ -494,7 +514,9 @@ export default function AdminSuggestionsPage() {
           )}
 
           {messages.map((m, idx) => {
-            const userText =
+            // ✅ FIX: Backend trả về message là string trực tiếp, không phải object
+            const userText = 
+              (typeof m?.message === 'string' ? m.message : null) ||
               m?.message?.text ||
               m?.messageText ||
               m?.message_text ||

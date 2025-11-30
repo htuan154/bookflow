@@ -1,12 +1,54 @@
 // src/pages/hotel-owner/HotelOwnerWelcomePage.js
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { USER_ROLES } from '../../config/roles';
+import { hotelApiService } from '../../api/hotel.service';
+import ReportsOwnerService from '../../api/reports.owner.service';
+
+const safeNumber = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+};
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+const monthStartISO = () => {
+  const d = new Date();
+  d.setDate(1);
+  return d.toISOString().slice(0, 10);
+};
+
+const normalizeHotelList = (payload) => {
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.hotels)) return payload.hotels;
+  if (Array.isArray(payload)) return payload;
+  return [];
+};
+
+const extractDateOnly = (row) => {
+  const raw = row?.bizDateVn || row?.biz_date_vn || row?.bizDate || row?.paidAt || row?.createdAt;
+  if (!raw) return '';
+  return String(raw).slice(0, 10);
+};
+
+const formatCurrency = (value) =>
+  safeNumber(value).toLocaleString('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  });
 
 const HotelOwnerWelcomePage = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [overviewStats, setOverviewStats] = useState({
+    loading: true,
+    todayBookings: 0,
+    monthlyRevenue: 0,
+    averageRating: 0,
+    error: null,
+  });
 
   const handleLogout = () => {
     logout();
@@ -26,6 +68,68 @@ const HotelOwnerWelcomePage = () => {
         return 'Không xác định';
     }
   };
+
+  useEffect(() => {
+    const fetchOverviewStats = async () => {
+      setOverviewStats((prev) => ({ ...prev, loading: true, error: null }));
+      try {
+        const dateFrom = monthStartISO();
+        const dateTo = todayISO();
+
+        const [hotelsResponse, paymentsResponse] = await Promise.all([
+          hotelApiService.getHotelsForOwner(),
+          ReportsOwnerService.getPayments({ date_from: dateFrom, date_to: dateTo }),
+        ]);
+
+        const hotels = normalizeHotelList(hotelsResponse);
+        const paymentRows = Array.isArray(paymentsResponse?.data)
+          ? paymentsResponse.data
+          : paymentsResponse?.rows ?? [];
+
+        const todayBookings = paymentRows.filter((row) => extractDateOnly(row) === dateTo).length;
+        const monthlyRevenue = paymentRows.reduce(
+          (sum, row) => sum + safeNumber(row?.hotelNetAmount ?? row?.finalAmount),
+          0
+        );
+
+        const ratingAggregate = hotels.reduce(
+          (acc, hotel) => {
+            const average = safeNumber(hotel?.averageRating ?? hotel?.average_rating);
+            const count = safeNumber(hotel?.totalReviews ?? hotel?.total_reviews);
+            if (count > 0) {
+              acc.totalScore += average * count;
+              acc.totalReviews += count;
+            }
+            return acc;
+          },
+          { totalScore: 0, totalReviews: 0 }
+        );
+
+        const averageRating = ratingAggregate.totalReviews
+          ? ratingAggregate.totalScore / ratingAggregate.totalReviews
+          : 0;
+
+        setOverviewStats({
+          loading: false,
+          todayBookings,
+          monthlyRevenue,
+          averageRating,
+          error: null,
+        });
+      } catch (error) {
+        setOverviewStats((prev) => ({
+          ...prev,
+          loading: false,
+          error:
+            error?.response?.data?.message ||
+            error?.message ||
+            'Không thể tải thống kê nhanh. Vui lòng thử lại.',
+        }));
+      }
+    };
+
+    fetchOverviewStats();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-12 px-4">
@@ -167,6 +271,9 @@ const HotelOwnerWelcomePage = () => {
         )}
 
         {/* Quick Stats Cards */}
+        {overviewStats.error && (
+          <p className="text-center text-sm text-red-500 mb-3">{overviewStats.error}</p>
+        )}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
             <div className="flex items-center space-x-4">
@@ -177,7 +284,11 @@ const HotelOwnerWelcomePage = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">Booking hôm nay</p>
-                <p className="text-2xl font-bold text-gray-900">12</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {overviewStats.loading
+                    ? '...'
+                    : overviewStats.todayBookings.toLocaleString('vi-VN')}
+                </p>
               </div>
             </div>
           </div>
@@ -191,7 +302,9 @@ const HotelOwnerWelcomePage = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">Doanh thu tháng</p>
-                <p className="text-2xl font-bold text-gray-900">85M</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {overviewStats.loading ? '...' : formatCurrency(overviewStats.monthlyRevenue)}
+                </p>
               </div>
             </div>
           </div>
@@ -205,7 +318,9 @@ const HotelOwnerWelcomePage = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">Đánh giá trung bình</p>
-                <p className="text-2xl font-bold text-gray-900">4.8</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {overviewStats.loading ? '...' : overviewStats.averageRating.toFixed(1)}
+                </p>
               </div>
             </div>
           </div>

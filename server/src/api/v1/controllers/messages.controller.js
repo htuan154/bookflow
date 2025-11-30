@@ -70,7 +70,7 @@ exports.markRead = async (req, res, next) => {
     if (error) return res.status(400).json({ error: error.message });
     const ok = await msgSvc.markRead({
       conversation_id: value.conversation_id,
-      user_id: req.user.user_id,
+      user_id: req.user.id,
       last_read_message_id: value.last_read_message_id
     });
     res.json(ok);

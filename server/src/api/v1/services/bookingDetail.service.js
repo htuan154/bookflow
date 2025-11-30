@@ -106,6 +106,46 @@ class BookingDetailService {
             client.release();
         }
     }
+
+        /**
+     * Thêm booking details vào một booking đã tồn tại (không kiểm tra userId, cho phép admin/hotel_owner thao tác cho khách hàng).
+     * @param {string} bookingId - ID của đơn đặt phòng.
+     * @param {Array<object>} roomDetails - Mảng các chi tiết phòng cần thêm.
+     * @returns {Promise<BookingDetail[]>}
+     */
+    async addBookingDetailsForCustomer(bookingId, roomDetails) {
+        // Kiểm tra booking có tồn tại không
+        const booking = await bookingRepository.findById(bookingId);
+        if (!booking) {
+            throw new AppError('Booking not found', 404);
+        }
+
+        // Kiểm tra booking status - không cho phép thêm details nếu đã confirmed/completed/canceled
+        const restrictedStatuses = ['confirmed', 'completed', 'canceled', 'no_show'];
+        if (restrictedStatuses.includes(booking.status)) {
+            throw new AppError(`Cannot add booking details. Booking status is ${booking.status}`, 400);
+        }
+
+        // Validate room details
+        if (!roomDetails || roomDetails.length === 0) {
+            throw new AppError('Room details must include at least one room', 400);
+        }
+
+        // Bắt đầu transaction
+        const pool = require('../../../config/db');
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const newBookingDetails = await bookingDetailRepository.createMany(roomDetails, bookingId, client);
+            await client.query('COMMIT');
+            return newBookingDetails;
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
 }
 
 module.exports = new BookingDetailService();

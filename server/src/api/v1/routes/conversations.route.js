@@ -13,5 +13,6 @@ router.post('/conversations/group-b', ctl.createGroupB);
 router.post('/conversations/add-member', ctl.addMember);
 router.get('/conversations', ctl.list);
 router.get('/conversations/my', ctl.listByHotelAndUser);
+router.get('/conversations/find-group-b', ctl.findGroupB);
 
 module.exports = router;

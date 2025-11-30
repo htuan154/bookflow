@@ -4,7 +4,12 @@ import '../../services/bank_account_service.dart';
 import '../../services/token_service.dart';
 
 class AddBankAccountScreen extends StatefulWidget {
-  const AddBankAccountScreen({super.key});
+  final bool autoSetDefault;
+  
+  const AddBankAccountScreen({
+    super.key,
+    this.autoSetDefault = false,
+  });
 
   @override
   _AddBankAccountScreenState createState() => _AddBankAccountScreenState();
@@ -22,6 +27,15 @@ class _AddBankAccountScreenState extends State<AddBankAccountScreen> {
   bool _isLoading = false;
 
   final BankAccountService _bankAccountService = BankAccountService();
+
+  @override
+  void initState() {
+    super.initState();
+    // Nếu autoSetDefault = true, tự động set _isDefault = true
+    if (widget.autoSetDefault) {
+      _isDefault = true;
+    }
+  }
 
   // Danh sách 18 ngân hàng mặc định
   final List<Map<String, String>> _defaultBanks = [
@@ -226,17 +240,17 @@ class _AddBankAccountScreenState extends State<AddBankAccountScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.orange,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.close, color: Colors.black87),
+          icon: Icon(Icons.close, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Thêm Tài Khoản Ngân Hàng',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
       ),
       body: Form(
@@ -409,7 +423,7 @@ class _AddBankAccountScreenState extends State<AddBankAccountScreen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Color(0xFF4CAF50), width: 2),
+                  borderSide: BorderSide(color: Colors.orange, width: 2),
                 ),
                 filled: true,
                 fillColor: Colors.white,
@@ -434,14 +448,18 @@ class _AddBankAccountScreenState extends State<AddBankAccountScreen> {
                   ),
                 ),
                 subtitle: Text(
-                  'Tài khoản này sẽ được sử dụng cho các giao dịch',
+                  widget.autoSetDefault 
+                    ? 'Tài khoản này sẽ được đặt làm mặc định tự động'
+                    : 'Tài khoản này sẽ được sử dụng cho các giao dịch',
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
                 value: _isDefault,
-                onChanged: (value) {
-                  setState(() => _isDefault = value);
-                },
-                activeColor: Color(0xFF4CAF50),
+                onChanged: widget.autoSetDefault 
+                  ? null // Không cho thay đổi nếu autoSetDefault = true
+                  : (value) {
+                      setState(() => _isDefault = value);
+                    },
+                activeColor: Colors.orange,
                 inactiveThumbColor: Colors.grey[400],
                 inactiveTrackColor: Colors.grey[300],
               ),
@@ -456,7 +474,7 @@ class _AddBankAccountScreenState extends State<AddBankAccountScreen> {
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _submitForm,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF4CAF50),
+                  backgroundColor: Colors.orange,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

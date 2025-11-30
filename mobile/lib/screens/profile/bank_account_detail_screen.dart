@@ -20,65 +20,65 @@ class _BankAccountDetailScreenState extends State<BankAccountDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.orange,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Chi Tiết Tài Khoản',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
-        actions: [
-          PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert, color: Colors.black87),
-            onSelected: (value) {
-              if (value == 'edit') {
-                _editAccount();
-              } else if (value == 'delete') {
-                _deleteAccount();
-              } else if (value == 'set_default') {
-                _setAsDefault();
-              }
-            },
-            itemBuilder: (BuildContext context) => [
-              PopupMenuItem(
-                value: 'edit',
-                child: Row(
-                  children: [
-                    Icon(Icons.edit_outlined, size: 20, color: Colors.grey[700]),
-                    SizedBox(width: 12),
-                    Text('Chỉnh sửa'),
-                  ],
-                ),
-              ),
-              if (!widget.account.isDefault)
-                PopupMenuItem(
-                  value: 'set_default',
-                  child: Row(
-                    children: [
-                      Icon(Icons.star_outline, size: 20, color: Colors.grey[700]),
-                      SizedBox(width: 12),
-                      Text('Đặt làm mặc định'),
-                    ],
-                  ),
-                ),
-              PopupMenuItem(
-                value: 'delete',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                    SizedBox(width: 12),
-                    Text('Xóa', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
+        // actions: [
+        //   PopupMenuButton<String>(
+        //     icon: Icon(Icons.more_vert, color: Colors.white),
+        //     onSelected: (value) {
+        //       if (value == 'edit') {
+        //         _editAccount();
+        //       } else if (value == 'delete') {
+        //         _deleteAccount();
+        //       } else if (value == 'set_default') {
+        //         _setAsDefault();
+        //       }
+        //     },
+        //     itemBuilder: (BuildContext context) => [
+        //       PopupMenuItem(
+        //         value: 'edit',
+        //         child: Row(
+        //           children: [
+        //             Icon(Icons.edit_outlined, size: 20, color: Colors.grey[700]),
+        //             SizedBox(width: 12),
+        //             Text('Chỉnh sửa'),
+        //           ],
+        //         ),
+        //       ),
+        //       if (!widget.account.isDefault)
+        //         PopupMenuItem(
+        //           value: 'set_default',
+        //           child: Row(
+        //             children: [
+        //               Icon(Icons.star_outline, size: 20, color: Colors.grey[700]),
+        //               SizedBox(width: 12),
+        //               Text('Đặt làm mặc định'),
+        //             ],
+        //           ),
+        //         ),
+        //       PopupMenuItem(
+        //         value: 'delete',
+        //         child: Row(
+        //           children: [
+        //             Icon(Icons.delete_outline, size: 20, color: Colors.red),
+        //             SizedBox(width: 12),
+        //             Text('Xóa', style: TextStyle(color: Colors.red)),
+        //           ],
+        //         ),
+        //       ),
+        //     ],
+        //   ),
+        // ],
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(24),
@@ -89,13 +89,13 @@ class _BankAccountDetailScreenState extends State<BankAccountDetailScreen> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: Color(0xFF4CAF50).withOpacity(0.1),
+                color: Colors.orange.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.account_balance,
                 size: 40,
-                color: Color(0xFF4CAF50),
+                color: Colors.orange,
               ),
             ),
             SizedBox(height: 16),
@@ -116,7 +116,7 @@ class _BankAccountDetailScreenState extends State<BankAccountDetailScreen> {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Color(0xFF4CAF50),
+                  color: Colors.orange,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -201,13 +201,13 @@ class _BankAccountDetailScreenState extends State<BankAccountDetailScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: isLoading ? null : _setAsDefault,
-                  icon: Icon(Icons.star, color: Colors.black),
+                  icon: Icon(Icons.star, color: Colors.white),
                   label: Text(
                     'Đặt làm tài khoản mặc định',
-                    style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF4CAF50),
+                    backgroundColor: Colors.orange,
                     padding: EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -218,21 +218,38 @@ class _BankAccountDetailScreenState extends State<BankAccountDetailScreen> {
             
             SizedBox(height: 12),
             
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: isLoading ? null : _deleteAccount,
-                icon: Icon(Icons.delete_outline, color: Colors.red),
-                label: Text('Xóa tài khoản', style: TextStyle(color: Colors.red)),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: Colors.red),
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            if (!widget.account.isDefault)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: isLoading ? null : _deleteAccount,
+                  icon: Icon(Icons.delete_outline, color: Colors.red),
+                  label: Text('Xóa tài khoản', style: TextStyle(color: Colors.red)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.red),
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
-            ),
+            if (widget.account.isDefault)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: null,
+                  icon: Icon(Icons.delete_outline, color: Colors.grey),
+                  label: Text('Không thể xóa tài khoản mặc định', style: TextStyle(color: Colors.grey)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.grey),
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -359,6 +376,7 @@ class _BankAccountDetailScreenState extends State<BankAccountDetailScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
         title: Text('Xác nhận xóa'),
         content: Text('Bạn có chắc chắn muốn xóa tài khoản này?'),
         actions: [

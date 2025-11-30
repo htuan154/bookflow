@@ -4,17 +4,17 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../services/geocoding_service.dart';
-import 'components/hotel_model.dart';
-import 'components/map_markers.dart';
-import 'components/map_search_bar.dart';
-import 'components/hotel_details_bottom_sheet.dart';
+import '../../services/vietnam_province_service.dart';
+import '../../services/tourist_location_service.dart';
+import '../../services/food_recommendation_service.dart';
+import '../../classes/tourist_location_model.dart';
+import '../../classes/food_recommendation_model.dart';
+import '../../classes/nearby_tourist_location.dart';
 import 'components/loading_indicator.dart';
-// import 'components/selected_location_info.dart';
-import 'components/hotel_count_badge.dart';
 import 'components/location_dialog.dart';
-
-// Import your geocoding service
-// import 'path/to/your/geocoding_service.dart';
+import 'components/food_marker_dialog.dart';
+import 'components/tourist_location_dialog.dart';
+import 'components/floating_nearby_locations_widget.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -25,11 +25,15 @@ class ExploreScreen extends StatefulWidget {
 
 class _ExploreScreenState extends State<ExploreScreen> {
   final MapController _mapController = MapController();
+  final VietnamProvinceService _provinceService = VietnamProvinceService();
+  final TouristLocationService _touristLocationService = TouristLocationService();
+  final FoodRecommendationService _foodRecommendationService = FoodRecommendationService();
+  
   LatLng _currentLocation = LatLng(10.8231, 106.6297); // HCM City default
   List<Marker> _markers = [];
-  List<Hotel> _hotels = [];
   bool _isLoadingLocation = false;
-  bool _isLoadingHotels = false;
+  bool _isLoadingProvinces = false;
+  bool _isLoadingData = false;
   String _selectedMapStyle = 'standard';
   double _currentZoom = 13.0;
   bool _hasLocationPermission = false;
@@ -39,6 +43,22 @@ class _ExploreScreenState extends State<ExploreScreen> {
   LatLng? _selectedLocation;
   String? _selectedAddress;
   bool _isLoadingAddress = false;
+
+  // Thêm các biến cho province search
+  List<Province> _allProvinces = [];
+  List<Province> _filteredProvinces = [];
+  Province? _selectedProvince;
+  final TextEditingController _provinceSearchController = TextEditingController();
+  bool _showProvinceSearch = false;
+
+  // Dữ liệu tourist locations và foods
+  List<TouristLocation> _touristLocations = [];
+  List<FoodRecommendation> _foodRecommendations = [];
+  String _currentCity = 'Hồ Chí Minh'; // Default city
+
+  // Danh sách địa điểm gần đây
+  List<NearbyTouristLocation> _nearbyLocations = [];
+  bool _showNearbyLocations = false;
 
   // Map styles
   final Map<String, String> _mapStyles = {
@@ -54,8 +74,124 @@ class _ExploreScreenState extends State<ExploreScreen> {
   @override
   void initState() {
     super.initState();
-    _checkLocationPermission(); // Chỉ kiểm tra permission, không yêu cầu GPS
-    _loadDemoHotels();
+    _checkLocationPermission();
+    _loadProvinces();
+    _loadCityData(_currentCity); // Load dữ liệu mặc định cho Hồ Chí Minh
+  }
+
+  // Load dữ liệu tourist locations và food recommendations theo city
+  Future<void> _loadCityData(String city) async {
+    setState(() {
+      _isLoadingData = true;
+    });
+
+    try {
+      debugPrint('🔍 Loading data for city: $city');
+      
+      // Load tourist locations
+      final locationResult = await _touristLocationService.getLocationsByCityVn(city);
+      debugPrint('📍 Location API Response: ${locationResult['success']}');
+      debugPrint('📍 Location Data: ${locationResult['data']}');
+      
+      // Load food recommendations
+      final foodResult = await _foodRecommendationService.getRecommendationsByCity(city);
+      debugPrint('🍽️ Food API Response: ${foodResult['success']}');
+      debugPrint('🍽️ Food Data: ${foodResult['data']}');
+
+      if (locationResult['success'] && foodResult['success']) {
+        final locations = locationResult['data'] as List<TouristLocation>;
+        final foods = foodResult['data'] as List<FoodRecommendation>;
+        
+        debugPrint('✅ Loaded ${locations.length} locations and ${foods.length} foods');
+        
+        // Debug chi tiết từng location
+        for (var loc in locations) {
+          debugPrint('  📌 Location: ${loc.name} - Lat: ${loc.latitude}, Lng: ${loc.longitude}');
+        }
+        
+        // Debug chi tiết từng food
+        for (var food in foods) {
+          debugPrint('  🍴 Food: ${food.name} - Lat: ${food.latitude}, Lng: ${food.longitude}');
+        }
+        
+        setState(() {
+          _touristLocations = locations;
+          _foodRecommendations = foods;
+          _isLoadingData = false;
+        });
+        
+        // Cập nhật markers
+        _updateMarkers();
+      } else {
+        setState(() {
+          _isLoadingData = false;
+        });
+        debugPrint('❌ Error loading data: ${locationResult['message']}, ${foodResult['message']}');
+      }
+    } catch (e, stackTrace) {
+      setState(() {
+        _isLoadingData = false;
+      });
+      debugPrint('❌ Exception loading city data: $e');
+      debugPrint('Stack trace: $stackTrace');
+    }
+  }
+
+  // Load danh sách tỉnh/thành
+  Future<void> _loadProvinces() async {
+    setState(() {
+      _isLoadingProvinces = true;
+    });
+
+    try {
+      final provinces = await _provinceService.fetchProvinces();
+      setState(() {
+        _allProvinces = provinces;
+        _filteredProvinces = provinces;
+        _isLoadingProvinces = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading provinces: $e');
+      setState(() {
+        _isLoadingProvinces = false;
+      });
+    }
+  }
+
+  // Filter provinces
+  void _filterProvinces(String keyword) {
+    setState(() {
+      _filteredProvinces = _provinceService.searchProvinces(keyword, _allProvinces);
+      if (_selectedProvince != null &&
+          !_filteredProvinces.contains(_selectedProvince)) {
+        _selectedProvince = null;
+      }
+    });
+  }
+
+  // Chọn tỉnh/thành và di chuyển map
+  void _onProvinceSelected(Province? province) async {
+    setState(() {
+      _selectedProvince = province;
+    });
+
+    if (province != null) {
+      // Cập nhật city hiện tại
+      _currentCity = province.name;
+      
+      // Load dữ liệu mới cho city
+      await _loadCityData(_currentCity);
+      
+      // Geocode để lấy tọa độ của tỉnh/thành
+      final coordinates = await _getCoordinatesFromAddress(province.name);
+      if (coordinates != null) {
+        setState(() {
+          _currentLocation = coordinates;
+        });
+        _mapController.move(coordinates, 13.0);
+        _updateMarkers();
+      }
+    }
   }
 
   // Xử lý sự kiện click vào map
@@ -104,59 +240,97 @@ class _ExploreScreenState extends State<ExploreScreen> {
         });
         _updateMarkers();
       },
-      onSearchNearby: () => _searchHotelsNearLocation(location),
+      onSearchNearbyTouristLocations: () {
+        _searchNearbyTouristLocations(location);
+      },
     );
   }
 
-  // Tìm khách sạn gần vị trí được chọn
-  void _searchHotelsNearLocation(LatLng location) {
-    // Tính khoảng cách đến các khách sạn và sắp xếp
-    List<Hotel> nearbyHotels = _hotels.map((hotel) {
-      return hotel;
-    }).toList();
+  // Tìm kiếm các địa điểm tham quan gần vị trí được chọn
+  Future<void> _searchNearbyTouristLocations(LatLng location) async {
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: Colors.green),
+              SizedBox(height: 16),
+              Text(
+                'Đang tìm địa điểm gần đây...',
+                style: TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
 
-    // Sắp xếp theo khoảng cách
-    nearbyHotels.sort((a, b) {
-      double distanceA = Geolocator.distanceBetween(
+    try {
+      final result = await _touristLocationService.getNearestLocations(
         location.latitude,
         location.longitude,
-        a.location.latitude,
-        a.location.longitude,
-      );
-      double distanceB = Geolocator.distanceBetween(
-        location.latitude,
-        location.longitude,
-        b.location.latitude,
-        b.location.longitude,
-      );
-      return distanceA.compareTo(distanceB);
-    });
-
-    // Hiển thị khách sạn gần nhất
-    if (nearbyHotels.isNotEmpty) {
-      Hotel nearestHotel = nearbyHotels.first;
-      double distance = Geolocator.distanceBetween(
-        location.latitude,
-        location.longitude,
-        nearestHotel.location.latitude,
-        nearestHotel.location.longitude,
       );
 
+      // Close loading dialog
+      Navigator.pop(context);
+
+      if (result['success'] && result['data'] != null) {
+        final locations = result['data'] as List<NearbyTouristLocation>;
+        
+        if (locations.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Không tìm thấy địa điểm tham quan gần đây'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
+
+        // Move to the nearest location
+        if (locations.isNotEmpty) {
+          final nearest = locations.first.location;
+          if (nearest.latitude != null && nearest.longitude != null) {
+            _mapController.move(
+              LatLng(nearest.latitude!, nearest.longitude!),
+              15.0,
+            );
+          }
+        }
+
+        // Show floating widget with results
+        setState(() {
+          _nearbyLocations = locations;
+          _showNearbyLocations = true;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'Không thể tìm kiếm địa điểm'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      Navigator.pop(context);
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Khách sạn gần nhất: ${nearestHotel.name} (${(distance / 1000).toStringAsFixed(1)} km)',
-          ),
-          action: SnackBarAction(
-            label: 'Xem',
-            onPressed: () => _showHotelDetails(nearestHotel),
-          ),
-          duration: Duration(seconds: 4),
+          content: Text('Lỗi khi tìm kiếm: $e'),
+          backgroundColor: Colors.red,
         ),
       );
-
-      // Di chuyển đến khách sạn gần nhất
-      _mapController.move(nearestHotel.location, 16.0);
+      debugPrint('Error searching nearby locations: $e');
     }
   }
 
@@ -290,207 +464,180 @@ class _ExploreScreenState extends State<ExploreScreen> {
     return null;
   }
 
-  // Load demo hotels data with addresses
-  Future<void> _loadDemoHotels() async {
-    setState(() {
-      _isLoadingHotels = true;
-    });
+  // Update markers on map
+  void _updateMarkers() {
+    List<Marker> newMarkers = [];
 
-    // Hotel data with addresses instead of coordinates
-    final List<Map<String, dynamic>> hotelData = [
-      {
-        'id': '1',
-        'name': 'Hotel Galaxy',
-        'description': 'Luxury hotel in city center with amazing views',
-        'price': 120,
-        'rating': 4.8,
-        'address': '123 Nguyễn Huệ, Quận 1, TP.HCM',
-        'category': 'luxury',
-        'amenities': ['WiFi', 'Pool', 'Spa', 'Restaurant'],
-        'images': [
-          'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=400',
-        ],
-      },
-      {
-        'id': '2',
-        'name': 'Golden Valley Resort',
-        'description': 'Premium resort with pool and spa facilities',
-        'price': 150,
-        'rating': 4.9,
-        'address': '456 Lê Lợi, Quận 1, TP.HCM',
-        'category': 'resort',
-        'amenities': ['WiFi', 'Pool', 'Spa', 'Restaurant', 'Gym'],
-        'images': [
-          'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400',
-        ],
-      },
-      {
-        'id': '3',
-        'name': 'Marlot INN',
-        'description': 'Comfortable business hotel near airport',
-        'price': 100,
-        'rating': 4.5,
-        'address': '789 Võ Văn Kiệt, Quận 5, TP.HCM',
-        'category': 'business',
-        'amenities': ['WiFi', 'Restaurant', 'Meeting Room'],
-        'images': [
-          'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400',
-        ],
-      },
-      {
-        'id': '4',
-        'name': 'Riverside Hotel',
-        'description': 'Beautiful riverside location with great sunset views',
-        'price': 90,
-        'rating': 4.6,
-        'address': '321 Tôn Đức Thắng, Quận 1, TP.HCM',
-        'category': 'boutique',
-        'amenities': ['WiFi', 'Restaurant', 'River View'],
-        'images': [
-          'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400',
-        ],
-      },
-      {
-        'id': '5',
-        'name': 'City Center Plaza',
-        'description': 'Modern hotel in the heart of the city',
-        'price': 110,
-        'rating': 4.7,
-        'address': '654 Hai Bà Trưng, Quận 3, TP.HCM',
-        'category': 'modern',
-        'amenities': ['WiFi', 'Pool', 'Restaurant', 'Gym', 'Spa'],
-        'images': [
-          'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400',
-        ],
-      },
-    ];
+    // Add current location marker
+    newMarkers.add(
+      Marker(
+        point: _currentLocation,
+        width: 40,
+        height: 40,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.blue,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+          ),
+          child: Icon(Icons.person, color: Colors.white, size: 20),
+        ),
+      ),
+    );
 
-    List<Hotel> loadedHotels = [];
-
-    // Convert addresses to coordinates
-    for (final data in hotelData) {
-      final coordinates = await _getCoordinatesFromAddress(data['address']);
-
-      if (coordinates != null) {
-        loadedHotels.add(
-          Hotel(
-            id: data['id'],
-            name: data['name'],
-            description: data['description'],
-            price: data['price'].toDouble(),
-            rating: data['rating'].toDouble(),
-            location: coordinates,
-            address: data['address'],
-            category: data['category'],
-            amenities: List<String>.from(data['amenities']),
-            images: List<String>.from(data['images']),
+    // Add tourist location markers
+    for (var location in _touristLocations) {
+      if (location.latitude != null && location.longitude != null) {
+        newMarkers.add(
+          Marker(
+            point: LatLng(location.latitude!, location.longitude!),
+            width: 50,
+            height: 50,
+            child: GestureDetector(
+              onTap: () => _onTouristLocationMarkerTap(location),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(Icons.place, color: Colors.white, size: 24),
+              ),
+            ),
           ),
         );
-      } else {
-        // Fallback to default coordinates if geocoding fails
-        print(
-          'Failed to geocode ${data['name']} at ${data['address']}, using fallback',
-        );
-        // You can add fallback coordinates here if needed
       }
+    }
 
-      // Add small delay between requests to avoid rate limiting
-      await Future.delayed(Duration(milliseconds: 200));
+    // Add food recommendation markers
+    for (var food in _foodRecommendations) {
+      if (food.latitude != null && food.longitude != null) {
+        newMarkers.add(
+          Marker(
+            point: LatLng(food.latitude!, food.longitude!),
+            width: 50,
+            height: 50,
+            child: GestureDetector(
+              onTap: () => _onFoodMarkerTap(food),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(Icons.restaurant, color: Colors.white, size: 24),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    // Add selected location marker if exists
+    if (_selectedLocation != null) {
+      newMarkers.add(
+        Marker(
+          point: _selectedLocation!,
+          width: 40,
+          height: 40,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.red,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+            ),
+            child: Icon(Icons.location_on, color: Colors.white, size: 20),
+          ),
+        ),
+      );
     }
 
     setState(() {
-      _hotels = loadedHotels;
-      _isLoadingHotels = false;
-    });
-
-    _updateMarkers();
-  }
-
-  // Update markers on map
-  void _updateMarkers() {
-    setState(() {
-      _markers = MapMarkers.createMarkers(
-        currentLocation: _currentLocation,
-        hotels: _hotels,
-        onHotelTap: _showHotelDetails,
-        selectedLocation: _selectedLocation,
-      );
+      _markers = newMarkers;
     });
   }
 
-  // Show hotel details bottom sheet
-  void _showHotelDetails(Hotel hotel) {
-    showModalBottomSheet(
+  // Xử lý khi nhấn vào marker của tourist location
+  void _onTouristLocationMarkerTap(TouristLocation location) {
+    // Lấy các món ăn có location_id tương ứng
+    final nearbyFoods = _foodRecommendations
+        .where((food) => food.locationId == location.locationId)
+        .toList();
+
+    TouristLocationDialog.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => HotelDetailsBottomSheet(
-        hotel: hotel,
-        currentLocation: _currentLocation,
-        onGetDirections: _getDirections,
-        onBookHotel: _bookHotel,
-      ),
+      location: location,
+      nearbyFoods: nearbyFoods,
+      onClose: () {
+        // Không làm gì khi đóng
+      },
+      onFoodSelected: (food) {
+        // Di chuyển đến marker của food
+        if (food.latitude != null && food.longitude != null) {
+          _mapController.move(
+            LatLng(food.latitude!, food.longitude!),
+            16.0,
+          );
+          
+          // Hiển thị dialog của food sau một chút
+          Future.delayed(Duration(milliseconds: 300), () {
+            _onFoodMarkerTap(food);
+          });
+        }
+      },
     );
   }
 
-  // Get directions (simulate)
-  void _getDirections(LatLng destination) {
-    // Calculate simple distance
-    double distance = Geolocator.distanceBetween(
-      _currentLocation.latitude,
-      _currentLocation.longitude,
-      destination.latitude,
-      destination.longitude,
-    );
+  // Xử lý khi nhấn vào marker của food
+  void _onFoodMarkerTap(FoodRecommendation food) {
+    // Tìm tourist location tương ứng
+    TouristLocation? location;
+    if (food.locationId != null) {
+      try {
+        location = _touristLocations.firstWhere(
+          (loc) => loc.locationId == food.locationId,
+        );
+      } catch (e) {
+        location = null;
+      }
+    }
 
-    Navigator.pop(context);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Distance: ${(distance / 1000).toStringAsFixed(1)} km'),
-        action: SnackBarAction(
-          label: 'Navigate',
-          onPressed: () {
-            // Here you would integrate with a navigation service
-            // For demo, just center map on destination
-            _mapController.move(destination, 16.0);
-          },
-        ),
-      ),
-    );
-  }
-
-  // Book hotel (simulate)
-  void _bookHotel(Hotel hotel) {
-    Navigator.pop(context);
-
-    showDialog(
+    FoodMarkerDialog.show(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Book ${hotel.name}'),
-        content: Text(
-          'Would you like to book this hotel for \$${hotel.price.toInt()}/night?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Booking confirmed for ${hotel.name}!'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: Text('Confirm'),
-          ),
-        ],
-      ),
+      food: food,
+      location: location,
+      onClose: () {
+        // Không làm gì khi đóng
+      },
+      onExploreLocation: location != null
+          ? () {
+              // Di chuyển đến marker của location
+              if (location!.latitude != null && location.longitude != null) {
+                _mapController.move(
+                  LatLng(location.latitude!, location.longitude!),
+                  16.0,
+                );
+                // Hiển thị dialog của location sau một chút
+                Future.delayed(Duration(milliseconds: 300), () {
+                  _onTouristLocationMarkerTap(location!);
+                });
+              }
+            }
+          : null,
     );
   }
 
@@ -511,10 +658,98 @@ class _ExploreScreenState extends State<ExploreScreen> {
     );
   }
 
-  // Search hotels
-  void _searchHotels(String query) {
-    // Implement search functionality
-    print('Searching for: $query');
+  // Build province search form
+  Widget _buildProvinceSearchForm() {
+    return Container(
+      margin: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header với nút đóng
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Tìm kiếm địa điểm',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.close),
+                onPressed: () {
+                  setState(() {
+                    _showProvinceSearch = false;
+                  });
+                },
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+
+          // Province search
+          TextField(
+            controller: _provinceSearchController,
+            decoration: InputDecoration(
+              labelText: 'Tìm kiếm tỉnh/thành',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onChanged: _filterProvinces,
+          ),
+          SizedBox(height: 10),
+
+          // Province dropdown
+          Theme(
+            data: Theme.of(context).copyWith(
+              canvasColor: Colors.white,
+            ),
+            child: DropdownButtonFormField<Province>(
+              value: _selectedProvince,
+              decoration: InputDecoration(
+                labelText: 'Chọn tỉnh/thành',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                fillColor: Colors.white,
+                filled: true,
+              ),
+              dropdownColor: Colors.white,
+              items: _filteredProvinces.map((province) {
+                return DropdownMenuItem(
+                  value: province,
+                  child: Text(province.name),
+                );
+              }).toList(),
+              onChanged: (value) {
+                _onProvinceSelected(value);
+                // Tự động đóng form sau khi chọn
+                Future.delayed(Duration(milliseconds: 500), () {
+                  setState(() {
+                    _showProvinceSearch = false;
+                  });
+                });
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -553,19 +788,91 @@ class _ExploreScreenState extends State<ExploreScreen> {
             ],
           ),
 
-          // Top search bar
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 10,
-            left: 16,
-            right: 16,
-            child: MapSearchBar(
-              onSearch: _searchHotels,
-              selectedMapStyle: _selectedMapStyle,
-              onMapStyleChanged: (style) =>
-                  setState(() => _selectedMapStyle = style),
-              mapStyles: _mapStyles,
+          // Province search form (ở trên cùng khi mở)
+          if (_showProvinceSearch)
+            Positioned(
+              top: MediaQuery.of(context).padding.top,
+              left: 0,
+              right: 0,
+              child: _buildProvinceSearchForm(),
             ),
-          ),
+
+          // Nút mở form search (chỉ hiển thị khi form đóng)
+          if (!_showProvinceSearch)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 10,
+              left: 16,
+              right: 16,
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _showProvinceSearch = true;
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.search, color: Colors.grey[600]),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _selectedProvince?.name ?? 'Tìm kiếm tỉnh/thành...',
+                          style: TextStyle(
+                            color: _selectedProvince != null ? Colors.black : Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      // Hiển thị icon map style ở bên phải
+                      Theme(
+                        data: Theme.of(context).copyWith(
+                          canvasColor: Colors.white,
+                          cardColor: Colors.white,
+                        ),
+                        child: PopupMenuButton<String>(
+                          icon: Icon(Icons.layers, color: Colors.grey[600]),
+                          color: Colors.white,
+                          onSelected: (style) {
+                            setState(() {
+                              _selectedMapStyle = style;
+                            });
+                          },
+                          itemBuilder: (context) => _mapStyles.keys.map((style) {
+                            return PopupMenuItem<String>(
+                              value: style,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _selectedMapStyle == style
+                                        ? Icons.radio_button_checked
+                                        : Icons.radio_button_unchecked,
+                                    color: Colors.orange,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(style[0].toUpperCase() + style.substring(1)),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
           // Loading indicators (chỉ hiển thị khi thực sự đang load)
           if (_isLoadingLocation)
@@ -576,46 +883,24 @@ class _ExploreScreenState extends State<ExploreScreen> {
               child: LoadingIndicator(message: 'Getting your location...'),
             ),
 
-          if (_isLoadingHotels)
+          // Đã loại bỏ _isLoadingHotels và LoadingIndicator liên quan
+
+          if (_isLoadingProvinces)
             Positioned(
               top: MediaQuery.of(context).padding.top + 70,
               left: 16,
               right: 16,
-              child: LoadingIndicator(message: 'Loading hotels...'),
+              child: LoadingIndicator(message: 'Loading provinces...'),
             ),
 
-          // // Thông báo GPS nếu chưa có permission
-          // if (_hasCheckedPermission &&
-          //     !_hasLocationPermission &&
-          //     !_isLoadingLocation)
-          //   Positioned(
-          //     bottom: 100,
-          //     left: 16,
-          //     right: 16,
-          //     child: Container(
-          //       padding: EdgeInsets.all(12),
-          //       decoration: BoxDecoration(
-          //         color: Colors.blue.shade50,
-          //         borderRadius: BorderRadius.circular(8),
-          //         border: Border.all(color: Colors.blue.shade200),
-          //       ),
-          //       child: Row(
-          //         children: [
-          //           Icon(Icons.info_outline, color: Colors.blue, size: 16),
-          //           SizedBox(width: 8),
-          //           Expanded(
-          //             child: Text(
-          //               'Nhấn nút vị trí để bật GPS và tìm khách sạn gần bạn',
-          //               style: TextStyle(
-          //                 fontSize: 12,
-          //                 color: Colors.blue.shade700,
-          //               ),
-          //             ),
-          //           ),
-          //         ],
-          //       ),
-          //     ),
-          //   ),
+          if (_isLoadingData)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 70,
+              left: 16,
+              right: 16,
+              child: LoadingIndicator(message: 'Đang tải dữ liệu...'),
+            ),
+
           if (_isLoadingAddress)
             Positioned(
               bottom: 100,
@@ -624,85 +909,86 @@ class _ExploreScreenState extends State<ExploreScreen> {
               child: LoadingIndicator(message: 'Đang lấy địa chỉ...'),
             ),
 
-          // Hotel count badge
-          if (_hotels.isNotEmpty)
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 70,
-              right: 16,
-              child: HotelCountBadge(hotelCount: _hotels.length),
+          // Floating nearby locations widget
+          if (_showNearbyLocations && _nearbyLocations.isNotEmpty)
+            FloatingNearbyLocationsWidget(
+              locations: _nearbyLocations,
+              onLocationSelected: (nearbyLocation) {
+                final location = nearbyLocation.location;
+                // Move map to selected location
+                if (location.latitude != null && location.longitude != null) {
+                  _mapController.move(
+                    LatLng(location.latitude!, location.longitude!),
+                    16.0,
+                  );
+                  
+                  // Show location details dialog after a short delay
+                  Future.delayed(Duration(milliseconds: 300), () {
+                    _onTouristLocationMarkerTap(location);
+                  });
+                }
+              },
+              onClose: () {
+                setState(() {
+                  _showNearbyLocations = false;
+                  _nearbyLocations = [];
+                });
+              },
             ),
-
-          // Hiển thị thông tin vị trí đã chọn ở bottom
-          // if (_selectedLocation != null &&
-          //     _selectedAddress != null &&
-          //     !_isLoadingAddress)
-          //   Positioned(
-          //     bottom: 20,
-          //     left: 16,
-          //     right: 16,
-          //     child: SelectedLocationInfo(
-          //       selectedLocation: _selectedLocation!,
-          //       selectedAddress: _selectedAddress!,
-          //       onClose: () {
-          //         setState(() {
-          //           _selectedLocation = null;
-          //           _selectedAddress = null;
-          //         });
-          //         _updateMarkers();
-          //       },
-          //       onSearchNearby: () =>
-          //           _searchHotelsNearLocation(_selectedLocation!),
-          //     ),
-          //   ),
         ],
       ),
 
-      // Floating action buttons
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          // Zoom in
-          FloatingActionButton(
-            mini: true,
-            onPressed: () {
-              _mapController.move(
-                _mapController.camera.center,
-                _mapController.camera.zoom + 1,
-              );
-            },
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
-            heroTag: "zoom_in",
-            child: Icon(Icons.add),
-          ),
+      // Floating action buttons - đặt ở đây để không bị che bởi widget khác
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(
+          bottom: _showNearbyLocations && _nearbyLocations.isNotEmpty ? 200 : 0,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            // Zoom in
+            FloatingActionButton(
+              mini: true,
+              onPressed: () {
+                _mapController.move(
+                  _mapController.camera.center,
+                  _mapController.camera.zoom + 1,
+                );
+              },
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              heroTag: "zoom_in",
+              child: Icon(Icons.add),
+            ),
 
-          SizedBox(height: 8),
+            SizedBox(height: 8),
 
-          // Zoom out
-          FloatingActionButton(
-            mini: true,
-            onPressed: () {
-              _mapController.move(
-                _mapController.camera.center,
-                _mapController.camera.zoom - 1,
-              );
-            },
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
-            heroTag: "zoom_out",
-            child: Icon(Icons.remove),
-          ),
+            // Zoom out
+            FloatingActionButton(
+              mini: true,
+              onPressed: () {
+                _mapController.move(
+                  _mapController.camera.center,
+                  _mapController.camera.zoom - 1,
+                );
+              },
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              heroTag: "zoom_out",
+              child: Icon(Icons.remove),
+            ),
 
-          SizedBox(height: 8),
+            SizedBox(height: 8),
 
-          // My location - chỉ yêu cầu GPS khi người dùng nhấn
-          FloatingActionButton(
-            onPressed: _getCurrentLocation,
-            backgroundColor: Colors.orange,
-            heroTag: "my_location",
-            child: Icon(Icons.my_location),
-          ),
-        ],
+            // My location - chỉ yêu cầu GPS khi người dùng nhấn
+            FloatingActionButton(
+              onPressed: _getCurrentLocation,
+              backgroundColor: Colors.orange,
+              heroTag: "my_location",
+              child: Icon(Icons.my_location),
+            ),
+          ],
+        ),
       ),
     );
   }

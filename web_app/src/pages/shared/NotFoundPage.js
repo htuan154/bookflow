@@ -90,7 +90,7 @@ const NotFoundPage = () => {
             </button>
 
             <button
-              onClick={() => navigate('/register')}
+              onClick={() => navigate('/login')}
               className="flex items-center space-x-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors duration-200"
             >
               <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">

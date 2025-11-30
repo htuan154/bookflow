@@ -410,29 +410,35 @@ const CommentManagementPage = () => {
           </Card>
         </Box>
       ) : (
-        <Card sx={{ 
-          bgcolor: 'white', 
-          borderRadius: 3, 
-          p: 3,
-          boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
-          border: '1px solid #e2e8f0'
-        }}>
-          <Grid container spacing={4}>
-            <Grid item xs={12}>
-              <BlogPostInfo
-                blog={selectedBlog}
-                showActions={false}
-                sx={{ mb: 2 }}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <BlogCommentDetail
-                blogId={selectedBlog?.blogId || selectedBlog?.blog_id}
-                onDataChanged={handleBlogDataChanged} // truyền callback này
-              />
-            </Grid>
-          </Grid>
-        </Card>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {/* Thông tin bài viết ở trên */}
+          <Card sx={{ 
+            bgcolor: 'white', 
+            borderRadius: 3, 
+            p: 3,
+            boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
+            border: '1px solid #e2e8f0'
+          }}>
+            <BlogPostInfo
+              blog={selectedBlog}
+              showActions={false}
+            />
+          </Card>
+
+          {/* Danh sách bình luận ở dưới */}
+          <Card sx={{ 
+            bgcolor: 'white', 
+            borderRadius: 3, 
+            p: 3,
+            boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
+            border: '1px solid #e2e8f0'
+          }}>
+            <BlogCommentDetail
+              blogId={selectedBlog?.blogId || selectedBlog?.blog_id}
+              onDataChanged={handleBlogDataChanged} // truyền callback này
+            />
+          </Card>
+        </Box>
       )}
     </Container>
   );

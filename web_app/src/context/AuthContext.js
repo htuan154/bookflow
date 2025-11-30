@@ -23,6 +23,7 @@ const AuthProvider = ({ children }) => {
                         // Lấy thông tin user từ API /profile
                         try {
                             const response = await authService.getProfile(token);
+                            console.log('[AuthContext] Profile response:', response.data.data);
                             setUser(response.data.data);
                         } catch (error) {
                             console.error("Error fetching profile:", error);
@@ -41,7 +42,8 @@ const AuthProvider = ({ children }) => {
     }, [token]);
 
     const login = async (user, token) => {
-       
+        console.log('[AuthContext] Login - user:', user);
+        console.log('[AuthContext] Login - user.roleId:', user?.roleId);
         setToken(token);
         setUser(user);
         localStorage.setItem('token', token);

@@ -22,6 +22,7 @@ const { processPendingComments } = require('../workers/moderation.worker');
 const dailyJobService = require('../api/v1/services/dailyJob.service');
 const notificationService = require('../api/v1/services/nofiticationForContract.service');
 const { getDb } = require('../im/bootstrap');
+const reportsService = require('../api/v1/services/reports.service');
 
 async function myDailyTask() {
   console.log('Chạy daily job:', new Date());
@@ -103,6 +104,22 @@ async function myDailyTask() {
     const autoApproveResult = await dailyJobService.autoApprovePromotions();
     console.log('- Kết quả duyệt tự động khuyến mãi:', autoApproveResult);
 
+    // 7. Gộp thanh toán Admin và tạo payout tự động cho "hôm qua" (theo giờ VN)
+    try {
+      const vnNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+      vnNow.setDate(vnNow.getDate() - 1); // Lấy ngày hôm qua
+      const yyyy = vnNow.getFullYear();
+      const mm = String(vnNow.getMonth() + 1).padStart(2, '0');
+      const dd = String(vnNow.getDate()).padStart(2, '0');
+      const yesterdayVN = `${yyyy}-${mm}-${dd}`; // YYYY-MM-DD
+
+      console.log(`- Đang xử lý payout tự động cho ngày (VN) ${yesterdayVN}...`);
+      const payoutProcessResult = await reportsService.processDailyPayouts(yesterdayVN);
+      console.log('- Kết quả xử lý payout tự động:', payoutProcessResult);
+    } catch (err) {
+      console.error('❌ Lỗi khi xử lý payout tự động cho hôm qua:', err);
+    }
+
     console.log('✅ Daily job hoàn thành thành công!');
       // Nếu là ngày 31/12 thì tạo season cho năm tiếp theo
       const now = new Date();
@@ -140,7 +157,7 @@ function startDailyJob() {
   // Chạy moderation worker mỗi 10 giây
   //cron.schedule('*/10 * * * * *', moderationTask, { timezone: 'Asia/Ho_Chi_Minh' });
   
-  //cron.schedule('*/10 * * * * *', myDailyTask); // mỗi 10 giây để test job chính
+  // cron.schedule('*/10 * * * * *', myDailyTask); // mỗi 10 giây để test job chính
   //cron.schedule('*/10 * * * * *', testCreateSeasons); // mỗi 10 giây để test tạo season
 }
 

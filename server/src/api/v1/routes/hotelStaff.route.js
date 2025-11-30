@@ -20,6 +20,15 @@ router.use(authenticate);
 // ==========================================================================
 
 /**
+ * GET /api/v1/staff/user/:userId
+ * Lấy tất cả staff record của một user (ở tất cả khách sạn)
+ */
+router.get('/staff/user/:userId',
+    authorize(['hotel_owner', 'admin', 'hotel_staff']),
+    hotelStaffController.getStaffByUserId
+);
+
+/**
  * GET /api/v1/hotels/:hotelId/staff
  * Lấy danh sách nhân viên của một khách sạn
  */

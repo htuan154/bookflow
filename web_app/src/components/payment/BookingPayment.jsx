@@ -47,6 +47,7 @@ const CheckInPayment = ({ bookingId, amount, onSuccess, onError }) => {
         </div>
         
         <VietQRPayment
+          provider="payos"
           bookingId={bookingId}
           amount={amount}
           paymentType="booking"

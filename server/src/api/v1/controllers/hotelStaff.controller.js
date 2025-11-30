@@ -6,6 +6,20 @@ const { AppError } = require('../../../utils/errors');
 
 class HotelStaffController {
     /**
+     * Lấy tất cả staff record của một user (ở tất cả khách sạn)
+     * GET /api/v1/staff/user/:userId
+     */
+    async getStaffByUserId(req, res, next) {
+        try {
+            const { userId } = req.params;
+            const staffList = await HotelStaffService.getStaffByUserId(userId);
+            successResponse(res, staffList, 'Staff records by user_id retrieved successfully');
+        } catch (error) {
+            next(error);
+        }
+    }
+    
+    /**
      * Thêm một nhân viên mới vào khách sạn (tự động tạo user).
      * POST /api/v1/hotels/:hotelId/staff/new
      */
@@ -125,8 +139,8 @@ class HotelStaffController {
             const ownerId = req.user.id;
             
             // Validate trạng thái nếu có
-            if (req.body.status && !['active', 'inactive', 'suspended'].includes(req.body.status)) {
-                return next(new AppError('Invalid status. Must be one of: active, inactive, suspended', 400));
+            if (req.body.status && !['active', 'inactive', 'suspended', 'terminated'].includes(req.body.status)) {
+                return next(new AppError('Invalid status. Must be one of: active, inactive, suspended, terminated', 400));
             }
             
             const updatedStaff = await HotelStaffService.updateStaffInfo(staffId, req.body, ownerId);

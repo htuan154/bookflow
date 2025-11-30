@@ -1,6 +1,7 @@
 // src/components/payment/VietQRPayment.jsx
 import React, { useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { QRCodeSVG } from 'qrcode.react';
 import { useVietQR } from '../../hooks/useVietQR';
 
 /**
@@ -37,49 +38,68 @@ const VietQRPayment = ({
     clearError
   } = useVietQR();
 
+  // Debug: Log qrData changes
+  useEffect(() => {
+    if (qrData) {
+      console.log('🖼️ [VietQRPayment] qrData updated:', qrData);
+      console.log('🖼️ [VietQRPayment] qr_code (raw EMVCo):', qrData.qr_code?.substring(0, 100));
+      console.log('🖼️ [VietQRPayment] qr_code length:', qrData.qr_code?.length);
+      console.log('🖼️ [VietQRPayment] Has checkout_url?:', !!qrData.checkout_url);
+    }
+  }, [qrData]);
+
+  // Luồng VietQR cũ (dùng khi provider='vietqr' hoặc fallback khi PayOS lỗi)
+  const generateLegacyVietQR = async () => {
+    let result;
+    if (paymentType === 'booking' && bookingId) {
+      result = await createQRForBooking(bookingId);
+    } else if (paymentType === 'walk-in' && hotelId) {
+      result = await createQRAtCounter(hotelId, {
+        bookingId: bookingId || null,
+        amount,
+        note: 'Walk-in payment'
+      });
+    } else {
+      throw new Error('Thiếu thông tin để tạo QR code');
+    }
+
+    if (result) {
+      startCountdown();
+      toast.success('Tạo QR code thành công!');
+    }
+  };
+
   // Tạo QR / tạo đơn thanh toán tuỳ provider
   const generatePayment = async () => {
     try {
       clearError();
 
       if (provider === 'payos') {
-        // ————— PayOS (polling) —————
-        // KHÔNG bắt buộc hotelId nữa — BE sẽ tự lookup từ bookingId
-        if (!bookingId || !amount || amount <= 0) {
-          throw new Error('Cần bookingId và amount > 0 để tạo đơn PayOS');
+        try {
+          // ————— PayOS (polling) —————
+          if (!bookingId || !amount || amount <= 0) {
+            throw new Error('Cần bookingId và amount > 0 để tạo đơn PayOS');
+          }
+          const resp = await createPayOSForBooking(bookingId, {
+            hotelId,
+            amount,
+            description: `Thanh toán đơn #${bookingId}`
+          });
+          if (!resp?.qr_image && resp?.checkout_url) {
+            window.open(resp.checkout_url, '_blank');
+          }
+          startCountdown();
+          toast.success('Tạo đơn PayOS thành công!');
+          return;
+        } catch (payosError) {
+          console.error('PayOS create failed, fallback to VietQR:', payosError);
+          toast.warn('PayOS gặp sự cố, chuyển sang VietQR thường.');
+          await generateLegacyVietQR();
+          return;
         }
-        const resp = await createPayOSForBooking(bookingId, {
-          hotelId, // có thì gửi; nếu không có, BE sẽ tự lấy theo bookingId
-          amount,
-          description: `Thanh toán đơn #${bookingId}`
-        });
-        // Nếu không có ảnh QR (nhiều case PayOS chỉ trả link), mở checkout_url
-        if (!resp?.qr_image && resp?.checkout_url) {
-          window.open(resp.checkout_url, '_blank');
-        }
-        startCountdown();
-        toast.success('Tạo đơn PayOS thành công!');
-        return;
       }
 
-      // ————— VietQR cũ —————
-      let result;
-      if (paymentType === 'booking' && bookingId) {
-        result = await createQRForBooking(bookingId);
-      } else if (paymentType === 'walk-in' && hotelId) {
-        result = await createQRAtCounter(hotelId, {
-          bookingId: bookingId || null,
-          amount,
-          note: 'Walk-in payment'
-        });
-      } else {
-        throw new Error('Thiếu thông tin để tạo QR code');
-      }
-
-      if (result) {
-        startCountdown();
-        toast.success('Tạo QR code thành công!');
-      }
+      await generateLegacyVietQR();
     } catch (err) {
       console.error('Lỗi tạo thanh toán:', err);
       toast.error(err.message || 'Không thể tạo thanh toán');
@@ -105,6 +125,16 @@ const VietQRPayment = ({
       console.error('Lỗi xác nhận thanh toán:', err);
       toast.error(err?.response?.data?.error || 'Không thể xác nhận thanh toán');
     }
+  };
+
+  // Nút "Tôi đã thanh toán" (luôn hiển thị dưới nút tải QR)
+  const handlePaidButton = () => {
+    if (!qrData) {
+      toast.error('Không tìm thấy thông tin giao dịch');
+      return;
+    }
+    toast.success('Cảm ơn bạn đã thanh toán!');
+    onPaymentSuccess?.(qrData, { tx_ref: qrData.tx_ref, amount: qrData.amount });
   };
 
   // Thành công
@@ -159,15 +189,31 @@ const VietQRPayment = ({
 
       {qrData && (
         <div className="space-y-4">
-          {/* QR Image (nếu có) */}
-          {qrData.qr_image && (
+          {/* QR Code (sử dụng QRCodeSVG để render trực tiếp EMVCo string) */}
+          {(qrData.qr_code || qrData.raw?.qrCode) ? (
             <div className="text-center">
-              <img
-                src={qrData.qr_image}
-                alt="QR Code thanh toán"
-                className="mx-auto border-2 border-gray-200 rounded-lg"
-                style={{ maxWidth: '250px' }}
-              />
+              <div className="inline-block p-4 bg-white border-2 border-gray-200 rounded-lg">
+                <QRCodeSVG
+                  value={qrData.qr_code || qrData.raw?.qrCode}
+                  size={250}
+                  level="M"
+                  includeMargin={true}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="text-center text-gray-500 text-sm">
+              <p className="mb-2 text-red-500">Không thể hiển thị QR code</p>
+              {qrData.checkout_url && (
+                <a 
+                  href={qrData.checkout_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  Mở trang thanh toán PayOS
+                </a>
+              )}
             </div>
           )}
 
@@ -243,6 +289,18 @@ const VietQRPayment = ({
               </button>
             )}
           </div>
+
+          {/* Nút Tôi đã thanh toán luôn hiển thị dưới nút tải QR */}
+          {qrData && (
+            <div className="mt-3 flex">
+              <button
+                onClick={handlePaidButton}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+              >
+                Tôi đã thanh toán
+              </button>
+            </div>
+          )}
 
           {/* Hướng dẫn */}
           <div className="text-xs text-gray-500 text-center space-y-1">

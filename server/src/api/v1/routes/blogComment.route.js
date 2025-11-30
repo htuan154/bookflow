@@ -20,7 +20,7 @@ router.route('/blogs/:blogId/comments')
 router.post(
     '/blogs/:blogId/comments/:commentId/reply',
     authenticate,
-    authorize(['admin', 'hotel_owner']), // Cho phép cả admin và chủ khách sạn
+    authorize(['admin', 'hotel_owner', 'hotel_staff']), // Cho phép cả admin và chủ khách sạn
     blogCommentController.replyToComment
 );
 
@@ -43,5 +43,9 @@ router.patch(
     authorize(['admin']),           // chỉ admin được quyền
     blogCommentController.updateCommentStatus
 );
+
+// GET /api/v1/blogs/:blogId/comments-approved -> Lấy bình luận đã duyệt
+router.get('/blogs/:blogId/comments-approved', blogCommentController.getApprovedCommentsByBlog);
+
 
 module.exports = router;

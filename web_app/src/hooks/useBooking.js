@@ -10,6 +10,28 @@ export const useBooking = (hotelId = null) => {
   const [statistics, setStatistics] = useState(null);
 
   /**
+   * Tạo booking cho khách hàng (userId truyền vào)
+   */
+  const createBookingForCustomer = useCallback(async (userId, bookingData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log('🔄 [useBooking] Creating booking for customer:', userId, bookingData);
+      const response = await bookingApiService.createBookingForCustomer(userId, bookingData);
+      // Có thể cập nhật lại danh sách bookings nếu cần
+      toast.success('Tạo booking cho khách hàng thành công');
+      return response.data;
+    } catch (err) {
+      console.error('❌ [useBooking] Error creating booking for customer:', err);
+      setError(err.message || 'Không thể tạo booking cho khách hàng');
+      toast.error('Không thể tạo booking cho khách hàng');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  /**
    * Lấy danh sách bookings theo hotelId
    */
   const fetchBookings = useCallback(async (filters = {}) => {
@@ -328,7 +350,9 @@ export const useBooking = (hotelId = null) => {
     checkOut,
     fetchStatistics,
     filterBookings,
-    updateBooking
+    updateBooking,
+    createBookingForCustomer,
+    // getUserNoShowBookings
   };
 };
 
