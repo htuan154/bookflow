@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Trash2, AlertTriangle } from 'lucide-react';
 import PromotionService from '../../api/promotions.service';
-import { useToast, ToastContainer } from '../common/Toast';
+import { useToast } from '../../hooks/useToast';
+import Toast from '../common/Toast';
 
 const EditPromotionDetailModal = ({ isOpen, onClose, selectedHotel, promotion, promotionDetails = [], onSuccess }) => {
   const [details, setDetails] = useState([]);
@@ -254,7 +255,7 @@ const EditPromotionDetailModal = ({ isOpen, onClose, selectedHotel, promotion, p
 
   return (
     <>
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] overflow-y-auto">
           {/* Header */}

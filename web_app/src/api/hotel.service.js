@@ -3,6 +3,24 @@ import { API_ENDPOINTS } from '../config/apiEndpoints';
 import axiosClient from '../config/axiosClient';
 
 export const hotelApiService = {
+    /**
+   * Lấy danh sách loại phòng còn trống của 1 khách sạn theo khoảng ngày
+   * @param {string} hotelId
+   * @param {string} checkInDate (YYYY-MM-DD)
+   * @param {string} checkOutDate (YYYY-MM-DD)
+   * @returns {Promise<Array>} Danh sách loại phòng còn trống
+   */
+  async getAvailableRoomsByHotelId(hotelId, checkInDate, checkOutDate) {
+    try {
+      const response = await axiosClient.get(`/hotels/${hotelId}/available-rooms`, {
+        params: { checkInDate, checkOutDate }
+      });
+      return response.data?.data || response.data;
+    } catch (error) {
+      console.error('Error fetching available rooms by hotel ID:', error);
+      throw error;
+    }
+  },
   /**
    * Lấy tất cả booking theo hotelId
    */
@@ -208,6 +226,21 @@ export const hotelApiService = {
       return response.data;
     } catch (error) {
       console.error('Error fetching owner hotels:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Lấy danh sách hotels của 1 owner có status active hoặc approved
+   * GET /api/v1/hotels/owner/:ownerId/active-or-approved
+   */
+  async getActiveOrApprovedHotelsByOwner(ownerId, filters = {}) {
+    try {
+      const url = API_ENDPOINTS.HOTELS.GET_ACTIVE_OR_APPROVED_BY_OWNER(ownerId);
+      const response = await axiosClient.get(url, { params: filters });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching active or approved hotels by owner:', error);
       throw error;
     }
   },

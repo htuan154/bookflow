@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../../../classes/blog_comment_model.dart';
 
-class BlogCommentTree extends StatelessWidget {
+class BlogCommentTree extends StatefulWidget {
   final BlogComment comment;
   final Function(BlogComment)? onReply;
   final Function(BlogComment)? onDelete;
   final int depth;
+  final String? currentUserId;
+  final double screenWidth;
 
   const BlogCommentTree({
     super.key,
@@ -13,33 +15,72 @@ class BlogCommentTree extends StatelessWidget {
     this.onReply,
     this.onDelete,
     this.depth = 0,
+    this.currentUserId,
+    this.screenWidth = 400,
   });
 
   @override
+  State<BlogCommentTree> createState() => _BlogCommentTreeState();
+}
+
+class _BlogCommentTreeState extends State<BlogCommentTree> {
+  bool _isExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final hasReplies = widget.comment.hasReplies;
+    final replyCount = widget.comment.replies?.length ?? 0;
+    
+    // Use smaller margins for deeper nesting to prevent overflow
+    // Gradually decrease margin as depth increases
+    final double leftMargin = widget.depth > 0 
+        ? (widget.depth >= 5 ? 12.0 : widget.depth >= 3 ? 16.0 : 20.0) 
+        : 0;
+    
     return Container(
       margin: EdgeInsets.only(
-        left: depth * 20.0,
-        bottom: 12,
+        left: leftMargin,
+        bottom: 8,
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Comment item
-          _buildCommentItem(context),
-          
-          // Replies
-          if (comment.hasReplies) ...[
-            const SizedBox(height: 8),
-            ...comment.replies!.map(
-              (reply) => BlogCommentTree(
-                comment: reply,
-                onReply: onReply,
-                onDelete: onDelete,
-                depth: depth + 1,
+          // Vertical line for nested comments
+          if (widget.depth > 0)
+            Container(
+              width: 2,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-          ],
+          
+          // Comment content - wrapped in Flexible to prevent overflow
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Comment item
+                _buildCommentItem(context),
+                
+                // Replies with collapse/expand
+                if (hasReplies && _isExpanded) ...[
+                  const SizedBox(height: 8),
+                  ...widget.comment.replies!.map(
+                    (reply) => BlogCommentTree(
+                      comment: reply,
+                      onReply: widget.onReply,
+                      onDelete: widget.onDelete,
+                      depth: widget.depth + 1,
+                      currentUserId: widget.currentUserId,
+                      screenWidth: widget.screenWidth,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -49,83 +90,103 @@ class BlogCommentTree extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: depth == 0 ? Colors.white : Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
+        color: widget.depth == 0 ? Colors.grey[50] : Colors.white,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: depth == 0 ? Colors.grey[200]! : Colors.grey[100]!,
+          color: Colors.grey[200]!,
+          width: 1,
         ),
+        boxShadow: widget.depth == 0
+            ? [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // User info and time
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Avatar
               CircleAvatar(
-                radius: 16,
-                backgroundColor: Colors.blue[100],
-                backgroundImage: comment.authorAvatar != null
-                    ? NetworkImage(comment.authorAvatar!)
-                    : null,
-                child: comment.authorAvatar == null
-                    ? Text(
-                        comment.authorName.isNotEmpty
-                            ? comment.authorName[0].toUpperCase()
-                            : 'A',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue[700],
-                        ),
-                      )
-                    : null,
+                radius: 18,
+                backgroundColor: _getAvatarColor(widget.comment.authorName),
+                child: Text(
+                  widget.comment.authorName.isNotEmpty
+                      ? widget.comment.authorName[0].toUpperCase()
+                      : 'A',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               
-              // Name and time
+              // Name, time and status
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      comment.authorName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    Text(
-                      comment.timeAgo,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            widget.comment.authorName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            widget.comment.timeAgo,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                        // Status badge inline - không wrap trong Flexible để hiển thị đầy đủ
+                        if (!widget.comment.isApproved) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getStatusColor(widget.comment.status),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              _getStatusText(widget.comment.status),
+                              style: const TextStyle(
+                                fontSize: 9,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
               ),
-              
-              // Status badge
-              if (!comment.isApproved)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    _getStatusText(),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
             ],
           ),
           
@@ -133,7 +194,7 @@ class BlogCommentTree extends StatelessWidget {
           
           // Comment content
           Text(
-            comment.content,
+            widget.comment.content,
             style: const TextStyle(
               fontSize: 14,
               height: 1.4,
@@ -145,53 +206,58 @@ class BlogCommentTree extends StatelessWidget {
           // Actions
           Row(
             children: [
-              // Like button
-              InkWell(
-                onTap: () {
-                  // Handle like
-                },
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.thumb_up_outlined,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
-                    if (comment.likeCount > 0) ...[
-                      const SizedBox(width: 4),
-                      Text(
-                        comment.likeCount.toString(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              
-              const SizedBox(width: 16),
-              
               // Reply button
-              if (onReply != null && depth < 3) // Giới hạn độ sâu reply
+              if (widget.onReply != null)
                 InkWell(
-                  onTap: () => onReply!(comment),
+                  onTap: () => widget.onReply!(widget.comment),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.reply,
                         size: 16,
-                        color: Colors.grey[600],
+                        color: Colors.blue[600],
                       ),
                       const SizedBox(width: 4),
                       Text(
                         'Trả lời',
                         style: TextStyle(
                           fontSize: 12,
+                          color: Colors.blue[600],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              
+              const SizedBox(width: 16),
+              
+              // Show/Hide replies button
+              if (widget.comment.hasReplies)
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isExpanded = !_isExpanded;
+                    });
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isExpanded ? Icons.expand_less : Icons.expand_more,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _isExpanded 
+                            ? 'Ẩn' 
+                            : '${widget.comment.replies!.length} phản hồi',
+                        style: TextStyle(
+                          fontSize: 12,
                           color: Colors.grey[600],
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -200,10 +266,10 @@ class BlogCommentTree extends StatelessWidget {
               
               const Spacer(),
               
-              // Delete button (for comment owner or admin)
-              if (onDelete != null)
+              // Delete button (only for comment owner)
+              if (widget.onDelete != null && widget.currentUserId != null && widget.comment.userId == widget.currentUserId)
                 InkWell(
-                  onTap: () => onDelete!(comment),
+                  onTap: () => widget.onDelete!(widget.comment),
                   child: Icon(
                     Icons.delete_outline,
                     size: 16,
@@ -214,7 +280,7 @@ class BlogCommentTree extends StatelessWidget {
           ),
           
           // Show edited indicator
-          if (comment.isEdited) ...[
+          if (widget.comment.isEdited) ...[
             const SizedBox(height: 4),
             Text(
               'Đã chỉnh sửa',
@@ -230,8 +296,8 @@ class BlogCommentTree extends StatelessWidget {
     );
   }
 
-  Color _getStatusColor() {
-    switch (comment.status.toLowerCase()) {
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
       case 'approved':
         return Colors.green;
       case 'pending':
@@ -245,8 +311,8 @@ class BlogCommentTree extends StatelessWidget {
     }
   }
 
-  String _getStatusText() {
-    switch (comment.status.toLowerCase()) {
+  String _getStatusText(String status) {
+    switch (status.toLowerCase()) {
       case 'approved':
         return 'Đã duyệt';
       case 'pending':
@@ -258,5 +324,21 @@ class BlogCommentTree extends StatelessWidget {
       default:
         return 'Chờ duyệt';
     }
+  }
+
+  Color _getAvatarColor(String authorName) {
+    // Generate color based on author name for consistency
+    final hash = authorName.hashCode;
+    final colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.red,
+      Colors.teal,
+      Colors.pink,
+      Colors.indigo,
+    ];
+    return colors[hash.abs() % colors.length];
   }
 }

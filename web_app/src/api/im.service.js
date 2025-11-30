@@ -33,9 +33,30 @@ const imService = {
     return data;
   },
 
-  async createGroup(payload) {
-    const { data } = await axiosClient.post(API_ENDPOINTS.IM.CREATE_GROUP, payload);
+  // Create Group B (owner + all staff) — safe wrapper that ensures payload shape
+  async createGroupB(payload) {
+    const me = getCurrentUser();
+    const body = {
+      hotel_id: payload.hotel_id,
+      name: payload.name || 'Owner & All Staff',
+      created_by: payload.created_by || me.user_id || ADMIN_FALLBACK,
+      owner_id: payload.owner_id || me.user_id,
+      staff_ids: payload.staff_ids || []
+    };
+    console.log('[createGroupB] payload:', payload);
+    console.log('[createGroupB] me:', me);
+    console.log('[createGroupB] final body:', body);
+    if (!body.hotel_id || !body.owner_id) {
+      console.error('[createGroupB] missing fields', body);
+      throw new Error('Missing hotel_id or owner_id');
+    }
+    const { data } = await axiosClient.post(API_ENDPOINTS.IM.CREATE_GROUP, body);
     return data;
+  },
+
+  // Backwards-compatible alias (calls GroupB implementation)
+  async createGroup(payload) {
+    return this.createGroupB(payload);
   },
 
   async listConversations(params) {
@@ -50,6 +71,11 @@ const imService = {
 
   /* Messages */
   async history(params) {
+    const { data } = await axiosClient.get(API_ENDPOINTS.IM.HISTORY, { params });
+    return data;
+  },
+
+  async getMessages(params) {
     const { data } = await axiosClient.get(API_ENDPOINTS.IM.HISTORY, { params });
     return data;
   },

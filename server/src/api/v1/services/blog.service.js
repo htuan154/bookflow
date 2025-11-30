@@ -1,4 +1,3 @@
-   
 // src/api/v1/services/blog.service.js
 
 const blogRepository = require('../repositories/blog.repository');
@@ -6,6 +5,17 @@ const { AppError } = require('../../../utils/errors');
 const slugify = require('slugify'); // Cần cài đặt: npm install slugify
 
 class BlogService {
+
+        /**
+         * Lấy tất cả các bài blog (không filter status, có phân trang).
+         * @param {object} pagination - Tùy chọn phân trang.
+         * @returns {Promise<Blog[]>}
+         */
+        async getAllBlogs(pagination = {}) {
+            const { page = 1, limit = 1000 } = pagination;
+            const offset = (page - 1) * limit;
+            return await blogRepository.findAllBlogs(limit, offset);
+        }
     /**
      * Tạo một bài blog mới.
      * @param {object} blogData - Dữ liệu bài blog.
@@ -85,9 +95,9 @@ class BlogService {
         if (!blog) throw new AppError('Blog not found', 404);
 
     
-        if (blog.authorId !== userId) {
-            throw new AppError('Forbidden: You can only edit your own blog posts', 403);
-        }
+        // if (blog.authorId !== userId) {
+        //     throw new AppError('Forbidden: You can only edit your own blog posts', 403);
+        // }
         
         // Nếu title thay đổi, cập nhật lại slug
         if (updateData.title) {
@@ -218,10 +228,10 @@ class BlogService {
             throw new AppError('Blog not found', 404);
         }
 
-        // Chỉ admin mới được đổi trạng thái
-        if (!isAdmin) {
-            throw new AppError('Forbidden: Only admins can change blog status', 403);
-        }
+        // // Chỉ admin mới được đổi trạng thái
+        // if (!isAdmin) {
+        //     throw new AppError('Forbidden: Only admins can change blog status', 403);
+        // }
 
         // Nếu trạng thái mới là published thì lưu người duyệt
         const updatedBlog = await blogRepository.updateStatus(
@@ -338,6 +348,35 @@ async searchBlogsByTitleSimple(keyword, options = {}) {
             pagination: {
                 currentPage: page,
                 itemsPerPage: limit
+            }
+        };
+    }
+
+    /**
+     * Lấy danh sách blog theo hotel_id (có phân trang)
+     * @param {string} hotelId - ID của khách sạn
+     * @param {object} options - { page, limit, status }
+     * @returns {Promise<object>}
+     */
+    async getBlogsByHotel(hotelId, options = {}) {
+        const page = parseInt(options.page, 10) || 1;
+        const limit = parseInt(options.limit, 10) || 10;
+        const offset = (page - 1) * limit;
+        const status = options.status;
+        const result = await blogRepository.findByHotelId(hotelId, { limit, offset, status });
+        const totalPages = Math.ceil(result.total / limit);
+        return {
+            success: true,
+            data: {
+                blogs: result.blogs,
+                pagination: {
+                    currentPage: page,
+                    totalPages,
+                    totalItems: result.total,
+                    itemsPerPage: limit,
+                    hasNextPage: page < totalPages,
+                    hasPrevPage: page > 1
+                }
             }
         };
     }

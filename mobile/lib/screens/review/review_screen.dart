@@ -18,11 +18,26 @@ class _ReviewScreenState extends State<ReviewScreen> {
   List<dynamic> _completedBookings = [];
   Map<String, dynamic> _bookingReviews = {}; // Map bookingId -> review data
   String? _errorMessage;
+  String _filterStatus = 'all'; // 'all', 'reviewed', 'not_reviewed'
 
   @override
   void initState() {
     super.initState();
     _loadCompletedBookings();
+  }
+  
+  List<dynamic> get _filteredBookings {
+    if (_filterStatus == 'all') {
+      return _completedBookings;
+    } else if (_filterStatus == 'reviewed') {
+      return _completedBookings
+          .where((booking) => _bookingReviews.containsKey(booking['bookingId']))
+          .toList();
+    } else {
+      return _completedBookings
+          .where((booking) => !_bookingReviews.containsKey(booking['bookingId']))
+          .toList();
+    }
   }
 
   Future<void> _loadCompletedBookings() async {
@@ -84,12 +99,21 @@ class _ReviewScreenState extends State<ReviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('Đánh giá của tôi',
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.orange,
         foregroundColor: Colors.black,
         elevation: 1,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh, color: Colors.white),
+            onPressed: _loadCompletedBookings,
+            tooltip: 'Tải lại',
+          ),
+        ],
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
@@ -130,16 +154,63 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         ],
                       ),
                     )
-                  : RefreshIndicator(
-                      onRefresh: _loadCompletedBookings,
-                      child: ListView.builder(
-                        padding: EdgeInsets.all(16),
-                        itemCount: _completedBookings.length,
-                        itemBuilder: (context, index) {
-                          final booking = _completedBookings[index];
-                          return _buildBookingCard(booking);
-                        },
-                      ),
+                  : Column(
+                      children: [
+                        // Filter chips
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            border: Border(
+                              bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              _buildFilterChip('Tất cả', 'all'),
+                              SizedBox(width: 8),
+                              _buildFilterChip('Đã đánh giá', 'reviewed'),
+                              SizedBox(width: 8),
+                              _buildFilterChip('Chưa đánh giá', 'not_reviewed'),
+                            ],
+                          ),
+                        ),
+                        
+                        // Booking list
+                        Expanded(
+                          child: _filteredBookings.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.filter_list_off,
+                                          size: 64, color: Colors.grey),
+                                      SizedBox(height: 16),
+                                      Text(
+                                        _filterStatus == 'reviewed'
+                                            ? 'Chưa có đánh giá nào'
+                                            : 'Chưa có booking chưa đánh giá',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : RefreshIndicator(
+                                  onRefresh: _loadCompletedBookings,
+                                  child: ListView.builder(
+                                    padding: EdgeInsets.all(16),
+                                    itemCount: _filteredBookings.length,
+                                    itemBuilder: (context, index) {
+                                      final booking = _filteredBookings[index];
+                                      return _buildBookingCard(booking);
+                                    },
+                                  ),
+                                ),
+                        ),
+                      ],
                     ),
     );
   }
@@ -340,5 +411,35 @@ class _ReviewScreenState extends State<ReviewScreen> {
     if (result == true) {
       _loadCompletedBookings();
     }
+  }
+  
+  Widget _buildFilterChip(String label, String value) {
+    final isSelected = _filterStatus == value;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _filterStatus = value;
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.orange : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Colors.orange : Colors.grey[300]!,
+            width: 1.5,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.grey[700],
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
   }
 }

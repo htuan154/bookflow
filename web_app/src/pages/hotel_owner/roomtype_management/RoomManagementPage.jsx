@@ -7,6 +7,7 @@ import { useRoomContext } from '../../../context/RoomContext';
 import roomTypeService from '../../../api/roomType.service';
 import roomService from '../../../api/room.service';
 import ActionButton, { ActionButtonsGroup } from '../../../components/common/ActionButton';
+import { useRoomManagementState } from './RoomManagementWrapper';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Tất cả' },
@@ -43,13 +44,24 @@ function RoomTypeCard({ roomType, onView }) {
 export default function RoomManagementPage() {
   const navigate = useNavigate();
   
+  // Get shared state from wrapper to preserve state across navigation
+  const sharedState = useRoomManagementState();
+  
   // Lấy danh sách khách sạn của chủ
   const { hotelData, fetchOwnerHotel } = useHotelOwner();
   const hotels = Array.isArray(hotelData) ? hotelData : (hotelData ? [hotelData] : []);
-  const [hotel, setHotel] = useState(null);
+  
+  // Use shared state if available, otherwise use local state
+  const [localHotel, setLocalHotel] = useState(null);
+  const hotel = sharedState?.selectedHotel || localHotel;
+  const setHotel = sharedState?.setSelectedHotel || setLocalHotel;
 
   useEffect(() => { fetchOwnerHotel(); }, [fetchOwnerHotel]);
-  useEffect(() => { if (hotels.length && !hotel) setHotel(hotels[0]); }, [hotels, hotel]);
+  useEffect(() => { 
+    if (hotels.length && !hotel) {
+      setHotel(hotels[0]); 
+    }
+  }, [hotels, hotel, setHotel]);
 
   const hotelId = useMemo(() => hotel?.hotel_id || hotel?.hotelId || hotel?.id || '', [hotel]);
 
@@ -57,12 +69,7 @@ export default function RoomManagementPage() {
   const { rooms, loading, getByHotel } = useRoomContext();
   useEffect(() => { if (hotelId) getByHotel(hotelId); }, [hotelId, getByHotel]);
 
-  // Lọc theo trạng thái
-  const [filter, setFilter] = useState('all');
-  const filteredRooms = useMemo(() => {
-    if (filter === 'all') return rooms;
-    return rooms.filter(r => (r.status || '').toLowerCase() === filter);
-  }, [rooms, filter]);
+  // (status filter removed — simplified view shows all rooms)
 
   // Thống kê
   const stats = useMemo(() => {
@@ -78,13 +85,17 @@ export default function RoomManagementPage() {
     };
   }, [rooms]);
 
-  // Lấy danh sách loại phòng theo khách sạn
-  const [roomTypes, setRoomTypes] = useState([]);
+  // Lấy danh sách loại phòng theo khách sạn - use shared state if available
+  const [localRoomTypes, setLocalRoomTypes] = useState([]);
+  const roomTypes = sharedState?.roomTypes || localRoomTypes;
+  const setRoomTypes = sharedState?.setRoomTypes || setLocalRoomTypes;
+  
   useEffect(() => {
     if (hotelId) {
+      // Always fetch when hotelId changes to get correct room types for the selected hotel
       roomTypeService.getByHotel(hotelId).then(setRoomTypes).catch(console.error);
     }
-  }, [hotelId]);
+  }, [hotelId, setRoomTypes]);
 
   const [selectedRoomType, setSelectedRoomType] = useState(null);
   const [roomsByType, setRoomsByType] = useState([]);
@@ -260,16 +271,7 @@ export default function RoomManagementPage() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Lọc theo trạng thái</label>
-            <select
-              className="w-full border rounded-lg px-3 py-2"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            >
-              {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-          </div>
+          {/* Status filter removed */}
         </div>
       </div>
 

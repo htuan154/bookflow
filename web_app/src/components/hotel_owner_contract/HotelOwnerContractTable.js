@@ -1,6 +1,23 @@
 // src/components/hotel_owner_contract/HotelOwnerContractTable.js
 import React, { useState, useMemo } from 'react';
 import { getContractStatusLabel } from '../../pages/hotel_owner/contract_management/ContractStatusUtils';
+// Icon SVGs giống ActionButton.js
+const ViewIcon = (
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+  </svg>
+);
+const EditIcon = (
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+  </svg>
+);
+const DeleteIcon = (
+  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
 // ...existing imports...
 // Component UI hiển thị danh sách thông báo hết hạn hợp đồng
 function ContractNotificationList({ notifications }) {
@@ -38,6 +55,17 @@ function ContractNotificationList({ notifications }) {
   );
 }
 
+
+const statusOptions = [
+  { key: 'ALL', label: 'Tất cả' },
+  { key: 'draft', label: 'Nháp' },
+  { key: 'pending', label: 'Chờ duyệt' },
+  { key: 'active', label: 'Đang hiệu lực' },
+  { key: 'expired', label: 'Hết hạn' },
+  { key: 'terminated', label: 'Đã chấm dứt' },
+  { key: 'cancelled', label: 'Đã hủy' },
+];
+
 const HotelOwnerContractTable = ({
   contracts,
   loading,
@@ -51,6 +79,8 @@ const HotelOwnerContractTable = ({
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [currentTab, setCurrentTab] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Kiểm tra dữ liệu hợp đồng trả về từ backend
   console.log('HotelOwnerContractTable contracts:', contracts);
@@ -63,10 +93,9 @@ const HotelOwnerContractTable = ({
 
   // Sửa logic mapping để ưu tiên hotelName từ backend
   const contractsWithHotelName = contracts.map(contract => {
-    console.log('Processing contract:', contract); // Debug từng contract
+    // console.log('Processing contract:', contract); // Debug từng contract
     return {
       ...contract,
-      // Ưu tiên hotelName từ backend, fallback sang mapping từ hotels list
       hotelName: contract.hotelName ||
                  contract.hotel_name ||
                  hotelIdToName[contract.hotelId || contract.hotel_id] ||
@@ -74,14 +103,30 @@ const HotelOwnerContractTable = ({
     };
   });
 
+  // Filter contracts by status
+  const filteredContracts = useMemo(() => {
+    let filtered = contractsWithHotelName;
+    if (currentTab !== 'ALL') {
+      filtered = filtered.filter(contract => contract.status === currentTab);
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(contract =>
+        (contract.contractNumber?.toLowerCase().includes(term) ||
+         contract.title?.toLowerCase().includes(term))
+      );
+    }
+    return filtered;
+  }, [contractsWithHotelName, currentTab, searchTerm]);
+
   // Calculate paginated data
-  const totalItems = contractsWithHotelName.length;
+  const totalItems = filteredContracts.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   
   const paginatedContracts = useMemo(() => {
     const startIdx = (currentPage - 1) * itemsPerPage;
-    return contractsWithHotelName.slice(startIdx, startIdx + itemsPerPage);
-  }, [contractsWithHotelName, currentPage, itemsPerPage]);
+    return filteredContracts.slice(startIdx, startIdx + itemsPerPage);
+  }, [filteredContracts, currentPage, itemsPerPage]);
 
   // Handle page change
   const handlePageChange = (page) => {
@@ -96,13 +141,60 @@ const HotelOwnerContractTable = ({
     setCurrentPage(1); // Reset to first page
   };
 
+  // Handle tab/status change
+  const handleTabChange = (tab) => {
+    setCurrentTab(tab);
+    setCurrentPage(1); // Reset to first page when changing filter
+  };
+
   // Thông báo hết hạn hợp đồng, nhận qua props hoặc để trống nếu chưa có dữ liệu
   const notifications = [];
+
+  // Handle search change
+  const handleSearchChange = (term) => {
+    setSearchTerm(term);
+    setCurrentPage(1); // Reset to first page when searching
+  };
 
   return (
     <div>
       {/* Thông báo hết hạn hợp đồng */}
       <ContractNotificationList notifications={notifications} />
+
+
+      {/* Status Filter Dropdown & Search */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+        <div className="flex items-center">
+          <label htmlFor="statusFilter" className="mr-2 font-medium">Trạng thái:</label>
+          <select
+            id="statusFilter"
+            value={currentTab}
+            onChange={e => handleTabChange(e.target.value)}
+            className="border rounded px-3 py-1 focus:outline-none focus:ring"
+          >
+            {statusOptions.map(option => (
+              <option key={option.key} value={option.key}>{option.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex-1 max-w-lg">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo số hợp đồng, tiêu đề..."
+              value={searchTerm}
+              onChange={e => handleSearchChange(e.target.value)}
+              className="block w-full pl-12 pr-4 py-3 border-0 rounded-lg bg-white shadow-sm ring-1 ring-gray-200 placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:bg-white text-sm transition-all duration-200"
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Thanh trượt ngang cho bảng, đặt phía trên phân trang */}
       <div style={{ overflowX: 'auto', width: '100%', marginBottom: '8px' }}>
         <table className="min-w-[1200px] w-full divide-y divide-gray-200">
@@ -176,9 +268,35 @@ const HotelOwnerContractTable = ({
                   </td>
                   {/* Trạng thái */}
                   <td className="px-6 py-5 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getContractStatusLabel(contract.status).color}`}>
-                      {getContractStatusLabel(contract.status).label}
-                    </span>
+                    {(() => {
+                      let badgeColor = '';
+                      let text = getContractStatusLabel(contract.status).label;
+                      switch (contract.status) {
+                        case 'draft':
+                          badgeColor = 'bg-gray-100 text-gray-800 border-gray-200';
+                          break;
+                        case 'pending':
+                          badgeColor = 'bg-amber-100 text-amber-800 border-amber-200';
+                          break;
+                        case 'active':
+                          badgeColor = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+                          break;
+                        case 'terminated':
+                        case 'cancelled':
+                          badgeColor = 'bg-red-100 text-red-800 border-red-200';
+                          break;
+                        case 'expired':
+                          badgeColor = 'bg-orange-100 text-orange-800 border-orange-200';
+                          break;
+                        default:
+                          badgeColor = 'bg-gray-100 text-gray-800 border-gray-200';
+                      }
+                      return (
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${badgeColor}`}>
+                          {text}
+                        </span>
+                      );
+                    })()}
                   </td>
                   {/* Ngày tạo */}
                   <td className="px-6 py-5 whitespace-nowrap">
@@ -205,47 +323,44 @@ const HotelOwnerContractTable = ({
                   {showActions && (
                     <td className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-2">
-                        <button
-                          onClick={() => onViewDetail(contract)}
-                          className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 hover:border-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1 transition-all duration-200 transform hover:scale-105"
-                        >
-                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                          
-                        </button>
-                        {contract.permissions?.canEdit && (
+                        {contract.status === 'draft' ? (
+                          <>
+                            <button
+                              onClick={() => onViewDetail(contract)}
+                              title="Xem"
+                              className="mx-1 p-1 rounded hover:bg-gray-100 focus:outline-none transition-colors text-green-600"
+                            >
+                              {ViewIcon}
+                            </button>
+                            <button
+                              onClick={() => onEdit(contract)}
+                              title="Sửa"
+                              className="mx-1 p-1 rounded hover:bg-gray-100 focus:outline-none transition-colors text-blue-600"
+                            >
+                              {EditIcon}
+                            </button>
+                            <button
+                              onClick={() => onDelete(contract.contract_id || contract.contractId)}
+                              title="Xoá"
+                              className="mx-1 p-1 rounded hover:bg-gray-100 focus:outline-none transition-colors text-red-600"
+                            >
+                              {DeleteIcon}
+                            </button>
+                            <button
+                              onClick={() => onSendForApproval(contract.contract_id || contract.contractId)}
+                              className="px-4 py-2 bg-[#2563eb] text-white rounded font-medium text-sm hover:bg-[#1d4ed8] focus:outline-none transition-colors duration-200"
+                              style={{ minWidth: 64 }}
+                            >
+                              Nộp
+                            </button>
+                          </>
+                        ) : (
                           <button
-                            onClick={() => onEdit(contract)}
-                            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 hover:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 transition-all duration-200 transform hover:scale-105"
+                            onClick={() => onViewDetail(contract)}
+                            title="Xem"
+                            className="mx-1 p-1 rounded hover:bg-gray-100 focus:outline-none transition-colors text-green-600"
                           >
-                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                        
-                          </button>
-                        )}
-                        {contract.permissions?.canDelete && (
-                          <button
-                            onClick={() => onDelete(contract.contract_id || contract.contractId)}
-                            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all duration-200 transform hover:scale-105"
-                          >
-                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            
-                          </button>
-                        )}
-                        {contract.permissions?.canSendForApproval && (
-                          <button
-                            onClick={() => onSendForApproval(contract.contract_id || contract.contractId)}
-                            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-all duration-200 transform hover:scale-105"
-                          >
-                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                            </svg>
-                            
+                            {ViewIcon}
                           </button>
                         )}
                       </div>

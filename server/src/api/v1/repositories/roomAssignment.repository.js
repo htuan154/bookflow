@@ -120,6 +120,17 @@ const findAvailableRooms = async (roomTypeId, checkInDate, checkOutDate, limit =
     }));
 };
 
+/**
+ * Gọi stored procedure để cập nhật trạng thái phòng về available khi booking checkout.
+ * @param {string} bookingId - ID của booking.
+ * @returns {Promise<any>} - Kết quả từ stored procedure.
+ */
+const releaseRoomsByBooking = async (bookingId) => {
+    const query = `SELECT release_rooms_by_booking($1)`;
+    const result = await pool.query(query, [bookingId]);
+    return result.rows[0];
+};
+
 module.exports = {
     create,
     findByBookingDetailId,
@@ -128,4 +139,5 @@ module.exports = {
     deleteById,
     findById,
     findAvailableRooms,
+    releaseRoomsByBooking,
 };

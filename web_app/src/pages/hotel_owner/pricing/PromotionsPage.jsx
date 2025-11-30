@@ -8,7 +8,8 @@ import PromotionDetailModal from '../../../components/promotions/PromotionDetail
 import EditPromotionDetailModal from '../../../components/promotions/EditPromotionDetailModal';
 import EditPromotionModal from '../../../components/promotions/EditPromotionModal';
 import DeleteConfirmationDialog from '../../../components/common/DeleteConfirmationDialog';
-import { useToast, ToastContainer } from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
+import Toast from '../../../components/common/Toast';
 
 const PromotionsPage = () => {
   const [hotels, setHotels] = useState([]);
@@ -1004,7 +1005,7 @@ const PromotionsPage = () => {
       />
 
       {/* Toast Container */}
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      
     </div>
   );
 };

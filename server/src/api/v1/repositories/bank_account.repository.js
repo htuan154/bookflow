@@ -4,6 +4,19 @@ const pool = require('../../../config/db');
 const BankAccount = require('../../../models/bank_account.model');
 
 class BankAccountRepository {
+    /**
+     * Bỏ mặc định tất cả tài khoản ngân hàng của hotel (set is_default = false)
+     */
+    async unsetDefaultByHotelId(hotelId) {
+      const sql = `
+        UPDATE bank_accounts
+        SET is_default = false, updated_at = NOW()
+        WHERE hotel_id = $1 AND is_default = true
+        RETURNING *
+      `;
+      const { rows } = await pool.query(sql, [hotelId]);
+      return rows.map(row => BankAccount.fromDB(row));
+    }
   /**
    * Lấy tất cả tài khoản ngân hàng trong hệ thống
    */

@@ -7,12 +7,16 @@ const historyRoutes = require('./bookingStatusHistory.route');
 
 const router = express.Router();
 
-router.use(authenticate);
-
+// Public route: getUserNoShowBookings
 router.get(
     '/user/:userId/no_show',
     bookingController.getUserNoShowBookings
 );
+
+router.use(authenticate);
+
+// Hotel owner create booking for customer
+router.post('/customer/:userId', authorize(['hotel_owner', 'admin', 'hotel_staff']), bookingController.createBookingForCustomer);
 
 router.post('/', validate(createBookingSchema), bookingController.createBooking);
 
@@ -22,12 +26,11 @@ router.get('/user/:userId/completed', bookingController.getUserCompletedBookings
 
 router.get('/user/:userId', bookingController.getUserBookings);
 
-router.get('/hotel/:hotelId', authorize(['hotel_owner', 'admin']), bookingController.getBookingsByHotelId);
+router.get('/hotel/:hotelId', authorize(['hotel_owner', 'admin', 'hotel_staff']), bookingController.getBookingsByHotelId);
 
-router.patch('/:bookingId/status', authorize(['hotel_owner', 'admin']), validate(updateStatusSchema), bookingController.updateBookingStatus);
+router.patch('/:bookingId/status', authorize(['hotel_owner', 'admin', 'hotel_staff', 'user']), validate(updateStatusSchema), bookingController.updateBookingStatus);
 
-router.patch('/:bookingId', authorize(['hotel_owner', 'admin']), bookingController.updateBooking);
-
+router.patch('/:bookingId', authorize(['hotel_owner', 'admin', 'hotel_staff', 'user']), bookingController.updateBooking);
 router.use('/', historyRoutes);
 
 module.exports = router;

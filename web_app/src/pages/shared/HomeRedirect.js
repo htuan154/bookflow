@@ -7,7 +7,10 @@ import { USER_ROLES } from '../../config/roles';
 const HomeRedirect = () => {
     const { isAuthenticated, user } = useAuth();
 
-
+    // Debug: Log user info
+    console.log('[HomeRedirect] isAuthenticated:', isAuthenticated);
+    console.log('[HomeRedirect] user:', user);
+    console.log('[HomeRedirect] user.roleId:', user?.roleId);
 
     if (!isAuthenticated) {
 
@@ -20,6 +23,12 @@ const HomeRedirect = () => {
     }
     
     if (user?.roleId === USER_ROLES.HOTEL_OWNER) {
+
+        return <Navigate to="/hotel-owner" replace />;
+    }
+
+    // Hotel staff should also access hotel-owner routes
+    if (user?.roleId === USER_ROLES.HOTEL_STAFF) {
 
         return <Navigate to="/hotel-owner" replace />;
     }

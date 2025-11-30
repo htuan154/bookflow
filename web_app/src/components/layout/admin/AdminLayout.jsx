@@ -5,7 +5,7 @@ import useAuth from '../../../hooks/useAuth';
 
 import {
     LayoutDashboard, FileText, Briefcase, Users, Ticket, MessageSquare,
-    MapPin, BarChart2, Bell, FileSignature, BadgePercent, CreditCard, Calendar, User,
+    MapPin, BarChart2, Bell, FileSignature, BadgePercent, CreditCard, Calendar, User,Database,Landmark
 } from 'lucide-react';
 
 const AdminLayout = () => {
@@ -33,7 +33,7 @@ const AdminLayout = () => {
             subItems: [
                 { name: 'Danh sách KM', path: '/admin/promotions' },
                 { name: 'Tạo KM mới', path: '/admin/promotions/create' },
-                { name: 'Phân tích KM', path: '/admin/promotions/analytics' }
+                // { name: 'Phân tích KM', path: '/admin/promotions/analytics' }
             ]
         },
         
@@ -42,12 +42,15 @@ const AdminLayout = () => {
             name: 'Bài viết du lịch', 
             icon: <FileText size={20} />, 
             path: '/admin/blog-management',
-            subItems: [
-                { name: 'Tất cả bài viết', path: '/admin/blog-management' },
-            ]
+            // subItems: [
+            //     { name: 'Tất cả bài viết', path: '/admin/blog-management' },
+            // ]
         },
         { name: 'Quản lý bình luận', icon: <MessageSquare size={20} />, path: '/admin/comments' },
         { name: 'Gợi ý địa danh', icon: <MapPin size={20} />, path: '/admin/suggestions' },
+        { name: 'Quản lý dữ liệu AI', icon: <Database size={20} />, path: '/admin/data-sync' },
+        { name: 'Danh lam thắng cảnh', icon: <Landmark size={20} />, path: '/admin/tourist-locations' },
+        { name: 'Quản lý tiện nghi', icon: <LayoutDashboard size={20} />, path: '/admin/amenities' },
         
         // TIN NHẮN
         { name: 'Tin nhắn', icon: <MessageSquare size={20} />, path: '/admin/messages' },
@@ -153,20 +156,20 @@ const AdminLayout = () => {
                     <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Khách hàng</p>
                     {navLinks.slice(4, 7).map(renderMenuItem)}
                     
-                    {/* NỘI DUNG - 3 items (7-9) */}
+                    {/* NỘI DUNG - 5 items (7-11) */}
                     <div className="my-4 border-t border-gray-200"></div>
                     <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Nội dung</p>
-                    {navLinks.slice(7, 10).map(renderMenuItem)}
+                    {navLinks.slice(7, 12).map(renderMenuItem)}
                     
-                    {/* TIN NHẮN - 1 item (10) */}
+                    {/* TIN NHẮN - 1 item (12) */}
                     <div className="my-4 border-t border-gray-200"></div>
                     <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Tin nhắn</p>
-                    {navLinks.slice(10, 11).map(renderMenuItem)}
+                    {navLinks.slice(12, 13).map(renderMenuItem)}
                     
-                    {/* BÁO CÁO - 3 items (11-13) */}
+                    {/* BÁO CÁO - 3 items (13-15) */}
                     <div className="my-4 border-t border-gray-200"></div>
                     <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Báo cáo</p>
-                    {navLinks.slice(11).map(renderMenuItem)}
+                    {navLinks.slice(13).map(renderMenuItem)}
                 </nav>
 
                 {/* Footer cố định */}
@@ -206,7 +209,7 @@ const AdminLayout = () => {
                         </button>
                     </div>
                 </header>
-                <main className="flex-1 bg-gray-50 overflow-hidden relative">
+                <main className="flex-1 bg-gray-50 overflow-y-auto overflow-x-hidden relative">
                     <Outlet />
                 </main>
             </div>

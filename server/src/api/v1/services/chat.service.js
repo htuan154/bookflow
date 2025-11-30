@@ -4,6 +4,7 @@ const chatRepository = require('../repositories/chat.repository');
 const bookingRepository = require('../repositories/booking.repository'); // Giả định đã có
 const hotelRepository = require('../repositories/hotel.repository'); // Giả định đã có
 const { AppError } = require('../../../utils/errors');
+const hotelStaffRepository = require('../repositories/hotelStaff.repository');
 
 class ChatService {
     /**
@@ -23,8 +24,17 @@ class ChatService {
 
         const hotel = await hotelRepository.findById(booking.hotelId);
         
-        // Chỉ khách hàng của đơn đặt phòng hoặc chủ khách sạn đó mới được chat.
-        if (senderId !== booking.userId && senderId !== hotel.ownerId) {
+
+        // Chỉ khách hàng, chủ khách sạn, hoặc staff thuộc khách sạn đó mới được chat.
+        let allowed = false;
+        if (senderId === booking.userId || senderId === hotel.ownerId) {
+            allowed = true;
+        } else {
+            // Kiểm tra staff thuộc khách sạn
+            const staff = await hotelStaffRepository.findByUserIdAndHotelId(senderId, hotel.hotelId || hotel.hotel_id);
+            if (staff) allowed = true;
+        }
+        if (!allowed) {
             throw new AppError('Forbidden: You are not part of this conversation', 403);
         }
 
@@ -47,11 +57,19 @@ class ChatService {
      * @returns {Promise<Chat[]>}
      */
     async getChatHistory(bookingId, userId) {
-        // Kiểm tra quyền truy cập tương tự như khi gửi tin nhắn
+
+        // Kiểm tra quyền truy cập: khách, owner, hoặc staff thuộc khách sạn
         const booking = await bookingRepository.findById(bookingId);
         if (!booking) throw new AppError('Booking not found', 404);
         const hotel = await hotelRepository.findById(booking.hotelId);
-        if (userId !== booking.userId && userId !== hotel.ownerId) {
+        let allowed = false;
+        if (userId === booking.userId || userId === hotel.ownerId) {
+            allowed = true;
+        } else {
+            const staff = await hotelStaffRepository.findByUserIdAndHotelId(userId, hotel.hotelId || hotel.hotel_id);
+            if (staff) allowed = true;
+        }
+        if (!allowed) {
             throw new AppError('Forbidden: You cannot view this conversation', 403);
         }
 

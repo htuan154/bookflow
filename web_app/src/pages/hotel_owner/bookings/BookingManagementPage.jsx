@@ -8,13 +8,20 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { hotelApiService } from '../../../api/hotel.service';
 import { useBooking } from '../../../hooks/useBooking';
+import { useRoomAssignment } from '../../../hooks/useRoomAssignment';
 import userService from '../../../api/user.service';
 import { toast } from 'react-toastify';
 import { CheckInPayment } from '../../../components/payment/BookingPayment';
 import bookingService from '../../../api/booking.service';
+import { staffApiService } from '../../../api/staff.service';
+import useAuth from '../../../hooks/useAuth';
+import { USER_ROLES } from '../../../config/roles';
 
 const BookingManagementPage = () => {
   const navigate = useNavigate();
+  const { releaseRooms } = useRoomAssignment();
+  const { user } = useAuth();
+  
   // States
   const [hotels, setHotels] = useState([]);
   const [selectedHotelId, setSelectedHotelId] = useState(() => {
@@ -22,6 +29,7 @@ const BookingManagementPage = () => {
     return sessionStorage.getItem('selectedHotelId') || null;
   });
   const [loadingHotels, setLoadingHotels] = useState(true);
+  const [loadingStaffInfo, setLoadingStaffInfo] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
@@ -103,34 +111,77 @@ const BookingManagementPage = () => {
     }
   }, [bookings]);
 
-  // Load danh sách khách sạn của owner
+  // Load danh sách khách sạn của owner hoặc load staff info cho hotel_staff
   useEffect(() => {
-    const loadHotels = async () => {
-      try {
-        setLoadingHotels(true);
-        console.log('🔄 Loading hotels...');
-        const response = await hotelApiService.getHotelsForOwner();
-        const hotelData = response?.data || [];
-        setHotels(hotelData);
-        
-        // Auto select hotel đầu tiên nếu có (nhưng chỉ khi chưa có selectedHotelId từ sessionStorage)
-        if (hotelData.length > 0 && !selectedHotelId) {
-          const firstHotelId = hotelData[0].hotelId;
-          setSelectedHotelId(firstHotelId);
-          sessionStorage.setItem('selectedHotelId', firstHotelId);
+    const loadData = async () => {
+      // Nếu là HOTEL_STAFF, load thông tin staff trước để lấy hotel_id
+      if (user?.roleId === USER_ROLES.HOTEL_STAFF && user?.userId) {
+        try {
+          setLoadingStaffInfo(true);
+          console.log('🔄 Loading staff info...');
+          const response = await staffApiService.getStaffByUserId(user.userId);
+
+          if (response?.data && Array.isArray(response.data) && response.data.length > 0) {
+            const staff = response.data[0];
+            const staffHotelId = staff.hotelId || staff.hotel_id;
+            
+            if (staffHotelId) {
+              console.log('✅ Staff hotel_id loaded:', staffHotelId);
+              setSelectedHotelId(staffHotelId);
+              sessionStorage.setItem('selectedHotelId', staffHotelId);
+              
+              // Load thông tin khách sạn để hiển thị tên
+              try {
+                const hotelResponse = await hotelApiService.getHotelById(staffHotelId);
+                if (hotelResponse?.data) {
+                  setHotels([hotelResponse.data]);
+                }
+              } catch (err) {
+                console.error('❌ Error loading hotel details:', err);
+              }
+            } else {
+              console.warn('⚠️ Staff record found but no hotel_id');
+              toast.error('Không tìm thấy khách sạn của nhân viên');
+            }
+          } else {
+            console.warn('⚠️ No staff record found');
+            toast.error('Không tìm thấy thông tin nhân viên');
+          }
+        } catch (error) {
+          console.error('❌ Error loading staff hotel info:', error);
+          toast.error('Không thể tải thông tin khách sạn của nhân viên');
+        } finally {
+          setLoadingStaffInfo(false);
+          setLoadingHotels(false);
         }
-        
-        console.log('✅ Hotels loaded:', hotelData.length);
-      } catch (error) {
-        console.error('❌ Error loading hotels:', error);
-        toast.error('Không thể tải danh sách khách sạn');
-      } finally {
-        setLoadingHotels(false);
+      } else {
+        // Nếu là HOTEL_OWNER, load danh sách khách sạn
+        try {
+          setLoadingHotels(true);
+          console.log('🔄 Loading hotels...');
+          const response = await hotelApiService.getHotelsForOwner();
+          const hotelData = response?.data || [];
+          setHotels(hotelData);
+          
+          // Auto select hotel đầu tiên nếu có (nhưng chỉ khi chưa có selectedHotelId từ sessionStorage)
+          if (hotelData.length > 0 && !selectedHotelId) {
+            const firstHotelId = hotelData[0].hotelId;
+            setSelectedHotelId(firstHotelId);
+            sessionStorage.setItem('selectedHotelId', firstHotelId);
+          }
+          
+          console.log('✅ Hotels loaded:', hotelData.length);
+        } catch (error) {
+          console.error('❌ Error loading hotels:', error);
+          toast.error('Không thể tải danh sách khách sạn');
+        } finally {
+          setLoadingHotels(false);
+        }
       }
     };
 
-    loadHotels();
-  }, []);
+    loadData();
+  }, [user?.roleId, user?.userId]);
 
   // Lưu selectedHotelId vào sessionStorage mỗi khi thay đổi
   useEffect(() => {
@@ -443,6 +494,14 @@ const BookingManagementPage = () => {
       // 2. Update booking status
       await updateBookingStatus(bookingId, newStatus);
 
+      // 2.5. Release all assigned rooms for this booking
+      try {
+        await releaseRooms(bookingId);
+      } catch (releaseError) {
+        console.error('❌ Error releasing rooms:', releaseError);
+        toast.error('Có lỗi khi trả phòng, vui lòng kiểm tra lại trạng thái phòng!');
+      }
+
       // 3. Add booking history
       try {
         await addHistory({
@@ -468,10 +527,13 @@ const BookingManagementPage = () => {
     }
   };
 
-  if (loadingHotels) {
+  if (loadingHotels || loadingStaffInfo) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <p className="ml-4 text-gray-600">
+          {loadingStaffInfo ? 'Đang tải thông tin nhân viên...' : 'Đang tải...'}
+        </p>
       </div>
     );
   }
@@ -490,27 +552,44 @@ const BookingManagementPage = () => {
       <div className="bg-white rounded-lg shadow p-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-4">Quản lý Booking</h1>
         
-        {/* Hotel Selector */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Chọn khách sạn
-          </label>
-          <div className="relative">
-            <select
-              value={selectedHotelId || ''}
-              onChange={(e) => setSelectedHotelId(e.target.value)}
-              className="w-full md:w-96 px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
-            >
-              <option value="">-- Chọn khách sạn --</option>
-              {hotels.map((hotel) => (
-                <option key={hotel.hotelId} value={hotel.hotelId}>
-                  {hotel.name} - {hotel.city} ({hotel.status})
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+        {/* Hotel Selector - Hide for staff */}
+        {user?.roleId !== USER_ROLES.HOTEL_STAFF && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Chọn khách sạn
+            </label>
+            <div className="relative">
+              <select
+                value={selectedHotelId || ''}
+                onChange={(e) => setSelectedHotelId(e.target.value)}
+                className="w-full md:w-96 px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+              >
+                <option value="">-- Chọn khách sạn --</option>
+                {hotels.map((hotel) => (
+                  <option key={hotel.hotelId} value={hotel.hotelId}>
+                    {hotel.name} - {hotel.city} ({hotel.status})
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            </div>
           </div>
-        </div>
+        )}
+        
+        {/* Display hotel name for staff */}
+        {user?.roleId === USER_ROLES.HOTEL_STAFF && hotels.length > 0 && (
+          <div className="mb-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="text-blue-600" size={20} />
+                <div>
+                  <p className="text-sm text-gray-600">Khách sạn của bạn</p>
+                  <p className="font-semibold text-gray-900">{hotels[0].name || hotels[0].hotelName}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Statistics Cards */}
         {selectedHotelId && (
@@ -822,13 +901,15 @@ const BookingManagementPage = () => {
                             >
                               <Eye size={18} />
                             </button>
-                            <button 
-                              onClick={() => handleEdit(booking.bookingId)}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Chỉnh sửa"
-                            >
-                              <Edit size={18} />
-                            </button>
+                            {booking.bookingStatus !== 'completed' && (
+                              <button 
+                                onClick={() => handleEdit(booking.bookingId)}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Chỉnh sửa"
+                              >
+                                <Edit size={18} />
+                              </button>
+                            )}
 
                             {/* Nút thanh toán cho booking đã xác nhận nhưng chưa thanh toán */}
                             {booking.bookingStatus === 'confirmed' && booking.paymentStatus === 'pending' && (
@@ -882,24 +963,6 @@ const BookingManagementPage = () => {
                                 className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
                                 title="Check-out"
                                 onClick={() => handleOpenCheckOut(booking)}
-                              >
-                                Check-out
-                              </button>
-                            )}
-                            {/* Nút check-out: booking đã xác nhận, đúng ngày check-out */}
-                            {booking.bookingStatus === 'confirmed' && (() => {
-                              const today = new Date();
-                              const checkOutDate = new Date(booking.checkOutDate);
-                              return (
-                                today.getFullYear() === checkOutDate.getFullYear() &&
-                                today.getMonth() === checkOutDate.getMonth() &&
-                                today.getDate() === checkOutDate.getDate()
-                              );
-                            })() && (
-                              <button
-                                className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-                                title="Check-out"
-                                onClick={() => {/* TODO: handleCheckOut(booking) */}}
                               >
                                 Check-out
                               </button>

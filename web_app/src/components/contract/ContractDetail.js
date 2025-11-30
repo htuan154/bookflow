@@ -225,7 +225,7 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
   // Handle file download sử dụng API thật
   const handleDownloadFile = async () => {
     if (!displayContract?.contract_file_url) {
-      alert('Không có file để tải xuống');
+      
       return;
     }
 
@@ -249,7 +249,7 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
       console.log('✅ File downloaded successfully');
     } catch (error) {
       console.error('❌ Download failed:', error);
-      alert('Không thể tải file. Vui lòng thử lại: ' + error.message);
+      
     } finally {
       setFileLoading(false);
     }
@@ -402,9 +402,7 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
       }
       
     } catch (error) {
-      console.error('❌ Approval failed:', error);
-      console.error('Error details:', error.message);
-      alert('Có lỗi khi phê duyệt hợp đồng: ' + error.message);
+      console.error( error);
     }
   };
 
@@ -416,7 +414,6 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
       navigate(`/admin/hotels/${hotelId}`);
     } else {
       console.error('Hotel ID is missing');
-      alert('Không có thông tin ID khách sạn');
     }
   };
 
@@ -535,8 +532,8 @@ const ContractDetail = ({ contractId, contract, onClose, onApprovalSuccess, onEr
       }
       
     } catch (error) {
-      console.error('❌ Rejection failed:', error);
-      alert('Có lỗi khi từ chối hợp đồng: ' + error.message);
+      console.error( error);
+      
     }
   };
 

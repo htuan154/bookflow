@@ -25,8 +25,6 @@ const HotelBankAccountsPage = () => {
       accountNumber: '',
       holderName: '',
       branchName: '',
-      swiftCode: '',
-      description: '',
       isDefault: false
   });
 
@@ -41,6 +39,7 @@ const HotelBankAccountsPage = () => {
     updateBankAccount,
     deleteBankAccount,
     setAccountAsDefault,
+    unsetDefaultBankAccountsByHotel,
   } = useBankAccount();
 
   // Chỉ lấy bank accounts của hotel đang chọn
@@ -48,6 +47,20 @@ const HotelBankAccountsPage = () => {
       if (!selectedHotelId) return [];
       return accounts.filter(acc => acc.hotelId === selectedHotelId);
   }, [accounts, selectedHotelId]);
+
+  // Normalize account fields from API (snake_case) to camelCase for UI consistency
+  const normalizedBankAccounts = useMemo(() => {
+    return bankAccounts.map(acc => ({
+      // keep original fields
+      ...acc,
+      // prefer camelCase if present, otherwise fall back to snake_case
+      bankName: (acc.bankName ?? acc.bank_name ?? acc.bank) || '',
+      accountNumber: (acc.accountNumber ?? acc.account_number ?? acc.account) || '',
+      holderName: (acc.holderName ?? acc.account_holder_name ?? acc.holder_name ?? acc.holder) || '',
+      branchName: (acc.branchName ?? acc.branch_name ?? acc.branch) || '',
+      isDefault: (acc.isDefault ?? acc.is_default ?? acc.is_default_flag) || false,
+    }));
+  }, [bankAccounts]);
   
   const { 
     hotelData, 
@@ -107,8 +120,8 @@ const HotelBankAccountsPage = () => {
     console.log('🏦 bankAccounts:', bankAccounts);
   }, [bankAccounts]);
 
-  // Get default bank account
-  const defaultAccount = bankAccounts?.find(account => account.is_default);
+  // Get default bank account (use normalized list)
+  const defaultAccount = normalizedBankAccounts?.find(account => account.isDefault) || null;
 
   // Form handlers
   const handleInputChange = (e) => {
@@ -122,34 +135,46 @@ const HotelBankAccountsPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedHotelId) {
-      alert('Vui lòng chọn khách sạn trước!');
       return;
     }
 
     try {
+      // Build payload containing both camelCase and snake_case keys
       const accountData = {
+        // camelCase (used in UI state)
         bankName: formData.bankName,
         accountNumber: formData.accountNumber,
         holderName: formData.holderName,
         branchName: formData.branchName,
-        swiftCode: formData.swiftCode,
-        description: formData.description,
         isDefault: formData.isDefault,
-        hotelId: selectedHotelId
+        hotelId: selectedHotelId,
+        // snake_case (some validation/API expect these keys)
+        bank_name: formData.bankName,
+        account_number: formData.accountNumber,
+        holder_name: formData.holderName,
+        branch_name: formData.branchName,
+        is_default: formData.isDefault,
+        hotel_id: selectedHotelId,
       };
+
+      // Nếu là thêm mới và chọn làm mặc định thì unset default trước khi tạo
+      if (!editingAccount && formData.isDefault) {
+        await unsetDefaultBankAccountsByHotel(selectedHotelId);
+      }
+
       if (editingAccount) {
         await updateBankAccount(editingAccount.bankAccountId || editingAccount.id, accountData);
       } else {
         await createBankAccount(accountData);
       }
+      // Fetch lại danh sách tài khoản để UI luôn đúng trạng thái mặc định
+      await fetchHotelAccounts(selectedHotelId);
       // Reset form
       setFormData({
         bankName: '',
         accountNumber: '',
         holderName: '',
         branchName: '',
-        swiftCode: '',
-        description: '',
         isDefault: false
       });
       setIsFormOpen(false);
@@ -166,8 +191,6 @@ const HotelBankAccountsPage = () => {
       accountNumber: account.accountNumber || '',
       holderName: account.holderName || '',
       branchName: account.branchName || '',
-      swiftCode: account.swiftCode || '',
-      description: account.description || '',
       isDefault: account.isDefault || false
     });
     setIsFormOpen(true);
@@ -195,13 +218,11 @@ const HotelBankAccountsPage = () => {
     setIsFormOpen(false);
     setEditingAccount(null);
     setFormData({
-      bank_name: '',
-      account_number: '',
-      account_holder_name: '',
-      branch_name: '',
-      swift_code: '',
-      description: '',
-      is_default: false
+      bankName: '',
+      accountNumber: '',
+      holderName: '',
+      branchName: '',
+      isDefault: false
     });
   };
 
@@ -321,7 +342,7 @@ const HotelBankAccountsPage = () => {
                 <StarIconSolid className="h-5 w-5 text-yellow-400" />
                 <div className="ml-3">
                   <p className="text-sm text-yellow-800">
-                    <span className="font-medium">Tài khoản mặc định:</span> {defaultAccount.bank_name} - {defaultAccount.account_number}
+                    <span className="font-medium">Tài khoản mặc định:</span> {defaultAccount?.bankName} - {defaultAccount?.accountNumber}
                   </p>
                 </div>
               </div>
@@ -360,20 +381,21 @@ const HotelBankAccountsPage = () => {
               </div>
             ) : (
               <div className="grid gap-4">
-                {bankAccounts.map((account, idx) => {
+                {normalizedBankAccounts.map((account, idx) => {
                   // Sử dụng đúng field từ API
                   const bankName = account.bankName || '(Chưa có tên ngân hàng)';
                   const accountNumber = account.accountNumber || '(Chưa có số TK)';
                   const holderName = account.holderName || '(Chưa có chủ TK)';
                   const branchName = account.branchName || '';
-                  const swiftCode = account.swiftCode || '';
-                  const description = account.description || '';
+
+                  const isDefault = !!account.isDefault;
+
                   return (
                     <div
                       key={account.bankAccountId || idx}
                       className={`border rounded-lg p-4 ${
-                        account.isDefault 
-                          ? 'border-yellow-300 bg-yellow-50' 
+                        isDefault
+                          ? 'border-yellow-300 bg-yellow-50'
                           : 'border-gray-200 bg-white'
                       }`}
                     >
@@ -381,7 +403,7 @@ const HotelBankAccountsPage = () => {
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <h3 className="font-semibold text-gray-900">{bankName}</h3>
-                            {account.isDefault && (
+                            {isDefault && (
                               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                 <StarIconSolid className="h-3 w-3" />
                                 Mặc định
@@ -397,15 +419,10 @@ const HotelBankAccountsPage = () => {
                           {branchName !== '' ? (
                             <p className="text-sm text-gray-500">Chi nhánh: {branchName}</p>
                           ) : null}
-                          {swiftCode !== '' ? (
-                            <p className="text-sm text-gray-500">SWIFT: {swiftCode}</p>
-                          ) : null}
-                          {description !== '' ? (
-                            <p className="text-sm text-gray-500 mt-2">{description}</p>
-                          ) : null}
                         </div>
                         <div className="flex items-center gap-2 ml-4">
-                          {!account.isDefault && (
+                          {/* Đặt làm mặc định */}
+                          {!isDefault && (
                             <button
                               onClick={() => handleSetDefault(account.bankAccountId)}
                               className="p-2 text-gray-400 hover:text-yellow-600 transition-colors"
@@ -414,19 +431,26 @@ const HotelBankAccountsPage = () => {
                               <StarIcon className="h-4 w-4" />
                             </button>
                           )}
+                          {/* Nút chỉnh sửa */}
                           <button
                             onClick={() => handleEdit(account)}
-                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                            title="Chỉnh sửa"
+                            className={`p-2 rounded focus:outline-none transition-colors text-blue-600 hover:bg-gray-100`}
+                            title={'Sửa'}
                           >
-                            <PencilIcon className="h-4 w-4" />
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
                           </button>
+                          {/* Nút xoá */}
                           <button
-                            onClick={() => handleDelete(account.bankAccountId)}
-                            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                            title="Xóa"
+                            onClick={() => !isDefault && handleDelete(account.bankAccountId)}
+                            className={`p-2 rounded focus:outline-none transition-colors text-red-600 ${isDefault ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                            title={isDefault ? 'Không thể xoá tài khoản mặc định' : 'Xoá'}
+                            disabled={isDefault}
                           >
-                            <TrashIcon className="h-4 w-4" />
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                           </button>
                         </div>
                       </div>
@@ -463,15 +487,33 @@ const HotelBankAccountsPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Tên ngân hàng *
                   </label>
-                  <input
-                    type="text"
-                    name="bank_name"
-                    value={formData.bank_name}
+                  <select
+                    name="bankName"
+                    value={formData.bankName || ''}
                     onChange={handleInputChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="VD: Vietcombank, BIDV..."
-                  />
+                  >
+                    <option value="">-- Chọn ngân hàng --</option>
+                    <option value="ACB">ACB</option>
+                    <option value="Agribank">Agribank</option>
+                    <option value="BIDV">BIDV</option>
+                    <option value="HDBank">HDBank</option>
+                    <option value="HSBC">HSBC</option>
+                    <option value="LPBank">LPBank</option>
+                    <option value="MB">MB</option>
+                    <option value="Sacombank">Sacombank</option>
+                    <option value="SHB">SHB</option>
+                    <option value="Shinhan Bank">Shinhan Bank</option>
+                    <option value="Standard Chartered">Standard Chartered</option>
+                    <option value="Techcombank">Techcombank</option>
+                    <option value="TPBank">TPBank</option>
+                    <option value="VIB">VIB</option>
+                    <option value="Vietcombank">Vietcombank</option>
+                    <option value="VietinBank">VietinBank</option>
+                    <option value="VPBank">VPBank</option>
+                    <option value="Woori Bank">Woori Bank</option>
+                  </select>
                 </div>
 
                 <div>
@@ -480,8 +522,8 @@ const HotelBankAccountsPage = () => {
                   </label>
                   <input
                     type="text"
-                    name="account_number"
-                    value={formData.account_number}
+                    name="accountNumber"
+                    value={formData.accountNumber}
                     onChange={handleInputChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -495,8 +537,8 @@ const HotelBankAccountsPage = () => {
                   </label>
                   <input
                     type="text"
-                    name="account_holder_name"
-                    value={formData.account_holder_name}
+                    name="holderName"
+                    value={formData.holderName}
                     onChange={handleInputChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -518,33 +560,7 @@ const HotelBankAccountsPage = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mã SWIFT
-                  </label>
-                  <input
-                    type="text"
-                    name="swiftCode"
-                    value={formData.swiftCode}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Mã SWIFT (nếu có)"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mô tả
-                  </label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Mô tả thêm về tài khoản (tùy chọn)"
-                  />
-                </div>
+                {/* SWIFT and description removed per request */}
 
                 <div className="flex items-center">
                   <input
@@ -555,7 +571,7 @@ const HotelBankAccountsPage = () => {
                     onChange={handleInputChange}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="is_default" className="ml-2 block text-sm text-gray-700">
+                  <label htmlFor="isDefault" className="ml-2 block text-sm text-gray-700">
                     Đặt làm tài khoản mặc định
                   </label>
                 </div>

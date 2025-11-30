@@ -1,5 +1,6 @@
-// src/pages/admin/AdminDashboardPage.js - Fixed Version
+// src/pages/admin/AdminDashboardPage.js - Fixed Version with Charts
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { useHotel } from '../../hooks/useHotel';
 import { useContract } from '../../hooks/useContract';
@@ -13,6 +14,12 @@ import { ContractProvider } from '../../context/ContractContext';
 import { BlogProvider } from '../../context/BlogContext';
 import { PromotionsProvider } from '../../context/PromotionsContext';
 import { AdminReportsProvider } from '../../context/AdminReportsContext';
+
+// Import chart components
+import {
+    LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+    XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 
 import { 
     Building, 
@@ -28,6 +35,23 @@ import {
     Plus,
     BarChart3
 } from 'lucide-react';
+
+// Custom Tooltip Component
+const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                <p className="font-medium text-gray-900 mb-2">{label}</p>
+                {payload.map((entry, index) => (
+                    <p key={index} className="text-sm" style={{ color: entry.color }}>
+                        {entry.name}: <span className="font-semibold">{entry.value}</span>
+                    </p>
+                ))}
+            </div>
+        );
+    }
+    return null;
+};
 
 // Component StatCard
 const StatCard = ({ icon, title, value, color, subtitle, trend, onClick }) => (
@@ -78,7 +102,8 @@ const ActivityItem = ({ icon, title, description, time, status }) => (
 // Main Dashboard Component
 const AdminDashboardContent = () => {
     const { user } = useAuth();
-    const [dateRange, setDateRange] = useState('today');
+    const navigate = useNavigate();
+    const [dateRange, setDateRange] = useState('month'); // Changed from 'today' to 'month' for better data visibility
     
     // Safe hook usage with error boundaries
     const hotelData = useHotel();
@@ -99,6 +124,13 @@ const AdminDashboardContent = () => {
         getHotelStatistics ? getHotelStatistics() : {}, 
         [getHotelStatistics]
     );
+
+    const approvedHotelsCount = hotelStatistics?.allHotels?.approved ?? hotelStatistics?.approved ?? 0;
+    const pendingHotelsCount = hotelStatistics?.pending ?? hotelStatistics?.allHotels?.pending ?? 0;
+    const rejectedHotelsCount = hotelStatistics?.allHotels?.rejected ?? hotelStatistics?.rejected ?? 0;
+    const totalHotelsCount = hotelStatistics?.total 
+        ?? hotelStatistics?.allHotels?.total 
+        ?? approvedHotelsCount + pendingHotelsCount + rejectedHotelsCount;
     
     const {
         stats: contractStats = {},
@@ -180,22 +212,68 @@ const AdminDashboardContent = () => {
                 
                 // Safely call refresh functions
                 const refreshPromises = [];
-                if (refreshAllHotels) refreshPromises.push(refreshAllHotels());
-                if (refreshContracts) refreshPromises.push(refreshContracts());
-                if (refreshBlogStats) refreshPromises.push(refreshBlogStats());
+                
+                // Fetch contracts first
+                if (refreshContracts) {
+                    console.log('🔄 Fetching contracts...');
+                    refreshPromises.push(refreshContracts().catch(err => {
+                        console.error('❌ Error fetching contracts:', err);
+                        return null;
+                    }));
+                }
+                
+                // Fetch blog stats
+                if (refreshBlogStats) {
+                    console.log('🔄 Fetching blog stats...');
+                    refreshPromises.push(refreshBlogStats().catch(err => {
+                        console.error('❌ Error fetching blog stats:', err);
+                        return null;
+                    }));
+                }
+                
+                // Fetch hotels - but skip pending-rejected to avoid 404
+                if (refreshAllHotels) {
+                    console.log('🔄 Fetching hotels...');
+                    refreshPromises.push(refreshAllHotels().catch(err => {
+                        console.error('❌ Error fetching hotels:', err);
+                        return null;
+                    }));
+                }
                 
                 // Fetch reports data with date range
                 if (fetchReportsSummary) {
                     const { date_from, date_to } = getDateRange();
-                    refreshPromises.push(fetchReportsSummary({ date_from, date_to, hotel_filter: 'ALL' }));
+                    console.log('🔄 Fetching reports summary...');
+                    console.log('📅 Date Range:', { date_from, date_to });
+                    console.log('🏨 Hotel Filter: ALL');
+                    
+                    refreshPromises.push(
+                        fetchReportsSummary({ date_from, date_to, hotel_filter: 'ALL' })
+                            .then(result => {
+                                console.log('✅ Reports fetch completed');
+                                console.log('📊 Summary Result:', result);
+                                return result;
+                            })
+                            .catch(err => {
+                                console.error('❌ Error fetching reports:', err);
+                                console.error('Error details:', {
+                                    message: err.message,
+                                    response: err.response?.data,
+                                    status: err.response?.status
+                                });
+                                return null;
+                            })
+                    );
                 }
 
                 if (refreshPromises.length > 0) {
                     await Promise.allSettled(refreshPromises);
                 }
                 
+                console.log('✅ Dashboard data fetch completed');
+                
             } catch (error) {
-                console.error('Error fetching dashboard data:', error);
+                console.error('❌ Error fetching dashboard data:', error);
             } finally {
                 setActivitiesLoading(false);
             }
@@ -207,14 +285,47 @@ const AdminDashboardContent = () => {
 
     // Calculate revenue statistics when reports data changes
     useEffect(() => {
+        console.log('💰 Calculating revenue stats from reportsSummary:', reportsSummary);
+        
         if (reportsSummary?.daily_summary?.length > 0) {
+            console.log('📊 Processing', reportsSummary.daily_summary.length, 'daily summary records');
+            console.log('📊 First record sample:', reportsSummary.daily_summary[0]);
+            
             const stats = reportsSummary.daily_summary.reduce((acc, row) => {
-                // Sum up revenue and bookings
-                acc.totalRevenue += parseFloat(row.final_revenue || 0);
-                acc.totalBookings += parseInt(row.booking_count || 0);
+                // Use adminFeeSum (Phí quản lý) as the main revenue metric for admin dashboard
+                const adminFee = parseFloat(row.adminFeeSum || 0);
+                
+                // Also calculate other metrics for reference
+                const grossRevenue = parseFloat(row.grossSum || 0);
+                const pgFee = parseFloat(row.pgFeeSum || 0);
+                const hotelNet = parseFloat(row.hotelNetSum || 0);
+                
+                const bookings = parseInt(
+                    row.bookingsCount ||      // Reports page uses this
+                    row.booking_count ||      // snake_case variant
+                    row.bookingCount ||       // camelCase variant
+                    0
+                );
+                
+                console.log('Row:', { 
+                    date: row.bizDateVn || row.date, 
+                    hotel: row.hotelName || row.hotel_name,
+                    adminFee,
+                    grossRevenue,
+                    pgFee,
+                    hotelNet,
+                    bookings,
+                    rawRow: row  // Log full row for debugging
+                });
+                
+                acc.totalRevenue += adminFee;  // Use admin fee as main revenue
+                acc.totalBookings += bookings;
+                acc.grossRevenue += grossRevenue;
+                acc.pgFee += pgFee;
+                acc.hotelNet += hotelNet;
                 
                 return acc;
-            }, { totalRevenue: 0, totalBookings: 0 });
+            }, { totalRevenue: 0, totalBookings: 0, grossRevenue: 0, pgFee: 0, hotelNet: 0 });
 
             // Calculate average booking value
             stats.averageBookingValue = stats.totalBookings > 0 
@@ -224,7 +335,19 @@ const AdminDashboardContent = () => {
             // Estimate unique customers (rough estimate)
             stats.totalCustomers = Math.ceil(stats.totalBookings * 0.8); // Assume 80% unique
 
+            console.log('✅ Final Revenue Stats:', stats);
             setRevenueStats(stats);
+        } else {
+            console.log('⚠️ No daily_summary data to process');
+            console.log('Full reportsSummary:', reportsSummary);
+            
+            // Reset stats to zero
+            setRevenueStats({
+                totalRevenue: 0,
+                totalBookings: 0,
+                totalCustomers: 0,
+                averageBookingValue: 0
+            });
         }
     }, [reportsSummary]);
 
@@ -248,11 +371,11 @@ const AdminDashboardContent = () => {
         }
         
         // Hotels activities
-        if (hotelStatistics?.pending > 0) {
+        if (pendingHotelsCount > 0) {
             activities.push({
                 icon: <Building className="w-4 h-4" />,
                 title: "Khách sạn chờ duyệt",
-                description: `${hotelStatistics.pending} khách sạn đang chờ phê duyệt`,
+                description: `${pendingHotelsCount} khách sạn đang chờ phê duyệt`,
                 time: "Hôm nay",
                 status: "warning"
             });
@@ -303,7 +426,7 @@ const AdminDashboardContent = () => {
         }
 
         setRecentActivities(activities.slice(0, 5));
-    }, [revenueStats, hotelStatistics, contractStats, blogStats, dateRange]);
+    }, [revenueStats, pendingHotelsCount, contractStats, blogStats, dateRange]);
 
     // Regenerate activities when any stat changes
     useEffect(() => {
@@ -314,19 +437,19 @@ const AdminDashboardContent = () => {
 
     // Quick action handlers
     const handleCreateBlog = () => {
-        console.log('Navigate to create blog');
+        navigate('/admin/blog-management/create');
     };
-
+    
     const handleProcessContracts = () => {
-        window.location.href = '/admin/contracts';
+        navigate('/admin/contracts');
     };
-
+    
     const handleCreatePromotion = () => {
-        window.location.href = '/admin/promotions/create';
+        navigate('/admin/promotions/create');
     };
-
+    
     const handleViewReports = () => {
-        console.log('Navigate to reports');
+        navigate('/admin/reports');
     };
 
     if (isLoading) {
@@ -373,14 +496,14 @@ const AdminDashboardContent = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <StatCard
                     icon={<DollarSign size={24} />}
-                    title="Tổng doanh thu"
+                    title="Phí quản lý"
                     value={new Intl.NumberFormat('vi-VN', { 
                         style: 'currency', 
                         currency: 'VND',
                         maximumFractionDigits: 0 
                     }).format(revenueStats.totalRevenue)}
                     subtitle={`${revenueStats.totalBookings} đặt phòng`}
-                    color="bg-green-500"
+                    color="bg-purple-500"
                     trend={revenueStats.totalBookings > 0 ? `TB: ${new Intl.NumberFormat('vi-VN', { 
                         style: 'currency', 
                         currency: 'VND',
@@ -391,10 +514,10 @@ const AdminDashboardContent = () => {
                 <StatCard
                     icon={<Building size={24} />}
                     title="Tổng khách sạn"
-                    value={hotelStatistics?.approved || 0}
-                    subtitle={`${hotelStatistics?.pending || 0} chờ duyệt`}
+                    value={totalHotelsCount}
+                    subtitle={`${pendingHotelsCount} chờ duyệt`}
                     color="bg-blue-500"
-                    trend={hotelStatistics?.approved > 0 ? `${hotelStatistics.approved} đã duyệt` : null}
+                    trend={approvedHotelsCount > 0 ? `${approvedHotelsCount} đã duyệt` : null}
                 />
                 
                 <StatCard 
@@ -479,6 +602,159 @@ const AdminDashboardContent = () => {
                 </div>
             </div>
 
+            {/* Time Range Selector */}
+            <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                        <h3 className="text-sm font-medium text-gray-700">Khoảng thời gian thống kê</h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                            {(() => {
+                                const { date_from, date_to } = getDateRange();
+                                return `Từ ${date_from} đến ${date_to}`;
+                            })()}
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {reportsLoading && (
+                            <div className="flex items-center text-blue-600 text-sm">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                                Đang tải...
+                            </div>
+                        )}
+                        <select 
+                            value={dateRange} 
+                            onChange={(e) => setDateRange(e.target.value)}
+                            className="text-sm border border-gray-300 rounded px-4 py-2 bg-white font-medium hover:border-blue-500 transition-colors"
+                        >
+                            <option value="today">Hôm nay</option>
+                            <option value="week">7 ngày qua</option>
+                            <option value="month">30 ngày qua</option>
+                            <option value="year">1 năm qua</option>
+                        </select>
+                    </div>
+                </div>
+                
+                {/* Data Summary Info */}
+                {reportsSummary?.daily_summary && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600">
+                                📊 Đã tải: <span className="font-semibold">{reportsSummary.daily_summary.length}</span> bản ghi dữ liệu
+                            </span>
+                            {reportsSummary.daily_summary.length === 0 && (
+                                <span className="text-amber-600 font-medium">
+                                    ⚠️ Không có dữ liệu trong khoảng thời gian này
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Admin Fee Revenue Chart Section */}
+            {reportsSummary?.daily_summary?.length > 0 ? (
+                <div className="mb-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                Biểu đồ phí quản lý theo ngày
+                            </h3>
+                            <p className="text-sm text-gray-500 mt-1">
+                                Thống kê {reportsSummary.daily_summary.length} bản ghi dữ liệu
+                            </p>
+                        </div>
+                    </div>
+                    
+                    {/* Line Chart for Admin Fee Revenue */}
+                    <ResponsiveContainer width="100%" height={300}>
+                        <LineChart
+                            data={reportsSummary.daily_summary.map(item => ({
+                                date: item.bizDateVn || item.date,
+                                adminFee: parseFloat(item.adminFeeSum || 0) / 1000000, // Admin fee in millions
+                                grossRevenue: parseFloat(item.grossSum || 0) / 1000000, // Gross revenue in millions
+                                bookings: parseInt(
+                                    item.bookingsCount ||   // From Reports API
+                                    item.booking_count ||   // Fallback
+                                    item.bookingCount ||
+                                    0
+                                ),
+                                hotel: item.hotelName || item.hotel_name || 'N/A'
+                            }))}
+                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis 
+                                dataKey="date" 
+                                tick={{ fontSize: 12 }}
+                                angle={-45}
+                                textAnchor="end"
+                                height={80}
+                            />
+                            <YAxis 
+                                tick={{ fontSize: 12 }}
+                                label={{ value: 'Triệu VNĐ', angle: -90, position: 'insideLeft' }}
+                            />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Legend />
+                            <Line 
+                                type="monotone" 
+                                dataKey="adminFee" 
+                                stroke="#8b5cf6" 
+                                strokeWidth={2}
+                                name="Phí quản lý (triệu)" 
+                                dot={{ fill: '#10b981' }}
+                            />
+                            <Line 
+                                type="monotone" 
+                                dataKey="bookings" 
+                                stroke="#3b82f6" 
+                                strokeWidth={2}
+                                name="Số booking" 
+                                dot={{ fill: '#3b82f6' }}
+                            />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            ) : (
+                <div className="mb-8 bg-white rounded-lg shadow-sm border border-yellow-200 bg-yellow-50 p-6">
+                    <div className="text-center py-12">
+                        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-yellow-100 mb-4">
+                            <BarChart3 className="w-10 h-10 text-yellow-600" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            📊 Chưa có dữ liệu doanh thu
+                        </h3>
+                        <p className="text-sm text-gray-700 mb-4 max-w-md mx-auto">
+                            Không tìm thấy dữ liệu booking hoặc doanh thu trong khoảng thời gian <strong>{dateRange === 'today' ? 'hôm nay' : dateRange === 'week' ? '7 ngày qua' : dateRange === 'month' ? '30 ngày qua' : '1 năm qua'}</strong>
+                        </p>
+                        <div className="flex flex-col gap-2 items-center">
+                            <p className="text-xs text-gray-600">
+                                💡 Gợi ý:
+                            </p>
+                            <ul className="text-xs text-gray-600 text-left space-y-1">
+                                <li>• Thử chọn khoảng thời gian khác (vd: 30 ngày hoặc 1 năm)</li>
+                                <li>• Kiểm tra xem có booking nào trong hệ thống chưa</li>
+                                <li>• Đảm bảo các booking đã được thanh toán</li>
+                            </ul>
+                        </div>
+                        <div className="mt-6 flex gap-3 justify-center">
+                            <button
+                                onClick={() => setDateRange('year')}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                            >
+                                Xem 1 năm qua
+                            </button>
+                            <button
+                                onClick={() => navigate('/admin/contracts')}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
+                            >
+                                Quản lý hợp đồng
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Bottom Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* System Overview */}
@@ -487,18 +763,6 @@ const AdminDashboardContent = () => {
                         <h3 className="text-lg font-semibold text-gray-900">
                             Tổng quan hệ thống
                         </h3>
-                        <div className="flex items-center space-x-2">
-                            <select 
-                                value={dateRange} 
-                                onChange={(e) => setDateRange(e.target.value)}
-                                className="text-sm border border-gray-300 rounded px-2 py-1"
-                            >
-                                <option value="today">Hôm nay</option>
-                                <option value="week">7 ngày</option>
-                                <option value="month">30 ngày</option>
-                                <option value="year">1 năm</option>
-                            </select>
-                        </div>
                     </div>
                     
                     {/* Quick Stats Grid */}
@@ -522,7 +786,7 @@ const AdminDashboardContent = () => {
                         </div>
                         <div className="text-center p-4 bg-orange-50 rounded-lg">
                             <Building className="w-8 h-8 mx-auto text-orange-500 mb-2" />
-                            <div className="text-2xl font-bold text-orange-600">{hotelStatistics?.approved || 0}</div>
+                            <div className="text-2xl font-bold text-orange-600">{approvedHotelsCount}</div>
                             <div className="text-sm text-gray-600">Khách sạn</div>
                         </div>
                     </div>
@@ -539,11 +803,11 @@ const AdminDashboardContent = () => {
                                     </span>
                                 </div>
                             )}
-                            {(hotelStatistics?.pending > 0) && (
+                            {(pendingHotelsCount > 0) && (
                                 <div className="flex justify-between items-center p-2 bg-yellow-50 rounded">
                                     <span className="text-sm text-gray-700">Khách sạn chờ duyệt</span>
                                     <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-medium">
-                                        {hotelStatistics.pending}
+                                        {pendingHotelsCount}
                                     </span>
                                 </div>
                             )}
@@ -563,7 +827,7 @@ const AdminDashboardContent = () => {
                                     </span>
                                 </div>
                             )}
-                            {(!reportsSummary?.payout_proposals?.length && !hotelStatistics?.pending && !contractStats?.pending && !blogStats?.pending) && (
+                            {(!reportsSummary?.payout_proposals?.length && !pendingHotelsCount && !contractStats?.pending && !blogStats?.pending) && (
                                 <div className="text-center py-4 text-gray-500">
                                     <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
                                     <p>Tất cả đã được xử lý</p>
@@ -603,6 +867,157 @@ const AdminDashboardContent = () => {
                             </div>
                         )}
                     </div>
+                </div>
+            </div>
+
+            {/* Additional Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                {/* Hotel Status Distribution Chart */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        Phân bổ trạng thái khách sạn
+                    </h3>
+                    <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                            <Pie
+                                data={[
+                                    { name: 'Đã duyệt', value: approvedHotelsCount, color: '#10b981' },
+                                    { name: 'Chờ duyệt', value: pendingHotelsCount, color: '#f59e0b' },
+                                    { name: 'Từ chối', value: rejectedHotelsCount, color: '#ef4444' },
+                                ].filter(item => item.value > 0)}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                outerRadius={80}
+                                fill="#8884d8"
+                                dataKey="value"
+                            >
+                                {[
+                                    { name: 'Đã duyệt', value: approvedHotelsCount, color: '#10b981' },
+                                    { name: 'Chờ duyệt', value: pendingHotelsCount, color: '#f59e0b' },
+                                    { name: 'Từ chối', value: rejectedHotelsCount, color: '#ef4444' },
+                                ].filter(item => item.value > 0).map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </div>
+
+                {/* Contract Status Distribution Chart */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        Phân bổ trạng thái hợp đồng
+                    </h3>
+                    <ResponsiveContainer width="100%" height={250}>
+                        <BarChart
+                            data={[
+                                { status: 'Đã duyệt', count: contractStats?.approved || 0, color: '#10b981' },
+                                { status: 'Chờ xử lý', count: contractStats?.pending || 0, color: '#f59e0b' },
+                                { status: 'Từ chối', count: contractStats?.rejected || 0, color: '#ef4444' },
+                                { status: 'Hết hạn', count: contractStats?.expired || 0, color: '#6b7280' },
+                            ]}
+                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="status" />
+                            <YAxis />
+                            <Tooltip />
+                            <Legend />
+                            <Bar dataKey="count" name="Số lượng">
+                                {[
+                                    { status: 'Đã duyệt', count: contractStats?.approved || 0, color: '#10b981' },
+                                    { status: 'Chờ xử lý', count: contractStats?.pending || 0, color: '#f59e0b' },
+                                    { status: 'Từ chối', count: contractStats?.rejected || 0, color: '#ef4444' },
+                                    { status: 'Hết hạn', count: contractStats?.expired || 0, color: '#6b7280' },
+                                ].map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            {/* Blog & Promotion Statistics */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                {/* Blog Statistics */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        📝 Thống kê bài viết
+                    </h3>
+                    {blogStats?.total > 0 ? (
+                        <ResponsiveContainer width="100%" height={200}>
+                            <BarChart
+                                data={[
+                                    { status: 'Xuất bản', count: blogStats?.published || 0 },
+                                    { status: 'Chờ duyệt', count: blogStats?.pending || 0 },
+                                    { status: 'Nháp', count: blogStats?.draft || 0 },
+                                    { status: 'Lưu trữ', count: blogStats?.archived || 0 },
+                                ]}
+                                layout="vertical"
+                                margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis type="number" />
+                                <YAxis type="category" dataKey="status" />
+                                <Tooltip />
+                                <Bar dataKey="count" fill="#8b5cf6" name="Số lượng" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="text-center py-8">
+                            <FileText className="w-12 h-12 mx-auto text-gray-300 mb-2" />
+                            <p className="text-sm text-gray-500">Chưa có bài viết nào</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Top Hotels by Revenue */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        🏆 Top khách sạn theo phí quản lý
+                    </h3>
+                    {reportsSummary?.daily_summary?.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={200}>
+                            <BarChart
+                                data={Object.values(
+                                    reportsSummary.daily_summary.reduce((acc, item) => {
+                                        const hotelName = item.hotelName || 'Unknown';
+                                        if (!acc[hotelName]) {
+                                            acc[hotelName] = { hotel: hotelName, adminFee: 0 };
+                                        }
+                                        // Use adminFeeSum (admin fee from API)
+                                        acc[hotelName].adminFee += parseFloat(item.adminFeeSum || 0);
+                                        return acc;
+                                    }, {})
+                                )
+                                    .sort((a, b) => b.adminFee - a.adminFee)
+                                    .slice(0, 5)
+                                    .map(item => ({
+                                        hotel: item.hotel.length > 20 ? item.hotel.substring(0, 20) + '...' : item.hotel,
+                                        adminFee: (item.adminFee / 1000000).toFixed(2)
+                                    }))
+                                }
+                                layout="vertical"
+                                margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis type="number" label={{ value: 'Triệu VNĐ', position: 'insideBottom', offset: -5 }} />
+                                <YAxis type="category" dataKey="hotel" />
+                                <Tooltip formatter={(value) => [value + ' triệu', 'Phí quản lý']} />
+                                <Bar dataKey="adminFee" fill="#8b5cf6" name="Phí quản lý" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="text-center py-8">
+                            <Building className="w-12 h-12 mx-auto text-gray-300 mb-2" />
+                            <p className="text-sm text-gray-500">Chưa có dữ liệu doanh thu từ khách sạn</p>
+                        </div>
+                    )}
                 </div>
             </div>
 

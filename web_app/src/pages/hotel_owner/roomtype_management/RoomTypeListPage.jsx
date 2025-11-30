@@ -5,6 +5,8 @@ import { Shield, Plus, Save, X, Pencil, Trash2, Users, Tag, Layers, Ruler, Hash,
 import { useHotelOwner } from '../../../hooks/useHotelOwner';
 import { RoomTypeContext, RoomTypeProvider } from '../../../context/RoomTypeContext';
 import { useRoomTypeList, useRoomTypeEditor } from '../../../hooks/useRoomType';
+import Toast from '../../../components/common/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 const currency = (v) => (v == null ? '—' : Number(v).toLocaleString('vi-VN') + ' đ');
 
@@ -22,6 +24,7 @@ function Inner() {
   const location = useLocation();
   const navigate = useNavigate();
   const { hotelData, fetchOwnerHotel } = useHotelOwner();
+  const { toast, showSuccess, showError, hideToast } = useToast();
   
   // Check if hotel is locked from detail page
   const lockedHotel = location.state?.hotel;
@@ -104,19 +107,19 @@ function Inner() {
 
     // Validate dữ liệu
     if (!payload.name) {
-      alert('Vui lòng nhập tên loại phòng');
+      showError('Vui lòng nhập tên loại phòng');
       return;
     }
     if (payload.basePrice < 0) {
-      alert('Giá phải lớn hơn hoặc bằng 0');
+      showError('Giá phải lớn hơn hoặc bằng 0');
       return;
     }
     if (payload.maxOccupancy < 1) {
-      alert('Sức chứa phải ít nhất 1 người');
+      showError('Sức chứa phải ít nhất 1 người');
       return;
     }
     if (payload.numberOfRooms < 1) {
-      alert('Số phòng phải ít nhất 1');
+      showError('Số phòng phải ít nhất 1');
       return;
     }
 
@@ -124,7 +127,7 @@ function Inner() {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(payload.hotelId)) {
       console.error('Invalid Hotel ID format:', payload.hotelId);
-      alert('Hotel ID không hợp lệ');
+      showError('Hotel ID không hợp lệ');
       return;
     }
 
@@ -138,6 +141,7 @@ function Inner() {
         result = await createType(payload);
       }
       // console.log('Operation result:', result);
+      showSuccess(editingId ? 'Cập nhật loại phòng thành công' : 'Thêm loại phòng thành công');
       setOpenForm(false); 
       setEditingId(null); 
       setForm(blank);
@@ -161,7 +165,9 @@ function Inner() {
         }
       }
       
-      alert(errorMessage);
+
+      
+      showError(errorMessage);
     }
   };
 
@@ -169,6 +175,7 @@ function Inner() {
     if (!window.confirm('Xóa loại phòng này?')) return;
     try {
       await deleteType(id);
+      showSuccess('Xóa loại phòng thành công');
       // Provider đã tự refetch
     } catch (error) {
       let errorMessage = 'Có lỗi xảy ra';
@@ -181,7 +188,7 @@ function Inner() {
           errorMessage = error.response.data.message;
         }
       }
-      alert(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -449,6 +456,15 @@ function Inner() {
           </div>
         )}
       </div>
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+          duration={toast.duration}
+        />
+      )}
     </div>
   );
 }

@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Percent, DollarSign, Clock, Users, Tag, FileText, Settings } from 'lucide-react';
 import PromotionService from '../../api/promotions.service';
-import { useToast, ToastContainer } from '../common/Toast';
+import { useToast } from '../../hooks/useToast';
+import Toast from '../common/Toast';
 import PromotionDetailModal from './PromotionDetailModal';
 
 const CreatePromotionModal = ({ isOpen, onClose, selectedHotel, onSuccess }) => {
@@ -322,7 +323,7 @@ const CreatePromotionModal = ({ isOpen, onClose, selectedHotel, onSuccess }) => 
 
   return (
     <>
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
+      
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}

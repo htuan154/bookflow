@@ -98,7 +98,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           _isLoading = false;
         });
 
-        // Scroll to bottom
+        // Scroll to bottom sau khi build xong - gọi trực tiếp
         _scrollToBottom();
       } else {
         setState(() {
@@ -187,22 +187,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      Future.delayed(Duration(milliseconds: 100), () {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      });
-    }
+    // Với reverse: true, vị trí 0 là tin nhắn mới nhất (ở dưới cùng)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients && mounted) {
+        _scrollController.jumpTo(0);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       resizeToAvoidBottomInset: true, // Cho phép resize khi hiện bàn phím
       appBar: AppBar(
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -480,10 +482,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     return ListView.builder(
       controller: _scrollController,
+      reverse: true,
       padding: EdgeInsets.all(16),
       itemCount: _messages.length,
       itemBuilder: (context, index) {
-        final message = _messages[index];
+        final message = _messages[_messages.length - 1 - index];
         return _buildMessageBubble(message);
       },
     );

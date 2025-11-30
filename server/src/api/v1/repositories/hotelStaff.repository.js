@@ -56,7 +56,7 @@ const addStaff = async (staffData) => {
             email,
             passwordHash,
             fullName: full_name,
-            roleId: 3, // Giả sử role_id = 3 là hotel staff
+            roleId: 6, // Giả sử role_id = 3 là hotel staff
             phoneNumber: phone_number || null,
             address: address || null
         };
@@ -258,6 +258,17 @@ const findByUserIdAndHotelId = async (userId, hotelId) => {
     return result.rows.length > 0 ? new HotelStaff(result.rows[0]) : null;
 };
 
+/**
+ * Tìm staff theo user_id (trả về tất cả staff record của user này ở các khách sạn)
+ * @param {string} userId
+ * @returns {Promise<HotelStaff[]>}
+ */
+const findByUserId = async (userId) => {
+    const query = 'SELECT * FROM hotel_staff WHERE user_id = $1 ORDER BY created_at DESC';
+    const result = await pool.query(query, [userId]);
+    return result.rows.map(row => new HotelStaff(row));
+};
+
 module.exports = {
     addStaff,
     addExistingUserAsStaff,
@@ -267,4 +278,5 @@ module.exports = {
     removeStaff,
     removeStaffAndUser,
     findByUserIdAndHotelId
+    ,findByUserId
 };

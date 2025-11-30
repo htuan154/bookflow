@@ -156,6 +156,39 @@ const useBlog = () => {
         }
     }, [blogContext, clearLocalError, setError]);
 
+    // Get blog by id but ensure it belongs to the specified hotel
+    const getBlogByHotelID = useCallback(async (hotelId, blogId) => {
+        try {
+            setLocalLoading(true);
+            clearLocalError();
+
+            if (!hotelId || !blogId) {
+                throw new Error('hotelId and blogId are required');
+            }
+
+            const response = await makeApiCall(API_ENDPOINTS.BLOGS.GET_BY_ID(blogId));
+            const blog = response.data || response;
+
+            const blogHotelId = blog?.hotel_id || blog?.hotelId || blog?.hotel || null;
+
+            if (blogHotelId != null && String(blogHotelId) !== String(hotelId)) {
+                throw new Error('Blog không thuộc khách sạn này');
+            }
+
+            blogContext.dispatch({
+                type: 'SET_CURRENT_BLOG',
+                payload: blog,
+            });
+
+            return response;
+        } catch (error) {
+            setError(error.message);
+            throw error;
+        } finally {
+            setLocalLoading(false);
+        }
+    }, [blogContext, clearLocalError, setError]);
+
     // Search blogs
     const searchBlogs = useCallback(async (searchQuery, params = {}) => {
         try {
@@ -200,8 +233,12 @@ const useBlog = () => {
             const queryParams = new URLSearchParams({
                 page: params.page || 1,
                 limit: params.limit || 10,
-                status: params.status || 'published',
             });
+
+            // Only add status filter if explicitly provided
+            if (params.status) {
+                queryParams.append('status', params.status);
+            }
 
             const response = await makeApiCall(
                 `${API_ENDPOINTS.BLOGS.GET_BY_HOTEL(hotelId)}?${queryParams}`
@@ -580,6 +617,7 @@ const useBlog = () => {
         getBlogs,
         getBlogById,
         getBlogBySlug,
+        getBlogByHotelID,
         createBlog,
         updateBlog,
         deleteBlog,

@@ -884,6 +884,41 @@ class BlogService {
     }
   }
 
+  /// Lấy danh sách comment đã duyệt (approved) của blog
+  /// GET /api/v1/blogs/:blogId/comments-approved
+  Future<Map<String, dynamic>> getApprovedBlogComments(
+    String blogId, {
+    String? token,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final url = Uri.parse(
+        '${ApiConfig.baseUrl}/blogs/$blogId/comments-approved?page=$page&limit=$limit',
+      );
+
+      final headers = token != null ? _headersWithToken(token) : _headers;
+      final response = await http.get(url, headers: headers);
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Lấy danh sách bình luận đã duyệt thành công',
+          'data': responseData['data'],
+          'pagination': responseData['pagination'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Lỗi khi lấy danh sách bình luận đã duyệt',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi kết nối: $e'};
+    }
+  }
+  
   /// Lấy danh sách comment của blog
   /// GET /api/v1/blogs/:blogId/comments
   Future<Map<String, dynamic>> getBlogComments(

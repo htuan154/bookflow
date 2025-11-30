@@ -260,6 +260,11 @@ export const ContractProvider = ({ children }) => {
         }
     }, [setLoading, setError]);
 
+    // Refresh contracts - simplified version
+    const refreshContracts = useCallback(async () => {
+        await fetchContracts();
+    }, [fetchContracts]);
+
     const value = {
         // State
         ...state,
@@ -268,14 +273,13 @@ export const ContractProvider = ({ children }) => {
         fetchContracts,
         fetchContractById,
         fetchContractDetail: fetchContractById, // Thêm dòng này
+        refreshContracts,
         approveContract,
         rejectContract,
         updateContractStatus,
         setFilters,
         clearError,
     };
-
-    
 
     return (
         <ContractContext.Provider value={value}>

@@ -9,13 +9,13 @@ const FoodRecommendation = require('../../../models/foodRecommendation.model');
  * @returns {Promise<FoodRecommendation>}
  */
 const create = async (foodData) => {
-    const { location_id, name, description, image_url } = foodData;
+    const { location_id, name, description, image_url, latitude, longitude } = foodData;
     const query = `
-        INSERT INTO food_recommendations (location_id, name, description, image_url)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO food_recommendations (location_id, name, description, image_url, latitude, longitude)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *;
     `;
-    const values = [location_id, name, description, image_url];
+    const values = [location_id, name, description, image_url, latitude, longitude];
     const result = await pool.query(query, values);
     return new FoodRecommendation(result.rows[0]);
 };
@@ -48,14 +48,14 @@ const findById = async (foodId) => {
  * @returns {Promise<FoodRecommendation|null>}
  */
 const update = async (foodId, updateData) => {
-    const { name, description, image_url } = updateData;
+    const { name, description, image_url, latitude, longitude } = updateData;
     const query = `
         UPDATE food_recommendations
-        SET name = $1, description = $2, image_url = $3
-        WHERE food_id = $4
+        SET name = $1, description = $2, image_url = $3, latitude = $4, longitude = $5
+        WHERE food_id = $6
         RETURNING *;
     `;
-    const values = [name, description, image_url, foodId];
+    const values = [name, description, image_url, latitude, longitude, foodId];
     const result = await pool.query(query, values);
     return result.rows[0] ? new FoodRecommendation(result.rows[0]) : null;
 };
@@ -70,10 +70,27 @@ const deleteById = async (foodId) => {
     return result.rowCount > 0;
 };
 
+/**
+ * Lấy tất cả gợi ý món ăn theo tên thành phố (join với tourist_locations).
+ * @param {string} city - Tên thành phố.
+ * @returns {Promise<FoodRecommendation[]>}
+ */
+const findByCity = async (city) => {
+    const query = `
+        SELECT f.* FROM food_recommendations f
+        JOIN tourist_locations t ON f.location_id = t.location_id
+        WHERE t.city = $1
+        ORDER BY f.name ASC
+    `;
+    const result = await pool.query(query, [city]);
+    return result.rows.map(row => new FoodRecommendation(row));
+};
+
 module.exports = {
     create,
     findByLocationId,
     findById,
+    findByCity,
     update,
     deleteById,
 };

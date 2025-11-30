@@ -1,6 +1,6 @@
 'use strict';
 
-const { upsertDM, createGroup, getById, listByHotelAndUser } = require('../repositories/conversation.repo');
+const { upsertDM, createGroup, getById, listByHotelAndUser, findGroupB } = require('../repositories/conversation.repo');
 const { addMember, listMembers } = require('../repositories/participant.repo');
 
 /**
@@ -54,6 +54,11 @@ async function addMemberToConversation({ conversation_id, user_id, role }) {
   return addMember({ conversation_id, user_id, role });
 }
 
+// Wrapper để truyền type filter
+async function listConversationsByHotelAndUser({ hotel_id, user_id, type }) {
+  return listByHotelAndUser({ hotel_id, user_id, type });
+}
+
 module.exports = {
   getOrCreateDM,
   createGroupA,
@@ -61,5 +66,6 @@ module.exports = {
   getConversation,
   getMembers,
   addMemberToConversation,
-  listByHotelAndUser,
+  listByHotelAndUser: listConversationsByHotelAndUser,
+  findGroupB,
 };

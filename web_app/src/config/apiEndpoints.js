@@ -7,10 +7,13 @@ export const CHAT_API_ENDPOINTS = {
     GET_CHAT_HISTORY: (bookingId) => `${API_BASE_URL}/chats/booking/${bookingId}`,
     SEND_MESSAGE: `${API_BASE_URL}/chats`,
 };
+
 export const API_ENDPOINTS = {
     IM: {
         CREATE_DM: `${API_BASE_URL}/im/conversations/dm`,
-        CREATE_GROUP: `${API_BASE_URL}/im/conversations/group`,
+        CREATE_GROUP: `${API_BASE_URL}/im/conversations/group-b`,
+        ADD_MEMBER: `${API_BASE_URL}/im/conversations/add-member`,
+        FIND_GROUP_B: `${API_BASE_URL}/im/conversations/find-group-b`,
         SEND_TEXT: `${API_BASE_URL}/im/messages/text`,
         UPLOAD_BASE64: `${API_BASE_URL}/im/uploads`,
         STREAM: (id) => `${API_BASE_URL}/im/stream?conversation_id=${encodeURIComponent(id)}`,
@@ -49,6 +52,13 @@ export const API_ENDPOINTS = {
         },
     
     },
+
+    // --- Booking Nightly Price Endpoints ---
+    BOOKING_NIGHTLY_PRICE: {
+    GET_BY_BOOKING_ID: (bookingId) => `${API_BASE_URL}/booking-nightly-prices/${bookingId}`,
+    CREATE: `${API_BASE_URL}/booking-nightly-prices`,
+    },
+
     // --- Season Endpoints ---
     SEASONS: {
         GET_ALL: `${API_BASE_URL}/seasons`,
@@ -71,7 +81,8 @@ export const API_ENDPOINTS = {
     // --- Tourist Location Endpoints ---
     TOURIST_LOCATIONS: {
         GET_ALL: `${API_BASE_URL}/tourist-locations`,
-        GET_BY_CITY: (city) => `${API_BASE_URL}/tourist-locations/city/${city}`,
+        GET_BY_CITY: (city) => `${API_BASE_URL}/tourist-locations/city/${encodeURIComponent(city)}`,
+        GET_BY_CITY_VN: (city) => `${API_BASE_URL}/tourist-locations/city-vn/${encodeURIComponent(city)}`,
         CREATE: `${API_BASE_URL}/tourist-locations`,
         UPDATE: (id) => `${API_BASE_URL}/tourist-locations/${id}`,
         DELETE: (id) => `${API_BASE_URL}/tourist-locations/${id}`,
@@ -101,6 +112,7 @@ export const API_ENDPOINTS = {
         GET_FOR_BOOKING: (bookingId) => `${API_BASE_URL}/assignments/bookings/${bookingId}`,
         GET_AVAILABLE_ROOMS: ({ roomTypeId, checkInDate, checkOutDate, limit }) =>
             `${API_BASE_URL}/assignments/available-rooms?roomTypeId=${encodeURIComponent(roomTypeId)}&checkInDate=${encodeURIComponent(checkInDate)}&checkOutDate=${encodeURIComponent(checkOutDate)}&limit=${limit}`,
+        RELEASE_ROOMS: (bookingId) => `${API_BASE_URL}/assignments/release-rooms/${bookingId}`,
     },
 
     // --- Room Type Endpoints ---
@@ -138,6 +150,7 @@ export const API_ENDPOINTS = {
 
     // --- Review Image Endpoints ---
     REVIEW_IMAGES: {
+        GET_IMAGES: (reviewId) => `${API_BASE_URL}/reviews/${reviewId}/images`,
         UPLOAD: (reviewId) => `${API_BASE_URL}/reviews/${reviewId}/images`,
         DELETE: (imageId) => `${API_BASE_URL}/review-images/${imageId}`,
     },
@@ -158,9 +171,15 @@ export const API_ENDPOINTS = {
 
     // --- Food Recommendation Endpoints ---
     FOOD_RECOMMENDATIONS: {
+        // Lấy gợi ý món ăn của một địa điểm
         GET_BY_LOCATION: (locationId) => `${API_BASE_URL}/food-recommendations/${locationId}/food-recommendations`,
+        // Lấy gợi ý món ăn theo thành phố
+        GET_BY_CITY: (city) => `${API_BASE_URL}/food-recommendations/city/${encodeURIComponent(city)}`,
+        // Tạo gợi ý mới (admin)
         CREATE: `${API_BASE_URL}/food-recommendations`,
+        // Cập nhật gợi ý (admin)
         UPDATE: (id) => `${API_BASE_URL}/food-recommendations/${id}`,
+        // Xóa gợi ý (admin)
         DELETE: (id) => `${API_BASE_URL}/food-recommendations/${id}`,
     },
     // --- Booking Endpoints ---
@@ -214,6 +233,8 @@ export const API_ENDPOINTS = {
         MY_HOTELS: `${API_BASE_URL}/hotels/my-hotels`,
         // Thêm endpoint mới cho dropdown khách sạn đã duyệt ngày 28/8
         GET_APPROVED_HOTELS_DROPDOWN: `${API_BASE_URL}/hotels/my-hotels/dropdown`,
+        // Lấy hotels của owner với status active hoặc approved
+        GET_ACTIVE_OR_APPROVED_BY_OWNER: (ownerId) => `${API_BASE_URL}/hotels/owner/${ownerId}/active-or-approved`,
         UPDATE: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
         DELETE: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}`,
     },
@@ -333,6 +354,8 @@ export const API_ENDPOINTS = {
         GET_BLOGS_BY_STATUS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
         GET_REJECTED_BLOGS: (status) => `${API_BASE_URL}/blogs/admin/status/${status}`,
         UPDATE_STATUS_ADMIN: (blogId) => `${API_BASE_URL}/blogs/admin/${blogId}/status`,
+        // Thêm hàm lấy blog theo hotelId
+        GET_BY_HOTEL: (hotelId) => `${API_BASE_URL}/blogs/hotel/${hotelId}`,
         
         // Blog Bulk Operations
         BULK_APPROVE_BLOGS: `${API_BASE_URL}/blogs/admin/bulk/approve`,
@@ -350,7 +373,7 @@ export const API_ENDPOINTS = {
 
         // Lấy thống kê bình luận của các blog đã xuất bản
         GET_PUBLISHED_STATS: `${API_BASE_URL}/blogs/admin/published/stats`,
-        GET_ALL: `${API_BASE_URL}/blogs`,//trang bài viết 
+        GET_ALL: `${API_BASE_URL}/blogs/all`,//trang bài viết 
         GET_PUBLISHED: `${API_BASE_URL}/blogs`, // ✅ SỬA: từ /blogs/published thành /blogs
         // Dùng GET_BY_ID để lấy chi tiết blog theo ID (dùng cho trang chi tiết)
         GET_BY_ID: (blogId) => `${API_BASE_URL}/blogs/id/${blogId}`,
@@ -427,7 +450,9 @@ export const API_ENDPOINTS = {
         GET_HOTEL_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff`,
         SEARCH_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff/search`,
         GET_STAFF_STATISTICS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff/statistics`,
-        
+        GET_BY_USER_ID: (userId) => `${API_BASE_URL}/staff/user/${userId}`,
+
+
         // --- Add staff operations ---
         ADD_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff`, // Auto-detect method
         ADD_NEW_STAFF: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/staff/new`, // Create new user + staff
@@ -518,6 +543,7 @@ export const API_ENDPOINTS = {
         
         // Hotel accounts
         GET_HOTEL_ACCOUNTS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/bank-accounts`,
+        UNSET_DEFAULT_HOTEL_ACCOUNTS: (hotelId) => `${API_BASE_URL}/hotels/${hotelId}/bank-accounts/unset-default`,
         
         // Admin
         ADMIN_STATISTICS: `${API_BASE_URL}/admin/bank-accounts/statistics`,

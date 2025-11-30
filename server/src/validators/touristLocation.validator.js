@@ -10,6 +10,8 @@ const createLocationSchema = Joi.object({
     description: Joi.string().allow(''),
     city: Joi.string().min(2).required(),
     image_url: Joi.string().uri().allow(''),
+    latitude: Joi.number().min(-90).max(90).required(),
+    longitude: Joi.number().min(-180).max(180).required(),
 });
 
 /**
@@ -20,6 +22,8 @@ const updateLocationSchema = Joi.object({
     description: Joi.string().allow(''),
     city: Joi.string().min(2),
     image_url: Joi.string().uri().allow(''),
+    latitude: Joi.number().min(-90).max(90),
+    longitude: Joi.number().min(-180).max(180),
 }).min(1); // Yêu cầu có ít nhất một trường để cập nhật
 
 module.exports = {

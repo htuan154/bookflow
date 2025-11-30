@@ -22,6 +22,7 @@ exports.createGroupB = Joi.object({
   hotel_id: Joi.string().required(),
   name: Joi.string().min(1).max(200).default('Owner & All Staff'),
   owner_id: Joi.string().required(),
+  created_by: Joi.string().optional(), // Optional - backend will use req.user.id if missing
   staff_ids: Joi.array().items(Joi.string()).default([])
 });
 
