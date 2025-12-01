@@ -31,10 +31,19 @@ const SCENARIOS = [
         desc: "⛅ Real-time Weather (Thời tiết)",
         msg: "Thời tiết ở đó hôm nay thế nào?"
         // Kỳ vọng: Gọi OpenWeatherMap cho TP.HCM
+    },
+    {
+        step: 4,
+        desc: "Giới thiệu về Eo gió",
+        msg: "Giới thiệu về Eo gió"
+    },
+    {
+        step: 5,
+        desc: "⛅ Real-time Weather (Thời tiết)",
+        msg: "Thời tiết Hà Nội hôm nay thế nào?"
+        // Kỳ vọng: Gọi OpenWeatherMap cho Hà Nội
     }
 ];
-
-
 
 async function runTest() {
     try {
@@ -43,7 +52,23 @@ async function runTest() {
         console.log(`🔑 Session ID: ${SESSION_ID}`);
         console.log('================================================');
 
-        // ... (Phần Login giữ nguyên)
+        // 1. LOGIN
+        let token = null;
+        try {
+            const loginRes = await axios.post(`${AUTH_URL}/login`, CREDENTIALS);
+            token = loginRes.data.data.accessToken || loginRes.data.data.token;
+            console.log('✅ Login OK.\n');
+        } catch (e) {
+            const retryRes = await axios.post(`${AUTH_URL}/login`, { ...CREDENTIALS, identifier: 'admin@bookflow.com' });
+            token = retryRes.data.data.accessToken;
+            console.log('✅ Login OK (Fallback).\n');
+        }
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'x-session-id': SESSION_ID,
+            'Authorization': `Bearer ${token}`
+        };
 
         // CHẠY CÁC KỊCH BẢN
         for (const scenario of SCENARIOS) {
@@ -57,18 +82,14 @@ async function runTest() {
                 const latency = Date.now() - start;
 
                 const data = res.data;
-                
-                // --- SỬA Ở ĐÂY: KHÔNG CẮT CHUỖI NỮA ---
-                const summary = data.summary || "No summary"; 
-                // ---------------------------------------
-
+                const summary = data.summary ? data.summary.slice(0, 150) + "..." : "No summary";
                 const source = data.source || data.type || 'unknown';
                 const context = data.next_context || {};
                 const places = data.places || [];
 
                 console.log(`   🤖 Bot: ${summary}`);
                 console.log(`   ℹ️ Nguồn: [${source}] | ⏱️ ${latency}ms`);
-                console.log(`   🧠 Context: Entity="${context.entity_name || 'NULL'}" | City="${context.city || 'NULL'}"`);
+                console.log(`   🧠 Context: Entity="${context.entity_name || 'N/A'}" | City="${context.city || 'N/A'}"`);
                 
                 if (places.length > 0) {
                     console.log(`   📍 Places: ${places.slice(0, 3).map(p => p.name).join(', ')}`);
@@ -76,10 +97,15 @@ async function runTest() {
 
             } catch (err) {
                 console.error(`   ❌ Lỗi: ${err.message}`);
+                if (err.response) {
+                    console.error(`   ❌ API Error ${err.response.status}: ${JSON.stringify(err.response.data)}`);
+                }
             }
             
+            // Delay giữa các request
             await new Promise(r => setTimeout(r, 1000));
         }
+
         console.log("\n=================================================");
         console.log("✅ HOÀN TẤT KIỂM TRA FULL FLOW.");
 
@@ -87,4 +113,5 @@ async function runTest() {
         console.error('\n❌ LỖI:', error.message);
     }
 }
+
 runTest();

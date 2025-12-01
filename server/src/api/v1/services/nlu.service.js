@@ -63,7 +63,7 @@ async function analyzeWithLLM(text) {
  * PHÂN LOẠI INTENT KẾT HỢP VECTOR & LLM VALIDATION
  */
 async function detectIntentSmart(text, llmAnalysis) {
-    // Bước 1: Vector Search (Nhanh, dùng database intents)
+    // Bước 1: Vector Search (Tham khảo)
     let vectorIntent = 'ask_details';
     try {
         const embedding = await generateEmbedding(text);
@@ -77,34 +77,36 @@ async function detectIntentSmart(text, llmAnalysis) {
         }
     } catch (e) {}
 
-    // Bước 2: AI Logic Guardrail (Xử lý các case khó mà Vector hay sai)
+    // Bước 2: AI Logic Guardrail (QUAN TRỌNG: CÁC RULE ƯU TIÊN)
     
-    // Case: Vector bảo Weather, nhưng LLM bảo Place (VD: "Cầu Mây ở đâu") -> Tin LLM
+    // 🔥 RULE 1: Nếu LLM bảo là weather -> Force Weather ngay lập tức
+    // Bất chấp Vector có tìm ra địa danh hay không (VD: "Thời tiết Hà Nội")
+    if (llmAnalysis.category === 'weather') {
+        return 'ask_weather';
+    }
+
+    // RULE 2: Vector bảo Weather, nhưng LLM bảo Place (VD: "Cầu Mây ở đâu") -> Tin LLM
     if (vectorIntent === 'ask_weather' && llmAnalysis.category === 'place') {
         return 'ask_places';
     }
 
-    // Case: Vector bảo Chitchat, nhưng LLM trích xuất được City -> Chuyển sang hỏi thông tin
-    if (vectorIntent === 'chitchat' && llmAnalysis.city) {
-        return 'ask_details'; 
-    }
-
-    // Case: Hỏi khoảng cách
+    // RULE 3: Hỏi khoảng cách
     if (llmAnalysis.category === 'distance') {
         return 'ask_distance';
+    }
+
+    // RULE 4: Vector bảo Chitchat, nhưng LLM trích xuất được City -> Chuyển sang hỏi thông tin
+    if (vectorIntent === 'chitchat' && llmAnalysis.city) {
+        return 'ask_details'; 
     }
 
     return vectorIntent;
 }
 
 async function analyzeAsync(message = '') {
-  // Chạy song song
   const llmPromise = analyzeWithLLM(message);
-  
-  // Đợi kết quả LLM
   const llmResult = await llmPromise;
   
-  // Tổng hợp Intent
   const intent = await detectIntentSmart(message, llmResult);
 
   return {
