@@ -1,11 +1,5 @@
 'use strict';
 
-/**
- * Chatbot Service v19.0 [PURE AI REFACTOR]
- * - Tích hợp NLU Rewriting: Search bằng "rewritten query" thay vì raw text.
- * - Logic điều hướng dựa hoàn toàn vào Intent của AI.
- */
-
 const { analyzeAsync } = require('./nlu.service'); 
 const { getCurrentWeather } = require('./weather.service');
 const { compose, composeSmallTalk, composeCityFallback } = require('./composer.service');
@@ -18,31 +12,43 @@ const OLLAMA_URL = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:3b-instruct';
 
 // ==============================================================================
-// 1. AI RERANKING (Logic lọc kết quả Search)
+// 1. AI RERANKING & STRICT FILTERING
 // ==============================================================================
-
 async function rerankWithLLM(query, candidates, currentCity) {
     if (!candidates || !Array.isArray(candidates) || candidates.length === 0) return null;
-    const validCandidates = candidates.filter(c => c && c.item && c.item.name);
     
+    const validCandidates = candidates.filter(c => c && c.item && c.item.name);
     if (validCandidates.length === 0) return null;
-    if (validCandidates.length === 1 && validCandidates[0].score > 0.12) return validCandidates[0];
 
-    // Tạo danh sách cho AI chọn
-    const candidateList = validCandidates.map((c, i) => 
-        `${i}. ${c.item?.name} (${c.item?.province || 'N/A'}) - Score: ${c.score?.toFixed(2)}`
+    // 🔥 STRICT MODE: Ưu tiên item cùng thành phố, NHƯNG nới lỏng nếu query chứa tên địa danh cụ thể
+    // Nếu query chứa tên riêng (VD: "Hầm điêu khắc"), ta tạm bỏ qua filter city để tìm cho ra.
+    let strictCandidates = validCandidates;
+    const hasProperNoun = query.length > 10 && query[0] === query[0].toUpperCase(); // Logic đơn giản check tên riêng
+
+    if (currentCity && !hasProperNoun) {
+        const cityMatches = validCandidates.filter(c => {
+             const prov = (c.item.province || '').toLowerCase();
+             const city = currentCity.toLowerCase();
+             return prov.includes(city) || city.includes(prov);
+        });
+        if (cityMatches.length > 0) strictCandidates = cityMatches;
+    }
+
+    if (strictCandidates.length === 1) return strictCandidates[0];
+
+    const candidateList = strictCandidates.map((c, i) => 
+        `[${i}] ${c.item.name} (${c.item.province || 'Unknown'}) - Snippet: ${(c.item.doc || '').substring(0, 100)}...`
     ).join('\n');
 
     const prompt = `
-    User Query (Đã sửa lỗi): "${query}"
-    Khu vực đang tìm: "${currentCity || 'Toàn quốc'}"
-    
-    Danh sách ứng viên từ Database:
+    Query: "${query}"
+    Target City: "${currentCity || 'Any'}"
+    Candidates:
     ${candidateList}
     
-    Yêu cầu: Chọn index (0..n) của mục phù hợp nhất với ý định của user.
-    Nếu không có mục nào liên quan, trả về -1. 
-    Output: Chỉ trả về con số (Index).
+    TASK: Pick the best match index (0-${strictCandidates.length-1}).
+    If nothing matches sensibly, return -1.
+    JSON Output: {"index": 0}
     `;
 
     try {
@@ -53,159 +59,165 @@ async function rerankWithLLM(query, candidates, currentCity) {
                 model: OLLAMA_MODEL,
                 prompt: prompt,
                 stream: false,
+                format: "json",
                 options: { temperature: 0.0 } 
             })
         });
         const data = await res.json();
-        const idx = parseInt(data.response.match(/-?\d+/)?.[0] || '0');
+        const json = JSON.parse(data.response);
+        const idx = json.index;
         
-        if (idx === -1) return validCandidates[0]; 
-        return validCandidates[idx] || validCandidates[0];
-    } catch (e) {
-        return validCandidates[0];
-    }
+        if (idx === undefined || idx < 0 || idx >= strictCandidates.length) return strictCandidates[0]; 
+        return strictCandidates[idx];
+    } catch (e) { return strictCandidates[0]; }
 }
 
 // ==============================================================================
-// 2. SEARCH ENGINE (NÂNG CẤP: Dùng Query đã được NLU Rewrite)
+// 2. SEARCH ENGINE
 // ==============================================================================
-
-async function findBestMatch(db, correctedQuery, currentCity = null) {
-    if (!correctedQuery || correctedQuery.length < 2) return null;
+async function findBestMatch(db, searchTerm, currentCity = null) {
+    if (!searchTerm || searchTerm.length < 2) return null;
     
-    // Query Expansion: Nếu câu đã sửa chưa có tên City, thêm vào để Vector Search tốt hơn
-    let vectorQuery = correctedQuery;
-    if (currentCity && !correctedQuery.toLowerCase().includes(currentCity.toLowerCase())) {
-        vectorQuery = `${correctedQuery} tại ${currentCity}`;
+    // Nếu có city, ưu tiên ghép vào query
+    let vectorQuery = searchTerm;
+    if (currentCity && !searchTerm.toLowerCase().includes(currentCity.toLowerCase())) {
+        vectorQuery = `${searchTerm} ${currentCity}`;
     }
 
-    console.log(`🔍 Searching Vector DB for: "${vectorQuery}"`);
-
-    // Tìm kiếm Vector
-    let vectors = await searchVector(vectorQuery, 0.12, 10, null); 
+    console.log(`🔍 Vector Searching: "${vectorQuery}"`);
+    let vectors = await searchVector(vectorQuery, 0.12, 15, null); 
     
-    if (vectors && vectors.length > 0) {
-        console.log(`   Found ${vectors.length} candidates.`);
-    }
-
-    // Rerank lại bằng AI để chọn cái đúng nhất
-    return await rerankWithLLM(correctedQuery, vectors, currentCity);
+    return await rerankWithLLM(searchTerm, vectors, currentCity);
 }
 
 // ==============================================================================
-// 3. MAIN LOGIC (SUGGEST HYBRID)
+// 3. MAIN LOGIC
 // ==============================================================================
-
 async function suggestHybrid(db, { message, context = {} }) {
   const started = Date.now();
   
-  // A. Context Recovery: Lấy lại trạng thái cũ từ lịch sử
+  // A. Context Recovery
   const history = Array.isArray(context.history) ? context.history : [];
   let lastCity = null;
   let lastEntityName = null;
-
   for (const turn of history) {
-      // Ưu tiên lấy state gần nhất
-      if (!lastCity && turn.context_state?.city) lastCity = turn.context_state.city;
-      if (!lastCity && turn.context_state?.last_city) lastCity = turn.context_state.last_city;
-      if (!lastEntityName && turn.context_state?.last_entity_name) lastEntityName = turn.context_state.last_entity_name;
+      if (!lastCity) lastCity = turn.context_state?.city || turn.context_state?.last_city;
+      if (!lastEntityName) lastEntityName = turn.context_state?.last_entity_name;
   }
 
-  // B. PURE AI NLU: Truyền Context vào để NLU tự sửa lỗi & Rewrite câu hỏi
-  // VD: User "giá vé bao nhiêu" + Context "Bà Nà" -> NLU trả về "giá vé Bà Nà bao nhiêu"
+  // B. NLU Analysis
   let nlu = await analyzeAsync(message, { last_city: lastCity, last_entity: lastEntityName });
+  let currentCity = nlu.city || lastCity ; 
   
-  let currentCity = nlu.city || lastCity; 
-  let searchPayload = nlu.rewritten; // QUAN TRỌNG: Dùng câu NLU đã viết lại
+  // 🔥 AUTO-FIX QUERY: Nếu câu hỏi quá ngắn ("giá bao nhiêu", "ở đâu"), ghép Entity cũ vào
+  let searchPayload = nlu.search_term; 
+  if (lastEntityName && searchPayload.length < 15 && !searchPayload.includes(lastEntityName)) {
+      console.log(`💡 Query Expansion: Appending context entity "${lastEntityName}"`);
+      searchPayload = `${searchPayload} ${lastEntityName}`;
+  }
 
-  console.log(`\n💬 Raw: "${message}"`);
-  console.log(`✨ AI Rewritten: "${searchPayload}" | Intent: ${nlu.intent} | City: ${currentCity}`);
+  console.log(`\n✨ Intent: ${nlu.intent} | City: ${currentCity} | Search: "${searchPayload}"`);
 
-  // Base Context cho lượt tiếp theo
-  const nextContextBase = {
+  // Context base
+  let nextContextBase = {
       city: currentCity,      
       last_city: currentCity, 
-      last_entity_name: lastEntityName // Giữ nguyên, sẽ update nếu tìm thấy entity mới
+      last_entity_name: lastEntityName 
   };
 
   // --- FLOW 1: WEATHER ---
   if (nlu.intent === 'ask_weather') {
-      const targetCity = currentCity || 'Hồ Chí Minh';
-      const weatherData = await getCurrentWeather(targetCity);
-      return { 
-          ...weatherData, 
-          latency_ms: Date.now() - started, 
-          next_context: { ...nextContextBase, city: targetCity },
-          nlu // Debug info
-      };
+      const weatherData = await getCurrentWeather(currentCity);
+      return { ...weatherData, latency_ms: Date.now() - started, next_context: nextContextBase, nlu };
   }
 
-  // --- FLOW 2: DISTANCE ---
-  if (nlu.intent === 'ask_distance') {
-      return { 
-          summary: `Mình chưa hỗ trợ tính khoảng cách chính xác trên bản đồ. Bạn vui lòng kiểm tra Google Maps nhé!`, 
-          source: 'system-limitation', 
-          next_context: nextContextBase 
-      };
+  // --- FLOW 2: HOTELS ---
+  if (nlu.intent === 'ask_hotels') {
+      if (nlu.amenities && nlu.amenities.length > 0) {
+          return await getHotelsByAmenities(currentCity, nlu.amenities, 5, { 
+              llm: true, context: { ...context, nlu }, next_context: nextContextBase 
+          });
+      }
+      return await getTopHotels(currentCity, 5, { 
+          llm: true, context: { ...context, nlu }, next_context: nextContextBase 
+      });
   }
 
-  // --- FLOW 3: SEARCH & DETAILS ---
-  // Chỉ search nếu không phải chitchat hoặc câu quá ngắn vô nghĩa
+  // --- FLOW 3: PROMOTIONS ---
+  if (nlu.intent === 'ask_promotions') {
+      if (nlu.time_ref === 'today' || message.toLowerCase().includes('hôm nay')) {
+           return await getPromotionsValidTodayByCity(currentCity, 10, {
+               llm: true, context: { ...context, nlu }, next_context: nextContextBase
+           });
+      }
+      const monthMatch = message.match(/tháng (\d+)/i);
+      const month = monthMatch ? parseInt(monthMatch[1]) : (new Date().getMonth() + 1);
+      const year = new Date().getFullYear();
+      return await getPromotionsByKeywordCityMonth(null, currentCity, year, month, 10, {
+          llm: true, context: { ...context, nlu }, next_context: nextContextBase
+      });
+  }
+
+  // --- FLOW 4: VECTOR SEARCH ---
   let match = null;
   if (nlu.intent !== 'chitchat' && nlu.intent !== 'other') {
       match = await findBestMatch(db, searchPayload, currentCity);
   }
   
-  // Fallback Logic: Nếu không tìm thấy gì nhưng User đang hỏi chi tiết -> Thử search lại Context cũ
+  // Fallback Context Search
   if (!match && lastEntityName && ['ask_details', 'ask_places'].includes(nlu.intent)) {
-      console.log(`↩️ Fallback Search: Re-checking context "${lastEntityName}"`);
+      console.log(`↩️ Fallback: Re-checking context "${lastEntityName}"`);
       match = await findBestMatch(db, lastEntityName, currentCity);
   }
 
-  // --- KẾT QUẢ TÌM KIẾM ---
   if (match && match.score >= 0.12) { 
       console.log(`🚀 Match Found: ${match.item.name} (${match.score.toFixed(2)})`);
       const safeDoc = extractProvinceDoc(match.doc);
       
+      // 🔥 CRITICAL FIX: Cập nhật City theo địa điểm mới tìm thấy
+      // Nếu địa điểm tìm thấy có tên tỉnh (VD: Lâm Đồng), update Context ngay lập tức
+      const foundProvince = match.item.province; 
+      if (foundProvince && foundProvince.length > 2) {
+           console.log(`🌍 Auto-updating City Context: ${currentCity} -> ${foundProvince}`);
+           currentCity = foundProvince;
+           nextContextBase.city = foundProvince;
+           nextContextBase.last_city = foundProvince;
+      }
+
       const payload = await compose({
         doc: safeDoc, 
-        nlu: { ...nlu, intent: 'ask_details', city: safeDoc?.name }, 
-        user_ctx: { forcedItem: match.item, userMessage: searchPayload, ...context }
+        nlu: { ...nlu, intent: 'ask_details', city: currentCity }, 
+        user_ctx: { forcedItem: match.item, userMessage: nlu.rewritten, ...context }
       });
       
       payload.latency_ms = Date.now() - started;
-      // Cập nhật Entity mới vào Context để lượt sau user hỏi "nó ở đâu" thì bot hiểu
       payload.next_context = { 
-          city: currentCity || safeDoc?.name,
-          last_city: currentCity || safeDoc?.name,
+          ...nextContextBase,
           last_entity_name: match.item.name 
       };
       return payload;
   }
 
-  // --- FLOW 4: CHITCHAT / FALLBACK ---
+  // --- FLOW 5: CHITCHAT / FALLBACK ---
   if (nlu.intent === 'chitchat') {
-      // Small talk thì dùng message gốc cho tự nhiên
       const payload = await composeSmallTalk({ message }); 
       payload.latency_ms = Date.now() - started;
       payload.next_context = nextContextBase;
       return payload;
   }
 
-  // Kiểm tra các Intent Database khác (SQL)
-  if (nlu.intent === 'ask_promotions') return await getPromotionsValidToday(10, { llm: true, context: { ...context, nlu }, next_context: nextContextBase });
-  if (nlu.intent === 'ask_hotels') return await getTopHotels(currentCity || 'Hồ Chí Minh', 5, { llm: true, context: { ...context, nlu }, next_context: nextContextBase });
-
-  // Cuối cùng: Fallback Tỉnh/Thành
   console.log('❌ No match found. City Fallback.');
-  const payload = await composeCityFallback({ city: currentCity, message: searchPayload });
+  const payload = await composeCityFallback({ city: currentCity, message: nlu.rewritten });
   payload.latency_ms = Date.now() - started;
   payload.next_context = nextContextBase;
   return payload;
 }
 
+// ... (Giữ nguyên phần Helper & SQL Wrappers như cũ) ...
+// (Phần này bạn không cần copy lại nếu đã có, hoặc copy từ file cũ vào)
+// Đảm bảo có các hàm: getTopHotels, searchVector, compose... ở cuối file
 // ==============================================================================
-// 4. HELPERS & SQL EXPORTS (Giữ nguyên)
+// 4. HELPERS & SQL EXPORTS 
 // ==============================================================================
 
 function wantLLM(opts) { if (opts && typeof opts.llm === 'boolean') return opts.llm; return USE_LLM; }

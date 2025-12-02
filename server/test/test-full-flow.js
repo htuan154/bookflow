@@ -5,62 +5,58 @@ const AUTH_URL = `${HOST}/api/v1/auth`;
 const AI_URL = `${HOST}/ai`;
 
 const CREDENTIALS = { identifier: 'admin', password: 'admin123' };
-const SESSION_ID = `test-full-flow-${Date.now()}`;
+const SESSION_ID = `test-travel-nhatrang-${Date.now()}`;
 
-// KỊCH BẢN TEST FULL LUỒNG (UPDATED: THÊM PROMOTION)
+// KỊCH BẢN MỚI: NHA TRANG -> ĐÀ LẠT
 const SCENARIOS = [
     {
         step: 1,
-        desc: "👋 Kích hoạt / Hỏi chung (Đà Nẵng)",
-        msg: "Sắp tới tôi định đi du lịch Đà Nẵng, bạn gợi ý vài địa điểm nổi tiếng được không?"
+        desc: "👋 Kích hoạt / Hỏi chung (Nha Trang)",
+        msg: "Hè này tôi muốn đi Nha Trang, bạn gợi ý vài địa điểm vui chơi nổi tiếng đi."
     },
     {
         step: 2,
         desc: "🍜 Vector Search (Ẩm thực đặc sản)",
-        msg: "Nghe nói ở đây có món Mì Quảng ếch rất ngon, quán nào bán món này?"
+        msg: "Nghe nói ở đây có món Bún sứa rất lạ miệng, quán nào bán ngon?"
     },
     {
         step: 3,
         desc: "🔗 Context Follow-up (Hỏi chi tiết về Entity trước)",
-        msg: "Giá một phần ăn ở đó khoảng bao nhiêu?"
+        msg: "Giá một tô ở đó khoảng bao nhiêu tiền?"
     },
     {
         step: 4,
         desc: "⛅ Real-time Weather (Contextual - Thời tiết tại context cũ)",
-        msg: "Thời tiết ngoài đó hôm nay có mưa không?"
+        msg: "Thời tiết trong đó hôm nay có nắng không?"
     },
     {
         step: 5,
-        desc: "🔄 Context Switch (Đổi chủ đề sang Huế)",
-        msg: "Nếu tôi muốn ra Huế tham quan Đại Nội thì sao?"
+        desc: "🔄 Context Switch (Đổi chủ đề sang Đà Lạt)",
+        msg: "Nếu tôi muốn đổi gió lên Đà Lạt check-in Hồ Xuân Hương thì sao?"
     },
     {
         step: 6,
         desc: "⛅ Explicit Weather (Thời tiết địa điểm mới)",
-        msg: "Thời tiết ở Huế hiện tại thế nào?"
+        msg: "Trên đó hiện tại có lạnh không?"
     },
     {
         step: 7,
-        desc: "🎁 Promotion Search (Tìm mã giảm giá theo thời gian)",
-        msg: "Có mã giảm giá nào cho tháng 12 không?" 
-        // Kỳ vọng: Intent ask_promotions, lọc theo tháng 12
+        desc: "✍️ Auto Typo Correction (Sửa lỗi chính tả địa danh)",
+        msg: "duong ham dieu khac o dau vay" 
+        // Viết không dấu -> Kỳ vọng AI sửa thành "Đường Hầm Điêu Khắc ở đâu vậy" (Đà Lạt)
     },
     {
         step: 8,
-        desc: "🏨 SQL Query (Tìm khách sạn)",
-        msg: "Top 5 khách sạn Thành phố Hồ Chí Minh" 
-    },
-    {
-        step: 9,
-        desc: "✍️ Auto Typo Correction (Viết sai chính tả & Teencode)",
-        msg: "dia chi chua thien mu o cho nao" 
+        desc: "🧠 Complex Query (Câu hỏi phức tạp về Context)",
+        msg: "Cho tôi biết thêm vài điều thú vị về nó"
+        // Context đang là Đường Hầm Điêu Khắc -> Kỳ vọng AI hiểu "nó"
     }
 ];
 
 async function runTest() {
     try {
         console.log('================================================');
-        console.log(`🤖 TEST SUITE: FULL LUỒNG AI (CÓ PROMOTION)`);
+        console.log(`🤖 TEST SUITE: DU LỊCH BIỂN & NÚI (NHA TRANG - ĐÀ LẠT)`);
         console.log(`🔑 Session ID: ${SESSION_ID}`);
         console.log('================================================');
 
@@ -91,7 +87,7 @@ async function runTest() {
         for (const scenario of SCENARIOS) {
             if (!scenario || !scenario.step) continue; 
 
-            console.log(`\n🔹 [BƯỚC ${scenario.step}] ${scenario.desc || 'No description'}`);
+            console.log(`\n🔹 [BƯỚC ${scenario.step}] ${scenario.desc}`);
             console.log(`   🗣️ User: "${scenario.msg}"`);
 
             const start = Date.now();
@@ -104,31 +100,27 @@ async function runTest() {
                 const summary = data.summary ? data.summary.slice(0, 150).replace(/\n/g, ' ') + "..." : "No summary";
                 const source = data.source || data.type || 'unknown';
                 const context = data.next_context || {};
-                const places = data.places || []; // Hoặc promotions nếu có
+                const places = data.places || [];
 
                 console.log(`   🤖 Bot: ${summary}`);
                 console.log(`   ℹ️ Nguồn: [${source}] | ⏱️ ${latency}ms`);
-                console.log(`   🧠 Context State: Entity="${context.last_entity_name || context.entity_name || 'N/A'}" | City="${context.city || 'N/A'}"`);
                 
-                // Hiển thị thêm thông tin nếu là Promotion
-                if (data.replyPayload && data.replyPayload.promotions && data.replyPayload.promotions.length > 0) {
-                     console.log(`   🎟️ Tìm thấy ${data.replyPayload.promotions.length} mã giảm giá.`);
-                } else if (places.length > 0) {
-                    console.log(`   📍 Gợi ý: ${places.slice(0, 3).map(p => p.name).join(', ')}`);
+                // Log Context để kiểm tra AI có nhớ bài không
+                console.log(`   🧠 Context: City="${context.city || 'N/A'}" | Entity="${context.last_entity_name || 'N/A'}"`);
+                
+                if (places.length > 0) {
+                    console.log(`   📍 Gợi ý Vector: ${places.slice(0, 3).map(p => p.name).join(', ')}`);
                 }
 
             } catch (err) {
                 console.error(`   ❌ Lỗi: ${err.message}`);
-                if (err.response) {
-                    console.error(`   ❌ API Error ${err.response.status}: ${JSON.stringify(err.response.data)}`);
-                }
             }
             
             await new Promise(r => setTimeout(r, 1500));
         }
 
         console.log("\n=================================================");
-        console.log("✅ HOÀN TẤT KIỂM TRA FULL FLOW.");
+        console.log("✅ HOÀN TẤT KIỂM TRA DU LỊCH.");
 
     } catch (error) {
         console.error('\n❌ LỖI SYSTEM:', error.message);
