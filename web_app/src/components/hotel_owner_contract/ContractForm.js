@@ -371,15 +371,20 @@ const ContractForm = ({ onSave, onCancel, contract = null, hotels = [] }) => {
             disabled={!!contract?.contract_id}
           >
             <option value="">-- Chọn khách sạn --</option>
-            {(activeApprovedHotels && activeApprovedHotels.length > 0 ? activeApprovedHotels : hotels).map((hotel, idx) => {
-              const key = hotel?.hotel_id || hotel?.hotelId || hotel?.id || `hotel-${idx}`;
-              const value = hotel?.hotel_id || hotel?.hotelId || hotel?.id || '';
-              return (
-                <option key={key} value={value}>
-                  {`${hotel.name || hotel.title || ''}${hotel.city ? ' - ' + hotel.city : ''}${hotel.status ? ' (' + hotel.status + ')' : ''}`}
-                </option>
-              );
-            })}
+            {hotels
+              .filter(hotel => {
+                const status = hotel.status || hotel.hotel_status;
+                return status === 'approved' || status === 'active' || status === 'inactive';
+              })
+              .map((hotel, idx) => {
+                const key = hotel?.hotel_id || hotel?.hotelId || hotel?.id || `hotel-${idx}`;
+                const value = hotel?.hotel_id || hotel?.hotelId || hotel?.id || '';
+                return (
+                  <option key={key} value={value}>
+                    {`${hotel.name || hotel.title || ''}${hotel.city ? ' - ' + hotel.city : ''}${hotel.status ? ' (' + hotel.status + ')' : ''}`}
+                  </option>
+                );
+              })}
           </select>
         </div>
 

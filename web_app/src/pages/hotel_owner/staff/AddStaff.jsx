@@ -517,7 +517,7 @@ const AddStaff = () => {
                                         className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
                                             errors.password ? 'border-red-500' : 'border-gray-300'
                                         }`}
-                                        placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
+                                        placeholder="Nhập mật khẩu (tối thiểu 8 ký tự)"
                                     />
                                     <button
                                         type="button"

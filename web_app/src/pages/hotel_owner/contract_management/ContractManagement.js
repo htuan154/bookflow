@@ -14,7 +14,7 @@ const ContractManagement = () => {
   const { currentHotel } = useHotel();
   const { toast, showSuccess, showError, hideToast } = useToast();
   const [contracts, setContracts] = useState([]);
-  const [approvedHotels, setApprovedHotels] = useState([]);
+  const [ownerHotels, setOwnerHotels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedContract, setSelectedContract] = useState(null);
@@ -83,17 +83,17 @@ const ContractManagement = () => {
     }
   };
 
-  // Lấy danh sách khách sạn đã duyệt
+  // Lấy danh sách tất cả khách sạn của owner
   useEffect(() => {
-    hotelApiService.getApprovedHotelsDropdown()
+    hotelApiService.getHotelsForOwner()
       .then(res => {
-        const hotels = (res.data || []).map(hotel => ({
+        const hotels = (res.data || res.hotels || res || []).map(hotel => ({
           ...hotel,
-          hotel_id: hotel.hotel_id || hotel.hotelId
+          hotel_id: hotel.hotel_id || hotel.hotelId || hotel.id
         }));
-        setApprovedHotels(hotels);
+        setOwnerHotels(hotels);
       })
-      .catch(() => setApprovedHotels([]));
+      .catch(() => setOwnerHotels([]));
   }, []);
 
   useEffect(() => {
@@ -443,7 +443,7 @@ const ContractManagement = () => {
                 onSave={handleSaveContract}
                 onCancel={handleCancelCreate}
                 contract={editingContract}
-                hotels={approvedHotels}
+                hotels={ownerHotels}
               />
             {/* </div> */}
           </div>

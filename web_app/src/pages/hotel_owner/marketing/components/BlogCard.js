@@ -59,6 +59,7 @@ const BlogCard = ({ blog, onView, onEdit, onDelete, onShowComments, user }) => {
           <h3 
             className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 cursor-pointer transition-colors"
             title={blog.title}
+            onClick={() => onView(blog)}
           >
             {sanitizeTitle(blog.title, 80)}
           </h3>

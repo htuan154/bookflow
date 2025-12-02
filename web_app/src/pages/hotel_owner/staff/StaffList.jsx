@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { 
     Users2, Plus, Edit, Trash2, Eye, Search, Filter,
     User, Mail, Phone, MapPin, Calendar, CheckCircle, 
@@ -31,22 +31,33 @@ const StaffList = () => {
         pageSize,
         setPageSize,
         updateStaffStatus,
-        deleteStaff
+        deleteStaff,
+        refreshStaff
     } = useStaff();
     
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedStaff, setSelectedStaff] = useState(null);
     const [showDetails, setShowDetails] = useState(false);
+    const location = useLocation();
 
     useEffect(() => {
         loadData();
     }, []);
 
+    // Reload staff when returning to this page (e.g., after adding staff)
+    useEffect(() => {
+        if (selectedHotel) {
+            refreshStaff();
+        }
+    }, [location.pathname]);
+
     const loadData = async () => {
         try {
-            console.log('Loading hotel data...');
             await fetchOwnerHotel();
-            console.log('Hotel data loaded, hotelData:', hotelData);
+            if (selectedHotel) {
+                // Always reload staff for the selected hotel
+                refreshStaff();
+            }
         } catch (error) {
             console.error('Error loading hotel data:', error);
         }
@@ -152,14 +163,27 @@ const StaffList = () => {
                         <Users2 size={24} className="text-blue-600 mr-3" />
                         <h1 className="text-2xl font-bold text-gray-900">Danh sách nhân viên</h1>
                     </div>
-                    
-                    <button 
-                        onClick={() => navigate(`/hotel-owner/staff/add?${searchParams.toString()}`, { state: { selectedHotel } })}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        <Plus size={16} className="mr-2 inline" />
-                        Thêm nhân viên
-                    </button>
+                    <div className="flex items-center space-x-2">
+                        <button
+                            onClick={async () => {
+                                await fetchOwnerHotel();
+                                refreshStaff();
+                                showSuccess('Đã tải lại dữ liệu!');
+                            }}
+                            className="bg-gray-100 text-blue-600 px-3 py-2 rounded-lg hover:bg-blue-200 transition-colors flex items-center"
+                            title="Tải lại danh sách nhân viên"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581m-1.837-5A7.963 7.963 0 0012 4c-4.418 0-8 3.582-8 8m16 0c0 4.418-3.582 8-8 8a7.963 7.963 0 01-6.418-3.418" /></svg>
+                            Tải lại
+                        </button>
+                        <button 
+                            onClick={() => navigate(`/hotel-owner/staff/add?${searchParams.toString()}`, { state: { selectedHotel } })}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <Plus size={16} className="mr-2 inline" />
+                            Thêm nhân viên
+                        </button>
+                    </div>
                 </div>
 
                 {/* Hotel Selection */}

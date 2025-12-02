@@ -1005,8 +1005,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   _buildPaymentStatusChip(paymentStatus),
                 ],
               ),
-              // Nút thanh toán nếu payment_status là pending
-              if (paymentStatus.toString().toLowerCase() == 'pending') ...[
+                // Nút thanh toán chỉ hiển thị khi booking là pending hoặc confirmed và payment_status là pending
+                if (paymentStatus.toString().toLowerCase() == 'pending' &&
+                  (bookingStatus.toString().toLowerCase() == 'pending' ||
+                   bookingStatus.toString().toLowerCase() == 'confirmed')) ...[
                 SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,

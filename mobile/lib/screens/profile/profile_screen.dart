@@ -5,6 +5,7 @@ import '../../classes/user_model.dart';
 import '../../services/user_service.dart';
 import '../login_form/login_form.dart';
 import '../../services/token_service.dart';
+import '../../services/auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -40,6 +41,179 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     }
+  }
+
+  void _showChangePasswordDialog() {
+    final _formKey = GlobalKey<FormState>();
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool isSubmitting = false;
+    bool showCurrentPassword = false;
+    bool showNewPassword = false;
+    bool showConfirmPassword = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.lock_outlined, color: Colors.orange),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    'Đổi mật khẩu',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              content: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: 420),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: currentPasswordController,
+                        obscureText: !showCurrentPassword,
+                        decoration: InputDecoration(
+                          labelText: 'Mật khẩu hiện tại',
+                          prefixIcon: Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(showCurrentPassword ? Icons.visibility_off : Icons.visibility),
+                            onPressed: () => setDialogState(() => showCurrentPassword = !showCurrentPassword),
+                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        validator: (v) => (v == null || v.isEmpty) ? 'Vui lòng nhập mật khẩu hiện tại' : null,
+                      ),
+                      SizedBox(height: 12),
+                      TextFormField(
+                        controller: newPasswordController,
+                        obscureText: !showNewPassword,
+                        decoration: InputDecoration(
+                          labelText: 'Mật khẩu mới',
+                          prefixIcon: Icon(Icons.lock),
+                          suffixIcon: IconButton(
+                            icon: Icon(showNewPassword ? Icons.visibility_off : Icons.visibility),
+                            onPressed: () => setDialogState(() => showNewPassword = !showNewPassword),
+                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Vui lòng nhập mật khẩu mới';
+                          if (v.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự';
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 12),
+                      TextFormField(
+                        controller: confirmPasswordController,
+                        obscureText: !showConfirmPassword,
+                        decoration: InputDecoration(
+                          labelText: 'Xác nhận mật khẩu mới',
+                          prefixIcon: Icon(Icons.lock),
+                          suffixIcon: IconButton(
+                            icon: Icon(showConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                            onPressed: () => setDialogState(() => showConfirmPassword = !showConfirmPassword),
+                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Vui lòng xác nhận mật khẩu';
+                          if (v != newPasswordController.text) return 'Mật khẩu xác nhận không khớp';
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.orange.withOpacity(0.15)),
+                        ),
+                        child: Text(
+                          'Yêu cầu: Mật khẩu mới tối thiểu 6 ký tự và khớp với xác nhận.',
+                          style: TextStyle(fontSize: 13, color: Colors.orange[800]),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(context),
+                  child: Text('Hủy', style: TextStyle(color: Colors.grey[700])),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (!(_formKey.currentState?.validate() ?? false)) return;
+                          setDialogState(() => isSubmitting = true);
+                          try {
+                            final token = await TokenService.getToken();
+                            if (token == null) throw Exception('Token không tồn tại');
+
+                            final result = await AuthService().changePassword(
+                              userId: user!.userId,
+                              newPassword: newPasswordController.text,
+                              token: token,
+                            );
+
+                            Navigator.pop(context);
+
+                            if (result['success'] == true) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('✅ Đổi mật khẩu thành công!'), backgroundColor: Colors.green),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(result['message'] ?? 'Đổi mật khẩu thất bại'), backgroundColor: Colors.red),
+                              );
+                            }
+                          } catch (e) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+                            );
+                          } finally {
+                            // ensure state reset
+                            setDialogState(() => isSubmitting = false);
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  ),
+                  child: isSubmitting
+                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : Text('Đổi mật khẩu', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -210,6 +384,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           builder: (context) => BankAccountsScreen(),
                         ),
                       );
+                    },
+                  ),
+                  _buildDivider(),
+                  _buildActionRow(
+                    icon: Icons.lock_outlined,
+                    title: 'Đổi mật khẩu',
+                    onTap: () {
+                      _showChangePasswordDialog();
                     },
                   ),
                   _buildDivider(),

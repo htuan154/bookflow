@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useUser } from '../../../context/UserContext';
+import ActionButton from '../../../components/common/ActionButton';
 
 const UserListPage = () => {
     const {
@@ -14,14 +15,18 @@ const UserListPage = () => {
     } = useUser();
 
     const [editingUser, setEditingUser] = useState(null);
+    const [editingUserRole, setEditingUserRole] = useState(null);
+    const [viewingUser, setViewingUser] = useState(null);
     const [editForm, setEditForm] = useState({
-        name: '',
-        email: '',
-        role: '',
+        password: '',
         status: ''
     });
     const [searchTerm, setSearchTerm] = useState('');
+    const [roleFilter, setRoleFilter] = useState(''); // '' = all, 'user', 'admin', 'hotel_owner', 'staff'
+    const [statusFilter, setStatusFilter] = useState(''); // '' = all, 'active', 'inactive'
     const [isInitialized, setIsInitialized] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(5);
 
     // Helper functions
     const getUserName = (user) => {
@@ -90,13 +95,21 @@ const UserListPage = () => {
     const activeUsers = users?.filter(user => getUserStatus(user) === 'active').length || 0;
     const inactiveUsers = users?.filter(user => getUserStatus(user) === 'inactive').length || 0;
 
-    // Filter users: chỉ lấy user có role là "user"
-    const filteredUsers = users?.filter(user => {
+    // Filter users: theo search, role, và status
+    const allFilteredUsers = users?.filter(user => {
         const matchesSearch = getUserName(user).toLowerCase().includes(searchTerm.toLowerCase()) ||
                              (user.email || '').toLowerCase().includes(searchTerm.toLowerCase());
-        const isUser = getUserRole(user) === 'user';
-        return matchesSearch && isUser;
+        const matchesRole = !roleFilter || getUserRole(user) === roleFilter;
+        const matchesStatus = !statusFilter || getUserStatus(user) === statusFilter;
+        return matchesSearch && matchesRole && matchesStatus;
     }) || [];
+
+    // Client-side pagination
+    const totalFilteredUsers = allFilteredUsers.length;
+    const totalPages = Math.ceil(totalFilteredUsers / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const filteredUsers = allFilteredUsers.slice(startIndex, endIndex);
 
     // Initialize component
     useEffect(() => {
@@ -114,14 +127,18 @@ const UserListPage = () => {
         initializeComponent();
     }, [fetchUsers]);
 
-    // Handle edit user
+    // Handle view user
+    const handleView = (user) => {
+        setViewingUser(user);
+    };
+
+    // Handle edit user - chỉ sử password và status
     const handleEdit = (user) => {
         const userId = getUserId(user);
         setEditingUser(userId);
+        setEditingUserRole(getUserRole(user));
         setEditForm({
-            name: getUserName(user),
-            email: user.email || '',
-            role: getUserRole(user),
+            password: '',
             status: getUserStatus(user)
         });
     };
@@ -129,19 +146,44 @@ const UserListPage = () => {
     // Handle save edit
     const handleSaveEdit = async () => {
         try {
-            const updateData = {
-                full_name: editForm.name,
-                email: editForm.email,
-                role_id: 
-                    editForm.role === 'admin' ? 1 :
-                    editForm.role === 'hotel_owner' ? 2 :
-                    editForm.role === 'staff' ? 6 : 3,
-                is_active: editForm.status === 'active'
-            };
-            
+            // Build update payload based on role
+            const updateData = {};
+            // If password provided, include it for all roles
+            if (editForm.password && editForm.password.trim() !== '') {
+                updateData.password = editForm.password;
+            }
+
+            // If editing non-admin, allow status change
+            const userObj = users.find(u => getUserId(u) === editingUser);
+            const role = userObj ? getUserRole(userObj) : editingUserRole;
+            if (role !== 'admin') {
+                if (editForm.status) {
+                    updateData.is_active = editForm.status === 'active';
+                }
+            }
+
+            // Nothing to update
+            if (Object.keys(updateData).length === 0) {
+                setEditingUser(null);
+                setEditForm({ password: '', status: '' });
+                setEditingUserRole(null);
+                return;
+            }
+
+            // Ensure we include required user fields (avoid sending null email)
+            // Pull current values from userObj and include when not explicitly changing
+            if (userObj) {
+                // Map possible property names
+                updateData.fullName = userObj.full_name || userObj.fullName || userObj.fullname || userObj.name || updateData.fullName;
+                updateData.email = userObj.email || updateData.email;
+                updateData.phoneNumber = userObj.phone_number || userObj.phoneNumber || userObj.phone || updateData.phoneNumber;
+                updateData.address = userObj.address || updateData.address;
+            }
+
             await updateUser(editingUser, updateData);
             setEditingUser(null);
-            setEditForm({ name: '', email: '', role: '', status: '' });
+            setEditForm({ password: '', status: '' });
+            setEditingUserRole(null);
             await fetchUsers();
         } catch (error) {
             console.error('Error updating user:', error);
@@ -151,11 +193,25 @@ const UserListPage = () => {
     // Handle cancel edit
     const handleCancelEdit = () => {
         setEditingUser(null);
-        setEditForm({ name: '', email: '', role: '', status: '' });
+        setEditForm({ password: '', status: '' });
+        setEditingUserRole(null);
+    };
+
+    // Handle close view modal
+    const handleCloseView = () => {
+        setViewingUser(null);
     };
 
     // Handle delete user
     const handleDelete = async (userId, userName) => {
+        // Prevent deleting admin accounts
+        const userObj = users.find(u => getUserId(u) === userId);
+        const role = userObj ? getUserRole(userObj) : null;
+        if (role === 'admin') {
+            alert('Không thể xóa tài khoản admin');
+            return;
+        }
+
         if (window.confirm(`Bạn có chắc chắn muốn xóa người dùng "${userName}"?`)) {
             try {
                 await deleteUser(userId);
@@ -296,7 +352,7 @@ const UserListPage = () => {
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-lg font-semibold text-gray-900">Danh sách khách hàng</h2>
                             <p className="text-sm text-gray-600">
-                                Tổng cộng: {totalUsers} người dùng ({filteredUsers.length} đang hiển thị)
+                                Tổng cộng: {totalUsers} người dùng ({totalFilteredUsers} đang hiển thị)
                             </p>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-4">
@@ -305,14 +361,43 @@ const UserListPage = () => {
                                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">🔍</span>
                                     <input
                                         type="text"
-                                        placeholder="Tìm kiếm khách hàng..."
+                                        placeholder="Tìm kiếm theo tên hoặc email..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                     />
                                 </div>
                             </div>
-                            {/* Bỏ dropdown lọc vai trò */}
+                            <div className="w-full sm:w-48">
+                                <select
+                                    value={roleFilter}
+                                    onChange={(e) => {
+                                        setRoleFilter(e.target.value);
+                                        setCurrentPage(1); // Reset về trang 1
+                                    }}
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                >
+                                    <option value="">Tất cả vai trò</option>
+                                    <option value="user">User</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="hotel_owner">Hotel Owner</option>
+                                    <option value="staff">Staff</option>
+                                </select>
+                            </div>
+                            <div className="w-full sm:w-48">
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) => {
+                                        setStatusFilter(e.target.value);
+                                        setCurrentPage(1); // Reset về trang 1
+                                    }}
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                >
+                                    <option value="">Tất cả trạng thái</option>
+                                    <option value="active">Hoạt động</option>
+                                    <option value="inactive">Không hoạt động</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
@@ -377,62 +462,28 @@ const UserListPage = () => {
                                                             {getInitials(userName)}
                                                         </div>
                                                         <div>
-                                                            {editingUser === userId ? (
-                                                                <input
-                                                                    type="text"
-                                                                    value={editForm.name}
-                                                                    onChange={(e) => handleInputChange('name', e.target.value)}
-                                                                    className="font-medium text-gray-900 border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                                                                    placeholder="Nhập tên"
-                                                                />
-                                                            ) : (
-                                                                <div className="font-medium text-gray-900">{userName}</div>
-                                                            )}
+                                                            <div className="font-medium text-gray-900">{userName}</div>
                                                             <div className="text-sm text-gray-500">ID: {userId?.slice(-8) || 'N/A'}</div>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    {editingUser === userId ? (
-                                                        <input
-                                                            type="email"
-                                                            value={editForm.email}
-                                                            onChange={(e) => handleInputChange('email', e.target.value)}
-                                                            className="w-full text-gray-900 border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                                                            placeholder="Nhập email"
-                                                        />
-                                                    ) : (
-                                                        <div className="text-blue-600 hover:text-blue-800 cursor-pointer font-medium">
-                                                            {user.email || 'Chưa có email'}
-                                                        </div>
-                                                    )}
+                                                    <div className="text-blue-600 hover:text-blue-800 cursor-pointer font-medium">
+                                                        {user.email || 'Chưa có email'}
+                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    {editingUser === userId ? (
-                                                        <select
-                                                            value={editForm.role}
-                                                            onChange={(e) => handleInputChange('role', e.target.value)}
-                                                            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                                                        >
-                                                            <option value="">Chọn vai trò</option>
-                                                            <option value="admin">Admin</option>
-                                                            <option value="hotel_owner">Hotel Owner</option>
-                                                            <option value="customer">Customer</option>
-                                                            <option value="staff">Staff</option>
-                                                        </select>
-                                                    ) : (
-                                                        <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${
-                                                            userRole === 'admin' 
-                                                                ? 'bg-red-100 text-red-800'
-                                                                : userRole === 'hotel_owner'
-                                                                ? 'bg-blue-100 text-blue-800'
-                                                                : userRole === 'staff'
-                                                                ? 'bg-purple-100 text-purple-800'
-                                                                : 'bg-green-100 text-green-800'
-                                                        }`}>
-                                                            {getRoleDisplay(user)}
-                                                        </span>
-                                                    )}
+                                                    <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${
+                                                        userRole === 'admin' 
+                                                            ? 'bg-red-100 text-red-800'
+                                                            : userRole === 'hotel_owner'
+                                                            ? 'bg-blue-100 text-blue-800'
+                                                            : userRole === 'staff'
+                                                            ? 'bg-purple-100 text-purple-800'
+                                                            : 'bg-green-100 text-green-800'
+                                                    }`}>
+                                                        {getRoleDisplay(user)}
+                                                    </span>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {editingUser === userId ? (
@@ -456,41 +507,28 @@ const UserListPage = () => {
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    {editingUser === userId ? (
-                                                        <div className="flex space-x-2">
-                                                            <button
-                                                                onClick={handleSaveEdit}
-                                                                disabled={loading}
-                                                                className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                            >
-                                                                {loading ? 'Đang lưu...' : 'Sửa'}
-                                                            </button>
-                                                            <button
-                                                                onClick={handleCancelEdit}
-                                                                disabled={loading}
-                                                                className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                            >
-                                                                Xóa
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex space-x-2">
-                                                            <button
-                                                                onClick={() => handleEdit(user)}
-                                                                disabled={loading}
-                                                                className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                            >
-                                                                Sửa
-                                                            </button>
-                                                            <button
+                                                    <div className="flex items-center">
+                                                        <ActionButton
+                                                            type="view"
+                                                            onClick={() => handleView(user)}
+                                                            title="Xem"
+                                                            disabled={loading}
+                                                        />
+                                                        <ActionButton
+                                                            type="edit"
+                                                            onClick={() => handleEdit(user)}
+                                                            title="Sửa"
+                                                            disabled={loading}
+                                                        />
+                                                        {userRole !== 'admin' && (
+                                                            <ActionButton
+                                                                type="delete"
                                                                 onClick={() => handleDelete(userId, userName)}
+                                                                title="Xoá"
                                                                 disabled={loading}
-                                                                className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                            >
-                                                                Xóa
-                                                            </button>
-                                                        </div>
-                                                    )}
+                                                            />
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );
@@ -500,28 +538,21 @@ const UserListPage = () => {
                         )}
                     </div>
 
-                    {/* Pagination */}
-                    {pagination && (
+                    {/* Client-side Pagination */}
+                    {totalFilteredUsers > 0 && (
                         <div className="px-6 py-4 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-2">
                             <div className="flex items-center gap-2 text-sm text-gray-700">
                                 <span>
-                                    Hiển thị {
-                                        pagination && pagination.page && pagination.limit && pagination.total
-                                            ? ((pagination.page - 1) * pagination.limit + 1)
-                                            : 0
-                                    }
-                                    -{
-                                        pagination && pagination.page && pagination.limit && pagination.total
-                                            ? ((pagination.page - 1) * pagination.limit + filteredUsers.length)
-                                            : 0
-                                    }
-                                     trong tổng số {pagination && pagination.total ? pagination.total : 0} khách hàng
+                                    Hiển thị {startIndex + 1}-{Math.min(endIndex, totalFilteredUsers)} trong tổng số {totalFilteredUsers} khách hàng
                                 </span>
                                 <span className="ml-4">Hiển thị:
                                     <select
                                         className="ml-2 px-2 py-1 border rounded"
-                                        value={pagination.limit}
-                                        onChange={e => fetchUsers({ page: 1, limit: Number(e.target.value) })}
+                                        value={itemsPerPage}
+                                        onChange={e => {
+                                            setItemsPerPage(Number(e.target.value));
+                                            setCurrentPage(1);
+                                        }}
                                     >
                                         {[5, 10, 20, 50, 100].map(size => (
                                             <option key={size} value={size}>{size} mục</option>
@@ -531,54 +562,52 @@ const UserListPage = () => {
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
-                                    className="px-2 py-1 border rounded bg-gray-100 hover:bg-gray-200"
-                                    disabled={pagination.page === 1}
-                                    onClick={() => fetchUsers({ page: 1, limit: pagination.limit })}
+                                    className="px-2 py-1 border rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(1)}
                                 >
                                     {'<<'}
                                 </button>
                                 <button
-                                    className="px-2 py-1 border rounded bg-gray-100 hover:bg-gray-200"
-                                    disabled={pagination.page === 1}
-                                    onClick={() => fetchUsers({ page: pagination.page - 1, limit: pagination.limit })}
+                                    className="px-2 py-1 border rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(currentPage - 1)}
                                 >
                                     Trước
                                 </button>
-                                {/* Hiển thị các nút trang với dấu ... nếu nhiều trang */}
-                                {pagination.totalPages > 3 && pagination.page > 2 && (
+                                {totalPages > 3 && currentPage > 2 && (
                                     <span className="px-2">...</span>
                                 )}
-                                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
                                     .filter(pageNum => {
-                                        // Chỉ hiện trang hiện tại, trước và sau nó
-                                        if (pagination.totalPages <= 3) return true;
-                                        if (pagination.page === 1) return pageNum <= 3;
-                                        if (pagination.page === pagination.totalPages) return pageNum >= pagination.totalPages - 2;
-                                        return Math.abs(pageNum - pagination.page) <= 1;
+                                        if (totalPages <= 3) return true;
+                                        if (currentPage === 1) return pageNum <= 3;
+                                        if (currentPage === totalPages) return pageNum >= totalPages - 2;
+                                        return Math.abs(pageNum - currentPage) <= 1;
                                     })
                                     .map(pageNum => (
                                         <button
                                             key={pageNum}
-                                            className={`px-2 py-1 border rounded ${pagination.page === pageNum ? 'bg-orange-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
-                                            onClick={() => fetchUsers({ page: pageNum, limit: pagination.limit })}
+                                            className={`px-2 py-1 border rounded ${currentPage === pageNum ? 'bg-orange-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                                            onClick={() => setCurrentPage(pageNum)}
                                         >
                                             {pageNum}
                                         </button>
                                     ))}
-                                {pagination.totalPages > 3 && pagination.page < pagination.totalPages - 1 && (
+                                {totalPages > 3 && currentPage < totalPages - 1 && (
                                     <span className="px-2">...</span>
                                 )}
                                 <button
-                                    className="px-2 py-1 border rounded bg-gray-100 hover:bg-gray-200"
-                                    disabled={pagination.page === pagination.totalPages}
-                                    onClick={() => fetchUsers({ page: pagination.page + 1, limit: pagination.limit })}
+                                    className="px-2 py-1 border rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => setCurrentPage(currentPage + 1)}
                                 >
                                     Tiếp
                                 </button>
                                 <button
-                                    className="px-2 py-1 border rounded bg-gray-100 hover:bg-gray-200"
-                                    disabled={pagination.page === pagination.totalPages}
-                                    onClick={() => fetchUsers({ page: pagination.totalPages, limit: pagination.limit })}
+                                    className="px-2 py-1 border rounded bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => setCurrentPage(totalPages)}
                                 >
                                     {'>>'}
                                 </button>
@@ -586,13 +615,13 @@ const UserListPage = () => {
                                 <input
                                     type="number"
                                     min={1}
-                                    max={pagination.totalPages}
-                                    value={pagination.page}
+                                    max={totalPages}
+                                    value={currentPage}
                                     onChange={e => {
                                         let page = Number(e.target.value);
                                         if (page < 1) page = 1;
-                                        if (page > pagination.totalPages) page = pagination.totalPages;
-                                        fetchUsers({ page, limit: pagination.limit });
+                                        if (page > totalPages) page = totalPages;
+                                        setCurrentPage(page);
                                     }}
                                     className="w-16 px-2 py-1 border rounded ml-2"
                                 />
@@ -600,6 +629,150 @@ const UserListPage = () => {
                         </div>
                     )}
                 </div>
+
+                {/* View User Modal */}
+                {viewingUser && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                            <div className="p-6 border-b border-gray-200">
+                                <div className="flex justify-between items-center">
+                                    <h2 className="text-xl font-bold text-gray-900">Thông tin khách hàng</h2>
+                                    <button
+                                        onClick={handleCloseView}
+                                        className="text-gray-400 hover:text-gray-600"
+                                    >
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                <div className="flex items-center space-x-4 mb-6">
+                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl ${getAvatarColor(getUserRole(viewingUser))}`}>
+                                        {getInitials(getUserName(viewingUser))}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-semibold">{getUserName(viewingUser)}</h3>
+                                        <p className="text-sm text-gray-500">ID: {getUserId(viewingUser)}</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Tên đăng nhập</label>
+                                        <p className="text-gray-900">{viewingUser.username || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                        <p className="text-gray-900">{viewingUser.email || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
+                                        <p className="text-gray-900">{viewingUser.fullName || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
+                                        <p className="text-gray-900">{viewingUser.phoneNumber || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Địa chỉ</label>
+                                        <p className="text-gray-900">{viewingUser.address || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Vai trò</label>
+                                        <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${
+                                            getUserRole(viewingUser) === 'admin' 
+                                                ? 'bg-red-100 text-red-800'
+                                                : getUserRole(viewingUser) === 'hotel_owner'
+                                                ? 'bg-blue-100 text-blue-800'
+                                                : getUserRole(viewingUser) === 'staff'
+                                                ? 'bg-purple-100 text-purple-800'
+                                                : 'bg-green-100 text-green-800'
+                                        }`}>
+                                            {getRoleDisplay(viewingUser)}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+                                        <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${
+                                            getUserStatus(viewingUser) === 'active' 
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-red-100 text-red-800'
+                                        }`}>
+                                            {getUserStatus(viewingUser) === 'active' ? 'Hoạt động' : 'Không hoạt động'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Ngày tạo</label>
+                                        <p className="text-gray-900">{viewingUser.createdAt ? new Date(viewingUser.createdAt).toLocaleDateString('vi-VN') : 'N/A'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-6 border-t border-gray-200 flex justify-end">
+                                <button
+                                    onClick={handleCloseView}
+                                    className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                                >
+                                    Đóng
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Edit User Modal */}
+                {editingUser && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+                            <div className="p-6 border-b border-gray-200">
+                                <h2 className="text-xl font-bold text-gray-900">Chỉnh sửa khách hàng</h2>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Mật khẩu mới</label>
+                                    <input
+                                        type="password"
+                                        value={editForm.password}
+                                        onChange={(e) => handleInputChange('password', e.target.value)}
+                                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                        placeholder="Nhập mật khẩu mới (để trống nếu không đổi)"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Trạng thái</label>
+                                    {editingUserRole === 'admin' ? (
+                                        <p className="text-sm text-gray-500">Chỉ thay đổi mật khẩu cho tài khoản Admin</p>
+                                    ) : (
+                                        <select
+                                            value={editForm.status}
+                                            onChange={(e) => handleInputChange('status', e.target.value)}
+                                            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                        >
+                                            <option value="active">Hoạt động</option>
+                                            <option value="inactive">Không hoạt động</option>
+                                        </select>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                                <button
+                                    onClick={handleCancelEdit}
+                                    disabled={loading}
+                                    className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    onClick={handleSaveEdit}
+                                    disabled={loading}
+                                    className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50"
+                                >
+                                    {loading ? 'Đang lưu...' : 'Lưu'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -185,6 +185,25 @@ const updateProfilePicture = async (userId, profilePictureUrl) => {
   return new User(result.rows[0]);
 };
 
+/**
+ * Cập nhật mật khẩu (password_hash) cho user
+ * @param {string} userId
+ * @param {string} passwordHash
+ * @returns {Promise<User|null>}
+ */
+const updatePassword = async (userId, passwordHash) => {
+  const result = await pool.query(
+    `UPDATE users
+     SET password_hash = $1
+     WHERE user_id = $2
+     RETURNING *`,
+    [passwordHash, userId]
+  );
+
+  if (result.rowCount === 0) return null;
+  return new User(result.rows[0]);
+};
+
 module.exports = {
   findByEmailOrUsername,
   findByEmail,
@@ -195,5 +214,6 @@ module.exports = {
   update,
   remove,
   findHotelOwners,
-  updateProfilePicture
+  updateProfilePicture,
+  updatePassword
 };
