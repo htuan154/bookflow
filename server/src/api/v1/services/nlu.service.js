@@ -1,36 +1,60 @@
 'use strict';
 
-const { generateEmbedding } = require('../../../config/ollama');
-const { supabase } = require('../../../config/supabase');
 const { fetch } = require('undici'); 
 
 const OLLAMA_URL = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:3b-instruct';
 
 function normalize(text = '') {
-  return String(text).normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/đ/gi, 'd').toLowerCase().trim();
+  return String(text)
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/đ/gi, 'd')
+    .toLowerCase()
+    .trim();
 }
 
-/**
- * PURE AI NLU: Trích xuất City và kiểm tra Intent logic
- * Prompt được tối ưu để phân biệt ngữ cảnh Weather vs Place
- */
-async function analyzeWithLLM(text) {
-    if (!text || text.length < 2) return { city: null, category: 'other' };
+async function analyzeWithLLM(text, context = {}) {
+    const { last_city, last_entity } = context;
 
+    // 🔥 PROMPT ĐƯỢC TINH CHỈNH ĐỂ SỬA 3 LỖI TRÊN
     const prompt = `
-    Phân tích câu nói: "${text}"
+    Bạn là chuyên gia ngôn ngữ du lịch Việt Nam.
     
-    Nhiệm vụ:
-    1. Trích xuất Entity: Tìm tên Thành phố/Tỉnh (City). Nếu không có, trả về null.
-    2. Phân loại Category (Quan trọng):
-       - "weather": Chỉ khi hỏi về nhiệt độ, mưa, nắng, dự báo thời tiết.
-       - "place": Hỏi về địa điểm, ăn uống, check-in, hoặc TÊN RIÊNG chứa từ thời tiết (VD: "Cầu Mây", "Chợ Nắng", "Quán Gió").
-       - "distance": Hỏi về khoảng cách, đường đi, bao xa.
-       - "other": Chào hỏi, cảm ơn, hoặc câu không rõ ràng.
+    INPUT: "${text}"
+    CONTEXT: City="${last_city || '?'}", Entity="${last_entity || '?'}"
 
-    JSON OUTPUT ONLY:
-    {"city": "...", "category": "..."}
+    NHIỆM VỤ:
+    1. search_term (QUAN TRỌNG): 
+       - Khôi phục dấu tiếng Việt chuẩn xác cho địa danh.
+       - VD: "duong ham dieu khac" -> "Đường Hầm Điêu Khắc".
+       - VD: "da nag" -> "Đà Nẵng".
+       - Giữ nguyên tên riêng, bỏ các từ thừa.
+    
+    2. rewritten: Viết lại câu hỏi tự nhiên.
+
+    3. city: Tên thành phố hiện tại.
+
+    4. intent (Phân loại thật kỹ):
+       - "ask_hotels": CHỈ KHI user hỏi tìm nơi ở, khách sạn, resort, homestay, đặt phòng.
+         (LƯU Ý: "check-in" tại địa điểm tham quan như cầu, hồ, núi -> LÀ "ask_places", KHÔNG PHẢI "ask_hotels").
+       - "ask_promotions": Hỏi khuyến mãi, voucher, giảm giá.
+       - "ask_weather": Hỏi thời tiết.
+       - "ask_places": Hỏi chỗ chơi, tham quan, ăn uống, hoặc "check-in" địa danh.
+       - "ask_details": Hỏi chi tiết (giá vé, địa chỉ) về 1 địa điểm cụ thể.
+       - "chitchat": Xã giao.
+
+    5. filters: amenities (tiện ích), time_ref (thời gian).
+
+    JSON OUTPUT FORMAT:
+    {
+       "search_term": "...",
+       "rewritten": "...",
+       "city": "...",
+       "intent": "...",
+       "amenities": [],
+       "time_ref": null
+    }
     `;
 
     try {
@@ -47,73 +71,52 @@ async function analyzeWithLLM(text) {
         });
 
         const data = await res.json();
-        const result = JSON.parse(data.response);
+        let result;
+        try {
+            result = JSON.parse(data.response);
+        } catch (err) {
+            return { 
+                search_term: text, 
+                rewritten: text, 
+                city: last_city, 
+                intent: 'ask_places', 
+                amenities: [], 
+                time_ref: null 
+            };
+        }
+
         return { 
-            city: result.city || null,
-            category: result.category || 'other'
+            search_term: result.search_term || text, 
+            rewritten: result.rewritten || text,     
+            city: result.city || last_city, 
+            intent: result.intent || 'ask_places',
+            amenities: Array.isArray(result.amenities) ? result.amenities : [],
+            time_ref: result.time_ref || null
         };
 
     } catch (e) {
-        console.error("LLM Extraction Error:", e);
-        return { city: null, category: 'other' };
+        return { search_term: text, rewritten: text, city: last_city, intent: 'other', amenities: [], time_ref: null };
     }
 }
 
-/**
- * PHÂN LOẠI INTENT KẾT HỢP VECTOR & LLM VALIDATION
- */
-async function detectIntentSmart(text, llmAnalysis) {
-    // Bước 1: Vector Search (Nhanh, dùng database intents)
-    let vectorIntent = 'ask_details';
-    try {
-        const embedding = await generateEmbedding(text);
-        if (embedding) {
-            const { data } = await supabase.rpc('match_intent', {
-                query_embedding: embedding,
-                match_threshold: 0.65, 
-                match_count: 1
-            });
-            if (data && data.length > 0) vectorIntent = data[0].intent_code;
-        }
-    } catch (e) {}
-
-    // Bước 2: AI Logic Guardrail (Xử lý các case khó mà Vector hay sai)
-    
-    // Case: Vector bảo Weather, nhưng LLM bảo Place (VD: "Cầu Mây ở đâu") -> Tin LLM
-    if (vectorIntent === 'ask_weather' && llmAnalysis.category === 'place') {
-        return 'ask_places';
-    }
-
-    // Case: Vector bảo Chitchat, nhưng LLM trích xuất được City -> Chuyển sang hỏi thông tin
-    if (vectorIntent === 'chitchat' && llmAnalysis.city) {
-        return 'ask_details'; 
-    }
-
-    // Case: Hỏi khoảng cách
-    if (llmAnalysis.category === 'distance') {
-        return 'ask_distance';
-    }
-
-    return vectorIntent;
-}
-
-async function analyzeAsync(message = '') {
-  // Chạy song song
-  const llmPromise = analyzeWithLLM(message);
+async function analyzeAsync(message = '', contextState = {}) {
+  const aiResult = await analyzeWithLLM(message, contextState);
   
-  // Đợi kết quả LLM
-  const llmResult = await llmPromise;
-  
-  // Tổng hợp Intent
-  const intent = await detectIntentSmart(message, llmResult);
+  let finalIntent = aiResult.intent;
+  if (finalIntent === 'ask_details' && !contextState.last_entity && message.length < 4) {
+      finalIntent = 'chitchat';
+  }
 
   return {
     original: message,
-    normalized: normalize(message),
-    intent,
-    city: llmResult.city, 
-    category: llmResult.category,
-    top_n: 10
+    normalized: normalize(aiResult.search_term),
+    rewritten: aiResult.rewritten,
+    search_term: aiResult.search_term, 
+    intent: finalIntent,
+    city: aiResult.city, 
+    amenities: aiResult.amenities, 
+    time_ref: aiResult.time_ref,   
+    category: finalIntent === 'ask_weather' ? 'weather' : 'place'
   };
 }
 
