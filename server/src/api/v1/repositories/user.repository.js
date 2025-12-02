@@ -97,7 +97,7 @@ const findById = async (userId) => {
  * @returns {Promise<User[]>} - Trả về một mảng các instance của User.
  */
 const findAll = async (filters = {}) => {
-  let query = 'SELECT user_id, username, email, full_name, role_id, created_at, phone_number, address FROM users';
+  let query = 'SELECT user_id, username, email, full_name, role_id, created_at, phone_number, address, is_active, profile_picture_url FROM users';
   const queryParams = [];
   
   // Kiểm tra nếu có bộ lọc roleId được cung cấp
@@ -204,6 +204,25 @@ const updatePassword = async (userId, passwordHash) => {
   return new User(result.rows[0]);
 };
 
+/**
+ * Cập nhật trạng thái (is_active) cho user
+ * @param {string} userId
+ * @param {boolean} isActive
+ * @returns {Promise<User|null>}
+ */
+const updateUserStatus = async (userId, isActive) => {
+  const result = await pool.query(
+    `UPDATE users
+     SET is_active = $1
+     WHERE user_id = $2
+     RETURNING *`,
+    [isActive, userId]
+  );
+
+  if (result.rowCount === 0) return null;
+  return new User(result.rows[0]);
+};
+
 module.exports = {
   findByEmailOrUsername,
   findByEmail,
@@ -215,5 +234,6 @@ module.exports = {
   remove,
   findHotelOwners,
   updateProfilePicture,
-  updatePassword
+  updatePassword,
+  updateUserStatus
 };

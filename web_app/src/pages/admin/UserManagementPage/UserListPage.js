@@ -11,6 +11,7 @@ const UserListPage = () => {
         fetchUsers,
         updateUser,
         deleteUser,
+        updateUserStatus,
         clearError
     } = useUser();
 
@@ -62,6 +63,10 @@ const UserListPage = () => {
     };
 
     const getUserStatus = (user) => {
+        // Check both isActive and is_active fields
+        if (typeof user.isActive === 'boolean') {
+            return user.isActive ? 'active' : 'inactive';
+        }
         if (typeof user.is_active === 'boolean') {
             return user.is_active ? 'active' : 'inactive';
         }
@@ -200,6 +205,40 @@ const UserListPage = () => {
     // Handle close view modal
     const handleCloseView = () => {
         setViewingUser(null);
+    };
+
+    // Handle toggle user status
+    const handleToggleStatus = async (userId, currentStatus) => {
+        const userObj = users.find(u => getUserId(u) === userId);
+        const userName = getUserName(userObj);
+        const newStatus = currentStatus === 'active' ? false : true;
+        const statusText = newStatus ? 'kích hoạt' : 'vô hiệu hóa';
+        
+        console.log('[handleToggleStatus] BEFORE:', { 
+            userId, 
+            currentStatus, 
+            newStatus, 
+            userObj_isActive: userObj?.isActive,
+            userObj_is_active: userObj?.is_active 
+        });
+        
+        if (window.confirm(`Bạn có chắc chắn muốn ${statusText} người dùng "${userName}"?`)) {
+            try {
+                const result = await updateUserStatus(userId, newStatus);
+                console.log('[handleToggleStatus] UPDATE RESULT:', result);
+                
+                await fetchUsers();
+                
+                const updatedUser = users.find(u => getUserId(u) === userId);
+                console.log('[handleToggleStatus] AFTER FETCH:', {
+                    updatedUser_isActive: updatedUser?.isActive,
+                    updatedUser_is_active: updatedUser?.is_active
+                });
+            } catch (error) {
+                console.error('[handleToggleStatus] ERROR:', error);
+                alert('Lỗi khi cập nhật trạng thái người dùng');
+            }
+        }
     };
 
     // Handle delete user
@@ -507,7 +546,7 @@ const UserListPage = () => {
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="flex items-center">
+                                                    <div className="flex items-center gap-2">
                                                         <ActionButton
                                                             type="view"
                                                             onClick={() => handleView(user)}
@@ -520,6 +559,18 @@ const UserListPage = () => {
                                                             title="Sửa"
                                                             disabled={loading}
                                                         />
+                                                        <button
+                                                            onClick={() => handleToggleStatus(userId, userStatus)}
+                                                            className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
+                                                                userStatus === 'active'
+                                                                    ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                                                    : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                            }`}
+                                                            title={userStatus === 'active' ? 'Vô hiệu hóa' : 'Kích hoạt'}
+                                                            disabled={loading}
+                                                        >
+                                                            {userStatus === 'active' ? '🔒 Khóa' : '🔓 Mở'}
+                                                        </button>
                                                         {userRole !== 'admin' && (
                                                             <ActionButton
                                                                 type="delete"

@@ -310,15 +310,15 @@ export const UserProvider = ({ children }) => {
         }
     }, []);
 
-    // Update user status
-    const updateUserStatus = useCallback(async (userId, status) => {
+    // Update user status (now using isActive boolean)
+    const updateUserStatus = useCallback(async (userId, isActive) => {
         try {
-            console.log('Updating user status:', userId, status);
+            console.log('Updating user status:', userId, isActive);
             
             dispatch({ type: actionTypes.SET_LOADING, payload: true });
             dispatch({ type: actionTypes.CLEAR_ERROR });
 
-            const response = await userService.updateUserStatus(userId, status);
+            const response = await userService.updateUserStatus(userId, isActive);
             console.log('updateUserStatus response:', response);
             
             const updatedUser = response?.data || response;
