@@ -5,10 +5,7 @@ const { generateEmbedding } = require('../../../config/ollama');
 
 /**
  * 1. Tìm kiếm Vector (Semantic Search)
- * @param {string} queryText - Câu hỏi của user
- * @param {number} threshold - Ngưỡng tương đồng (0.0 - 1.0). Nên để 0.5.
- * @param {number} limit - Số lượng kết quả trả về.
- * @param {string|null} filterCity - Tên tỉnh/thành phố để lọc (VD: "Huế"). Nếu null thì tìm toàn cục.
+ * FIX: Đã thêm logic mapping để chatbot.service.js đọc được (item, score).
  */
 async function searchVector(queryText, threshold = 0.25, limit = 4, filterCity = null) {
   try {
@@ -17,12 +14,12 @@ async function searchVector(queryText, threshold = 0.25, limit = 4, filterCity =
     if (!embedding) return [];
 
     // Bước B: Gọi hàm RPC trong Supabase để tìm kiếm
-    // Hàm này đã được update SQL để nhận tham số filter_province
+    // Lưu ý: RPC 'match_documents' trả về cột: content, metadata, similarity
     const { data, error } = await supabase.rpc('match_documents', {
       query_embedding: embedding,
       match_threshold: threshold,
       match_count: limit,
-      filter_province: filterCity // [QUAN TRỌNG] Truyền tham số lọc để tránh tìm nhầm tỉnh
+      filter_province: filterCity 
     });
 
     if (error) {
@@ -30,7 +27,16 @@ async function searchVector(queryText, threshold = 0.25, limit = 4, filterCity =
       return [];
     }
 
-    return data || [];
+    // 🔥 FIX QUAN TRỌNG: Map dữ liệu sang chuẩn Chatbot
+    // Chatbot cần: { item: metadata, score: similarity }
+    if (!data || !Array.isArray(data)) return [];
+
+    return data.map(record => ({
+        item: record.metadata || {},   // Chuyển metadata thành item
+        score: record.similarity || 0, // Chuyển similarity thành score
+        doc: record.content || ''      // Nội dung text gốc
+    }));
+
   } catch (err) {
     console.error('[VectorService] Exception:', err.message);
     return [];
@@ -39,8 +45,6 @@ async function searchVector(queryText, threshold = 0.25, limit = 4, filterCity =
 
 /**
  * 2. Thêm tài liệu vào Vector DB
- * @param {string} content - Nội dung text để tạo vector (Tên + Mô tả + Từ khóa AI)
- * @param {object} metadata - Các thông tin đi kèm (Tên, Tỉnh, Loại...)
  */
 async function addDocument({ content, metadata }) {
   try {
@@ -68,16 +72,13 @@ async function addDocument({ content, metadata }) {
 }
 
 /**
- * 3. [MỚI] Xóa Vector theo Tỉnh
- * Dùng để làm sạch dữ liệu cũ trước khi nạp lại (tránh trùng lặp).
- * @param {string} provinceName - Tên tỉnh cần xóa (VD: "Huế")
+ * 3. Xóa Vector theo Tỉnh
  */
 async function deleteVectorsByProvince(provinceName) {
   if (!provinceName) return;
   console.log(`   🗑️  Đang dọn dẹp dữ liệu cũ của: "${provinceName}"...`);
   
   try {
-    // Xóa các dòng mà cột metadata->>'province' bằng provinceName
     const { error } = await supabase
       .from('documents')
       .delete()
