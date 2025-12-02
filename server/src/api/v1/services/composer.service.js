@@ -26,137 +26,109 @@ const sanitizePayload = (p = {}) => {
   };
 };
 
-const stripDegrees = (text = '') => {
-  if (!text) return '';
-  const repl = 'nhiệt độ dễ chịu';
-  return String(text)
-    .replace(/(?:khoảng|từ)?\s*\d+\s*[-–]\s*\d+\s*(?:độ|do|°)\s*c/gi, repl)
-    .replace(/(?:khoảng|từ)?\s*\d+\s*(?:độ|do|°)\s*c/gi, repl)
-    .replace(/\b\d+\s*(?:độ|do|°)\b/gi, repl)
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-};
-
 // ==============================================================================
-// 2. CONTEXT HELPERS
+// 2. CONTEXT HELPERS (Giữ nguyên)
 // ==============================================================================
 
 function monthContext(m) {
   if (!m || m < 1 || m > 12) return '';
-  if (m >= 5 && m <= 10) return 'Đang là mùa mưa ở nhiều nơi, hãy chuẩn bị ô hoặc áo mưa.';
-  if (m >= 11 || m <= 4) return 'Thời tiết khô ráo, rất thích hợp để tham quan ngoài trời.';
-  return '';
-}
-
-const CITY_MONTH_OVERRIDES = [
-  {
-    cities: ['Đà Nẵng', 'Quảng Nam', 'Thừa Thiên Huế', 'Quảng Ngãi', 'Bình Định', 'Phú Yên'],
-    overrides: {
-      9: 'Miền Trung bắt đầu vào mùa mưa bão, cần theo dõi dự báo thời tiết.',
-      10: 'Miền Trung đang cao điểm mưa bão, hạn chế các hoạt động biển.',
-      11: 'Vẫn còn mưa lớn và biển động ở miền Trung, hãy chuẩn bị phương án dự phòng.'
-    }
-  }
-];
-
-function cityMonthContext(city, month) {
-  if (!city || !month) return '';
-  const normCity = normalize(String(city));
-  for (const group of CITY_MONTH_OVERRIDES) {
-    if (group.cities.some(name => normalize(name) === normCity)) {
-      return group.overrides?.[month] || '';
-    }
-  }
+  if (m >= 5 && m <= 10) return 'Đang là mùa mưa, bạn nhớ mang theo ô nhé.';
+  if (m >= 11 || m <= 4) return 'Trời đang vào mùa đẹp, rất thích hợp đi chơi.';
   return '';
 }
 
 // ==============================================================================
-// 3. AI THINKING MODE [UPDATED FIX]
+// 3. AI THINKING MODE [PROMPT ĐƯỢC NÂNG CẤP ĐỂ NÓI HAY HƠN]
 // ==============================================================================
 
 async function composeSpecificItem({ doc, targetItem, userMessage }) {
   const itemName = targetItem.name || 'Địa điểm này';
-  const itemType = targetItem.type || 'place'; // Nhận type từ logic search
+  const itemType = targetItem.type || 'place'; 
   const provinceName = doc.name || 'Địa phương';
   
-  // Prompt chỉ thị rõ ràng theo loại
+  // Chỉ dẫn chi tiết tùy loại
   let specificInstruction = "";
   if (itemType === 'dish') {
-      specificInstruction = `Đây là MÓN ĂN đặc sản. Hãy mô tả hương vị, nguyên liệu và độ ngon. Tuyệt đối KHÔNG mô tả phong cảnh hay địa điểm check-in.`;
+      specificInstruction = `Đây là MÓN ĂN. Hãy miêu tả hương vị đậm đà, nguyên liệu hấp dẫn khiến người nghe "chảy nước miếng".`;
   } else {
-      specificInstruction = `Đây là ĐỊA ĐIỂM du lịch. Hãy mô tả vẻ đẹp kiến trúc, thiên nhiên, không khí và hoạt động tham quan.`;
+      specificInstruction = `Đây là ĐỊA ĐIỂM. Hãy miêu tả không khí, kiến trúc hoặc giá trị lịch sử để khơi gợi cảm hứng đi ngay lập tức.`;
   }
 
+  // 🔥 UPDATE PROMPT: Yêu cầu AI nói dài và hay hơn
   const prompt = `
-Bạn là Hướng dẫn viên du lịch địa phương (AI Local Guide).
+Bạn là "Thổ địa du lịch" cực kỳ am hiểu và hoạt ngôn (AI Local Expert).
 
-THÔNG TIN ĐẦU VÀO:
+THÔNG TIN:
 - Khách hỏi: "${userMessage}"
-- Hệ thống tìm được: "${itemName}" (${itemType}) tại "${provinceName}".
+- Dữ liệu tìm được: "${itemName}" (${itemType}) tại "${provinceName}".
+- Nội dung gốc: "${doc.doc || ''}" 
 
-YÊU CẦU:
-1. Giới thiệu ngắn gọn, hấp dẫn về "${itemName}".
-2. ${specificInstruction}
-3. Trả lời đúng trọng tâm câu hỏi. Nếu khách hỏi "ở đâu", hãy chỉ đường. Nếu khách hỏi "ngon không", hãy tả vị.
-4. Giọng điệu: Tự nhiên, nhiệt tình, như bạn bè.
+YÊU CẦU QUAN TRỌNG (PHONG CÁCH TRẢ LỜI):
+1. **KHÔNG ĐƯỢC CỘC LỐC**: 
+   - Sai: "Nó nằm ở Quận 1." (Quá chán!)
+   - Đúng: "Chợ Bến Thành tọa lạc ngay trung tâm Quận 1 sầm uất, nơi được ví là trái tim của Sài Gòn với 4 cửa Đông Tây Nam Bắc..."
+2. **Luôn mở rộng**: Sau khi trả lời câu hỏi chính, hãy bồi thêm 1-2 câu thông tin thú vị (lịch sử, không khí, cảm nhận).
+3. **Giọng điệu**: Thân thiện, nhiệt tình, dùng từ ngữ gợi hình ảnh.
+4. **Độ dài**: Phần summary phải từ 3-4 câu hoàn chỉnh.
 
-JSON OUTPUT:
+JSON OUTPUT FORMAT:
 {
-  "summary": "Câu trả lời của bạn (khoảng 3 câu).",
-  "tips": ["Mẹo 1", "Mẹo 2"]
+  "summary": "Câu trả lời chi tiết và hấp dẫn của bạn.",
+  "tips": ["Mẹo 1 (thực tế)", "Mẹo 2 (thú vị)"]
 }
 `;
 
   try {
-    const raw = await generateJSON({ prompt, temperature: 0.4 }); // Temperature 0.4 để cân bằng sáng tạo/chính xác
+    // Tăng temperature lên 0.45 để văn phong bay bổng hơn
+    const raw = await generateJSON({ prompt, temperature: 0.45 }); 
     
     return sanitizePayload({
-      summary: raw.summary || `${itemName} là một lựa chọn tuyệt vời tại ${provinceName}.`,
-      places: itemType === 'place' ? [{ name: itemName, hint: 'Gợi ý từ AI' }] : [], 
-      dishes: itemType === 'dish' ? [{ name: itemName, where: 'Đặc sản địa phương' }] : [],
+      summary: raw.summary || `${itemName} là điểm đến tuyệt vời tại ${provinceName} mà bạn nhất định không nên bỏ lỡ.`,
+      places: itemType === 'place' ? [{ name: itemName, hint: 'Điểm đến gợi ý' }] : [], 
+      dishes: itemType === 'dish' ? [{ name: itemName, where: 'Đặc sản phải thử' }] : [],
       tips: raw.tips || [],
       source: 'ai-flex-knowledge'
     });
 
   } catch (error) {
     return sanitizePayload({ 
-        summary: `Mời bạn tham khảo ${itemName} tại ${provinceName}. Đây là một ${itemType === 'dish' ? 'món ăn' : 'địa điểm'} nổi tiếng.`,
+        summary: `Mời bạn ghé thăm ${itemName} tại ${provinceName}. Đây là một ${itemType === 'dish' ? 'món ngon' : 'địa điểm'} rất đáng trải nghiệm.`,
         places: [{ name: itemName, hint: '' }],
         source: 'fallback-error' 
     });
   }
 }
+
 // ==============================================================================
-// 4. GENERIC MODE
+// 4. GENERIC MODE (PROMPT NÂNG CẤP)
 // ==============================================================================
 
 function factsToPrompt({ doc, queryType = 'overview', intent }) {
   const places = (doc.places || []).slice(0, 10).map(p => p.name).join(', ');
   const dishes = (doc.dishes || []).slice(0, 10).map(d => d.name).join(', ');
-  const mergedList = doc.merged_from || doc.mergedFrom || [];
-  const mergedNote = mergedList.length ? `(Bao gồm dữ liệu của: ${mergedList.join(', ')})` : '';
-
+  
   let conditionalInstructions = '';
-  if (queryType === 'dishes') conditionalInstructions = 'Tập trung giới thiệu ẩm thực.';
-  else if (queryType === 'places') conditionalInstructions = 'Tập trung giới thiệu cảnh đẹp.';
-  else conditionalInstructions = 'Giới thiệu tổng quan.';
+  if (queryType === 'dishes') conditionalInstructions = 'Hãy tập trung review ẩm thực thật hấp dẫn.';
+  else if (queryType === 'places') conditionalInstructions = 'Hãy vẽ ra bức tranh du lịch với các địa điểm nổi tiếng.';
+  else conditionalInstructions = 'Hãy giới thiệu tổng quan đầy cảm hứng về vùng đất này.';
 
+  // 🔥 UPDATE PROMPT TỔNG QUAN
   return `
-Bạn là trợ lý du lịch chuyên nghiệp.
-Vùng dữ liệu: ${doc.name} ${mergedNote}.
-Địa danh: ${places}
-Món ăn: ${dishes}
+Bạn là một Blogger du lịch nổi tiếng.
+Vùng đất: ${doc.name}
+Địa danh có sẵn: ${places}
+Món ăn có sẵn: ${dishes}
 
 YÊU CẦU:
-1. Viết summary (3-4 câu) giới thiệu du lịch khu vực này. ${conditionalInstructions}
-2. Chọn 5 địa điểm + 5 món ăn tiêu biểu.
-3. Tạo "hint" (địa điểm) và "where" (món ăn) ngắn gọn.
+1. Viết đoạn giới thiệu (Summary) khoảng 60-80 từ. ${conditionalInstructions}
+2. Văn phong: Cuốn hút, dùng từ ngữ gợi cảm xúc (VD: "thơ mộng", "sôi động", "ngon khó cưỡng").
+3. Chọn ra 5 địa điểm và 5 món ăn tiêu biểu nhất để gợi ý.
 
 JSON OUTPUT:
 {
-  "summary": "...",
-  "places": [{ "name": "Tên", "hint": "Mô tả" }],
-  "dishes": [{ "name": "Tên", "where": "Địa chỉ" }],
+  "summary": "Đoạn văn giới thiệu...",
+  "places": [{ "name": "Tên", "hint": "Mô tả ngắn hấp dẫn" }],
+  "dishes": [{ "name": "Tên", "where": "Địa chỉ/Khu vực" }],
   "tips": []
 }
 (intent: ${intent})
@@ -164,7 +136,7 @@ JSON OUTPUT:
 }
 
 // ==============================================================================
-// 5. SQL HELPERS & MAIN COMPOSE
+// 5. MAIN COMPOSE (LOGIC GIỮ NGUYÊN)
 // ==============================================================================
 
 function normRow(x, tag = '') {
@@ -188,6 +160,7 @@ const uniqBy = (arr, keyFn) => {
 const normKey = v => normalize(String(v || ''));
 
 async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, intent }) {
+  // Case 1: Hỏi chi tiết về 1 địa điểm cụ thể (Force Item)
   if (user_ctx && user_ctx.forcedItem && doc) {
       return await composeSpecificItem({
           doc,
@@ -206,6 +179,7 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
   const cached = cache.get(key);
   if (cached) return cached;
 
+  // Case 2: SQL Data (Booking, Promo...)
   if (Array.isArray(sql) && sql.length > 0) {
     const items = [];
     for (const ds of sql) items.push(...normRows(ds?.rows || [], ds?.name || 'dataset'));
@@ -213,7 +187,7 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
     const isPromo = items.some(i => i.promotion_id || i.discount_value);
     
     const out = sanitizePayload({
-        summary: `Tìm thấy ${items.length} kết quả phù hợp.`,
+        summary: `Mình tìm thấy ${items.length} kết quả phù hợp với yêu cầu của bạn đây!`,
         hotels: isHotel ? items.slice(0, 10) : [],
         promotions: isPromo ? items.slice(0, 10) : [],
         source: 'sql+llm'
@@ -222,19 +196,21 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
     return out;
   }
 
+  // Case 3: Doc Fallback
   if (!doc || !doc.name) {
     const fb = await composeCityFallback({ city: user_ctx?.city, message: nlu?.normalized }).catch(() => null);
-    return fb || sanitizePayload({ summary: 'Chưa đủ dữ kiện.', source: 'empty' });
+    return fb || sanitizePayload({ summary: 'Thông tin này mình đang cập nhật thêm, bạn đợi chút nhé.', source: 'empty' });
   }
 
+  // Case 4: Generic Overview (Tổng quan tỉnh/thành)
   try {
     const queryType = nlu?.queryType || 'overview';
     const prompt = factsToPrompt({ doc, queryType, intent: intent || 'generic' });
-    const raw = await generateJSON({ prompt, temperature: 0.2 });
+    const raw = await generateJSON({ prompt, temperature: 0.3 }); // Generic thì temp thấp hơn chút để ổn định list
     const safe = validateResponse(raw, doc);
 
     const out = sanitizePayload({
-      summary: safe.summary || `Thông tin du lịch ${doc.name}.`,
+      summary: safe.summary || `Chào mừng bạn đến với ${doc.name}, một vùng đất tuyệt vời!`,
       places: uniqBy(safe.places, x => normKey(x.name)),
       dishes: uniqBy(safe.dishes, x => normKey(x.name)),
       tips: safe.tips || [],
@@ -245,7 +221,7 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
     return out;
   } catch (e) {
     const out = sanitizePayload({
-      summary: `Du lịch ${doc.name} có rất nhiều điều thú vị.`,
+      summary: `${doc.name} có rất nhiều cảnh đẹp và món ngon đang chờ bạn khám phá.`,
       places: (doc.places || []).slice(0, 5).map(x => ({ name: x.name, hint: '' })),
       dishes: [],
       tips: [],
@@ -257,22 +233,22 @@ async function compose({ doc, sql = [], nlu = {}, filters = {}, user_ctx = {}, i
 }
 
 async function composeSmallTalk({ message = '' }) {
-  const prompt = `Bạn là trợ lý du lịch. User nói: "${message}". Hãy trả lời vui vẻ 2-3 câu. JSON: {"summary": "..."}`;
+  const prompt = `Bạn là trợ lý du lịch vui tính. User nói: "${message}". Hãy trả lời thật thân thiện, dùng emoji. JSON: {"summary": "..."}`;
   try {
-    const resp = await generateJSON({ prompt, temperature: 0.5 });
-    return sanitizePayload({ summary: resp?.summary || 'Chào bạn!', source: 'llm-chitchat' });
+    const resp = await generateJSON({ prompt, temperature: 0.6 });
+    return sanitizePayload({ summary: resp?.summary || 'Chào bạn! Mình có thể giúp gì cho chuyến đi sắp tới?', source: 'llm-chitchat' });
   } catch {
-    return sanitizePayload({ summary: 'Xin chào!', source: 'chitchat-static' });
+    return sanitizePayload({ summary: 'Xin chào! Rất vui được hỗ trợ bạn.', source: 'chitchat-static' });
   }
 }
 
 async function composeCityFallback({ city, message = '' }) {
-    const prompt = `User hỏi về "${city || 'địa điểm'}" (dữ liệu DB chưa có). Nội dung: "${message}". Trả lời xã giao, gợi ý chung chung. JSON: {"summary": "..."}`;
+    const prompt = `User hỏi về "${city || 'địa điểm'}" nhưng database chưa có. Nội dung: "${message}". Trả lời khéo léo, hứa sẽ học thêm. JSON: {"summary": "..."}`;
     try {
         const raw = await generateJSON({ prompt, temperature: 0.5 });
-        return sanitizePayload({ summary: raw?.summary || 'Mình chưa có thông tin chi tiết.', source: 'llm-pure-fallback' });
+        return sanitizePayload({ summary: raw?.summary || 'Địa điểm này mới quá, mình chưa kịp cập nhật. Bạn hỏi địa điểm khác nhé?', source: 'llm-pure-fallback' });
     } catch {
-        return sanitizePayload({ summary: 'Xin lỗi, mình chưa có thông tin.', source: 'empty' });
+        return sanitizePayload({ summary: 'Xin lỗi, thông tin này mình chưa có.', source: 'empty' });
     }
 }
 

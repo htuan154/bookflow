@@ -1,12 +1,5 @@
 'use strict';
 
-/**
- * Chatbot Service v17.0 [FULL LOGIC + SENSITIVITY FIX]
- * - Search Threshold: 0.12 (Tăng khả năng tìm thấy dữ liệu).
- * - Context Logic: Xử lý trường hợp hỏi nối tiếp nhưng thiếu Entity.
- * - Debugging: Log chi tiết Raw Vectors.
- */
-
 const { analyzeAsync } = require('./nlu.service'); 
 const { getCurrentWeather } = require('./weather.service');
 const { compose, composeSmallTalk, composeCityFallback } = require('./composer.service');
@@ -19,35 +12,43 @@ const OLLAMA_URL = process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:3b-instruct';
 
 // ==============================================================================
-// 1. AI RERANKING (Sắp xếp lại kết quả tìm kiếm)
+// 1. AI RERANKING & STRICT FILTERING
 // ==============================================================================
-
 async function rerankWithLLM(query, candidates, currentCity) {
     if (!candidates || !Array.isArray(candidates) || candidates.length === 0) return null;
     
-    // Lọc bỏ kết quả rác
     const validCandidates = candidates.filter(c => c && c.item && c.item.name);
-    
     if (validCandidates.length === 0) return null;
-    
-    // Nếu chỉ có 1 kết quả và điểm > 0.12 -> Lấy luôn (Không cần hỏi AI tốn thời gian)
-    if (validCandidates.length === 1 && validCandidates[0].score > 0.12) return validCandidates[0];
 
-    // Format danh sách cho AI chọn
-    const candidateList = validCandidates.map((c, i) => 
-        `${i}. ${c.item.name} (${c.metadata.province || 'N/A'}) - Score: ${c.score.toFixed(2)}`
+    // 🔥 STRICT MODE: Ưu tiên item cùng thành phố, NHƯNG nới lỏng nếu query chứa tên địa danh cụ thể
+    // Nếu query chứa tên riêng (VD: "Hầm điêu khắc"), ta tạm bỏ qua filter city để tìm cho ra.
+    let strictCandidates = validCandidates;
+    const hasProperNoun = query.length > 10 && query[0] === query[0].toUpperCase(); // Logic đơn giản check tên riêng
+
+    if (currentCity && !hasProperNoun) {
+        const cityMatches = validCandidates.filter(c => {
+             const prov = (c.item.province || '').toLowerCase();
+             const city = currentCity.toLowerCase();
+             return prov.includes(city) || city.includes(prov);
+        });
+        if (cityMatches.length > 0) strictCandidates = cityMatches;
+    }
+
+    if (strictCandidates.length === 1) return strictCandidates[0];
+
+    const candidateList = strictCandidates.map((c, i) => 
+        `[${i}] ${c.item.name} (${c.item.province || 'Unknown'}) - Snippet: ${(c.item.doc || '').substring(0, 100)}...`
     ).join('\n');
 
     const prompt = `
-    Câu hỏi: "${query}"
-    Ngữ cảnh thành phố: "${currentCity || 'Không rõ'}"
-    
-    Danh sách ứng viên:
+    Query: "${query}"
+    Target City: "${currentCity || 'Any'}"
+    Candidates:
     ${candidateList}
     
-    Yêu cầu: Chọn index (0, 1...) của mục phù hợp nhất.
-    Nếu không có mục nào liên quan, trả về -1.
-    Output: Chỉ trả về con số.
+    TASK: Pick the best match index (0-${strictCandidates.length-1}).
+    If nothing matches sensibly, return -1.
+    JSON Output: {"index": 0}
     `;
 
     try {
@@ -58,218 +59,170 @@ async function rerankWithLLM(query, candidates, currentCity) {
                 model: OLLAMA_MODEL,
                 prompt: prompt,
                 stream: false,
-                options: { temperature: 0.0 } // 0.0 để kết quả nhất quán
+                format: "json",
+                options: { temperature: 0.0 } 
             })
         });
-
         const data = await res.json();
-        const idx = parseInt(data.response.match(/-?\d+/)?.[0] || '0');
+        const json = JSON.parse(data.response);
+        const idx = json.index;
         
-        if (idx === -1) return validCandidates[0]; // Fallback an toàn
-        return validCandidates[idx] || validCandidates[0];
-
-    } catch (e) {
-        return validCandidates[0];
-    }
+        if (idx === undefined || idx < 0 || idx >= strictCandidates.length) return strictCandidates[0]; 
+        return strictCandidates[idx];
+    } catch (e) { return strictCandidates[0]; }
 }
 
 // ==============================================================================
-// 2. SEARCH ENGINE (TÌM KIẾM VECTOR)
+// 2. SEARCH ENGINE
 // ==============================================================================
-
-async function findBestMatch(db, query, currentCity = null) {
-    if (!query || query.length < 2) return null;
+async function findBestMatch(db, searchTerm, currentCity = null) {
+    if (!searchTerm || searchTerm.length < 2) return null;
     
-    // Kỹ thuật Query Expansion: Thêm tên thành phố vào câu query nếu chưa có
-    let enhancedQuery = query;
-    if (currentCity && !query.toLowerCase().includes(currentCity.toLowerCase())) {
-        enhancedQuery = `${query} tại ${currentCity}`;
+    // Nếu có city, ưu tiên ghép vào query
+    let vectorQuery = searchTerm;
+    if (currentCity && !searchTerm.toLowerCase().includes(currentCity.toLowerCase())) {
+        vectorQuery = `${searchTerm} ${currentCity}`;
     }
 
-    // 🔥 QUAN TRỌNG: Hạ ngưỡng xuống 0.12 để bắt được nhiều dữ liệu hơn
-    let vectors = await searchVector(enhancedQuery, 0.12, 10, null); 
+    console.log(`🔍 Vector Searching: "${vectorQuery}"`);
+    let vectors = await searchVector(vectorQuery, 0.12, 15, null); 
     
-    // Log để debug xem Vector tìm thấy gì
-    if (vectors && vectors.length > 0) {
-        console.log(`🔍 Raw Vectors: ${vectors.map(v => `${v.item.name}(${v.score.toFixed(2)})`).join(', ')}`);
-    } else {
-        console.log(`🔍 Raw Vectors: NONE for query "${enhancedQuery}"`);
-    }
-
-    return await rerankWithLLM(query, vectors, currentCity);
+    return await rerankWithLLM(searchTerm, vectors, currentCity);
 }
 
 // ==============================================================================
-// 3. MAIN LOGIC (XỬ LÝ HỘI THOẠI)
+// 3. MAIN LOGIC
 // ==============================================================================
-
 async function suggestHybrid(db, { message, context = {} }) {
   const started = Date.now();
   
-  // --- A. PHỤC HỒI NGỮ CẢNH (CONTEXT RECOVERY) ---
+  // A. Context Recovery
   const history = Array.isArray(context.history) ? context.history : [];
   let lastCity = null;
   let lastEntityName = null;
-
   for (const turn of history) {
-      if (!lastCity && turn.context_state?.city) lastCity = turn.context_state.city;
-      if (!lastCity && turn.context_state?.last_city) lastCity = turn.context_state.last_city;
-      if (!lastEntityName && turn.context_state?.entity_name) lastEntityName = turn.context_state.entity_name;
+      if (!lastCity) lastCity = turn.context_state?.city || turn.context_state?.last_city;
+      if (!lastEntityName) lastEntityName = turn.context_state?.last_entity_name;
   }
 
-  // --- B. NLU ANALYSIS ---
-  let nlu = await analyzeAsync(message);
+  // B. NLU Analysis
+  let nlu = await analyzeAsync(message, { last_city: lastCity, last_entity: lastEntityName });
+  let currentCity = nlu.city || lastCity ; 
   
-  // Ưu tiên City mới phát hiện > City cũ trong bộ nhớ
-  let currentCity = nlu.city || lastCity; 
+  // 🔥 AUTO-FIX QUERY: Nếu câu hỏi quá ngắn ("giá bao nhiêu", "ở đâu"), ghép Entity cũ vào
+  let searchPayload = nlu.search_term; 
+  if (lastEntityName && searchPayload.length < 15 && !searchPayload.includes(lastEntityName)) {
+      console.log(`💡 Query Expansion: Appending context entity "${lastEntityName}"`);
+      searchPayload = `${searchPayload} ${lastEntityName}`;
+  }
 
-  console.log(`\n💬 Query: "${message}" | Intent: ${nlu.intent} | City: ${currentCity} | LastEntity: ${lastEntityName}`);
+  console.log(`\n✨ Intent: ${nlu.intent} | City: ${currentCity} | Search: "${searchPayload}"`);
 
-  // Chuẩn bị object Context để trả về (Luôn phải có)
-  const nextContextBase = {
+  // Context base
+  let nextContextBase = {
       city: currentCity,      
       last_city: currentCity, 
-      entity_name: lastEntityName
+      last_entity_name: lastEntityName 
   };
 
-  // =================================================================
-  // FLOW 1: WEATHER (Thời tiết)
-  // =================================================================
+  // --- FLOW 1: WEATHER ---
   if (nlu.intent === 'ask_weather') {
-      const targetCity = currentCity || 'Hồ Chí Minh';
-      console.log(`👉 Action: Weather (${targetCity})`);
-      const weatherData = await getCurrentWeather(targetCity);
-      
-      return { 
-          ...weatherData, 
-          latency_ms: Date.now() - started, 
-          next_context: { ...nextContextBase, city: targetCity } 
-      };
+      const weatherData = await getCurrentWeather(currentCity);
+      return { ...weatherData, latency_ms: Date.now() - started, next_context: nextContextBase, nlu };
   }
 
-  // =================================================================
-  // FLOW 2: DISTANCE (Khoảng cách)
-  // =================================================================
-  if (nlu.intent === 'ask_distance') {
-      const dest = lastEntityName || 'địa điểm này';
-      return { 
-          summary: `Hiện tại mình chưa tính được khoảng cách tới ${dest}. Bạn tra Google Maps tại ${currentCity || ''} nhé!`, 
-          source: 'system-maintenance',
-          next_context: nextContextBase
-      };
-  }
-
-  // =================================================================
-  // FLOW 3: SEARCH & RETRIEVAL (Tìm kiếm)
-  // =================================================================
-  
-  const match = await findBestMatch(db, message, currentCity);
-  
-  // Logic: Hỏi nối tiếp (Follow-up)
-  const isInfoIntent = ['ask_details', 'ask_dishes', 'ask_places'].includes(nlu.intent);
-  
-  // 🔥 TRƯỜNG HỢP ĐẶC BIỆT: Hỏi chi tiết nhưng không có ngữ cảnh
-  // Ví dụ: User hỏi "Nó ở đâu?" nhưng Bot không biết "Nó" là gì (Entity=NULL) và cũng không tìm thấy Match mới.
-  if (isInfoIntent && !match && !lastEntityName) {
-      return {
-          summary: `Xin lỗi, mình chưa hiểu bạn đang muốn hỏi về địa điểm cụ thể nào tại ${currentCity || 'đây'}. Bạn có thể nhắc lại tên địa điểm được không?`,
-          source: 'missing-context-fallback',
-          next_context: nextContextBase
-      };
-  }
-
-  // Logic: Giữ Context cũ (Sticky Context)
-  if (lastEntityName && isInfoIntent) {
-      // Nếu kết quả tìm kiếm mới không "quá mạnh" (> 0.8) -> Giả định user vẫn hỏi về cái cũ
-      const isStrongNewTopic = match && match.score > 0.8 && match.item.name !== lastEntityName;
-      
-      if (!isStrongNewTopic) {
-          console.log(`↩️ Context Inference: Keeping focus on "${lastEntityName}"`);
-          
-          // Tìm lại thông tin của Entity cũ
-          const contextMatch = await findBestMatch(db, lastEntityName, currentCity);
-          
-          if (contextMatch) {
-               const safeDoc = extractProvinceDoc(contextMatch.doc);
-               const payload = await compose({
-                    doc: safeDoc,
-                    nlu: { ...nlu, intent: 'ask_details', city: safeDoc?.name },
-                    user_ctx: { 
-                        forcedItem: contextMatch.item, 
-                        forcedType: contextMatch.type, 
-                        userMessage: message, 
-                        isFollowUp: true, 
-                        ...context 
-                    }
-               });
-               payload.next_context = { ...nextContextBase, entity_name: lastEntityName };
-               payload.latency_ms = Date.now() - started;
-               return payload;
-          }
+  // --- FLOW 2: HOTELS ---
+  if (nlu.intent === 'ask_hotels') {
+      if (nlu.amenities && nlu.amenities.length > 0) {
+          return await getHotelsByAmenities(currentCity, nlu.amenities, 5, { 
+              llm: true, context: { ...context, nlu }, next_context: nextContextBase 
+          });
       }
+      return await getTopHotels(currentCity, 5, { 
+          llm: true, context: { ...context, nlu }, next_context: nextContextBase 
+      });
   }
 
-  // Logic: Tìm thấy Topic Mới (Match >= 0.12)
+  // --- FLOW 3: PROMOTIONS ---
+  if (nlu.intent === 'ask_promotions') {
+      if (nlu.time_ref === 'today' || message.toLowerCase().includes('hôm nay')) {
+           return await getPromotionsValidTodayByCity(currentCity, 10, {
+               llm: true, context: { ...context, nlu }, next_context: nextContextBase
+           });
+      }
+      const monthMatch = message.match(/tháng (\d+)/i);
+      const month = monthMatch ? parseInt(monthMatch[1]) : (new Date().getMonth() + 1);
+      const year = new Date().getFullYear();
+      return await getPromotionsByKeywordCityMonth(null, currentCity, year, month, 10, {
+          llm: true, context: { ...context, nlu }, next_context: nextContextBase
+      });
+  }
+
+  // --- FLOW 4: VECTOR SEARCH ---
+  let match = null;
+  if (nlu.intent !== 'chitchat' && nlu.intent !== 'other') {
+      match = await findBestMatch(db, searchPayload, currentCity);
+  }
+  
+  // Fallback Context Search
+  if (!match && lastEntityName && ['ask_details', 'ask_places'].includes(nlu.intent)) {
+      console.log(`↩️ Fallback: Re-checking context "${lastEntityName}"`);
+      match = await findBestMatch(db, lastEntityName, currentCity);
+  }
+
   if (match && match.score >= 0.12) { 
-      console.log(`🚀 Vector Match: ${match.item.name} (${match.score.toFixed(2)})`);
+      console.log(`🚀 Match Found: ${match.item.name} (${match.score.toFixed(2)})`);
       const safeDoc = extractProvinceDoc(match.doc);
       
+      // 🔥 CRITICAL FIX: Cập nhật City theo địa điểm mới tìm thấy
+      // Nếu địa điểm tìm thấy có tên tỉnh (VD: Lâm Đồng), update Context ngay lập tức
+      const foundProvince = match.item.province; 
+      if (foundProvince && foundProvince.length > 2) {
+           console.log(`🌍 Auto-updating City Context: ${currentCity} -> ${foundProvince}`);
+           currentCity = foundProvince;
+           nextContextBase.city = foundProvince;
+           nextContextBase.last_city = foundProvince;
+      }
+
       const payload = await compose({
-        doc: safeDoc,
-        nlu: { ...nlu, intent: 'ask_details', city: safeDoc?.name }, 
-        user_ctx: { forcedItem: match.item, forcedType: match.type, userMessage: message, ...context }
+        doc: safeDoc, 
+        nlu: { ...nlu, intent: 'ask_details', city: currentCity }, 
+        user_ctx: { forcedItem: match.item, userMessage: nlu.rewritten, ...context }
       });
       
       payload.latency_ms = Date.now() - started;
-      
-      // Cập nhật Entity mới vào Context
       payload.next_context = { 
-          city: currentCity || safeDoc?.name,
-          last_city: currentCity || safeDoc?.name,
-          entity_name: match.item.name, // Lưu tên địa điểm mới
-          entity_type: match.type 
+          ...nextContextBase,
+          last_entity_name: match.item.name 
       };
       return payload;
   }
 
-  // =================================================================
-  // FLOW 4: FALLBACK & CHITCHAT
-  // =================================================================
-
+  // --- FLOW 5: CHITCHAT / FALLBACK ---
   if (nlu.intent === 'chitchat') {
-      const payload = await composeSmallTalk({ message });
+      const payload = await composeSmallTalk({ message }); 
       payload.latency_ms = Date.now() - started;
       payload.next_context = nextContextBase;
       return payload;
   }
 
-  // SQL Fallbacks
-  if (nlu.intent === 'ask_promotions') {
-      const payload = await getPromotionsValidToday(10, { llm: true, context: { ...context, nlu } });
-      if (payload) payload.next_context = nextContextBase;
-      return payload;
-  }
-  if (nlu.intent === 'ask_hotels') {
-      const payload = await getTopHotels(currentCity || 'Hồ Chí Minh', 5, { llm: true, context: { ...context, nlu } });
-      if (payload) payload.next_context = nextContextBase;
-      return payload;
-  }
-
-  // Final Fallback: Không tìm thấy gì
   console.log('❌ No match found. City Fallback.');
-  const payload = await composeCityFallback({ city: currentCity, message });
+  const payload = await composeCityFallback({ city: currentCity, message: nlu.rewritten });
   payload.latency_ms = Date.now() - started;
-  payload.next_context = nextContextBase; // Vẫn phải giữ Context
+  payload.next_context = nextContextBase;
   return payload;
 }
 
+// ... (Giữ nguyên phần Helper & SQL Wrappers như cũ) ...
+// (Phần này bạn không cần copy lại nếu đã có, hoặc copy từ file cũ vào)
+// Đảm bảo có các hàm: getTopHotels, searchVector, compose... ở cuối file
 // ==============================================================================
-// 4. EXPORTS & HELPERS (Giữ nguyên)
+// 4. HELPERS & SQL EXPORTS 
 // ==============================================================================
 
 function wantLLM(opts) { if (opts && typeof opts.llm === 'boolean') return opts.llm; return USE_LLM; }
 function normalizeRows(rows, tag = '') { return (Array.isArray(rows) ? rows : []).filter(Boolean).map(x => (typeof x === 'string' ? {name:x,_raw:x} : (x && x.name ? {...x} : null))).filter(Boolean); }
-async function composeFromSQL(tag, params, rows, opts = {}) { const safeRows = normalizeRows(rows); return await compose({ sql: [{ name: tag, tag, params, rows: safeRows }], nlu: opts.context?.nlu || null, filters: opts.context?.filters || {}, user_ctx: opts.context || {} }); }
+async function composeFromSQL(tag, params, rows, opts = {}) { const safeRows = normalizeRows(rows); const payload = await compose({ sql: [{ name: tag, tag, params, rows: safeRows }], nlu: opts.context?.nlu || null, filters: opts.context?.filters || {}, user_ctx: opts.context || {} }); if (opts.next_context) payload.next_context = opts.next_context; return payload;}
 function extractProvinceDoc(raw) {
   if (!raw) return null;
   try { return { name: raw.name || raw.province || 'unknown', places: raw.places || [], dishes: raw.dishes || [] }; } 
@@ -277,14 +230,15 @@ function extractProvinceDoc(raw) {
 }
 async function suggest(db, opts) { return suggestHybrid(db, opts); }
 
+// --- SQL FUNCTION WRAPPERS ---
+
 async function getTopHotels(city, limit = 10, opts = undefined) {
-    const { data, error } = await supabase.rpc('top_hotels_by_city', { p_city: city, p_limit: limit });
-    if (error) console.error('SQL Error:', error);
+    const { data } = await supabase.rpc('top_hotels_by_city', { p_city: city, p_limit: limit });
     if (!wantLLM(opts)) return { data }; 
     return await composeFromSQL('top_hotels_by_city', { city, limit }, data, opts);
 }
 async function getPromotionsValidToday(limit = 50, opts = undefined) {
-    const { data, error } = await supabase.rpc('promotions_valid_today', { p_limit: limit });
+    const { data } = await supabase.rpc('promotions_valid_today', { p_limit: limit });
     if (!wantLLM(opts)) return { data };
     return await composeFromSQL('promotions_valid_today', { limit }, data, opts);
 }
@@ -293,19 +247,77 @@ async function searchHotels(q = '', city = '', limit = 20, opts = undefined) {
     if (!wantLLM(opts)) return { data };
     return await composeFromSQL('search_hotels', { q, city, limit }, data, opts);
 }
-
-// Mock exports
-async function getHotelsByAnyAmenities() { return {}; }
-async function getHotelFull() { return {}; }
-async function getPromotionsValidTodayByCity() { return {}; }
-async function getPromotionsByKeywordCityMonth() { return {}; }
-async function promoCheckApplicability() { return {}; }
-async function promoUsageStats() { return {}; }
-async function listHotelCities() { return {}; }
-async function getHotelsByAmenities() { return {}; }
-async function getPromotionsInMonth() { return {}; }
-async function getPromotionsInMonthByCity() { return {}; }
-async function getPromotionsByCity() { return {}; }
+async function getHotelsByAnyAmenities(city, amenities, limit, opts) {
+  const { data, error } = await supabase.rpc('hotels_by_city_with_any_amenities', { p_city: city, p_amenities: amenities, p_limit: limit });
+  if (error) throw error;
+  if (!wantLLM(opts)) return { data };
+  return composeFromSQL('hotels_by_city_with_any_amenities', { city, amenities, limit }, data, opts);
+}
+async function getHotelFull(hotelId, opts) {
+  const { data, error } = await supabase.rpc('hotel_full', { p_hotel_id: hotelId });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] || null : data;
+  if (!wantLLM(opts)) return { data: row };
+  return composeFromSQL('hotel_full', { hotelId }, row ? [row] : [], opts);
+}
+async function getPromotionsValidTodayByCity(city, limit, opts) {
+  const { data, error } = await supabase.rpc('promotions_valid_today_by_city', { p_city: city, p_limit: limit });
+  if (error) throw error;
+  if (!wantLLM(opts)) return { data };
+  return composeFromSQL('promotions_valid_today_by_city', { city, limit }, data, opts);
+}
+async function getPromotionsByKeywordCityMonth(q, city, year, month, limit, opts) {
+  const { data, error } = await supabase.rpc('promotions_by_keyword_city_month', { p_city: city, p_kw: q, p_year: year, p_month: month, p_limit: limit });
+  if (error) throw error;
+  if (!wantLLM(opts)) return { data };
+  return composeFromSQL('promotions_by_keyword_city_month', { q, city, year, month, limit }, data, opts);
+}
+async function promoCheckApplicability(code, userId, bookingAmount, whenTs, opts) {
+  const args = { p_code: code, p_user: userId, p_booking_amount: bookingAmount };
+  if (whenTs) args.p_when = whenTs;
+  const { data, error } = await supabase.rpc('promo_check_applicability', args);
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] || null : data;
+  if (!wantLLM(opts)) return { data: row };
+  return composeFromSQL('promo_check_applicability', { code, userId, bookingAmount, whenTs }, row ? [row] : [], opts);
+}
+async function promoUsageStats(promotionId, opts) {
+  const { data, error } = await supabase.rpc('promo_usage_stats', { p_promotion_id: promotionId });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] || null : data;
+  if (!wantLLM(opts)) return { data: row };
+  return composeFromSQL('promo_usage_stats', { promotionId }, row ? [row] : [], opts);
+}
+async function listHotelCities(opts) {
+  const { data, error } = await supabase.rpc('hotel_cities');
+  if (error) throw error;
+  if (!wantLLM(opts)) return { data };
+  return composeFromSQL('hotel_cities', {}, data, opts);
+}
+async function getHotelsByAmenities(city, amenities, limit, opts) {
+  const { data, error } = await supabase.rpc('hotels_by_city_with_amenities', { p_city: city, p_amenities: amenities, p_limit: limit });
+  if (error) throw error;
+  if (!wantLLM(opts)) return { data };
+  return composeFromSQL('hotels_by_city_with_amenities', { city, amenities, limit }, data, opts);
+}
+async function getPromotionsInMonth(year, month, limit, opts) {
+  const { data, error } = await supabase.rpc('promotions_in_month', { p_year: year, p_month: month, p_limit: limit });
+  if (error) throw error;
+  if (!wantLLM(opts)) return { data };
+  return composeFromSQL('promotions_in_month', { year, month, limit }, data, opts);
+}
+async function getPromotionsInMonthByCity(city, year, month, limit, opts) {
+  const { data, error } = await supabase.rpc('promotions_in_month_by_city', { p_city: city, p_year: year, p_month: month, p_limit: limit });
+  if (error) throw error;
+  if (!wantLLM(opts)) return { data };
+  return composeFromSQL('promotions_in_month_by_city', { city, year, month, limit }, data, opts);
+}
+async function getPromotionsByCity(city, opts) {
+  const { data, error } = await supabase.rpc('promotions_by_city', { p_city: city });
+  if (error) throw error;
+  if (!wantLLM(opts)) return { data };
+  return composeFromSQL('promotions_by_city', { city }, data, opts);
+}
 
 module.exports = {
   suggestHybrid, suggest, searchVector,
