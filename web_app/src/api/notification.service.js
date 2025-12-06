@@ -1,8 +1,71 @@
 // src/api/notification.service.js
 import axios from 'axios';
-import { API_ENDPOINTS } from '../config/apiEndpoints';
+import axiosClient from '../config/axiosClient';
+import { API_ENDPOINTS, NOTIFICATION_API_ENDPOINTS } from '../config/apiEndpoints';
 
 export const notificationService = {
+  /**
+   * Lấy danh sách thông báo theo receiver_id
+   * @param {string} receiverId - ID của người nhận
+   * @param {object} params - Query params (limit, skip)
+   * @returns {Promise}
+   */
+  getNotificationsByReceiver: async (receiverId, params = {}) => {
+    try {
+      const response = await axiosClient.get(
+        NOTIFICATION_API_ENDPOINTS.GET_NOTIFICATIONS(receiverId),
+        { params }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Đánh dấu thông báo đã đọc
+   * @param {string} notificationId - ID của thông báo
+   * @param {string} receiverId - ID của người nhận
+   * @returns {Promise}
+   */
+  markAsRead: async (notificationId, receiverId) => {
+    try {
+      console.log('[notificationService] markAsRead called:', { notificationId, receiverId });
+      console.log('[notificationService] API URL:', NOTIFICATION_API_ENDPOINTS.MARK_AS_READ(notificationId));
+      
+      const response = await axiosClient.put(
+        NOTIFICATION_API_ENDPOINTS.MARK_AS_READ(notificationId),
+        { receiver_id: receiverId }
+      );
+      
+      console.log('[notificationService] markAsRead response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('[notificationService] Error marking notification as read:', error);
+      console.error('[notificationService] Error details:', error.response?.data);
+      throw error;
+    }
+  },
+
+  /**
+   * Tạo thông báo mới
+   * @param {object} notificationData - Dữ liệu thông báo
+   * @returns {Promise}
+   */
+  createNotification: async (notificationData) => {
+    try {
+      const response = await axiosClient.post(
+        NOTIFICATION_API_ENDPOINTS.CREATE_NOTIFICATION,
+        notificationData
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error creating notification:', error);
+      throw error;
+    }
+  },
+
   /**
    * Gửi thông báo khi thay đổi trạng thái khách sạn hoặc hợp đồng
    */

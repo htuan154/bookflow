@@ -7,7 +7,7 @@ import { usePromotions } from '../../../hooks/usePromotions';
 const PromotionView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getPromotionDetails, currentPromotion, loading } = usePromotions();
+  const { getPromotionDetails, currentPromotion, loading } = usePromotions({ autoFetch: false });
 
   useEffect(() => {
     if (id) {
