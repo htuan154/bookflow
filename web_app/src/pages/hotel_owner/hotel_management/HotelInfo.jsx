@@ -63,6 +63,7 @@ const HotelInfo = () => {
     unsetDefaultBankAccountsByHotel,
   } = useBankAccount();
   const { createGroup } = useIM();
+  const { toast, showSuccess, showError, hideToast } = useToast();
 
   // Đếm tổng số hình ảnh của tất cả loại phòng (không dùng hook trong vòng lặp)
   const roomTypeImagesCount = useMemo(() => {
@@ -355,10 +356,10 @@ const HotelInfo = () => {
       setIsEditing(false);
       setShowSubmitModal(false);
       setHotelToSubmit(null);
-      alert('Đã gửi khách sạn cho admin duyệt thành công!');
+      showSuccess('Đã gửi khách sạn cho admin duyệt thành công!');
     } catch (e) {
       console.error('Error submitting hotel:', e);
-      alert('Lỗi khi nộp khách sạn: ' + (e.message || 'Lỗi không xác định'));
+      showError('Lỗi khi nộp khách sạn: ' + (e.message || 'Lỗi không xác định'));
     }
   };
 
@@ -1916,6 +1917,14 @@ const HotelInfo = () => {
             </div>
           </div>
         </div>
+      )}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={true}
+          onClose={hideToast}
+        />
       )}
     </div>
   );
