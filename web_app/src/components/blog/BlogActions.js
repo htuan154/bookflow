@@ -43,10 +43,18 @@ const BlogActions = ({
         }
     };
 
-    const confirmAction = (action, message) => {
-        if (window.confirm(message)) {
-            handleAction(action);
+    const confirmAction = (action) => {
+        setShowConfirm({ action });
+    };
+
+    const handleConfirm = () => {
+        if (showConfirm) {
+            handleAction(showConfirm.action);
         }
+    };
+
+    const handleCancel = () => {
+        setShowConfirm(null);
     };
 
     const buttonClass = size === 'small' 
@@ -103,7 +111,7 @@ const BlogActions = ({
                     {/* Reject */}
                     {blog.status === 'pending' && (
                         <button
-                            onClick={() => confirmAction('reject', 'Bạn có chắc muốn từ chối bài viết này?')}
+                            onClick={() => confirmAction('reject')}
                             disabled={loading || actionLoading}
                             className={`${buttonClass} text-orange-600 hover:text-orange-800 hover:bg-orange-50 rounded transition-colors disabled:opacity-50`}
                         >
@@ -123,7 +131,7 @@ const BlogActions = ({
                     {/* Unpublish */}
                     {blog.status === 'published' && (
                         <button
-                            onClick={() => confirmAction('unpublish', 'Bạn có chắc muốn ẩn bài viết này?')}
+                            onClick={() => confirmAction('unpublish')}
                             disabled={loading || actionLoading}
                             className={`${buttonClass} text-yellow-600 hover:text-yellow-800 hover:bg-yellow-50 rounded transition-colors disabled:opacity-50`}
                         >
@@ -145,7 +153,7 @@ const BlogActions = ({
             {/* Delete */}
             {onDelete && (
                 <button
-                    onClick={() => confirmAction('delete', 'Bạn có chắc muốn xóa bài viết này? Hành động này không thể hoàn tác.')}
+                    onClick={() => confirmAction('delete')}
                     disabled={loading || actionLoading}
                     className={`${buttonClass} text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors disabled:opacity-50`}
                 >
@@ -160,6 +168,42 @@ const BlogActions = ({
                         {size === 'default' && 'Xóa'}
                     </div>
                 </button>
+            )}
+
+            {/* Confirmation Modal */}
+            {showConfirm && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-30">
+                    <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full text-center">
+                        <h2 className="text-lg font-semibold mb-4 text-orange-700">Xác nhận</h2>
+                        <p className="mb-6 text-gray-700">
+                            {showConfirm.action === 'reject' && 'Bạn có chắc muốn từ chối bài viết này?'}
+                            {showConfirm.action === 'unpublish' && 'Bạn có chắc muốn ẩn bài viết này?'}
+                            {showConfirm.action === 'delete' && (
+                                <>
+                                    Bạn có chắc muốn xóa bài viết này?
+                                    <br />
+                                    <span className="text-sm text-red-600 mt-2 block">
+                                        Hành động này không thể hoàn tác!
+                                    </span>
+                                </>
+                            )}
+                        </p>
+                        <div className="flex justify-center gap-4">
+                            <button
+                                onClick={handleCancel}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={handleConfirm}
+                                className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+                            >
+                                Xác nhận
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

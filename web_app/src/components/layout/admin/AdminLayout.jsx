@@ -156,20 +156,20 @@ const AdminLayout = () => {
                     <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Khách hàng</p>
                     {navLinks.slice(4, 7).map(renderMenuItem)}
                     
-                    {/* NỘI DUNG - 5 items (7-11) */}
+                    {/* NỘI DUNG - 6 items (7-12) */}
                     <div className="my-4 border-t border-gray-200"></div>
                     <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Nội dung</p>
-                    {navLinks.slice(7, 12).map(renderMenuItem)}
+                    {navLinks.slice(7, 13).map(renderMenuItem)}
                     
-                    {/* TIN NHẮN - 1 item (12) */}
+                    {/* TIN NHẮN - 1 item (13) */}
                     <div className="my-4 border-t border-gray-200"></div>
                     <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Tin nhắn</p>
-                    {navLinks.slice(12, 13).map(renderMenuItem)}
+                    {navLinks.slice(13, 14).map(renderMenuItem)}
                     
-                    {/* BÁO CÁO - 3 items (13-15) */}
+                    {/* BÁO CÁO - 3 items (14-16) */}
                     <div className="my-4 border-t border-gray-200"></div>
                     <p className="text-xs font-bold text-gray-500 uppercase px-4 mb-2 tracking-wider">Báo cáo</p>
-                    {navLinks.slice(13).map(renderMenuItem)}
+                    {navLinks.slice(14).map(renderMenuItem)}
                 </nav>
 
                 {/* Footer cố định */}

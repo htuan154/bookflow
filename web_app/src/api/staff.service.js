@@ -240,7 +240,7 @@ export const staffApiService = {
      */
     async updateStaffStatus(staffId, status) {
         try {
-            const response = await axiosClient.patch(API_ENDPOINTS.STAFF.UPDATE(staffId), { 
+            const response = await axiosClient.put(API_ENDPOINTS.STAFF.UPDATE(staffId), { 
                 status
             });
             return response.data;
@@ -258,7 +258,7 @@ export const staffApiService = {
      */
     async updateStaffPosition(staffId, position) {
         try {
-            const response = await axiosClient.patch(API_ENDPOINTS.STAFF.UPDATE(staffId), { 
+            const response = await axiosClient.put(API_ENDPOINTS.STAFF.UPDATE(staffId), { 
                 position
             });
             return response.data;
@@ -276,7 +276,7 @@ export const staffApiService = {
      */
     async updateStaffSalary(staffId, salary) {
         try {
-            const response = await axiosClient.patch(API_ENDPOINTS.STAFF.UPDATE(staffId), { 
+            const response = await axiosClient.put(API_ENDPOINTS.STAFF.UPDATE(staffId), { 
                 salary
             });
             return response.data;

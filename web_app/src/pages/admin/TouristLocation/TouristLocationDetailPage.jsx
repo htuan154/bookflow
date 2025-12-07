@@ -5,6 +5,8 @@ import { MapPin, Navigation, Edit, ArrowLeft, Image as ImageIcon, Plus, X } from
 import useTouristLocation from '../../../hooks/useTouristLocation';
 import useFoodRecommendation from '../../../hooks/useFoodRecommendation';
 import { ActionButtonsGroup } from '../../../components/common/ActionButton';
+import { useToast } from '../../../hooks/useToast';
+import Toast from '../../../components/common/Toast';
 
 const TouristLocationDetailPage = () => {
   const { locationId } = useParams();
@@ -16,6 +18,10 @@ const TouristLocationDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddFoodModal, setShowAddFoodModal] = useState(false);
+  const [deleteConfirmLocation, setDeleteConfirmLocation] = useState(null);
+  const [deleteConfirmFood, setDeleteConfirmFood] = useState(null);
+
+  const { toast, showSuccess, showError, hideToast } = useToast();
 
   useEffect(() => {
     const loadData = async () => {
@@ -94,9 +100,21 @@ const TouristLocationDetailPage = () => {
   };
 
   const handleDeleteLocation = async () => {
-    if (window.confirm(`Bạn có chắc muốn xóa "${location.name}"?`)) {
-      await deleteLocation(location.locationId);
+    setDeleteConfirmLocation(location);
+  };
+
+  const confirmDeleteLocation = async () => {
+    if (!deleteConfirmLocation) return;
+    
+    try {
+      await deleteLocation(deleteConfirmLocation.locationId);
+      showSuccess(`Đã xóa địa điểm "${deleteConfirmLocation.name}" thành công!`);
       navigate('/admin/tourist-locations');
+    } catch (error) {
+      console.error('Delete error:', error);
+      showError('Có lỗi xảy ra khi xóa địa điểm. Vui lòng thử lại.');
+    } finally {
+      setDeleteConfirmLocation(null);
     }
   };
 
@@ -129,9 +147,21 @@ const TouristLocationDetailPage = () => {
   };
 
   const handleDeleteFood = async (food) => {
-    if (window.confirm(`Bạn có chắc muốn xóa "${food.name}"?`)) {
-      await deleteFood(food.foodId);
+    setDeleteConfirmFood(food);
+  };
+
+  const confirmDeleteFood = async () => {
+    if (!deleteConfirmFood) return;
+    
+    try {
+      await deleteFood(deleteConfirmFood.foodId);
       await fetchByLocation(locationId);
+      showSuccess(`Đã xóa món ăn "${deleteConfirmFood.name}" thành công!`);
+    } catch (error) {
+      console.error('Delete error:', error);
+      showError('Có lỗi xảy ra khi xóa món ăn. Vui lòng thử lại.');
+    } finally {
+      setDeleteConfirmFood(null);
     }
   };
 
@@ -557,6 +587,68 @@ const TouristLocationDetailPage = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Confirmation Modal for Delete Location */}
+      {deleteConfirmLocation && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Xác nhận xóa</h3>
+            <p className="text-gray-600 mb-6">
+              Bạn có chắc chắn muốn xóa địa điểm "<strong>{deleteConfirmLocation.name}</strong>"?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setDeleteConfirmLocation(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmDeleteLocation}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Delete Food */}
+      {deleteConfirmFood && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Xác nhận xóa</h3>
+            <p className="text-gray-600 mb-6">
+              Bạn có chắc chắn muốn xóa món ăn "<strong>{deleteConfirmFood.name}</strong>"?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setDeleteConfirmFood(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmDeleteFood}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+          duration={toast.duration}
+        />
       )}
     </div>
   );

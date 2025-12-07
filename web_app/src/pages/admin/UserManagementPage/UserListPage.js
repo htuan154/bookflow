@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useUser } from '../../../context/UserContext';
 import ActionButton from '../../../components/common/ActionButton';
+import { useToast } from '../../../hooks/useToast';
+import Toast from '../../../components/common/Toast';
 
 const UserListPage = () => {
     const {
@@ -28,6 +30,10 @@ const UserListPage = () => {
     const [isInitialized, setIsInitialized] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
+    const [deleteConfirmUser, setDeleteConfirmUser] = useState(null);
+    const [statusToggleUser, setStatusToggleUser] = useState(null);
+
+    const { toast, showSuccess, showError, showWarning, hideToast } = useToast();
 
     // Helper functions
     const getUserName = (user) => {
@@ -211,33 +217,25 @@ const UserListPage = () => {
     const handleToggleStatus = async (userId, currentStatus) => {
         const userObj = users.find(u => getUserId(u) === userId);
         const userName = getUserName(userObj);
+        setStatusToggleUser({ userId, currentStatus, userName });
+    };
+
+    const confirmToggleStatus = async () => {
+        if (!statusToggleUser) return;
+        
+        const { userId, currentStatus, userName } = statusToggleUser;
         const newStatus = currentStatus === 'active' ? false : true;
         const statusText = newStatus ? 'kích hoạt' : 'vô hiệu hóa';
         
-        console.log('[handleToggleStatus] BEFORE:', { 
-            userId, 
-            currentStatus, 
-            newStatus, 
-            userObj_isActive: userObj?.isActive,
-            userObj_is_active: userObj?.is_active 
-        });
-        
-        if (window.confirm(`Bạn có chắc chắn muốn ${statusText} người dùng "${userName}"?`)) {
-            try {
-                const result = await updateUserStatus(userId, newStatus);
-                console.log('[handleToggleStatus] UPDATE RESULT:', result);
-                
-                await fetchUsers();
-                
-                const updatedUser = users.find(u => getUserId(u) === userId);
-                console.log('[handleToggleStatus] AFTER FETCH:', {
-                    updatedUser_isActive: updatedUser?.isActive,
-                    updatedUser_is_active: updatedUser?.is_active
-                });
-            } catch (error) {
-                console.error('[handleToggleStatus] ERROR:', error);
-                alert('Lỗi khi cập nhật trạng thái người dùng');
-            }
+        try {
+            await updateUserStatus(userId, newStatus);
+            await fetchUsers();
+            showSuccess(`Đã ${statusText} người dùng "${userName}" thành công!`);
+        } catch (error) {
+            console.error('[handleToggleStatus] ERROR:', error);
+            showError('Lỗi khi cập nhật trạng thái người dùng');
+        } finally {
+            setStatusToggleUser(null);
         }
     };
 
@@ -247,17 +245,26 @@ const UserListPage = () => {
         const userObj = users.find(u => getUserId(u) === userId);
         const role = userObj ? getUserRole(userObj) : null;
         if (role === 'admin') {
-            alert('Không thể xóa tài khoản admin');
+            showWarning('Không thể xóa tài khoản admin');
             return;
         }
 
-        if (window.confirm(`Bạn có chắc chắn muốn xóa người dùng "${userName}"?`)) {
-            try {
-                await deleteUser(userId);
-                await fetchUsers();
-            } catch (error) {
-                console.error('Error deleting user:', error);
-            }
+        setDeleteConfirmUser({ userId, userName });
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteConfirmUser) return;
+        
+        const { userId, userName } = deleteConfirmUser;
+        try {
+            await deleteUser(userId);
+            await fetchUsers();
+            showSuccess(`Đã xóa người dùng "${userName}" thành công!`);
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            showError('Lỗi khi xóa người dùng');
+        } finally {
+            setDeleteConfirmUser(null);
         }
     };
 
@@ -823,6 +830,68 @@ const UserListPage = () => {
                             </div>
                         </div>
                     </div>
+                )}
+
+                {/* Confirmation Modal for Delete */}
+                {deleteConfirmUser && (
+                    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black bg-opacity-50">
+                        <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Xác nhận xóa</h3>
+                            <p className="text-gray-600 mb-6">
+                                Bạn có chắc chắn muốn xóa người dùng "<strong>{deleteConfirmUser.userName}</strong>"?
+                            </p>
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    onClick={() => setDeleteConfirmUser(null)}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                                >
+                                    Xóa
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Confirmation Modal for Status Toggle */}
+                {statusToggleUser && (
+                    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black bg-opacity-50">
+                        <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Xác nhận thay đổi trạng thái</h3>
+                            <p className="text-gray-600 mb-6">
+                                Bạn có chắc chắn muốn {statusToggleUser.currentStatus === 'active' ? 'vô hiệu hóa' : 'kích hoạt'} người dùng "<strong>{statusToggleUser.userName}</strong>"?
+                            </p>
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    onClick={() => setStatusToggleUser(null)}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    onClick={confirmToggleStatus}
+                                    className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                                >
+                                    OK
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Toast Notification */}
+                {toast && (
+                    <Toast
+                        message={toast.message}
+                        type={toast.type}
+                        onClose={hideToast}
+                        duration={toast.duration}
+                    />
                 )}
             </div>
         </div>

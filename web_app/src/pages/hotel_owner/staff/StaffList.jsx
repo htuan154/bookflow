@@ -9,6 +9,7 @@ import { useHotelOwner } from '../../../hooks/useHotelOwner';
 import { useStaff } from '../../../context/StaffContext';
 import Toast from '../../../components/common/Toast';
 import { useToast } from '../../../hooks/useToast';
+import DeleteConfirmModal from '../marketing/components/DeleteConfirmModal';
 
 const StaffList = () => {
     const { hotelData, fetchOwnerHotel } = useHotelOwner();
@@ -31,13 +32,14 @@ const StaffList = () => {
         pageSize,
         setPageSize,
         updateStaffStatus,
-        deleteStaff,
+        terminateStaff,
         refreshStaff
     } = useStaff();
     
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedStaff, setSelectedStaff] = useState(null);
     const [showDetails, setShowDetails] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState({ show: false, staffId: null, userId: null, staffName: '' });
     const location = useLocation();
 
     useEffect(() => {
@@ -86,17 +88,22 @@ const StaffList = () => {
         }
     };
 
-    const handleDeleteStaff = async (staffId) => {
-        if (!window.confirm('Bạn có chắc muốn xóa nhân viên này?')) {
-            return;
-        }
+    const handleDeleteStaff = (staffId, userId, staffName = '') => {
+        setDeleteConfirm({ show: true, staffId, userId, staffName });
+    };
 
-        const result = await deleteStaff(staffId);
+    const confirmDelete = async () => {
+        const result = await terminateStaff(deleteConfirm.staffId, deleteConfirm.userId);
         if (result.success) {
-            showSuccess('Xóa nhân viên thành công!');
+            showSuccess('Chấm dứt hợp đồng nhân viên thành công!');
         } else {
-            showError('Xóa nhân viên thất bại: ' + result.error);
+            showError('Chấm dứt hợp đồng nhân viên thất bại: ' + result.error);
         }
+        setDeleteConfirm({ show: false, staffId: null, userId: null, staffName: '' });
+    };
+
+    const cancelDelete = () => {
+        setDeleteConfirm({ show: false, staffId: null, userId: null, staffName: '' });
     };
 
     // Filter staff based on search term and status only
@@ -439,9 +446,9 @@ const StaffList = () => {
                                                     </button>
                                                     
                                                     <button
-                                                        onClick={() => handleDeleteStaff(staffId)}
+                                                        onClick={() => handleDeleteStaff(staffId, userId, `Nhân viên #${staffId}`)}
                                                         className="text-red-600 hover:text-red-900"
-                                                        title="Xóa"
+                                                        title="Chấm dứt hợp đồng"
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
@@ -617,6 +624,17 @@ const StaffList = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteConfirm.show && (
+                <DeleteConfirmModal
+                    blog={{ title: deleteConfirm.staffName }}
+                    message={`Bạn có chắc chắn muốn chấm dứt hợp đồng với "${deleteConfirm.staffName}"? Trạng thái nhân viên sẽ chuyển thành terminated và tài khoản sẽ bị vô hiệu hóa.`}
+                    confirmText="Chấm dứt hợp đồng"
+                    onConfirm={confirmDelete}
+                    onCancel={cancelDelete}
+                />
             )}
 
             {/* Toast Notification */}
