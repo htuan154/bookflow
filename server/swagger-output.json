@@ -1170,6 +1170,24 @@
         }
       }
     },
+    "/api/v1/rooms/bulk": {
+      "post": {
+        "description": "",
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      },
+      "delete": {
+        "description": "",
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/v1/rooms/{id}": {
       "get": {
         "description": "",

@@ -96,6 +96,7 @@ export const API_ENDPOINTS = {
     // --- Room Endpoints ---
     ROOMS: {
         CREATE: `${API_BASE_URL}/rooms`,
+        BULK: `${API_BASE_URL}/rooms/bulk`,
         GET_ALL: `${API_BASE_URL}/rooms`,
         SEARCH: `${API_BASE_URL}/rooms/search`,
         GET_BY_STATUS: (status) => `${API_BASE_URL}/rooms/status/${status}`,

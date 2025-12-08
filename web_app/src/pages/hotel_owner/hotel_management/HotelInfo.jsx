@@ -29,6 +29,7 @@ import { CreditCardIcon, PlusIcon } from '@heroicons/react/24/outline';
 import useIM from '../../../hooks/useIM';
 import Toast from '../../../components/common/Toast';
 import { useToast } from '../../../hooks/useToast';
+import DeleteConfirmModal from '../marketing/components/DeleteConfirmModal';
 
 // helper: lấy id khách sạn/amenity an toàn
 const getId = (obj) => obj?.hotelId ?? obj?.hotel_id ?? obj?.id ?? obj?._id ?? null;
@@ -77,6 +78,7 @@ const HotelInfo = () => {
     return total;
   }, [roomTypes, imagesByType]);
   const navigate = useNavigate();
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, hotel: null });
 
   const [hotels, setHotels] = useState([]);
   const [selectedHotel, setSelectedHotel] = useState(null);
@@ -563,21 +565,35 @@ const HotelInfo = () => {
   };
 
   const handleDeleteHotel = async (hotel) => {
+    // Open confirmation modal instead of browser confirm
     if (!hotel) return;
+    setDeleteConfirm({ show: true, hotel });
+  };
+
+  const confirmDeleteHotel = async () => {
+    const hotel = deleteConfirm.hotel;
+    if (!hotel) return setDeleteConfirm({ show: false, hotel: null });
     const hotelId = getId(hotel);
-    if (!hotelId) return alert('Không tìm thấy ID khách sạn!');
-    if (!window.confirm('Bạn có chắc chắn muốn xóa khách sạn này?')) return;
+    if (!hotelId) {
+      showError('Không tìm thấy ID khách sạn!');
+      setDeleteConfirm({ show: false, hotel: null });
+      return;
+    }
     try {
       await hotelApiService.deleteHotel(hotelId);
-      alert('Đã xóa khách sạn thành công!');
+      showSuccess('Đã xóa khách sạn thành công!');
+      setDeleteConfirm({ show: false, hotel: null });
       fetchOwnerHotel(); // Refresh list
     } catch (error) {
       let errorMessage = 'Xóa khách sạn thất bại!';
-      if (error.response?.data?.error) errorMessage = error.response.data.error;
-      else if (error.response?.data?.message) errorMessage = error.response.data.message;
-      alert(errorMessage);
+      if (error?.response?.data?.error) errorMessage = error.response.data.error;
+      else if (error?.response?.data?.message) errorMessage = error.response.data.message;
+      showError(errorMessage);
+      setDeleteConfirm({ show: false, hotel: null });
     }
   };
+
+  const cancelDelete = () => setDeleteConfirm({ show: false, hotel: null });
 
 
 
@@ -1918,6 +1934,16 @@ const HotelInfo = () => {
           </div>
         </div>
       )}
+      {deleteConfirm.show && (
+        <DeleteConfirmModal
+          blog={{ title: deleteConfirm.hotel?.name || deleteConfirm.hotel?.hotel_name || 'khách sạn này' }}
+          message={`Bạn có chắc chắn muốn xóa khách sạn "${deleteConfirm.hotel?.name || deleteConfirm.hotel?.hotel_name || ''}"? Hành động này không thể hoàn tác.`}
+          confirmText="Xóa"
+          onConfirm={confirmDeleteHotel}
+          onCancel={cancelDelete}
+        />
+      )}
+
       {toast && (
         <Toast
           message={toast.message}
