@@ -453,18 +453,20 @@ class _ChatScreenState extends State<ChatScreen> {
         itemCount: _chatSessions.length,
         itemBuilder: (context, index) {
           final session = _chatSessions[index];
-          final sessionId = session['_id']?.toString() ?? '';
-          final lastQuestion = session['last_question'] ?? 'Chat session';
-          final turns = session['turns'] ?? 0;
-          final lastAt = session['last_at'] != null
-              ? DateTime.tryParse(session['last_at'].toString())
+          final sessionId = session['_id']?.toString() ?? session['session_id']?.toString() ?? '';
+          // Backend trả về title = firstMessage (60 ký tự đầu)
+          final title = session['title'] ?? session['name'] ?? session['subject'] ?? 'Chat mới';
+          final turns = session['turns'] ?? session['count'] ?? session['total'] ?? 0;
+          final lastAt = session['updated_at'] ?? session['lastUpdate'] ?? session['last_at'];
+          final timestamp = lastAt != null
+              ? DateTime.tryParse(lastAt.toString())
               : null;
 
           return _buildChatSessionCard(
             sessionId: sessionId,
-            question: lastQuestion,
+            question: title,
             turns: turns,
-            timestamp: lastAt,
+            timestamp: timestamp,
           );
         },
       ),

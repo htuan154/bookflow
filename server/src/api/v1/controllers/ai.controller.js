@@ -30,6 +30,8 @@ const USE_LLM = String(process.env.USE_LLM || 'false').toLowerCase() === 'true';
 // ==============================================================================
 // 1. DEDUPE & CACHE MECHANISM
 // ==============================================================================
+
+// Lưu trữ các request gần đây để tránh xử lý trùng lặp
 const recentRequests = new Map(); 
 const REQUEST_DEDUPE_WINDOW_MS = 2000;
 
@@ -44,6 +46,7 @@ function checkDuplicateRequest(userId, message) {
   return null;
 }
 
+// Lưu request vào cache nếu số lượng vượt quá giới hạn, xóa các mục cũ hơn
 function cacheRequest(userId, message, payload) {
   const key = `${userId}:${String(message).trim()}`;
   recentRequests.set(key, { timestamp: Date.now(), payload });
@@ -62,16 +65,20 @@ function cacheRequest(userId, message, payload) {
 
 async function mainSuggestHandler(req, res, next) {
   try {
+    // Kiểm tra DB nếu chưa có trả về 503 error DB_NOT_READY
     const db = req.app.locals.db;
     if (!db) return res.status(503).json({ error: 'DB_NOT_READY' });
 
+    // Chuẩn bị dữ liệu đầu vào từ request nếu thiếu trả về 400 error
     const { message = '', filters = {}, top_n, session_id } = req.body || {};
     const msg = String(message || '').trim();
     if (!msg) return res.status(400).json({ error: 'message is required' });
 
+    // Kiểm tra userId và sessionId nếu thiếu userid trả về 'anonymous' và session trả về 'default'
     const userId = req.user?.id || 'anonymous';
     const sessionId = req.headers['x-session-id'] || session_id || 'default';
     
+    // Chống spam & trùng lặp yêu cầu
     // A. Dedupe Check
     const cachedResponse = checkDuplicateRequest(userId, msg);
     if (cachedResponse) {
@@ -80,6 +87,7 @@ async function mainSuggestHandler(req, res, next) {
        return res.json(cachedResponse);
     }
 
+    // Lấy thông tin ngữ cảnh từ lịch sử chat
     // B. Lấy Context (History)
     let history = [];
     try {
@@ -88,6 +96,7 @@ async function mainSuggestHandler(req, res, next) {
       console.warn('[AI] Warning: Cannot fetch history', e.message);
     }
     
+    // Tạo context cho Bot gồm LLM flag, filters, history, sessionId, top_n (nếu có)
     const ctx = { 
         use_llm: true, 
         filters: typeof filters === 'object' ? filters : {}, 
@@ -96,10 +105,13 @@ async function mainSuggestHandler(req, res, next) {
     };
     if (top_n) ctx.top_n = Number(top_n);
 
-    // C. Gọi Service
+    // C. Gọi Service để lấy phản hồi từ Bot
     console.log(`[AI] Processing: "${msg}" (User: ${userId})`);
     const payload = await suggestHybrid(db, { message: msg, context: ctx });
     
+    // Xử lý kết quả trả về
+    // Khi không có phản hồi từ Bot trả về thông báo lỗi chung
+    // Khi có phản hồi thì lấy các thông tin như next_context, source, latency
     // D. Xử lý kết quả an toàn
     const safePayload = payload || { 
         summary: "Hệ thống đang bận, vui lòng thử lại sau.", 
@@ -110,6 +122,9 @@ async function mainSuggestHandler(req, res, next) {
     const source = safePayload.source || 'unknown';
     const latency = safePayload.latency_ms || 0;
 
+    // Lưu lịch sử cuộc trò chuyện bất đồng bộ
+    // Gọi hàm saveTurn để lưu lại câu hỏi, câu trả lời, trạng thái context(ngữ cảnh), latency(độ trễ), nguồn
+    // Nếu có lỗi khi lưu thì chỉ log ra console mà không ảnh hưởng đến phản hồi của Bot
     // E. Lưu History (Async)
     saveTurn({
         userId, sessionId, messageText: msg, messageRaw: req.body,
@@ -119,16 +134,19 @@ async function mainSuggestHandler(req, res, next) {
         contextState: nextContext 
     }).catch(e => console.error('❌ History Save Error:', e.message));
 
+    // Tạo object responsePayload để phản hồi lại client (không xóa next_context) để client thấy được trạng thái ngữ cảnh
     // F. Phản hồi Client
     const responsePayload = { ...safePayload };
     
     // 🔥 QUAN TRỌNG: KHÔNG XÓA DÒNG NÀY ĐỂ CLIENT THẤY ĐƯỢC CONTEXT
     // delete responsePayload.next_context; 
     
+    // Lưu vào cache để tránh trùng lặp trong thời gian ngắn
     cacheRequest(userId, msg, responsePayload);
     return res.json(responsePayload);
 
   } catch (e) { 
+    // Bắt tất cả lỗi không mong muốn và trả về 500 Internal Server Error
       console.error('[AI Controller] Critical Error:', e);
       return res.status(500).json({ 
           success: false, 
@@ -143,6 +161,7 @@ async function mainSuggestHandler(req, res, next) {
 // 3. SQL HANDLERS
 // ==============================================================================
 
+// Các hàm xử lý API cho các truy vấn SQL liên quan đến khách sạn và khuyến mãi
 async function topHotelsHandler(req, res, next) {
   try {
     const city = String(req.query.city || '').trim();

@@ -27,18 +27,30 @@ function standardizeProvince(name) {
 // ============================================================
 // 2. AI AUTO-TAGGING (Giữ nguyên Prompt đã duyệt)
 // ============================================================
+
+/**
+ * Hàm sinh từ khóa tự động cho món ăn hoặc địa điểm du lịch bằng AI (Ollama).
+ * - Tùy loại (dish/place), ép cứng một số từ khóa đặc trưng để tránh nhầm lẫn.
+ * - Sinh prompt chi tiết gửi lên AI, yêu cầu trả về danh sách từ khóa mô tả đặc điểm nổi bật.
+ * - Nếu lỗi hoặc AI không trả về, fallback dùng tên gốc.
+ *
+ * @param {string} name - Tên món ăn hoặc địa điểm
+ * @param {string} province - Tên tỉnh/thành
+ * @param {string} type - 'dish' hoặc 'place'
+ * @returns {string} Chuỗi từ khóa mô tả, cách nhau bởi dấu phẩy
+ */
 async function generateKeywords(name, province, type) {
   let prompt = "";
   const nameLower = name.toLowerCase();
 
   if (type === 'dish') {
-    // Logic ép cứng từ khóa để tránh nhầm lẫn giữa các món
-    let extraInstruction = "";
+    // Nếu là món ăn, ép cứng một số từ khóa đặc trưng theo loại món    let extraInstruction = "";
     if (nameLower.includes('bún')) extraInstruction = 'BẮT BUỘC phải có các từ khóa: "bún, nước lèo, sợi bún, món nước".';
     else if (nameLower.includes('bánh')) extraInstruction = 'BẮT BUỘC phải có các từ khóa: "bánh, bột, món ăn nhẹ".';
     else if (nameLower.includes('chè')) extraInstruction = 'BẮT BUỘC phải có các từ khóa: "ngọt, tráng miệng, đường, đá".';
     else if (nameLower.includes('cơm')) extraInstruction = 'BẮT BUỘC phải có các từ khóa: "cơm, no bụng, món chính".';
 
+    // Tạo prompt chi tiết cho AI
     prompt = `
     Đối tượng: Món ăn "${name}" đặc sản ở "${province}".
     
@@ -50,7 +62,7 @@ async function generateKeywords(name, province, type) {
     Output: Chỉ trả về danh sách từ khóa cách nhau bởi dấu phẩy.
     `;
   } else {
-    // Logic ép cứng từ khóa cho địa điểm
+    // Nếu là địa điểm, ép cứng một số từ khóa đặc trưng theo loại địa điểm
     let extraInstruction = "";
     if (nameLower.includes('chùa') || nameLower.includes('đền') || nameLower.includes('lăng') || nameLower.includes('nội')) {
         extraInstruction = 'BẮT BUỘC phải có các từ khóa: "cổ kính, rêu phong, tâm linh, lịch sử, kiến trúc".';
@@ -58,6 +70,7 @@ async function generateKeywords(name, province, type) {
         extraInstruction = 'BẮT BUỘC phải có các từ khóa: "biển xanh, cát trắng, bơi lội, thiên nhiên".';
     }
 
+    // Tạo prompt chi tiết cho AI
     prompt = `
     Đối tượng: Địa điểm du lịch "${name}" ở "${province}".
     
@@ -70,6 +83,7 @@ async function generateKeywords(name, province, type) {
   }
 
   try {
+    // Gửi prompt lên Ollama để AI sinh từ khóa
     const res = await fetch(`${OLLAMA_URL}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -81,29 +95,42 @@ async function generateKeywords(name, province, type) {
       })
     });
     
+    // Xử lý kết quả trả về, chuẩn hóa thành chuỗi từ khóa
     const data = await res.json();
     return data.response.trim().replace(/\n/g, ', ').replace(/[.]/g, '');
   } catch (e) {
+    // Nếu lỗi, fallback dùng tên gốc
     console.error('[DataService] generateKeywords error:', e.message);
-    return name; // Fallback: dùng tên gốc
+    return name;
   }
 }
 
 // ============================================================
 // 3. THÊM ĐỊA ĐIỂM (Place)
 // ============================================================
+
+/**
+ * Thêm hoặc cập nhật địa điểm du lịch vào hệ thống (MongoDB + Vector DB).
+ * - Chuẩn hóa tên tỉnh/thành để lưu đúng collection.
+ * - Sinh từ khóa mô tả bằng AI (Ollama) cho địa điểm.
+ * - Kiểm tra trùng lặp: nếu đã có thì cập nhật, chưa có thì thêm mới.
+ * - Nhúng dữ liệu vào hệ thống vector để phục vụ tìm kiếm ngữ nghĩa.
+ *
+ * @param {object} param0 - { name, province, description }
+ * @returns {object} Thông tin địa điểm đã lưu/cập nhật
+ */
 async function addPlace({ name, province, description = '' }) {
   try {
-    // Bước 1: Chuẩn hóa tên tỉnh
+    // Bước 1: Chuẩn hóa tên tỉnh/thành để lưu đúng collection
     const provinceName = standardizeProvince(province);
     
-    // Bước 2: Gọi AI sinh keywords
+    // Bước 2: Sinh từ khóa mô tả bằng AI cho địa điểm
     console.log(`[DataService] Generating keywords for place: ${name}...`);
     const keywords = await generateKeywords(name, provinceName, 'place');
     
-    // Bước 3: Lưu vào MongoDB
+    // Bước 3: Lưu thông tin vào MongoDB (theo collection tỉnh/thành)
     const db = getDb();
-    const collection = db.collection(provinceName); // Collection theo tên tỉnh
+    const collection = db.collection(provinceName); // Mỗi tỉnh/thành là một collection
     
     const placeDoc = {
       name,
@@ -115,7 +142,7 @@ async function addPlace({ name, province, description = '' }) {
       updated_at: new Date()
     };
     
-    // Kiểm tra trùng lặp (theo tên + tỉnh)
+    // Kiểm tra trùng lặp (theo tên + tỉnh): nếu đã có thì cập nhật, chưa có thì thêm mới
     const existing = await collection.findOne({ 
       name, 
       type: 'place',
@@ -123,19 +150,19 @@ async function addPlace({ name, province, description = '' }) {
     });
     
     if (existing) {
-      // Cập nhật nếu đã tồn tại
+      // Nếu đã tồn tại, chỉ cập nhật mô tả, từ khóa, thời gian
       await collection.updateOne(
         { _id: existing._id },
         { $set: { description, keywords, updated_at: new Date() } }
       );
       console.log(`[DataService] Updated existing place: ${name}`);
     } else {
-      // Thêm mới
+      // Nếu chưa có, thêm mới vào collection
       await collection.insertOne(placeDoc);
       console.log(`[DataService] Inserted new place: ${name}`);
     }
     
-    // Bước 4: Lưu Vector vào Supabase
+    // Bước 4: Nhúng dữ liệu vào hệ thống vector để phục vụ tìm kiếm ngữ nghĩa
     const contentToEmbed = `Địa điểm ${name} tại ${provinceName}. Đặc điểm: ${keywords}. ${description}`;
     
     await addDocument({
@@ -145,6 +172,7 @@ async function addPlace({ name, province, description = '' }) {
     
     console.log(`[DataService] ✅ Place "${name}" synced successfully`);
     
+    // Trả về thông tin địa điểm đã lưu/cập nhật
     return {
       success: true,
       data: {
@@ -155,6 +183,7 @@ async function addPlace({ name, province, description = '' }) {
       }
     };
   } catch (error) {
+    // Nếu lỗi, log ra và throw lại
     console.error('[DataService] addPlace error:', error);
     throw error;
   }
@@ -163,16 +192,27 @@ async function addPlace({ name, province, description = '' }) {
 // ============================================================
 // 4. THÊM MÓN ĂN (Dish)
 // ============================================================
+
+/**
+ * Thêm hoặc cập nhật món ăn đặc sản vào hệ thống (MongoDB + Vector DB).
+ * - Chuẩn hóa tên tỉnh/thành để lưu đúng collection.
+ * - Sinh từ khóa mô tả bằng AI (Ollama) cho món ăn.
+ * - Kiểm tra trùng lặp: nếu đã có thì cập nhật, chưa có thì thêm mới.
+ * - Nhúng dữ liệu vào hệ thống vector để phục vụ tìm kiếm ngữ nghĩa.
+ *
+ * @param {object} param0 - { name, province, description }
+ * @returns {object} Thông tin món ăn đã lưu/cập nhật
+ */
 async function addDish({ name, province, description = '' }) {
   try {
-    // Bước 1: Chuẩn hóa tên tỉnh
+    // Bước 1: Chuẩn hóa tên tỉnh/thành để lưu đúng collection
     const provinceName = standardizeProvince(province);
     
-    // Bước 2: Gọi AI sinh keywords
+    // Bước 2: Sinh từ khóa mô tả bằng AI cho món ăn
     console.log(`[DataService] Generating keywords for dish: ${name}...`);
     const keywords = await generateKeywords(name, provinceName, 'dish');
     
-    // Bước 3: Lưu vào MongoDB
+    // Bước 3: Lưu thông tin vào MongoDB (theo collection tỉnh/thành)
     const db = getDb();
     const collection = db.collection(provinceName);
     
@@ -186,7 +226,7 @@ async function addDish({ name, province, description = '' }) {
       updated_at: new Date()
     };
     
-    // Kiểm tra trùng lặp
+    // Kiểm tra trùng lặp (theo tên + tỉnh): nếu đã có thì cập nhật, chưa có thì thêm mới
     const existing = await collection.findOne({ 
       name, 
       type: 'dish',
@@ -194,17 +234,19 @@ async function addDish({ name, province, description = '' }) {
     });
     
     if (existing) {
+      // Nếu đã tồn tại, chỉ cập nhật mô tả, từ khóa, thời gian
       await collection.updateOne(
         { _id: existing._id },
         { $set: { description, keywords, updated_at: new Date() } }
       );
       console.log(`[DataService] Updated existing dish: ${name}`);
     } else {
+      // Nếu chưa có, thêm mới vào collection
       await collection.insertOne(dishDoc);
       console.log(`[DataService] Inserted new dish: ${name}`);
     }
     
-    // Bước 4: Lưu Vector vào Supabase
+    // Bước 4: Nhúng dữ liệu vào hệ thống vector để phục vụ tìm kiếm ngữ nghĩa
     const contentToEmbed = `Món ăn ${name} đặc sản ${provinceName}. Hương vị: ${keywords}.`;
     
     await addDocument({
@@ -214,6 +256,7 @@ async function addDish({ name, province, description = '' }) {
     
     console.log(`[DataService] ✅ Dish "${name}" synced successfully`);
     
+    // Trả về thông tin món ăn đã lưu/cập nhật
     return {
       success: true,
       data: {
@@ -224,6 +267,7 @@ async function addDish({ name, province, description = '' }) {
       }
     };
   } catch (error) {
+    // Nếu lỗi, log ra và throw lại
     console.error('[DataService] addDish error:', error);
     throw error;
   }

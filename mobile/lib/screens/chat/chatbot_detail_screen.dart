@@ -115,25 +115,36 @@ class _ChatbotDetailScreenState extends State<ChatbotDetailScreen> {
     setState(() => _isLoading = true);
     
     try {
+      print('[ChatbotDetail] Loading messages for session: $sessionId');
       final messages = await _aiService.getChatMessages(
         sessionId: sessionId,
+        page: 1,
+        pageSize: 500,
         requireAuth: true,
       );
       
+      print('[ChatbotDetail] Received ${messages.length} messages from backend');
+      
       // Convert MongoDB messages to UI format
       final convertedMessages = messages.map((msg) {
+        print('[ChatbotDetail] Processing message: ${msg.keys}');
+        print('[ChatbotDetail] Raw message data: $msg');
+        
         // Extract payload từ reply (giống AdminSuggestionsPage - pickPayload function)
+        // Backend trả về: { id, message, reply, replyPayload, timestamp, source, intent }
         dynamic payload;
         try {
-          payload = msg['reply']?['payload'] ?? msg['replyPayload'] ?? msg['payload'] ?? msg['reply'];
+          // Backend đã flatten thành replyPayload rồi
+          payload = msg['replyPayload'] ?? msg['reply']?['payload'] ?? msg['payload'] ?? {};
           
           // Nếu payload là string JSON, parse nó
-          if (payload != null && payload is String) {
+          if (payload is String) {
             try {
               payload = jsonDecode(payload);
             } catch (e) {
               print('[ChatbotDetail] Cannot parse payload JSON: $e');
               // Giữ nguyên string nếu không parse được
+              payload = {'summary': payload};
             }
           }
         } catch (e) {
@@ -141,14 +152,30 @@ class _ChatbotDetailScreenState extends State<ChatbotDetailScreen> {
           payload = {};
         }
         
+        // Extract user message text (backend trả về message là string trực tiếp)
+        final userMessage = msg['message'] is String 
+            ? msg['message'] 
+            : (msg['message']?['text'] ?? 
+               msg['messageText'] ?? 
+               msg['message_text'] ?? 
+               msg['question']);
+        
+        // Extract timestamp
+        final timestamp = msg['timestamp'] ?? msg['created_at'];
+        
+        print('[ChatbotDetail] User message: $userMessage');
+        print('[ChatbotDetail] Payload type: ${payload.runtimeType}');
+        
         return {
-          'id': msg['_id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
+          'id': msg['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(),
           'role': 'assistant',
           'content': payload ?? {},
-          'timestamp': DateTime.tryParse(msg['created_at']?.toString() ?? '') ?? DateTime.now(),
-          'user_message': msg['message']?['text'], // Lưu câu hỏi của user
+          'timestamp': DateTime.tryParse(timestamp?.toString() ?? '') ?? DateTime.now(),
+          'user_message': userMessage, // Lưu câu hỏi của user
         };
       }).toList();
+
+      print('[ChatbotDetail] Converted ${convertedMessages.length} messages');
 
       // Expand messages để hiển thị cả user message và assistant reply
       List<Map<String, dynamic>> expandedMessages = [];
@@ -170,6 +197,8 @@ class _ChatbotDetailScreenState extends State<ChatbotDetailScreen> {
           'timestamp': msg['timestamp'],
         });
       }
+
+      print('[ChatbotDetail] Expanded to ${expandedMessages.length} messages (with user bubbles)');
 
       setState(() {
         _messages = expandedMessages;
@@ -228,6 +257,11 @@ class _ChatbotDetailScreenState extends State<ChatbotDetailScreen> {
       });
 
       _scrollToBottom();
+      
+      // Reload sessions list để hiển thị chat mới
+      if (_hasToken) {
+        _loadChatSessionsList();
+      }
     } catch (e) {
       setState(() {
         _messages.add({
@@ -1031,8 +1065,9 @@ class _ChatbotDetailScreenState extends State<ChatbotDetailScreen> {
               itemCount: _chatSessions.length,
               itemBuilder: (context, index) {
                 final session = _chatSessions[index];
-                final sessionId = session['_id']?.toString() ?? '';
-                final lastQuestion = session['last_question'] ?? 'Chat';
+                final sessionId = session['_id']?.toString() ?? session['session_id']?.toString() ?? '';
+                // Backend trả về title = firstMessage (60 ký tự đầu)
+                final title = session['title'] ?? session['name'] ?? session['subject'] ?? 'Chat mới';
                 final isActive = sessionId == _activeSessionId;
                 
                 return GestureDetector(
@@ -1063,7 +1098,7 @@ class _ChatbotDetailScreenState extends State<ChatbotDetailScreen> {
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
-                            lastQuestion,
+                            title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -1089,9 +1124,36 @@ class _ChatbotDetailScreenState extends State<ChatbotDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Lịch sử chat', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        // remove default paddings so children can reach dialog edges
+        titlePadding: EdgeInsets.zero,
+        contentPadding: EdgeInsets.zero,
+        actionsPadding: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+        ),
+        title: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          decoration: const BoxDecoration(
+            color: Colors.orange,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(28),
+              topRight: Radius.circular(28),
+            ),
+          ),
+          child: const Text(
+            'Lịch sử chat',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
         content: SizedBox(
           width: double.maxFinite,
+          // Limit dialog height so long lists become scrollable
+          height: MediaQuery.of(context).size.height * 0.62,
           child: _chatSessions.isEmpty
               ? const Padding(
                   padding: EdgeInsets.all(20),
@@ -1101,35 +1163,29 @@ class _ChatbotDetailScreenState extends State<ChatbotDetailScreen> {
                     style: TextStyle(color: Colors.grey),
                   ),
                 )
-              : ListView.builder(
+              : Scrollbar(
+                  thumbVisibility: true,
+                  child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: _chatSessions.length,
+                  separatorBuilder: (context, index) => Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: Colors.grey.shade200,
+                  ),
                   itemBuilder: (context, index) {
                     final session = _chatSessions[index];
-                    final sessionId = session['_id']?.toString() ?? '';
-                    final lastQuestion = session['last_question'] ?? 'Chat session';
-                    final turns = session['turns'] ?? 0;
-                    final lastAt = session['last_at'] != null
-                        ? DateTime.tryParse(session['last_at'].toString())
+                    final sessionId = session['_id']?.toString() ?? session['session_id']?.toString() ?? '';
+                    // Backend trả về title = firstMessage (60 ký tự đầu)
+                    final title = session['title'] ?? session['name'] ?? session['subject'] ?? 'Chat mới';
+                    final turns = session['turns'] ?? session['count'] ?? session['total'] ?? 0;
+                    final lastAt = session['updated_at'] ?? session['lastUpdate'] ?? session['last_at'];
+                    final timestamp = lastAt != null
+                        ? DateTime.tryParse(lastAt.toString())
                         : null;
+                    final isActive = sessionId == _activeSessionId;
 
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.orange.shade100,
-                        child: Icon(Icons.chat, color: Colors.orange, size: 20),
-                      ),
-                      title: Text(
-                        lastQuestion,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      subtitle: Text(
-                        '$turns tin nhắn • ${_formatSessionTime(lastAt)}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                      ),
-                      selected: sessionId == _activeSessionId,
-                      selectedTileColor: Colors.orange.shade50,
+                    return InkWell(
                       onTap: () {
                         Navigator.pop(context);
                         setState(() {
@@ -1137,25 +1193,132 @@ class _ChatbotDetailScreenState extends State<ChatbotDetailScreen> {
                         });
                         _loadChatMessages(sessionId);
                       },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isActive ? Colors.orange.shade50 : Colors.transparent,
+                          border: isActive ? Border(
+                            left: BorderSide(color: Colors.orange, width: 3),
+                          ) : null,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: isActive ? Colors.orange : Colors.orange.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                Icons.chat_bubble_outline,
+                                color: isActive ? Colors.white : Colors.orange,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.message_outlined,
+                                        size: 13,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Flexible(
+                                        child: Text(
+                                          '$turns tin nhắn',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Icon(
+                                        Icons.access_time,
+                                        size: 13,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Flexible(
+                                        child: Text(
+                                          _formatSessionTime(timestamp),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (isActive)
+                              Icon(
+                                Icons.check_circle,
+                                color: Colors.orange,
+                                size: 20,
+                              ),
+                          ],
+                        ),
+                      ),
                     );
                   },
-                ),
-        ),
+                    ),
+                  ),
+                  ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Đóng'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              _startNewSession();
-            },
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Chat mới'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey.shade700,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                  child: const Text('Đóng', style: TextStyle(fontSize: 15)),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _startNewSession();
+                  },
+                  icon: const Icon(Icons.add, size: 20),
+                  label: const Text('Chat mới', style: TextStyle(fontSize: 15)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
