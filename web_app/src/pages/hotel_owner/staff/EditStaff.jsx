@@ -215,10 +215,12 @@ const EditStaff = () => {
 
             // Update user information
             if (staffData.userId || staffData.user_id) {
+                const userId = staffData.userId || staffData.user_id;
+                
                 // Always fetch current user info to preserve username
                 let currentUser = null;
                 try {
-                    const userResp = await userService.getUserById(staffData.userId || staffData.user_id);
+                    const userResp = await userService.getUserById(userId);
                     currentUser = userResp.data || userResp;
                 } catch (e) {
                     // fallback: do not set username
@@ -237,7 +239,12 @@ const EditStaff = () => {
                 if (formData.password) {
                     userUpdateData.password = formData.password;
                 }
-                await userService.updateUser(staffData.userId || staffData.user_id, userUpdateData);
+                await userService.updateUser(userId, userUpdateData);
+                
+                // Update user is_active based on staff status
+                // active -> is_active = true, other statuses -> is_active = false
+                const isActive = formData.status === 'active';
+                await userService.updateUserStatus(userId, isActive);
             }
 
             showSuccess('Cập nhật thông tin nhân viên thành công!');

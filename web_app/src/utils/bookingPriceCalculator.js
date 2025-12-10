@@ -124,21 +124,21 @@ export const createBookingDetailMessage = (bookingData) => {
     userInfo,
   } = bookingData;
 
-  let message = `📋 THÔNG TIN ĐẶT PHÒNG\n\n`;
+  let message = `THÔNG TIN ĐẶT PHÒNG\n\n`;
   
   if (userInfo) {
-    message += `👤 Khách hàng: ${userInfo.fullName || userInfo.full_name || 'N/A'}\n`;
-    message += `📧 Email: ${userInfo.email || 'N/A'}\n`;
-    message += `📞 SĐT: ${userInfo.phoneNumber || userInfo.phone_number || 'N/A'}\n\n`;
+    message += `Khách hàng: ${userInfo.fullName || userInfo.full_name || 'N/A'}\n`;
+    message += `Email: ${userInfo.email || 'N/A'}\n`;
+    message += `SĐT: ${userInfo.phoneNumber || userInfo.phone_number || 'N/A'}\n\n`;
   }
 
-  message += `🏨 Loại phòng: ${roomTypeName}\n`;
-  message += `📅 Check-in: ${new Date(checkInDate).toLocaleDateString('vi-VN')}\n`;
-  message += `📅 Check-out: ${new Date(checkOutDate).toLocaleDateString('vi-VN')}\n`;
-  message += `👥 Số khách: ${numGuests}\n`;
-  message += `🛏️ Số phòng: ${numRooms}\n\n`;
+  message += `Loại phòng: ${roomTypeName}\n`;
+  message += `Check-in: ${new Date(checkInDate).toLocaleDateString('vi-VN')}\n`;
+  message += `Check-out: ${new Date(checkOutDate).toLocaleDateString('vi-VN')}\n`;
+  message += `Số khách: ${numGuests}\n`;
+  message += `Số phòng: ${numRooms}\n\n`;
 
-  message += `💰 CHI TIẾT GIÁ THEO TỪNG NGÀY:\n`;
+  message += `CHI TIẾT GIÁ THEO TỪNG NGÀY:\n`;
   message += `${'─'.repeat(50)}\n`;
 
   nightlyPrices.forEach((night, index) => {

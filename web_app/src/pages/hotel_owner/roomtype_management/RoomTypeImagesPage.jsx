@@ -88,9 +88,9 @@ function InnerRoomTypeImagesPage() {
     }
 
     // Kiểm tra URL hợp lệ với regex - chỉ kiểm tra format
-    const urlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
+    const urlPattern = /^https?:\/\/.+/i;
     if (!urlPattern.test(imageUrl)) {
-      showToast('URL hình ảnh phải là URL hợp lệ và có định dạng ảnh (jpg, png, gif, webp)', 'error');
+      showToast('URL hình ảnh phải là URL hợp lệ', 'error');
       return;
     }
 
@@ -473,14 +473,14 @@ function InnerRoomTypeImagesPage() {
                     onChange={(e) => setImageUrl(e.target.value)}
                     placeholder="https://example.com/image.jpg"
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      imageUrl && !/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(imageUrl) 
+                      imageUrl && !/^https?:\/\/.+/i.test(imageUrl) 
                         ? 'border-red-300 bg-red-50' 
                         : 'border-gray-300'
                     }`}
                   />
-                  {imageUrl && !/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(imageUrl) && (
+                  {imageUrl && !/^https?:\/\/.+/i.test(imageUrl) && (
                     <p className="text-red-500 text-sm mt-1">
-                      URL phải có định dạng: https://example.com/image.jpg
+                      URL phải có định dạng hợp lệ: https://example.com/image
                     </p>
                   )}
                 </div>
@@ -505,7 +505,7 @@ function InnerRoomTypeImagesPage() {
                   disabled={
                     uploadLoading || 
                     !imageUrl.trim() || 
-                    !/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(imageUrl) ||
+                    !/^https?:\/\/.+/i.test(imageUrl) ||
                     !roomTypeId
                   }
                   className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
@@ -780,14 +780,14 @@ function InnerRoomTypeImagesPage() {
                     onChange={(e) => setImageUrl(e.target.value)}
                     placeholder="https://example.com/image.jpg"
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      imageUrl && !/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(imageUrl) 
+                      imageUrl && !/^https?:\/\/.+/i.test(imageUrl) 
                         ? 'border-red-300 bg-red-50' 
                         : 'border-gray-300'
                     }`}
                   />
-                  {imageUrl && !/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(imageUrl) && (
+                  {imageUrl && !/^https?:\/\/.+/i.test(imageUrl) && (
                     <p className="text-red-500 text-sm mt-1">
-                      URL phải có định dạng: https://example.com/image.jpg
+                      URL phải có định dạng hợp lệ: https://example.com/image
                     </p>
                   )}
                 </div>
@@ -821,7 +821,7 @@ function InnerRoomTypeImagesPage() {
                 disabled={
                   uploadLoading || 
                   !imageUrl.trim() || 
-                  !/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(imageUrl) ||
+                  !/^https?:\/\/.+/i.test(imageUrl) ||
                   !roomTypeId
                 }
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"

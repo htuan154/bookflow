@@ -235,15 +235,26 @@ const MarketingPage = () => {
     }
   };
 
-  const handleDeleteBlog = async (blog) => {
+  const handleDeleteBlog = (blog) => {
+    // Hiển thị modal xác nhận để reject blog
+    setSelectedBlog(blog);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!selectedBlog) return;
+    
     try {
-      await blogService.deleteBlog(blog.blogId || blog.id);
-      setModalNotification({ message: 'Đã xóa bài viết thành công!', type: 'success' });
+      // Chuyển trạng thái sang rejected thay vì xóa
+      await blogService.updateBlog(selectedBlog.blogId || selectedBlog.id, { 
+        status: 'rejected' 
+      });
+      setModalNotification({ message: 'Đã từ chối bài viết thành công!', type: 'success' });
       setShowDeleteConfirm(false);
       setSelectedBlog(null);
-      refreshPosts();
+      await refreshPosts();
     } catch (err) {
-      setModalNotification({ message: 'Không thể xóa bài viết!', type: 'error' });
+      setModalNotification({ message: 'Không thể từ chối bài viết!', type: 'error' });
     }
   };
 
@@ -296,9 +307,19 @@ const MarketingPage = () => {
     }
   };
 
-  const handleSaveEdit = async (blogData) => {
+  const handleSaveEdit = async (blogData, newImages = []) => {
     try {
-      await blogService.updateBlog(editingBlog.blogId || editingBlog.id, blogData);
+      const blogId = editingBlog.blogId || editingBlog.id;
+      
+      // 1. Cập nhật thông tin blog (không bao gồm blog_images)
+      await blogService.updateBlog(blogId, blogData);
+      
+      // 2. Nếu có các ảnh mới, thêm vào database qua API riêng
+      if (newImages && newImages.length > 0) {
+        console.log('🖼️ Thêm', newImages.length, 'ảnh mới vào blog', blogId);
+        await blogService.addBlogImages(blogId, newImages);
+      }
+      
       setShowEditModal(false);
       setEditingBlog(null);
       await refreshPosts();
@@ -380,7 +401,7 @@ const MarketingPage = () => {
           setStatusFilter={setStatusFilter}
           onView={handleViewBlog}
           onEdit={handleEditBlog}
-          onDelete={setShowDeleteConfirm}
+          onDelete={handleDeleteBlog}
           onShowComments={handleShowComments}
           onCreate={() => setShowCreateModal(true)}
           user={user}
@@ -432,11 +453,16 @@ const MarketingPage = () => {
         />
       )}
 
-      {showDeleteConfirm && (
+      {showDeleteConfirm && selectedBlog && (
         <DeleteConfirmModal
-          blog={showDeleteConfirm}
-          onConfirm={() => handleDeleteBlog(showDeleteConfirm)}
-          onCancel={() => setShowDeleteConfirm(false)}
+          blog={selectedBlog}
+          onConfirm={handleConfirmReject}
+          onCancel={() => {
+            setShowDeleteConfirm(false);
+            setSelectedBlog(null);
+          }}
+          message="Bạn có chắc muốn từ chối bài viết này? Bài viết sẽ được chuyển sang trạng thái 'Rejected'."
+          confirmText="Từ chối"
         />
       )}
 

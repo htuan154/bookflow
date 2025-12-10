@@ -49,6 +49,11 @@ const loginUser = async (identifier, password) => {
     throw new Error('Invalid credentials');
   }
   
+  // Kiểm tra trạng thái isActive cho hotel_owner (roleId=2), hotel_staff (roleId=6), user (roleId=3)
+  if (( user.roleId === 2 || user.roleId === 6 || user.roleId === 3) && user.isActive === false) {
+    throw new Error('Tài khoản của bạn đã bị vô hiệu hóa');
+  }
+  
   const tokenPayload = {
     userId: user.userId,
     roleId: user.roleId,

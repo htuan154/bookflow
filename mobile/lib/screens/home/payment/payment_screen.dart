@@ -219,22 +219,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
           // Cập nhật booking status thành 'confirmed'
           await _updateBookingStatusConfirmed();
           
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('✅ Thanh toán thành công!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          
-          // Delay 2 giây rồi về trang home (NavBar)
-          Future.delayed(Duration(seconds: 2), () {
-            if (mounted) {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => NavBar()),
-                (route) => false,
-              );
-            }
-          });
+          // Hiển thị dialog thành công với booking ID
+          _showSuccessDialog();
         }
       } catch (e) {
         print('❌ Error polling payment status: $e');
@@ -281,21 +267,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
         // Cập nhật booking status thành 'confirmed'
         await _updateBookingStatusConfirmed();
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Xác nhận thanh toán thành công!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        
-        Future.delayed(Duration(seconds: 2), () {
-          if (mounted) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => NavBar()),
-              (route) => false,
-            );
-          }
-        });
+        // Hiển thị dialog thành công với booking ID
+        _showSuccessDialog();
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1130,6 +1103,84 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        icon: Icon(Icons.check_circle, color: Colors.green, size: 64),
+        title: Text(
+          'Thanh toán thành công!',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.green,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Mã đặt phòng của bạn:',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            SizedBox(height: 8),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                widget.bookingId,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Đơn đặt phòng đã được xác nhận. Cảm ơn bạn đã sử dụng dịch vụ!',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => NavBar()),
+                (route) => false,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'OK',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ],
+        actionsAlignment: MainAxisAlignment.center,
       ),
     );
   }

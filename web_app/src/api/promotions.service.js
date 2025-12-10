@@ -109,7 +109,7 @@ class PromotionService {
         try {
             if (!promotionId) throw new Error('ID khuyến mãi là bắt buộc');
 
-            const response = await axiosClient.get(API_ENDPOINTS.PROMOTIONS.GET_DETAILS(promotionId));
+            const response = await axiosClient.get(API_ENDPOINTS.PROMOTIONS.GET_BY_ID(promotionId));
             return response.data;
         } catch (error) {
             throw this.handleError(error, 'Không thể lấy chi tiết khuyến mãi');

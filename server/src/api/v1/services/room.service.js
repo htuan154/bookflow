@@ -245,6 +245,108 @@ class RoomService {
     }
   }
 
+  // Bulk create rooms
+  async createRoomsBulk(roomsArray) {
+    try {
+      if (!Array.isArray(roomsArray) || roomsArray.length === 0) {
+        throw new Error('Rooms array is required');
+      }
+
+      const createdRooms = [];
+
+      // Validate each item first to avoid partial inserts
+      for (const item of roomsArray) {
+        if (!item.roomTypeId || !item.roomNumber || !item.floorNumber) {
+          throw new Error('Each room must include roomTypeId, roomNumber and floorNumber');
+        }
+
+        // Validate status if provided
+        const validStatuses = ['available', 'occupied', 'maintenance', 'out_of_order', 'cleaning'];
+        if (item.status && !validStatuses.includes(item.status)) {
+          throw new Error(`Invalid status for room ${item.roomNumber}`);
+        }
+
+        // Check uniqueness of room number within the hotel
+        const hotelId = await this.getHotelIdByRoomType(item.roomTypeId);
+        const exists = await this.roomRepository.roomNumberExists(item.roomNumber, hotelId);
+        if (exists) {
+          throw new Error(`Room number ${item.roomNumber} already exists in hotel ${hotelId}`);
+        }
+      }
+
+      // All validations passed — create rooms in bulk via repository
+      try {
+        const toInsert = roomsArray.map(item => ({
+          roomTypeId: item.roomTypeId,
+          roomNumber: item.roomNumber,
+          floorNumber: item.floorNumber,
+          status: item.status || 'available'
+        }));
+
+        // Use bulkCreate if available for efficiency
+        if (typeof this.roomRepository.bulkCreate === 'function') {
+          const inserted = await this.roomRepository.bulkCreate(toInsert);
+          return inserted;
+        }
+
+        // Fallback to sequential creation
+        for (const item of toInsert) {
+          const newRoom = await this.roomRepository.create(item);
+          createdRooms.push(newRoom);
+        }
+
+        return createdRooms;
+      } catch (err) {
+        throw err;
+      }
+    } catch (error) {
+      throw new Error(`Failed to create rooms: ${error.message}`);
+    }
+  }
+
+  // Bulk delete rooms
+  async deleteRoomsBulk(roomIds) {
+    try {
+      if (!Array.isArray(roomIds) || roomIds.length === 0) {
+        throw new Error('Room IDs array is required and must not be empty');
+      }
+
+      // Check if all rooms exist
+      const notFound = [];
+      const hasActiveBookings = [];
+      
+      for (const roomId of roomIds) {
+        const room = await this.roomRepository.findById(roomId);
+        if (!room) {
+          notFound.push(roomId);
+        } else {
+          const hasBookings = await this.checkActiveBookings(roomId);
+          if (hasBookings) {
+            hasActiveBookings.push(roomId);
+          }
+        }
+      }
+
+      if (notFound.length > 0) {
+        throw new Error(`Rooms not found: ${notFound.join(', ')}`);
+      }
+
+      if (hasActiveBookings.length > 0) {
+        throw new Error(`Cannot delete rooms with active bookings: ${hasActiveBookings.join(', ')}`);
+      }
+
+      // Delete all rooms
+      const deletedCount = await this.roomRepository.bulkDelete(roomIds);
+
+      return {
+        deletedCount,
+        roomIds
+      };
+    } catch (error) {
+      throw new Error(`Failed to bulk delete rooms: ${error.message}`);
+    }
+  }
+
   // Get room statistics by hotel
   async getRoomStatsByHotel(hotelId) {
     try {

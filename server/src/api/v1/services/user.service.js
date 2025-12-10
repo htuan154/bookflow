@@ -45,11 +45,32 @@ const getUserById = async (userId) => {
 };
 
 const updateUser = async (userId, userData) => {
-    const updatedUser = await userRepository.update(userId, userData);
-    if (!updatedUser) {
-        throw new AppError('Không tìm thấy người dùng để cập nhật', 404);
+    const { password, ...otherData } = userData || {};
+    // Nếu có password trong payload -> hash và cập nhật riêng
+    if (password) {
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+        const pwdUpdated = await userRepository.updatePassword(userId, passwordHash);
+        if (!pwdUpdated) {
+            throw new AppError('Không tìm thấy người dùng để cập nhật mật khẩu', 404);
+        }
     }
-    return updatedUser.toJSON();
+
+    // Nếu có các trường khác cần cập nhật, gọi repository.update
+    if (Object.keys(otherData).length > 0) {
+        const updatedUser = await userRepository.update(userId, otherData);
+        if (!updatedUser) {
+            throw new AppError('Không tìm thấy người dùng để cập nhật', 404);
+        }
+        return updatedUser.toJSON();
+    }
+
+    // Chỉ cập nhật mật khẩu hoặc không có gì khác -> trả về user hiện tại
+    const existingUser = await userRepository.findById(userId);
+    if (!existingUser) {
+        throw new AppError('Không tìm thấy người dùng', 404);
+    }
+    return existingUser.toJSON();
 };
 
 const deleteUser = async (userId) => {
@@ -119,6 +140,20 @@ const updateProfilePicture = async (userId, profilePictureUrl) => {
     return updatedUser.toJSON();
 };
 
+/**
+ * Cập nhật trạng thái người dùng
+ * @param {string} userId - ID của người dùng
+ * @param {boolean} isActive - Trạng thái mới
+ * @returns {Object} Updated user data
+ */
+const updateUserStatus = async (userId, isActive) => {
+    const updatedUser = await userRepository.updateUserStatus(userId, isActive);
+    if (!updatedUser) {
+        throw new AppError('Không tìm thấy người dùng để cập nhật trạng thái', 404);
+    }
+    return updatedUser.toJSON();
+};
+
 module.exports = {
     getAllUsers,
     getUserById,
@@ -130,4 +165,5 @@ module.exports = {
     getUsersByRole,
     getCustomerStatistics,
     updateProfilePicture,
+    updateUserStatus,
 };

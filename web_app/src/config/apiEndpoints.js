@@ -8,6 +8,12 @@ export const CHAT_API_ENDPOINTS = {
     SEND_MESSAGE: `${API_BASE_URL}/chats`,
 };
 
+export const NOTIFICATION_API_ENDPOINTS = {
+    GET_NOTIFICATIONS: (receiverId) => `${API_BASE_URL}/notification-for-contract/receiver/${receiverId}`,
+    MARK_AS_READ: (notificationId) => `${API_BASE_URL}/notification-for-contract/${notificationId}/read`,
+    CREATE_NOTIFICATION: `${API_BASE_URL}/notification-for-contract`,
+};
+
 export const API_ENDPOINTS = {
     IM: {
         CREATE_DM: `${API_BASE_URL}/im/conversations/dm`,
@@ -90,6 +96,7 @@ export const API_ENDPOINTS = {
     // --- Room Endpoints ---
     ROOMS: {
         CREATE: `${API_BASE_URL}/rooms`,
+        BULK: `${API_BASE_URL}/rooms/bulk`,
         GET_ALL: `${API_BASE_URL}/rooms`,
         SEARCH: `${API_BASE_URL}/rooms/search`,
         GET_BY_STATUS: (status) => `${API_BASE_URL}/rooms/status/${status}`,

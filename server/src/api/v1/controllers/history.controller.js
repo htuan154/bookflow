@@ -1,6 +1,7 @@
 'use strict';
 const H = require('../services/chatHistory.service');
 
+// Lấy danh sách các phiên chat (sessions) của người dùng
 exports.listSessionsHandler = async (req, res, next) => {
   try {
     const userId = req.user?.id;
@@ -21,6 +22,7 @@ exports.listSessionsHandler = async (req, res, next) => {
   }
 };
 
+// Lấy danh sách các tin nhắn trong một phiên chat (session) cụ thể của người dùng
 exports.listMessagesHandler = async (req, res, next) => {
   try {
     const userId = req.user?.id;

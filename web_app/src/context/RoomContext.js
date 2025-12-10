@@ -58,6 +58,19 @@ export const RoomProvider = ({ children }) => {
     return res?.data ?? res;
   }, [currentHotelId, getByHotel, getByRoomType]);
 
+  const createBulk = useCallback(async (roomsPayload = []) => {
+    if (!Array.isArray(roomsPayload) || roomsPayload.length === 0) return [];
+    const res = await roomService.bulkCreate({ rooms: roomsPayload });
+    const created = asArray(res);
+
+    // Refresh lists: by hotel and by room type(s)
+    if (currentHotelId) await getByHotel(currentHotelId);
+    const roomTypeIds = Array.from(new Set(created.map(r => r.room_type_id || r.roomTypeId || r.roomType?.id).filter(Boolean)));
+    await Promise.all(roomTypeIds.map(rtId => getByRoomType(rtId)));
+
+    return created;
+  }, [currentHotelId, getByHotel, getByRoomType]);
+
   const update = useCallback(async (roomId, payload) => {
     const res = await roomService.update(roomId, payload);
     const typeId = payload?.room_type_id ?? payload?.roomTypeId;
@@ -81,11 +94,19 @@ export const RoomProvider = ({ children }) => {
     return res?.data ?? res;
   }, [currentHotelId, getByHotel, getByRoomType]);
 
+  const deleteBulk = useCallback(async (roomIds, { roomTypeId } = {}) => {
+    if (!Array.isArray(roomIds) || roomIds.length === 0) return null;
+    const res = await roomService.bulkDelete(roomIds);
+    if (roomTypeId) await getByRoomType(roomTypeId);
+    if (currentHotelId) await getByHotel(currentHotelId);
+    return res?.data ?? res;
+  }, [currentHotelId, getByHotel, getByRoomType]);
+
   const value = useMemo(() => ({
     rooms, roomsByType, loading, error, currentHotelId,
-    getByHotel, getByRoomType, create, update, updateStatus, remove
+    getByHotel, getByRoomType, create, createBulk, update, updateStatus, remove, deleteBulk
   }), [rooms, roomsByType, loading, error, currentHotelId,
-      getByHotel, getByRoomType, create, update, updateStatus, remove]);
+      getByHotel, getByRoomType, create, createBulk, update, updateStatus, remove, deleteBulk]);
 
   return <RoomContext.Provider value={value}>{children}</RoomContext.Provider>;
 };

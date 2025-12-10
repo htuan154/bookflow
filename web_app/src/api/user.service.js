@@ -95,6 +95,22 @@ const userService = {
             console.error('Error updating user role:', error);
             throw error;
         }
+    },
+
+    /**
+     * Cập nhật trạng thái người dùng (isActive)
+     * @param {string} userId - ID của người dùng
+     * @param {boolean} isActive - Trạng thái mới
+     * @returns {Promise} Updated user data
+     */
+    updateUserStatus: async (userId, isActive) => {
+        try {
+            const response = await axiosClient.patch(`${API_ENDPOINTS.USERS.UPDATE(userId)}/status`, { isActive });
+            return response.data;
+        } catch (error) {
+            console.error('Error updating user status:', error);
+            throw error;
+        }
     }
 };
 

@@ -33,6 +33,23 @@ const roomService = {
     return axiosClient.get(ROOMS.GET_BY_ROOM_TYPE(roomTypeId), { params });
   },
 
+  // Bulk create rooms
+  bulkCreate: (payload) => axiosClient.post(ROOMS.BULK, payload),
+
+  // Bulk delete rooms
+  bulkDelete: (roomIds) => {
+    console.log('🔍 [ROOM SERVICE] Bulk delete called with roomIds:', roomIds);
+    console.log('🔍 [ROOM SERVICE] Request URL:', ROOMS.BULK);
+    console.log('🔍 [ROOM SERVICE] Request payload:', { roomIds });
+    return axiosClient.delete(ROOMS.BULK, { data: { roomIds } })
+      .catch(error => {
+        console.error('❌ [ROOM SERVICE] Bulk delete error:', error);
+        console.error('❌ [ROOM SERVICE] Error response:', error.response?.data);
+        console.error('❌ [ROOM SERVICE] Error status:', error.response?.status);
+        throw error;
+      });
+  },
+
   // Availability
   checkAvailability: (id, params = {}) =>
     axiosClient.get(ROOMS.CHECK_AVAILABILITY(id), { params }),

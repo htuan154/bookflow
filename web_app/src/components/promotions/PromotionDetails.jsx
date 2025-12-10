@@ -10,7 +10,7 @@ const PromotionDetails = ({ promotionId }) => {
     loading, 
     getPromotionDetails, 
     getUsageHistory 
-  } = usePromotions();
+  } = usePromotions({ autoFetch: false });
 
   useEffect(() => {
     if (promotionId) {
@@ -22,7 +22,8 @@ const PromotionDetails = ({ promotionId }) => {
         getUsageHistory(promotionId);
       }
     }
-  }, [promotionId, getPromotionDetails, getUsageHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promotionId]);
 
   // ✅ Custom VND formatter
   const formatVND = (amount) => {
@@ -106,12 +107,23 @@ const PromotionDetails = ({ promotionId }) => {
           <div>
             <p className="text-sm text-gray-500 mb-1">Loại khuyến mãi</p>
             <p className="font-medium text-gray-900">
-              {getPromotionField('promotionType') === 'room_specific' 
-                ? 'Theo phòng' 
-                : getPromotionField('promotionType') === 'percentage'
-                ? 'Theo phần trăm'
-                : 'Khuyến mãi chung'
-              }
+              {(() => {
+                const hotelId = getPromotionField('hotelId');
+                const promotionType = getPromotionField('promotionType');
+                
+                // Loại 1: hotelId = null
+                if (!hotelId || hotelId === 'N/A') {
+                  return 'Khuyến mãi áp dụng cho tất cả khách sạn';
+                }
+                
+                // Loại 3: hotelId != null và promotionType = room_specific
+                if (promotionType === 'room_specific') {
+                  return 'Khuyến mãi áp dụng cho loại phòng khách sạn';
+                }
+                
+                // Loại 2: hotelId != null và promotionType = general
+                return 'Khuyến mãi áp dụng cho khách sạn';
+              })()}
             </p>
           </div>
           <div>

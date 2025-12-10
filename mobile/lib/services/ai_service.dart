@@ -141,26 +141,36 @@ class AiService {
   /// Lấy danh sách tin nhắn trong 1 phiên chat
   Future<List<Map<String, dynamic>>> getChatMessages({
     required String sessionId,
+    int page = 1,
+    int pageSize = 500,
     bool requireAuth = true,
   }) async {
     try {
       final baseUrl = ApiConfig.baseUrl.replaceAll('/api/v1', '');
       final url = Uri.parse(
-        '$baseUrl/ai/history/messages?session_id=$sessionId',
+        '$baseUrl/ai/history/messages?session_id=$sessionId&page=$page&page_size=$pageSize',
       );
       final headers = await _getHeaders(requireAuth: requireAuth);
+
+      debugPrint('[AiService] getChatMessages URL: $url');
+      debugPrint('[AiService] getChatMessages headers: $headers');
 
       final response = await http.get(url, headers: headers)
           .timeout(const Duration(seconds: 15));
 
+      debugPrint('[AiService] getChatMessages status: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.bodyBytes));
         debugPrint('[AiService] getChatMessages response keys: ${data.keys}');
+        debugPrint('[AiService] getChatMessages items count: ${data['items']?.length ?? 0}');
         // Backend returns {success: true, items: [...], total, page, pageSize}
         return List<Map<String, dynamic>>.from(data['items'] ?? []);
       } else {
+        final errorBody = utf8.decode(response.bodyBytes);
+        debugPrint('[AiService] getChatMessages error: $errorBody');
         throw AiServiceException(
-          'Không thể lấy tin nhắn',
+          'Không thể lấy tin nhắn: $errorBody',
           statusCode: response.statusCode,
         );
       }

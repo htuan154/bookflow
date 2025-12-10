@@ -185,11 +185,11 @@ class RoomTypeMiddlewares {
       }
     }
 
-    if (description !== undefined && description.length > 500) {
+    if (description !== undefined && description !== null && description.length > 500) {
       errors.push('Description must not exceed 500 characters');
     }
 
-    if (bedType !== undefined && bedType.length > 50) {
+    if (bedType !== undefined && bedType !== null && bedType.length > 50) {
       errors.push('Bed type must not exceed 50 characters');
     }
 

@@ -22,6 +22,32 @@ class RoomRepository {
     }
   }
 
+  async bulkCreate(rooms) {
+    if (!Array.isArray(rooms) || rooms.length === 0) {
+      throw new Error('Rooms array is required');
+    }
+
+    const values = [];
+    const placeholders = rooms.map((r, i) => {
+      const idx = i * 4;
+      values.push(r.roomTypeId, r.roomNumber, r.floorNumber, r.status || 'available');
+      return `($${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4})`;
+    }).join(', ');
+
+    const query = `
+      INSERT INTO rooms (room_type_id, room_number, floor_number, status)
+      VALUES ${placeholders}
+      RETURNING room_id, room_type_id, room_number, floor_number, status, created_at
+    `;
+
+    try {
+      const result = await pool.query(query, values);
+      return result.rows.map(row => new Room(row));
+    } catch (error) {
+      throw new Error(`Error bulk creating rooms: ${error.message}`);
+    }
+  }
+
   async findById(roomId) {
     const query = `
       SELECT room_id, room_type_id, room_number, floor_number, status, created_at
@@ -236,6 +262,22 @@ class RoomRepository {
       return result.rows;
     } catch (error) {
       throw new Error(`Error getting room statistics: ${error.message}`);
+    }
+  }
+
+  async bulkDelete(roomIds) {
+    if (!Array.isArray(roomIds) || roomIds.length === 0) {
+      throw new Error('Room IDs array is required');
+    }
+
+    const placeholders = roomIds.map((_, i) => `$${i + 1}`).join(', ');
+    const query = `DELETE FROM rooms WHERE room_id IN (${placeholders})`;
+
+    try {
+      const result = await pool.query(query, roomIds);
+      return result.rowCount;
+    } catch (error) {
+      throw new Error(`Error bulk deleting rooms: ${error.message}`);
     }
   }
 

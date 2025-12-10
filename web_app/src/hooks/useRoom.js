@@ -31,7 +31,7 @@ export function useRoomsOfType(roomTypeId, { auto = true, params = {} } = {}) {
  * opts: { roomTypeId?: number|string, hotelId?: number|string }
  */
 export function useRoomEditor({ roomTypeId, hotelId } = {}) {
-  const { create, update, remove, updateStatus, getByRoomType } = useRoomContext();
+  const { create, update, remove, updateStatus, getByRoomType, createBulk, deleteBulk } = useRoomContext();
   const [pending, setPending] = useState(false);
 
   const wrap = (fn) => async (...args) => {
@@ -54,11 +54,21 @@ export function useRoomEditor({ roomTypeId, hotelId } = {}) {
     return create(data);
   });
 
+  const createRoomsBulk = wrap(async (rooms) => {
+    const toInsert = (Array.isArray(rooms) ? rooms : []).map(r => ({
+      ...r,
+      room_type_id: r?.room_type_id ?? roomTypeId,
+      hotel_id: r?.hotel_id ?? hotelId,
+    }));
+    return createBulk(toInsert);
+  });
+
   const updateRoom = wrap((roomId, payload) => update(roomId, payload));
   const deleteRoom = wrap((roomId) => remove(roomId, { roomTypeId }));
+  const deleteRoomsBulk = wrap((roomIds) => deleteBulk(roomIds, { roomTypeId }));
   const changeStatus = wrap((roomId, status) => updateStatus(roomId, status));
 
-  return { pending, createRoom, updateRoom, deleteRoom, changeStatus };
+  return { pending, createRoom, createRoomsBulk, updateRoom, deleteRoom, deleteRoomsBulk, changeStatus };
 }
 
 /**
