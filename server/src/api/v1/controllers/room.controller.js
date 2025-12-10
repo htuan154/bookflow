@@ -237,6 +237,54 @@ class RoomController {
     }
   }
 
+  // Bulk create rooms
+  async createRoomsBulk(req, res) {
+    try {
+      // Expect an array of rooms in body: { rooms: [ { roomTypeId, roomNumber, floorNumber, status }, ... ] }
+      const payload = req.body && (req.body.rooms || req.body);
+      const rooms = Array.isArray(payload) ? payload : [];
+
+      if (!rooms || rooms.length === 0) {
+        return res.status(400).json({ success: false, message: 'No rooms provided' });
+      }
+
+      const created = await this.roomService.createRoomsBulk(rooms);
+
+      res.status(201).json({ success: true, message: 'Rooms created successfully', data: created, count: created.length });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
+  // Bulk delete rooms
+  async deleteRoomsBulk(req, res) {
+    try {
+      // Debug logging
+      console.log('🔍 DELETE /bulk - req.body:', req.body);
+      console.log('🔍 DELETE /bulk - req.body.roomIds:', req.body?.roomIds);
+      
+      // Expect an array of room IDs in body: { roomIds: [...] }
+      const payload = req.body && (req.body.roomIds || req.body);
+      const roomIds = Array.isArray(payload) ? payload : [];
+      
+      console.log('🔍 DELETE /bulk - Extracted roomIds:', roomIds);
+
+      if (!roomIds || roomIds.length === 0) {
+        return res.status(400).json({ success: false, message: 'Room IDs array is required' });
+      }
+
+      const result = await this.roomService.deleteRoomsBulk(roomIds);
+
+      res.status(200).json({ 
+        success: true, 
+        message: `Successfully deleted ${result.deletedCount} rooms`,
+        data: result
+      });
+    } catch (error) {
+      res.status(400).json({ success: false, message: error.message });
+    }
+  }
+
   // Get room statistics by hotel
   async getRoomStatsByHotel(req, res) {
     try {

@@ -458,7 +458,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                       if (email.isEmpty) {
                                         setState(() { emailError = 'Vui lòng nhập email.'; });
                                         hasError = true;
-                                      } else if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}24').hasMatch(email)) {
+                                      } else if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
                                         setState(() { emailError = 'Email không hợp lệ.'; });
                                         hasError = true;
                                       }

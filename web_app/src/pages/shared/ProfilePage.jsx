@@ -176,13 +176,15 @@ const ProfilePage = () => {
       };
 
       const response = await axiosClient.patch(`/users/${user.userId}`, updateData);
-      
       if (response.data.success) {
         setSuccess('✅ Cập nhật thông tin cá nhân thành công!');
-        // Reload user data
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        // Update local user state (simulate UI update)
+        if (user) {
+          user.fullName = formData.fullName;
+          user.email = formData.email;
+          user.phoneNumber = formData.phoneNumber;
+          user.address = formData.address;
+        }
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật thông tin');
@@ -217,12 +219,12 @@ const ProfilePage = () => {
     }
 
     try {
-      const response = await axiosClient.post('/auth/change-password', {
-        currentPassword: formData.currentPassword,
-        newPassword: formData.newPassword
+      // Call PATCH /api/v1/users/:id with { password: newPassword }
+      const response = await axiosClient.patch(`/users/${user.userId}`, {
+        password: formData.newPassword
       });
 
-      if (response.data.success) {
+      if (response.data) {
         setSuccess('✅ Đổi mật khẩu thành công!');
         setFormData(prev => ({
           ...prev,

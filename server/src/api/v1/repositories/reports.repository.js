@@ -320,12 +320,13 @@ class ReportsRepository {
   /**
    * Lấy danh sách thanh toán của chủ khách sạn
    */
-  async getHotelOwnerPayments({ hotelIds, dateFrom, dateTo }) {
+  async getHotelOwnerPayments({ userId, hotelIds, dateFrom, dateTo }) {
     // Try view first - với filter loại bỏ payments đã có payout
     let sql = `
       SELECT hopl.*
       FROM hotel_owner_payment_list hopl
-      WHERE 1=1
+      INNER JOIN hotels h ON h.hotel_id = hopl.hotel_id
+      WHERE h.owner_id = $1
         -- ⭐ Loại bỏ những payment đã được tạo payout (đã thanh toán cho khách sạn)
         AND NOT EXISTS (
           SELECT 1 FROM payouts po
@@ -334,7 +335,7 @@ class ReportsRepository {
             AND po.status IN ('processed', 'scheduled')
         )
     `;
-    const params = [];
+    const params = [userId];
 
     if (hotelIds && hotelIds.length > 0) {
       params.push(hotelIds);
@@ -376,7 +377,7 @@ class ReportsRepository {
         
         if (!hasValidAmounts) {
           console.warn('⚠️ View returned rows but all final_amount are 0, falling back to payments table with calculated amounts');
-          return await this._getHotelOwnerPaymentsFallback({ hotelIds, dateFrom, dateTo });
+          return await this._getHotelOwnerPaymentsFallback({ userId, hotelIds, dateFrom, dateTo });
         }
       }
       
@@ -392,7 +393,7 @@ class ReportsRepository {
    * Fallback: lấy trực tiếp từ bảng payments + join hotels & bookings
    * Tính toán final_amount và hotel_net_amount trong query thay vì dùng GENERATED columns
    */
-  async _getHotelOwnerPaymentsFallback({ hotelIds, dateFrom, dateTo }) {
+  async _getHotelOwnerPaymentsFallback({ userId, hotelIds, dateFrom, dateTo }) {
     let sql = `
       SELECT 
         p.payment_id,
@@ -423,6 +424,7 @@ class ReportsRepository {
       LEFT JOIN hotels h ON h.hotel_id = p.hotel_id
       WHERE p.status = 'paid'
         AND p.paid_at IS NOT NULL
+        AND h.owner_id = $1
         -- ⭐ Loại bỏ những payment đã được tạo payout (đã thanh toán cho khách sạn)
         AND NOT EXISTS (
           SELECT 1 FROM payouts po
@@ -431,7 +433,7 @@ class ReportsRepository {
             AND po.status IN ('processed', 'scheduled')
         )
     `;
-    const params = [];
+    const params = [userId];
 
     if (hotelIds && hotelIds.length > 0) {
       params.push(hotelIds);
@@ -467,7 +469,7 @@ class ReportsRepository {
   /**
    * Lấy danh sách payout của chủ khách sạn
    */
-  async getHotelOwnerPayouts({ hotelIds, dateFrom, dateTo }) {
+  async getHotelOwnerPayouts({ userId, hotelIds, dateFrom, dateTo }) {
     let sql = `
       SELECT 
         p.payout_id,
@@ -479,9 +481,10 @@ class ReportsRepository {
         p.note,
         p.created_at
       FROM payouts p
-      WHERE 1=1
+      INNER JOIN hotels h ON h.hotel_id = p.hotel_id
+      WHERE h.owner_id = $1
     `;
-    const params = [];
+    const params = [userId];
 
     if (hotelIds && hotelIds.length > 0) {
       params.push(hotelIds);

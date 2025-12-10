@@ -397,27 +397,25 @@ const RoomTypeDetailPage = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b pb-2">
                 <h3 className="text-lg font-semibold text-gray-800">Hình ảnh ({images.length})</h3>
-                {hotelStatus === 'draft' && (
-                  <button
-                    onClick={() => navigate('/hotel-owner/rooms/images', { 
-                      state: { 
-                        hotel: hotelFromState,
-                        roomType: roomType,
-                        roomTypeId: roomTypeId,
-                        lockHotel: true,
-                        lockRoomType: true,
-                        returnTo: location.pathname,
-                        // Truyền thêm original state để preserve navigation chain
-                        originalReturnTo: location.state?.returnTo,
-                        originalState: location.state
-                      } 
-                    })}
-                    className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Camera className="h-4 w-4 mr-2" />
-                    Thêm hình ảnh
-                  </button>
-                )}
+                <button
+                  onClick={() => navigate('/hotel-owner/rooms/images', { 
+                    state: { 
+                      hotel: hotelFromState,
+                      roomType: roomType,
+                      roomTypeId: roomTypeId,
+                      lockHotel: true,
+                      lockRoomType: true,
+                      returnTo: location.pathname,
+                      // Truyền thêm original state để preserve navigation chain
+                      originalReturnTo: location.state?.returnTo,
+                      originalState: location.state
+                    } 
+                  })}
+                  className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  Thêm hình ảnh
+                </button>
               </div>
               
               {images.length > 0 ? (
@@ -453,38 +451,8 @@ const RoomTypeDetailPage = () => {
                   <Camera className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-600 mb-2">Chưa có hình ảnh nào</h3>
                   <p className="text-gray-500 mb-4">Thêm hình ảnh để hiển thị loại phòng này một cách trực quan hơn.</p>
-                  {hotelStatus === 'draft' && (
-                    <button
-                      onClick={() => navigate('/hotel-owner/rooms/images', { 
-                        state: { 
-                          hotel: hotelFromState,
-                          roomType: roomType,
-                          roomTypeId: roomTypeId,
-                          lockHotel: true,
-                          lockRoomType: true,
-                          returnTo: location.pathname,
-                          // Truyền thêm original state để preserve navigation chain
-                          originalReturnTo: location.state?.returnTo,
-                          originalState: location.state
-                        } 
-                      })}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <Camera className="h-4 w-4 mr-2" />
-                      Thêm hình ảnh đầu tiên
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Rooms List - Always show section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b pb-2">
-                <h3 className="text-lg font-semibold text-gray-800">Danh sách phòng ({rooms.length})</h3>
-                {hotelStatus === 'draft' && (
                   <button
-                    onClick={() => navigate('/hotel-owner/rooms/list', { 
+                    onClick={() => navigate('/hotel-owner/rooms/images', { 
                       state: { 
                         hotel: hotelFromState,
                         roomType: roomType,
@@ -497,12 +465,38 @@ const RoomTypeDetailPage = () => {
                         originalState: location.state
                       } 
                     })}
-                    className="inline-flex items-center px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    <Bed className="h-4 w-4 mr-2" />
-                    Thêm phòng
+                    <Camera className="h-4 w-4 mr-2" />
+                    Thêm hình ảnh đầu tiên
                   </button>
-                )}
+                </div>
+              )}
+            </div>
+
+            {/* Rooms List - Always show section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b pb-2">
+                <h3 className="text-lg font-semibold text-gray-800">Danh sách phòng ({rooms.length})</h3>
+                <button
+                  onClick={() => navigate('/hotel-owner/rooms/list', { 
+                    state: { 
+                      hotel: hotelFromState,
+                      roomType: roomType,
+                      roomTypeId: roomTypeId,
+                      lockHotel: true,
+                      lockRoomType: true,
+                      returnTo: location.pathname,
+                      // Truyền thêm original state để preserve navigation chain
+                      originalReturnTo: location.state?.returnTo,
+                      originalState: location.state
+                    } 
+                  })}
+                  className="inline-flex items-center px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Bed className="h-4 w-4 mr-2" />
+                  Thêm phòng
+                </button>
               </div>
               
               {rooms.length > 0 ? (
@@ -532,24 +526,22 @@ const RoomTypeDetailPage = () => {
                   <Bed className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-600 mb-2">Chưa có phòng nào</h3>
                   <p className="text-gray-500 mb-4">Loại phòng này chưa có phòng nào được tạo.</p>
-                  {hotelStatus === 'draft' && (
-                    <button
-                      onClick={() => navigate('/hotel-owner/rooms/list', { 
-                        state: { 
-                          hotel: hotelFromState,
-                          roomType: roomType,
-                          roomTypeId: roomTypeId,
-                          lockHotel: true,
-                          lockRoomType: true,
-                          returnTo: location.pathname
-                        } 
-                      })}
-                      className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                      <Bed className="h-4 w-4 mr-2" />
-                      Thêm phòng đầu tiên
-                    </button>
-                  )}
+                  <button
+                    onClick={() => navigate('/hotel-owner/rooms/list', { 
+                      state: { 
+                        hotel: hotelFromState,
+                        roomType: roomType,
+                        roomTypeId: roomTypeId,
+                        lockHotel: true,
+                        lockRoomType: true,
+                        returnTo: location.pathname
+                      } 
+                    })}
+                    className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <Bed className="h-4 w-4 mr-2" />
+                    Thêm phòng đầu tiên
+                  </button>
                 </div>
               )}
             </div>

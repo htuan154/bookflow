@@ -60,6 +60,7 @@ const ImageUrlDialog = ({ show, onClose, onAdd, initialUrl = '' }) => {
               if (imageUrl.trim()) {
                 onAdd(imageUrl.trim());
                 setImageUrl('');
+                onClose(); // Đóng dialog sau khi thêm ảnh
               }
             }}
             disabled={!imageUrl.trim()}

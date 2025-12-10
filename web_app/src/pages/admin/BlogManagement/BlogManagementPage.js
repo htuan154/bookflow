@@ -12,10 +12,13 @@ import {
 import { useBlogContext } from '../../../context/BlogContext';
 import useAuth from '../../../hooks/useAuth';
 import blogService from '../../../api/blog.service';
+import { useToast } from '../../../hooks/useToast';
+import Toast from '../../../components/common/Toast';
 
 const BlogManagementPage = () => {
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
+    const { toast, showSuccess, showError, hideToast } = useToast();
     const {
         blogs,
         pagination,
@@ -31,7 +34,6 @@ const BlogManagementPage = () => {
 
     const [currentStatus, setCurrentStatus] = useState('all');
     const [deleteModal, setDeleteModal] = useState({ open: false, blog: null });
-    const [deleteSuccess, setDeleteSuccess] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState('created_at');
     const [sortOrder, setSortOrder] = useState('desc');
@@ -201,7 +203,7 @@ const BlogManagementPage = () => {
                 // Check if blog is admin blog (hotel_id = null)
                 const isAdminBlog = !blog.hotelId && !blog.hotel_id;
                 if (!isAdminBlog) {
-                    alert('Chỉ có thể chỉnh sửa blog của admin. Blog của khách sạn không thể chỉnh sửa.');
+                    showError('Chỉ có thể chỉnh sửa blog của admin. Blog của khách sạn không thể chỉnh sửa.');
                     return;
                 }
                 console.log('🔧 Navigating to edit with blog_id:', blogId);
@@ -219,8 +221,9 @@ const BlogManagementPage = () => {
                     await updateBlogStatus(blog.blogId || blog.id, blog.newStatus);
                     await loadAllBlogs();
                     await fetchStatistics();
+                    showSuccess('Cập nhật trạng thái thành công!');
                 } catch (err) {
-                    alert('Cập nhật trạng thái thất bại: ' + (err?.message || 'Lỗi không xác định'));
+                    showError('Cập nhật trạng thái thất bại: ' + (err?.message || 'Lỗi không xác định'));
                 }
                 break;
             default:
@@ -240,12 +243,11 @@ const BlogManagementPage = () => {
             if (isAdminBlog) {
                 // Admin blog: permanent delete
                 await deleteBlog(blogId);
-                setDeleteSuccess(true);
-                setTimeout(() => setDeleteSuccess(false), 2000);
+                showSuccess('Xóa bài viết thành công!');
             } else {
                 // Hotel blog: change status to rejected
                 await updateBlogStatus(blogId, 'rejected');
-                alert('Blog của khách sạn đã được đổi trạng thái thành "rejected"');
+                showSuccess('Blog của khách sạn đã được đổi trạng thái thành "rejected"');
             }
             
             // Reload blogs
@@ -253,7 +255,7 @@ const BlogManagementPage = () => {
             await fetchStatistics();
             setDeleteModal({ open: false, blog: null });
         } catch (err) {
-            alert('Xóa bài viết thất bại: ' + (err?.message || 'Lỗi không xác định'));
+            showError('Xóa bài viết thất bại: ' + (err?.message || 'Lỗi không xác định'));
         }
     };
 
@@ -297,23 +299,15 @@ const BlogManagementPage = () => {
     };
 
     return (
-    <div className="space-y-6 w-full max-w-7xl mx-auto">
-            
-            {/* Thông báo xóa thành công dạng modal giống xác nhận xóa */}
-            {deleteSuccess && (
-                <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-30">
-                    <div className="bg-white rounded-lg shadow-lg p-6 max-w-xs w-full text-center border border-green-200">
-                        <p className="mb-6 text-orange-800 font-medium">Xóa bài viết thành công!</p>
-                        <div className="flex justify-center">
-                            <button
-                                onClick={() => setDeleteSuccess(false)}
-                                className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
-                            >
-                                Đóng
-                            </button>
-                        </div>
-                    </div>
-                </div>
+        <div className="space-y-6 w-full max-w-7xl mx-auto">
+            {/* Toast Notification */}
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={hideToast}
+                    duration={toast.duration}
+                />
             )}
 
             {/* Header */}
@@ -425,6 +419,7 @@ const BlogManagementPage = () => {
                     )}
                 </div>
             </div>
+
             {/* Delete Confirmation Modal */}
             {deleteModal.open && (
                 <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-30">

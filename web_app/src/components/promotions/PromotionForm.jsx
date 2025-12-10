@@ -483,16 +483,18 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
     }
   };
 
-  // Helper function to get available status options based on current status
+  // Helper function to get available status options based on ORIGINAL status (not current form selection)
   const getAvailableStatuses = () => {
     if (!initialData) return ['pending']; // New promotions are always pending
     
-    const currentStatus = formData.status || initialData.status;
+    // IMPORTANT: Use the ORIGINAL status from initialData, not the current form selection
+    // This prevents the dropdown from changing available options when user selects a status
+    const originalStatus = initialData.status;
     const currentValidUntil = new Date(formData.validUntil || initialData.validUntil || initialData.valid_until);
     const now = new Date();
     const isExpired = currentValidUntil < now;
     
-    switch (currentStatus) {
+    switch (originalStatus) {
       case 'pending':
         return ['pending', 'approved', 'rejected'];
       case 'approved':
@@ -507,7 +509,7 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
         // Can only return to active if not expired
         return isExpired ? ['inactive'] : ['inactive', 'active'];
       default:
-        return [currentStatus];
+        return [originalStatus];
     }
   };
 
@@ -526,10 +528,10 @@ const PromotionForm = ({ initialData, onSubmit, onCancel, isSubmitting: external
   // Handle status change with validation
   const handleStatusChange = (e) => {
     const newStatus = e.target.value;
-    const currentStatus = formData.status || (initialData?.status);
     
     // Check if trying to activate an expired promotion
-    if (initialData && currentStatus === 'inactive' && newStatus === 'active') {
+    // Use ORIGINAL status from initialData, not current form status
+    if (initialData && initialData.status === 'inactive' && newStatus === 'active') {
       const validUntil = new Date(formData.validUntil || initialData.validUntil || initialData.valid_until);
       const now = new Date();
       

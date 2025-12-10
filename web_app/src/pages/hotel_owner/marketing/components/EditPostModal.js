@@ -18,9 +18,12 @@ const EditPostModal = ({ show, blog, onClose, onSave, user }) => {
     metaDescription: '',
     status: 'draft'
   });
-  const [editImages, setEditImages] = useState([]);
+  const [featuredImageUrl, setFeaturedImageUrl] = useState(''); // Ảnh đại diện riêng
+  const [editImages, setEditImages] = useState([]); // Các ảnh trong blog
+  const [imagesToDelete, setImagesToDelete] = useState([]); // Các ảnh đánh dấu để xóa
   const [loading, setLoading] = useState(false);
   const [showImageUrlDialog, setShowImageUrlDialog] = useState(false);
+  const [showFeaturedImageDialog, setShowFeaturedImageDialog] = useState(false);
 
   useEffect(() => {
     if (show && blog) {
@@ -35,8 +38,14 @@ const EditPostModal = ({ show, blog, onClose, onSave, user }) => {
         status: blog.status || 'draft'
       });
 
-      // Load images
+      // Load featured image
+      setFeaturedImageUrl(blog.featuredImageUrl || blog.featured_image_url || '');
+
+      // Load blog images
       loadBlogImages(blog.blogId || blog.id);
+      
+      // Reset danh sách ảnh cần xóa
+      setImagesToDelete([]);
     }
   }, [show, blog]);
 
@@ -54,10 +63,10 @@ const EditPostModal = ({ show, blog, onClose, onSave, user }) => {
       }
 
       const imagesData = imagesList.map((img) => ({
-        imageId: img.id, // Assuming API returns id for image
+        imageId: img.imageId || img.id, // API returns imageId
         imageUrl: img.imageUrl || img.image_url || img.url,
         isFromDatabase: true
-      })).filter(img => img.imageUrl);
+      })).filter(img => img.imageUrl && img.imageId); // Phải có cả imageUrl và imageId
 
       setEditImages(imagesData);
     } catch (error) {
@@ -73,6 +82,28 @@ const EditPostModal = ({ show, blog, onClose, onSave, user }) => {
 
     setLoading(true);
     try {
+      // 1. Xóa các ảnh đã đánh dấu
+      if (imagesToDelete.length > 0) {
+        console.log('🗑️ Deleting', imagesToDelete.length, 'images...');
+        for (const imageId of imagesToDelete) {
+          try {
+            await blogService.deleteBlogImageById(imageId);
+          } catch (error) {
+            console.error('Error deleting image:', imageId, error);
+            // Continue deleting other images
+          }
+        }
+      }
+
+      // 2. Lọc ra các ảnh mới (chưa có trong database)
+      const newImages = editImages
+        .filter(img => !img.isFromDatabase)
+        .map((img, index) => ({
+          image_url: img.imageUrl,
+          caption: '',
+          order_index: index
+        }));
+
       const updateData = {
         title: editForm.title.trim(),
         content: editForm.content.trim(),
@@ -81,10 +112,12 @@ const EditPostModal = ({ show, blog, onClose, onSave, user }) => {
         tags: editForm.tags.trim() || null,
         meta_description: editForm.metaDescription.trim() || null,
         status: editForm.status,
-        featured_image_url: editImages.length > 0 ? editImages[0].imageUrl : null
+        featured_image_url: featuredImageUrl || null // Giữ nguyên featured_image_url
+        // KHÔNG gửi blog_images ở đây - sẽ gọi API riêng
       };
 
-      await onSave(updateData);
+      // 3. Truyền cả updateData và newImages để parent xử lý
+      await onSave(updateData, newImages);
       // onClose is handled by parent after successful save
     } catch (error) {
       console.error('Error saving blog:', error);
@@ -99,24 +132,20 @@ const EditPostModal = ({ show, blog, onClose, onSave, user }) => {
       imageUrl: url,
       isFromDatabase: false
     }]);
-    setShowImageUrlDialog(false);
+    // ImageUrlDialog đã tự đóng khi gọi onAdd
   };
 
-  const handleRemoveImage = async (index) => {
+  const handleRemoveImage = (index) => {
     const imageData = editImages[index];
+    console.log('🗑️ Marking image for deletion at index:', index, 'Data:', imageData);
     
-    // If it's from database, we might want to delete it immediately or mark for deletion
-    // The original code deleted it immediately.
+    // Nếu ảnh đã có trong database, thêm vào danh sách cần xóa
     if (imageData.isFromDatabase && imageData.imageId) {
-      try {
-        await blogService.deleteBlogImageById(imageData.imageId);
-      } catch (error) {
-        console.error('Error deleting image:', error);
-        showError('Không thể xóa ảnh. Vui lòng thử lại!');
-        return;
-      }
+      setImagesToDelete(prev => [...prev, imageData.imageId]);
+      console.log('📝 Added to delete list:', imageData.imageId);
     }
     
+    // Xóa khỏi state hiển thị (chưa xóa khỏi DB)
     setEditImages(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -159,11 +188,66 @@ const EditPostModal = ({ show, blog, onClose, onSave, user }) => {
             <p className="text-xs text-gray-500 mt-1">{editForm.title.length}/200 ký tự</p>
           </div>
           
-          {/* Image Management */}
+          {/* Featured Image - Ảnh đại diện */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Ảnh đại diện (Featured Image)
+            </label>
+            <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+              {featuredImageUrl ? (
+                <div className="relative group">
+                  <img 
+                    src={featuredImageUrl} 
+                    alt="Ảnh đại diện" 
+                    className="w-full h-48 object-cover rounded-lg"
+                    onError={(e) => {
+                      e.target.src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFeaturedImageUrl('')}
+                    className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Xóa ảnh đại diện"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <div className="text-3xl mb-2">🖼️</div>
+                  <p className="text-sm text-gray-500 mb-3">Chưa có ảnh đại diện</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowFeaturedImageDialog(true)}
+                    className="px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                  >
+                    Thêm ảnh đại diện
+                  </button>
+                </div>
+              )}
+            </div>
+            {featuredImageUrl && (
+              <button
+                type="button"
+                onClick={() => setShowFeaturedImageDialog(true)}
+                className="mt-2 px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
+              >
+                Thay đổi ảnh đại diện
+              </button>
+            )}
+          </div>
+
+          {/* Blog Images - Hình ảnh trong bài viết */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className="block text-sm font-medium text-gray-700">
-                Hình ảnh ({editImages.length})
+                Hình ảnh trong bài viết ({editImages.length})
+                {imagesToDelete.length > 0 && (
+                  <span className="ml-2 text-xs text-red-600">
+                    ({imagesToDelete.length} ảnh sẽ bị xóa khi lưu)
+                  </span>
+                )}
               </label>
               <button
                 type="button"
@@ -393,11 +477,23 @@ const EditPostModal = ({ show, blog, onClose, onSave, user }) => {
         </div>
       </div>
 
+      {/* Dialog cho blog images */}
       <ImageUrlDialog
         show={showImageUrlDialog}
         onClose={() => setShowImageUrlDialog(false)}
         onAdd={handleAddImage}
       />
+      
+      {/* Dialog cho featured image */}
+      <ImageUrlDialog
+        show={showFeaturedImageDialog}
+        onClose={() => setShowFeaturedImageDialog(false)}
+        onAdd={(url) => {
+          setFeaturedImageUrl(url);
+          setShowFeaturedImageDialog(false);
+        }}
+      />
+      
       {toast && (
         <Toast
           message={toast.message}

@@ -387,13 +387,13 @@ const HotelDetailPage = () => {
                 </p>
               </div>
             </div>
-            <div className="text-right">
+            {/* <div className="text-right">
               <div className="flex items-center space-x-2">
                 <Star className="h-5 w-5 text-yellow-400" />
                 <span className="text-lg font-semibold">5.00/5</span>
               </div>
               <p className="text-sm text-blue-200">1 đánh giá • 1 sao</p>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

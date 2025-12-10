@@ -222,6 +222,43 @@ class AuthService {
     }
   }
 
+  // Đổi mật khẩu
+  Future<Map<String, dynamic>> changePassword({
+    required String userId,
+    required String newPassword,
+    String? token,
+  }) async {
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/users/$userId');
+      final headers = Map<String, String>.from(_headers);
+      if (token != null) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+      final body = {
+        'password': newPassword,
+      };
+      final response = await http.patch(
+        url,
+        headers: headers,
+        body: jsonEncode(body),
+      );
+      final responseData = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': responseData['message'] ?? 'Đổi mật khẩu thành công',
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Đổi mật khẩu thất bại',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: $e'};
+    }
+  }
+
   // Đăng xuất
   Future<Map<String, dynamic>> logout(String token) async {
     try {

@@ -1,4 +1,4 @@
-import React, { useState} from 'react';
+import React, { useState, useMemo } from 'react';
 import promotionService from '../../../api/promotions.service';
 import { useToast } from '../../../hooks/useToast';
 import Toast from '../../../components/common/Toast';
@@ -10,6 +10,7 @@ import {
   PromotionDetails
 } from '../../../components/promotions';
 import { usePromotions } from '../../../hooks/usePromotions';
+import { searchIgnoreAccents } from '../../../utils/stringUtils';
 
 const PromotionManagement = () => {
   const {
@@ -23,13 +24,40 @@ const PromotionManagement = () => {
     updatePromotion
   } = usePromotions({ autoFetch: true });
 
-  const { toasts, removeToast, showSuccess, showError } = useToast();
+  const { toast, showSuccess, showError, hideToast } = useToast();
 
   const [modalState, setModalState] = useState({
     isOpen: false,
     type: null, // 'create', 'edit', 'view'
     data: null
   });
+
+  const [deleteConfirmPromotion, setDeleteConfirmPromotion] = useState(null);
+  const [clientSearchTerm, setClientSearchTerm] = useState('');
+
+  // Client-side filtering with Vietnamese accent removal
+  const filteredPromotions = useMemo(() => {
+    if (!clientSearchTerm || clientSearchTerm.trim() === '') {
+      return promotions;
+    }
+
+    const searchTerm = clientSearchTerm.trim();
+    return promotions.filter(promotion => {
+      // Search in promotion code
+      if (searchIgnoreAccents(promotion.code || '', searchTerm)) {
+        return true;
+      }
+      // Search in promotion name
+      if (searchIgnoreAccents(promotion.name || '', searchTerm)) {
+        return true;
+      }
+      // Search in description
+      if (searchIgnoreAccents(promotion.description || '', searchTerm)) {
+        return true;
+      }
+      return false;
+    });
+  }, [promotions, clientSearchTerm]);
 
   const openModal = (type, data = null) => {
     setModalState({ isOpen: true, type, data });
@@ -52,23 +80,23 @@ const PromotionManagement = () => {
   };
 
   const handleDelete = async (promotion) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa khuyến mãi "${promotion.name}"?`)) {
-      try {
-        // Gọi API xoá khuyến mãi
-        await promotionService.deletePromotion(promotion.promotionId);
-        await fetchPromotions(); // Refresh after delete
-        
-        showSuccess(
-          'Xóa thành công!',
-          `Khuyến mãi "${promotion.name}" đã được xóa.`
-        );
-      } catch (error) {
-        console.error('Delete error:', error);
-        showError(
-          'Xóa thất bại!',
-          'Có lỗi xảy ra khi xóa khuyến mãi. Vui lòng thử lại.'
-        );
-      }
+    setDeleteConfirmPromotion(promotion);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmPromotion) return;
+    
+    try {
+      // Gọi API xoá khuyến mãi
+      await promotionService.deletePromotion(deleteConfirmPromotion.promotionId);
+      await fetchPromotions(); // Refresh after delete
+      
+      showSuccess(`Đã xóa khuyến mãi "${deleteConfirmPromotion.name}" thành công!`);
+    } catch (error) {
+      console.error('Delete error:', error);
+      showError('Có lỗi xảy ra khi xóa khuyến mãi. Vui lòng thử lại.');
+    } finally {
+      setDeleteConfirmPromotion(null);
     }
   };
 
@@ -166,30 +194,30 @@ const PromotionManagement = () => {
 
       {/* Filters */}
       <div className="mb-6">
-        <PromotionFilters />
+        <PromotionFilters onSearchChange={setClientSearchTerm} />
       </div>
 
       {/* Statistics Overview */}
       <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="text-2xl font-bold text-blue-600">{promotions?.length || 0}</div>
+          <div className="text-2xl font-bold text-blue-600">{filteredPromotions?.length || 0}</div>
           <div className="text-sm text-gray-500">Tổng số khuyến mãi</div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow-sm border">
           <div className="text-2xl font-bold text-green-600">
-            {promotions?.filter(p => p.status === 'active').length || 0}
+            {filteredPromotions?.filter(p => p.status === 'active').length || 0}
           </div>
           <div className="text-sm text-gray-500">Đang hoạt động</div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow-sm border">
           <div className="text-2xl font-bold text-orange-600">
-            {promotions?.filter(p => p.status === 'inactive').length || 0}
+            {filteredPromotions?.filter(p => p.status === 'inactive').length || 0}
           </div>
           <div className="text-sm text-gray-500">Không hoạt động</div>
         </div>
         <div className="bg-white p-4 rounded-lg shadow-sm border">
           <div className="text-2xl font-bold text-red-600">
-            {promotions?.filter(p => {
+            {filteredPromotions?.filter(p => {
               const now = new Date();
               return new Date(p.validUntil) < now;
             }).length || 0}
@@ -201,7 +229,7 @@ const PromotionManagement = () => {
       {/* Promotions List */}
       <div className="mb-6">
         <PromotionList
-          promotions={promotions}
+          promotions={filteredPromotions}
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDelete}
@@ -253,8 +281,41 @@ const PromotionManagement = () => {
         {renderModalContent()}
       </PromotionModal>
 
-      {/* Toast Container */}
-      
+      {/* Confirmation Modal for Delete */}
+      {deleteConfirmPromotion && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Xác nhận xóa</h3>
+            <p className="text-gray-600 mb-6">
+              Bạn có chắc chắn muốn xóa khuyến mãi "<strong>{deleteConfirmPromotion.name}</strong>"?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setDeleteConfirmPromotion(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+          duration={toast.duration}
+        />
+      )}
     </div>
   );
 };

@@ -24,8 +24,14 @@ class User {
     // Optional fields - có thể null/undefined
     this.phoneNumber = phone_number || null;
     this.address = address || null;
-    this.isActive = is_active !== undefined ? is_active : true; // Default true
+    // CRITICAL: Must explicitly check for boolean, not just undefined
+    this.isActive = typeof is_active === 'boolean' ? is_active : true;
     this.profilePictureUrl = profile_picture_url || null;
+    
+    // Debug log
+    if (user_id === '063994f1-4ec6-405f-b844-2382a86b2468') {
+      console.log('[User Model Constructor]', { user_id, is_active, isActive: this.isActive });
+    }
   }
 
   isAdmin() {

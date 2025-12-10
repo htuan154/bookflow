@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { 
     Users2, Plus, Edit, Trash2, Eye, Search, Filter,
     User, Mail, Phone, MapPin, Calendar, CheckCircle, 
@@ -9,6 +9,7 @@ import { useHotelOwner } from '../../../hooks/useHotelOwner';
 import { useStaff } from '../../../context/StaffContext';
 import Toast from '../../../components/common/Toast';
 import { useToast } from '../../../hooks/useToast';
+import DeleteConfirmModal from '../marketing/components/DeleteConfirmModal';
 
 const StaffList = () => {
     const { hotelData, fetchOwnerHotel } = useHotelOwner();
@@ -31,22 +32,34 @@ const StaffList = () => {
         pageSize,
         setPageSize,
         updateStaffStatus,
-        deleteStaff
+        terminateStaff,
+        refreshStaff
     } = useStaff();
     
     const [searchParams, setSearchParams] = useSearchParams();
     const [selectedStaff, setSelectedStaff] = useState(null);
     const [showDetails, setShowDetails] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState({ show: false, staffId: null, userId: null, staffName: '' });
+    const location = useLocation();
 
     useEffect(() => {
         loadData();
     }, []);
 
+    // Reload staff when returning to this page (e.g., after adding staff)
+    useEffect(() => {
+        if (selectedHotel) {
+            refreshStaff();
+        }
+    }, [location.pathname]);
+
     const loadData = async () => {
         try {
-            console.log('Loading hotel data...');
             await fetchOwnerHotel();
-            console.log('Hotel data loaded, hotelData:', hotelData);
+            if (selectedHotel) {
+                // Always reload staff for the selected hotel
+                refreshStaff();
+            }
         } catch (error) {
             console.error('Error loading hotel data:', error);
         }
@@ -75,17 +88,22 @@ const StaffList = () => {
         }
     };
 
-    const handleDeleteStaff = async (staffId) => {
-        if (!window.confirm('Bạn có chắc muốn xóa nhân viên này?')) {
-            return;
-        }
+    const handleDeleteStaff = (staffId, userId, staffName = '') => {
+        setDeleteConfirm({ show: true, staffId, userId, staffName });
+    };
 
-        const result = await deleteStaff(staffId);
+    const confirmDelete = async () => {
+        const result = await terminateStaff(deleteConfirm.staffId, deleteConfirm.userId);
         if (result.success) {
-            showSuccess('Xóa nhân viên thành công!');
+            showSuccess('Chấm dứt hợp đồng nhân viên thành công!');
         } else {
-            showError('Xóa nhân viên thất bại: ' + result.error);
+            showError('Chấm dứt hợp đồng nhân viên thất bại: ' + result.error);
         }
+        setDeleteConfirm({ show: false, staffId: null, userId: null, staffName: '' });
+    };
+
+    const cancelDelete = () => {
+        setDeleteConfirm({ show: false, staffId: null, userId: null, staffName: '' });
     };
 
     // Filter staff based on search term and status only
@@ -152,14 +170,27 @@ const StaffList = () => {
                         <Users2 size={24} className="text-blue-600 mr-3" />
                         <h1 className="text-2xl font-bold text-gray-900">Danh sách nhân viên</h1>
                     </div>
-                    
-                    <button 
-                        onClick={() => navigate(`/hotel-owner/staff/add?${searchParams.toString()}`, { state: { selectedHotel } })}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        <Plus size={16} className="mr-2 inline" />
-                        Thêm nhân viên
-                    </button>
+                    <div className="flex items-center space-x-2">
+                        <button
+                            onClick={async () => {
+                                await fetchOwnerHotel();
+                                refreshStaff();
+                                showSuccess('Đã tải lại dữ liệu!');
+                            }}
+                            className="bg-gray-100 text-blue-600 px-3 py-2 rounded-lg hover:bg-blue-200 transition-colors flex items-center"
+                            title="Tải lại danh sách nhân viên"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582M20 20v-5h-.581m-1.837-5A7.963 7.963 0 0012 4c-4.418 0-8 3.582-8 8m16 0c0 4.418-3.582 8-8 8a7.963 7.963 0 01-6.418-3.418" /></svg>
+                            Tải lại
+                        </button>
+                        <button 
+                            onClick={() => navigate(`/hotel-owner/staff/add?${searchParams.toString()}`, { state: { selectedHotel } })}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <Plus size={16} className="mr-2 inline" />
+                            Thêm nhân viên
+                        </button>
+                    </div>
                 </div>
 
                 {/* Hotel Selection */}
@@ -415,9 +446,9 @@ const StaffList = () => {
                                                     </button>
                                                     
                                                     <button
-                                                        onClick={() => handleDeleteStaff(staffId)}
+                                                        onClick={() => handleDeleteStaff(staffId, userId, `Nhân viên #${staffId}`)}
                                                         className="text-red-600 hover:text-red-900"
-                                                        title="Xóa"
+                                                        title="Chấm dứt hợp đồng"
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
@@ -593,6 +624,17 @@ const StaffList = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteConfirm.show && (
+                <DeleteConfirmModal
+                    blog={{ title: deleteConfirm.staffName }}
+                    message={`Bạn có chắc chắn muốn chấm dứt hợp đồng với "${deleteConfirm.staffName}"? Trạng thái nhân viên sẽ chuyển thành terminated và tài khoản sẽ bị vô hiệu hóa.`}
+                    confirmText="Chấm dứt hợp đồng"
+                    onConfirm={confirmDelete}
+                    onCancel={cancelDelete}
+                />
             )}
 
             {/* Toast Notification */}

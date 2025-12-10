@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:client_khachhang/screens/sign_up_form/sign_up_form.dart';
+import 'package:client_khachhang/screens/login_form/forgot_password_dialog.dart';
+import 'package:client_khachhang/components/contact_dialog.dart';
 import 'dart:ui';
 import 'package:client_khachhang/services/auth_service.dart';
 import 'package:client_khachhang/services/token_service.dart';
@@ -209,8 +211,20 @@ class _LoginScreenState extends State<LoginScreen> {
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
-                                onPressed: () {
-                                  // Handle forgot password
+                                onPressed: () async {
+                                  final result = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => const ForgotPasswordDialog(),
+                                  );
+                                  
+                                  if (result == true) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Đặt lại mật khẩu thành công! Vui lòng đăng nhập.'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
                                 },
                                 child: const Text(
                                   'Forgot Password',
@@ -274,6 +288,34 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                               ],
+                            ),
+
+                            const SizedBox(height: 8),
+
+                            // Contact button
+                            TextButton.icon(
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => const ContactDialog(),
+                                );
+                              },
+                              icon: const Icon(
+                                Icons.support_agent,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              label: const Text(
+                                'Liên hệ hỗ trợ',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                              ),
                             ),
                           ],
                         ),

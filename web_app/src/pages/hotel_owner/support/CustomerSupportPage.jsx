@@ -580,6 +580,31 @@ const CustomerSupportPage = () => {
                 await bookingNightlyPriceService.create(nightlyPriceData);
             }
             showSuccess('Đặt phòng thành công! Booking ID: ' + newBookingId);
+            
+            // Gửi tin nhắn thông báo booking cho khách hàng
+            try {
+                const bookingConfirmMessage = `ĐẶT PHÒNG THÀNH CÔNG!\n\n` +
+                    `Mã đặt phòng: ${newBookingId}\n` +
+                    `Khách sạn: ${selectedHotel?.name || selectedHotel?.hotel_name}\n` +
+                    `Loại phòng: ${selectedRoomType.room_type_name}\n` +
+                    `Check-in: ${new Date(checkInDate).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n` +
+                    `Check-out: ${new Date(checkOutDate).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n` +
+                    `Số đêm: ${nights} đêm\n` +
+                    `Số khách: ${numGuests} người\n` +
+                    `Số phòng: ${numRooms} phòng\n` +
+                    `Tổng tiền: ${new Intl.NumberFormat('vi-VN').format(priceCalculation.totalPrice)} ₫\n` +
+                    `Phương thức thanh toán: ${paymentMethod === 'credit_card' ? 'Thẻ tín dụng' : 'Tiền mặt tại khách sạn'}\n` +
+                    `Trạng thái: ${bookingStatus === 'confirmed' ? 'Đã xác nhận' : 'Chờ xác nhận'}\n\n` +
+                    `Cảm ơn quý khách đã đặt phòng. Chúng tôi rất mong được phục vụ quý khách!`;
+                
+                const currentUser = JSON.parse(localStorage.getItem('user') || localStorage.getItem('authUser') || '{}');
+                const senderId = currentUser.id || currentUser.userId || currentUser.user_id;
+                await sendChatMessage(selectedBooking.bookingId, bookingConfirmMessage, senderId);
+            } catch (msgError) {
+                console.error('Error sending booking confirmation message:', msgError);
+                // Không throw error để không ảnh hưởng đến flow chính
+            }
+            
             // Reset form và đóng
             setShowBookingForm(false);
             setSelectedRoomTypeId(null);

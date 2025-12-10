@@ -18,36 +18,36 @@ export const usePromotions = (options = {}) => {
     const [localLoading, setLocalLoading] = useState(false);
     const [localError, setLocalError] = useState(null);
 
-    // ✅ FIX: Stable reference for filters initialization
-    const initFilters = useCallback(() => {
-        const filtersToApply = {};
-        
-        if (Object.keys(initialFilters).length > 0) {
-            Object.assign(filtersToApply, initialFilters);
-        }
-        if (hotelId) {
-            filtersToApply.hotelId = hotelId;
-        }
-        if (status !== 'all') {
-            filtersToApply.status = status;
-        }
-        
-        if (Object.keys(filtersToApply).length > 0) {
-            context.updateFilters(filtersToApply);
-        }
-    }, [hotelId, status, JSON.stringify(initialFilters), context.updateFilters]);
-
-    // ✅ Initialize filters once
+    // ✅ Initialize filters và fetch một lần khi mount
+    const hasFetched = useRef(false);
     useEffect(() => {
-        initFilters();
-    }, [initFilters]);
-
-    // ✅ Auto fetch with stable dependency
-    useEffect(() => {
-        if (autoFetch && context.fetchPromotions) {
-            context.fetchPromotions();
+        if (!hasFetched.current) {
+            // Build filters từ options
+            const filtersToApply = {};
+            
+            if (Object.keys(initialFilters).length > 0) {
+                Object.assign(filtersToApply, initialFilters);
+            }
+            if (hotelId) {
+                filtersToApply.hotelId = hotelId;
+            }
+            if (status !== 'all') {
+                filtersToApply.status = status;
+            }
+            
+            // Update filters vào state
+            if (Object.keys(filtersToApply).length > 0) {
+                context.updateFilters(filtersToApply);
+            }
+            
+            // Auto fetch với filters đã build
+            if (autoFetch && context.fetchPromotions) {
+                context.fetchPromotions(filtersToApply);
+                hasFetched.current = true;
+            }
         }
-    }, [autoFetch, context.fetchPromotions]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Clear errors
     const clearErrors = useCallback(() => {

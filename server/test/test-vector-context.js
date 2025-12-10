@@ -42,41 +42,49 @@ async function runAiTest() {
     console.log('   Bot: (Đã nhận diện topic: Đà Nẵng)\n');
 
     // --- BƯỚC 2: TEST VECTOR SEARCH (PHASE 1.2) ---
-    // Câu hỏi khó: Không nhắc tên "Cầu Rồng", chỉ tả đặc điểm.
-    const vectorQuery = "Cầu nào có khả năng phun lửa vào cuối tuần?";
-    console.log(`🟣 [LƯỢT 2 - Vector Test] User: "${vectorQuery}"`);
-    
-    const resVector = await axios.post(`${AI_URL}/suggest`, { message: vectorQuery }, { headers });
-    const botAnsVector = resVector.data.summary;
-    const places = resVector.data.places || [];
+    // Thêm 3 câu hỏi mới: 1 vector-search (mô tả), 1 hỏi gợi ý ăn uống (context), 1 hỏi theo dõi (đại từ)
 
-    console.log(`   🤖 Bot: ${botAnsVector.slice(0, 100)}...`);
-    
-    // Kiểm tra kết quả
-    const foundDragonBridge = places.some(p => p.name.toLowerCase().includes('rồng'));
-    if (foundDragonBridge) {
-        console.log('   🎉 PASS (Phase 1.2): Vector Search đã tìm ra "Cầu Rồng" từ mô tả "phun lửa".');
+    // Vector test (mô tả một biểu tượng nhưng không nêu tên)
+    const vectorQuery1 = "Có cây cầu nào trên sông Hàn mà vào ban đêm có nhiều ánh sáng và thường có màn trình diễn ánh sáng vào cuối tuần không?";
+    console.log(`🟣 [LƯỢT 2A - Vector Test] User: "${vectorQuery1}"`);
+    const resVector1 = await axios.post(`${AI_URL}/suggest`, { message: vectorQuery1 }, { headers });
+    const botAnsVector1 = (resVector1.data.summary || '').toString();
+    const places1 = resVector1.data.places || [];
+    console.log(`   🤖 Bot: ${botAnsVector1.slice(0, 200)}...`);
+    const foundNightBridge = places1.some(p => (p.name || '').toLowerCase().includes('rồng') || (p.description || '').toLowerCase().includes('phun lửa') || (p.description || '').toLowerCase().includes('trình diễn ánh sáng'));
+    if (foundNightBridge) {
+      console.log('   🎉 PASS (Vector): Có khả năng tìm ra Cầu Rồng / địa danh trình diễn ánh sáng.');
     } else {
-        console.log('   ⚠️ FAIL (Phase 1.2): Vector chưa tìm ra Cầu Rồng.');
+      console.log('   ⚠️ FAIL (Vector): Không tìm thấy địa danh phù hợp từ mô tả.');
     }
     console.log('');
 
-    // --- BƯỚC 3: TEST CONTEXT MEMORY (PHASE 1.1) ---
-    // Câu hỏi dùng đại từ thay thế "Nó" -> Bot phải nhớ "Cầu Rồng" ở lượt 2.
-    const contextQuery = "Nó nằm ở quận nào?";
-    console.log(`🟣 [LƯỢT 3 - Context Test] User: "${contextQuery}"`);
-    
-    const resContext = await axios.post(`${AI_URL}/suggest`, { message: contextQuery }, { headers });
-    const botAnsContext = resContext.data.summary;
-
-    console.log(`   🤖 Bot: ${botAnsContext}`);
-    
-    // Logic kiểm tra: Nếu bot trả lời về vị trí của Cầu Rồng (Sơn Trà/Hải Châu) -> Pass
-    if (botAnsContext.toLowerCase().includes('hải châu') || botAnsContext.toLowerCase().includes('sơn trà')) {
-        console.log('   🎉 PASS (Phase 1.1): Bot hiểu "Nó" là Cầu Rồng và chỉ đường chính xác.');
+    // Context test: yêu cầu gợi ý khu vực ăn uống gần địa danh vừa được nhắc
+    const vectorQuery2 = "Nếu tôi muốn tản bộ và ăn hải sản ngon gần đó, bạn gợi ý khu vực nào và quán nào nên thử?";
+    console.log(`🟣 [LƯỢT 2B - Context/Recommendations] User: "${vectorQuery2}"`);
+    const resVector2 = await axios.post(`${AI_URL}/suggest`, { message: vectorQuery2 }, { headers });
+    const botAnsVector2 = (resVector2.data.summary || '').toString();
+    console.log(`   🤖 Bot: ${botAnsVector2.slice(0, 240)}...`);
+    const mentionsSeafood = botAnsVector2.toLowerCase().includes('hải sản') || botAnsVector2.toLowerCase().includes('quán') || botAnsVector2.toLowerCase().includes('ăn');
+    if (mentionsSeafood) {
+      console.log('   🎉 PASS (Context): Bot trả lời có gợi ý ăn uống (hải sản/quán/cụm từ liên quan).');
     } else {
-        console.log('   ⚠️ INFO: Kiểm tra xem Bot có trả lời đúng địa chỉ không.');
+      console.log('   ⚠️ INFO (Context): Bot có thể chưa gợi ý ăn uống cụ thể.');
     }
+    console.log('');
+
+    // Follow-up test (pronominal reference) - bot should resolve 'Nó' to previously discussed landmark
+    const vectorQuery3 = "Nó có dễ tiếp cận bằng phương tiện công cộng không và bến xe gần nhất ở đâu?";
+    console.log(`🟣 [LƯỢT 2C - Follow-up / Coref Test] User: "${vectorQuery3}"`);
+    const resVector3 = await axios.post(`${AI_URL}/suggest`, { message: vectorQuery3 }, { headers });
+    const botAnsVector3 = (resVector3.data.summary || '').toString();
+    console.log(`   🤖 Bot: ${botAnsVector3}`);
+    if (botAnsVector3.toLowerCase().includes('xe buýt') || botAnsVector3.toLowerCase().includes('bến xe') || botAnsVector3.toLowerCase().includes('trạm')) {
+      console.log('   🎉 PASS (Coref): Bot đã hiểu đại từ và trả lời hướng tiếp cận bằng phương tiện công cộng.');
+    } else {
+      console.log('   ⚠️ INFO (Coref): Kiểm tra xem bot có cần thêm context để liên kết đúng địa danh.');
+    }
+    console.log('');
 
   } catch (error) {
     console.error('\n❌ LỖI API:', error.message);

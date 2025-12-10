@@ -113,6 +113,30 @@ const uploadProfileImage = async (req, res, next) => {
     }
 };
 
+const updateUserStatus = async (req, res, next) => {
+    try {
+        const userId = req.params.id;
+        const { isActive } = req.body;
+        
+        if (typeof isActive !== 'boolean') {
+            return res.status(400).json({
+                success: false,
+                message: 'isActive phải là giá trị boolean'
+            });
+        }
+
+        const updatedUser = await userService.updateUserStatus(userId, isActive);
+
+        res.status(200).json({
+            success: true,
+            message: `Cập nhật trạng thái người dùng thành công: ${isActive ? 'Kích hoạt' : 'Vô hiệu hóa'}`,
+            data: updatedUser
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getAllUsers,
     getUser,
@@ -120,5 +144,6 @@ module.exports = {
     updateUser,
     deleteUser,
     getHotelOwners,
-    uploadProfileImage
+    uploadProfileImage,
+    updateUserStatus
 };
