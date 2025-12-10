@@ -124,7 +124,7 @@ async function myDailyTask() {
       // Nếu là ngày 31/12 thì tạo season cho năm tiếp theo
       const now = new Date();
       if (now.getMonth() === 11 && now.getDate() === 31) { // 11 = December, 31st
-        const nextYear = now.getFullYear() + 1;
+        const nextYear = now.getFullYear() + 2;
         await createDefaultSeasonsForYear(nextYear);
         console.log(`[DailyJob] Đã tạo season mặc định cho năm ${nextYear}`);
       }
@@ -146,7 +146,7 @@ async function moderationTask() {
 // Hàm test tạo season cho năm hiện tại
 // async function testCreateSeasons() {
 //   const year = new Date().getFullYear();
-//   await dailyJobService.createDefaultSeasonsForYear(year);
+//   await dailyJobService.createDefaultSeasonsForYear(year) + 1;
 //   console.log(`[Test] Đã tạo season mặc định cho năm ${year}`);
 // }
 
@@ -156,6 +156,9 @@ function startDailyJob() {
   
   // Chạy moderation worker mỗi 10 giây
   //cron.schedule('*/10 * * * * *', moderationTask, { timezone: 'Asia/Ho_Chi_Minh' });
+
+  // Chạy moderation worker mỗi 10 phút
+  //cron.schedule('*/10 * * * *', moderationTask, { timezone: 'Asia/Ho_Chi_Minh' });
   
   // cron.schedule('*/10 * * * * *', myDailyTask); // mỗi 10 giây để test job chính
   //cron.schedule('*/10 * * * * *', testCreateSeasons); // mỗi 10 giây để test tạo season

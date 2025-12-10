@@ -8,101 +8,98 @@ class ContactDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: 400,
-          child: SingleChildScrollView(
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Liên hệ',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFFF5722),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close),
-                        color: Colors.grey,
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  const Text(
-                    'Thông tin liên hệ quản trị viên',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Admin 1
-                  _buildAdminCard(
-                    name: 'Lê Đăng Hoàng Tuấn',
-                    phone: '0986480752',
-                    email: 'htuan15424@gmail.com',
-                    role: 'Admin 1',
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Admin 2
-                  _buildAdminCard(
-                    name: 'Huỳnh Anh Tuấn',
-                    phone: '0353251418',
-                    email: 'anhtuan.hcm0705@gmail.com',
-                    role: 'Admin 2',
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Admin 3
-                  _buildAdminCard(
-                    name: 'Trần Thị Kiều Liêu',
-                    phone: '0394049220',
-                    email: 'kieulieu1001@gmail.com',
-                    role: 'Admin 3',
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Close button
-                  ElevatedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF5722),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Đóng',
+      child: Container(
+        constraints: BoxConstraints(maxWidth: 400),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Liên hệ',
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFFF5722),
                       ),
                     ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                      color: Colors.grey,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                const Text(
+                  'Thông tin liên hệ quản trị viên',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Admin 1
+                _buildAdminCard(
+                  name: 'Lê Đăng Hoàng Tuấn',
+                  phone: '0986480752',
+                  email: 'htuan15424@gmail.com',
+                  role: 'Admin 1',
+                ),
+
+                const SizedBox(height: 16),
+
+                // Admin 2
+                _buildAdminCard(
+                  name: 'Huỳnh Anh Tuấn',
+                  phone: '0353251418',
+                  email: 'anhtuan.hcm0705@gmail.com',
+                  role: 'Admin 2',
+                ),
+
+                const SizedBox(height: 16),
+
+                // Admin 3
+                _buildAdminCard(
+                  name: 'Trần Thị Kiều Liêu',
+                  phone: '0394049220',
+                  email: 'kieulieu1001@gmail.com',
+                  role: 'Admin 3',
+                ),
+
+                const SizedBox(height: 24),
+
+                // Close button
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF5722),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                ],
-              ),
+                  child: const Text(
+                    'Đóng',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -209,22 +206,27 @@ class ContactDialog extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.email,
-                    color: Color(0xFFFF5722),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    email,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: Colors.black87,
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.email,
+                      color: Color(0xFFFF5722),
+                      size: 20,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        email,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black87,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               IconButton(
                 onPressed: () => _sendEmail(email),
@@ -243,8 +245,12 @@ class ContactDialog extends StatelessWidget {
 
   Future<void> _makePhoneCall(String phoneNumber) async {
     final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
-    if (await canLaunchUrl(phoneUri)) {
-      await launchUrl(phoneUri);
+    try {
+      if (await canLaunchUrl(phoneUri)) {
+        await launchUrl(phoneUri);
+      }
+    } catch (e) {
+      print('Could not launch phone: $e');
     }
   }
 

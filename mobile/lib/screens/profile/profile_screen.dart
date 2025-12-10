@@ -6,6 +6,7 @@ import '../../services/user_service.dart';
 import '../login_form/login_form.dart';
 import '../../services/token_service.dart';
 import '../../services/auth_service.dart';
+import '../../components/admin_contact_dialog.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -246,6 +247,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: Colors.orange,
         elevation: 0,
         automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.contact_support, color: Colors.white),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AdminContactDialog(),
+              );
+            },
+            tooltip: 'Liên hệ',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(24.0),

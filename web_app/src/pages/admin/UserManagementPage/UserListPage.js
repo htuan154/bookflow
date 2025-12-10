@@ -369,7 +369,7 @@ const UserListPage = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-3xl font-bold text-gray-900">{activeUsers}</p>
-                                <p className="text-gray-600 text-sm">Đặt phòng thành công</p>
+                                <p className="text-gray-600 text-sm">Tài khoản đang hoạt động</p>
 
                             </div>
                             <div className="bg-green-100 p-3 rounded-lg">
@@ -382,8 +382,8 @@ const UserListPage = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-3xl font-bold text-gray-900">{inactiveUsers}</p>
-                                <p className="text-gray-600 text-sm">Chờ xử lý</p>
-                                <p className="text-yellow-500 text-xs font-medium mt-1">↗ 15% tháng này</p>
+                                <p className="text-gray-600 text-sm">Tài khoản đang khóa</p>
+                                {/* <p className="text-yellow-500 text-xs font-medium mt-1">↗ 15% tháng này</p> */}
                             </div>
                             <div className="bg-yellow-100 p-3 rounded-lg">
                                 <span className="text-yellow-600 text-xl">⏳</span>
