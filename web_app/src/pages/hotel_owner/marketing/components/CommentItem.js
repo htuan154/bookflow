@@ -95,10 +95,10 @@ const CommentItem = ({
         </div>
         
         {/* Content */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1">
           {/* User Info */}
           <div className="flex items-center space-x-2 mb-1 flex-wrap">
-            <h4 className="font-semibold text-gray-900 text-sm">
+            <h4 className="font-semibold text-gray-900 text-sm" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
               {comment.fullName || comment.username || comment.user?.full_name || 'Người dùng'}
             </h4>
             <span className="text-xs text-gray-500">
@@ -119,7 +119,7 @@ const CommentItem = ({
           </div>
 
           {/* Comment Text */}
-          <div className="text-gray-700 text-sm leading-relaxed mb-2 break-words">
+          <div className="text-gray-700 text-sm leading-relaxed mb-2" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', maxWidth: '100%' }}>
             {comment.content}
           </div>
 

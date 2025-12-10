@@ -9,7 +9,7 @@ import { usePromotions } from '../../../hooks/usePromotions';
 const PromotionEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getPromotionDetails, currentPromotion, loading, updatePromotion } = usePromotions();
+  const { getPromotionDetails, currentPromotion, loading, updatePromotion } = usePromotions({ autoFetch: false });
   const { toasts, removeToast, showSuccess, showError } = useToast();
 
   console.log('🎯 PromotionEdit component render - ID:', id);

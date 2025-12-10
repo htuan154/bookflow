@@ -62,6 +62,7 @@ const vietqrRoutes = require('./src/api/v1/routes/vietqr.route');
 const bookingNightlyPriceRoutes = require('./src/api/v1/routes/bookingNightlyPrice.route');
 const bookingDiscountRoutes = require('./src/api/v1/routes/bookingDiscount.route');
 const dataRoutes = require('./src/api/v1/routes/data.routes'); // AI Auto-Sync API
+const otpRoutes = require('./src/api/v1/routes/otp.route'); // OTP for password reset
 
 // --- App ---
 const app = express();
@@ -91,6 +92,9 @@ app.use((req, res, next) => {
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 
 // --- API v1 (Postgres + các module sẵn có) ---
+// OTP MUST BE FIRST (no auth required)
+app.use('/api/v1/otp', otpRoutes); // POST /api/v1/otp/send, /api/v1/otp/verify
+
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/hotels', hotelRoutes);

@@ -160,7 +160,16 @@ class HotelStaffService {
             throw new AppError('Invalid status. Must be one of: active, inactive, suspended, terminated', 400);
         }
 
-        return await hotelStaffRepository.updateStaff(staffId, updateData);
+        // Cập nhật thông tin staff
+        const updatedStaff = await hotelStaffRepository.updateStaff(staffId, updateData);
+
+        // Nếu có thay đổi trạng thái, cập nhật isActive của user tương ứng
+        if (updateData.status && staffInfo.staff.userId) {
+            const isActive = updateData.status === 'active'; // true nếu active, false nếu inactive/suspended/terminated
+            await userRepository.updateUserStatus(staffInfo.staff.userId, isActive);
+        }
+
+        return updatedStaff;
     }
 
     /**

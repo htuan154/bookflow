@@ -1,6 +1,7 @@
 // src/context/StaffContext.jsx
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { staffApiService } from '../api/staff.service';
+import userService from '../api/user.service';
 
 const StaffContext = createContext();
 
@@ -76,16 +77,24 @@ export const StaffProvider = ({ children, hotelId: initialHotelId }) => {
     }
   }, [selectedHotel, loadStaff]);
 
-  const deleteStaff = useCallback(async (staffId) => {
+  const terminateStaff = useCallback(async (staffId, userId) => {
     try {
-      await staffApiService.deleteStaff(staffId);
+      // 1. Update staff status to terminated
+      await staffApiService.updateStaffStatus(staffId, 'terminated');
+      
+      // 2. Update user is_active to false if userId is provided
+      if (userId) {
+        await userService.updateUserStatus(userId, false);
+      }
+      
+      // 3. Reload staff list
       const hotelId = selectedHotel?.hotelId || selectedHotel?.hotel_id || selectedHotel?.id || selectedHotel?._id;
       if (hotelId) {
         await loadStaff(hotelId);
       }
       return { success: true };
     } catch (error) {
-      console.error('Error deleting staff:', error);
+      console.error('Error terminating staff:', error);
       return { success: false, error: error.message };
     }
   }, [selectedHotel, loadStaff]);
@@ -143,7 +152,7 @@ export const StaffProvider = ({ children, hotelId: initialHotelId }) => {
     loadStaff,
     loadStaffByUserId,
     updateStaffStatus,
-    deleteStaff,
+    terminateStaff,
     getCurrentUserStaffInfo,
     refreshStaff: () => {
       const hotelId = selectedHotel?.hotelId || selectedHotel?.hotel_id || selectedHotel?.id || selectedHotel?._id;

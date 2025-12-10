@@ -470,12 +470,19 @@ export const PromotionsProvider = ({ children }) => {
                     actions.setLoading(true);
                     actions.clearError();
                     const response = await promotionService.getPromotionDetails(promotionId);
-                    console.log('API getPromotionDetails', promotionId, response.data); // Thêm dòng này
-                    actions.setCurrentPromotion(response.data);
-                    return response.data;
+                    console.log('API getPromotionDetails response:', response);
+                    // response.data có structure: {status, message, data}
+                    // Cần lấy response.data.data để get actual promotion data
+                    const promotionData = response.data?.data || response.data;
+                    console.log('Setting currentPromotion:', promotionData);
+                    actions.setCurrentPromotion(promotionData);
+                    return promotionData;
                 } catch (error) {
+                    console.error('Error in getPromotionDetails:', error);
                     actions.setError(error.message);
                     throw error;
+                } finally {
+                    actions.setLoading(false);
                 }
             },
 

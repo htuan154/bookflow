@@ -8,6 +8,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import useAuth from '../../../hooks/useAuth';
 import { AmenityProvider } from '../../../context/AmenityContext';
 import { HotelAmenityProvider } from '../../../context/HotelAmenityContext';
+import NotificationPanel from '../../common/NotificationPanel';
 import { USER_ROLES } from '../../../config/roles';
 
 const HotelOwnerLayout = () => {
@@ -314,12 +315,7 @@ const HotelOwnerLayout = () => {
                 <header className="bg-white border-b border-gray-200 p-4 flex justify-between items-center shrink-0 shadow-sm z-10">
                     <h1 className="text-xl font-bold text-gray-800">Quản lý khách sạn</h1>
                     <div className="flex items-center gap-4">
-                        <button className="relative text-gray-600 hover:text-gray-800 transition-colors">
-                            <Bell size={22} />
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
-                                3
-                            </span>
-                        </button>
+                        <NotificationPanel />
                         
                         <button className="text-gray-600 hover:text-gray-800">
                             <Settings size={22} />

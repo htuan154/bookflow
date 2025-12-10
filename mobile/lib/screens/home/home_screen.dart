@@ -4,6 +4,7 @@ import '../../services/blog_service.dart';
 //import '../../classes/blog_model.dart';
 import '../../screens/home/form/province_ward_form.dart';
 import '../../classes/blog_custom_model.dart';
+import '../../components/admin_contact_dialog.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -126,6 +127,18 @@ class _HomeScreenState extends State<HomeScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         //titleTextStyle: const TextStyle(color: Colors.black, fontSize: 18),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.contact_support, color: Colors.white),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AdminContactDialog(),
+              );
+            },
+            tooltip: 'Liên hệ',
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {

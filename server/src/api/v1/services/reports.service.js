@@ -108,6 +108,7 @@ class ReportsService {
     const hotelIds = hotelId && hotelId !== 'ALL' ? [hotelId] : null;
     
     const payments = await reportsRepository.getHotelOwnerPayments({
+      userId,
       hotelIds,
       dateFrom,
       dateTo
@@ -136,6 +137,7 @@ class ReportsService {
     const hotelIds = hotelId && hotelId !== 'ALL' ? [hotelId] : null;
     
     const payouts = await reportsRepository.getHotelOwnerPayouts({
+      userId,
       hotelIds,
       dateFrom,
       dateTo

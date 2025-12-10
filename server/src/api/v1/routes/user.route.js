@@ -30,4 +30,7 @@ router.route('/:id')
 // Upload profile image
 router.post('/:id/profile-image', upload.single('profileImage'), userController.uploadProfileImage);
 
+// Update user status
+router.patch('/:id/status', userController.updateUserStatus);
+
 module.exports = router;

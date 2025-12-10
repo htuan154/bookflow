@@ -72,17 +72,15 @@ const CommentsPanel = ({ blog, onClose }) => {
   // Recursive filter function to filter comments and their replies
   const filterCommentsByStatus = (commentsList, statusFilter) => {
     if (statusFilter === 'all') return commentsList;
-    
+
+    // Only filter by parent status - children inherit visibility from parent
     return commentsList
-      .filter(comment => comment.status === statusFilter)
+      .filter(comment => {
+        const matchesSelf = (comment.status || '').toString().toLowerCase() === statusFilter.toString().toLowerCase();
+        return matchesSelf;
+      })
       .map(comment => {
-        // If comment has replies, filter them too
-        if (comment.replies && comment.replies.length > 0) {
-          return {
-            ...comment,
-            replies: filterCommentsByStatus(comment.replies, statusFilter)
-          };
-        }
+        // If parent matches, keep all its replies (don't filter children)
         return comment;
       });
   };
@@ -149,6 +147,25 @@ const CommentsPanel = ({ blog, onClose }) => {
     if (!c.user) c.user = { ...user };
     if (c.parent_id && !c.parentId) c.parentId = c.parent_id;
     if (c.parent_id && !c.parentCommentId) c.parentCommentId = c.parent_id;
+
+    // Normalize status values (accept numbers or different strings from API)
+    const normalizeStatus = (s) => {
+      if (s === null || s === undefined) return 'pending';
+      const raw = String(s).toLowerCase();
+      // numeric codes mapping (common): 0 -> pending, 1 -> approved, 2 -> rejected
+      if (/^\d+$/.test(raw)) {
+        if (raw === '1') return 'approved';
+        if (raw === '2') return 'rejected';
+        if (raw === '0') return 'pending';
+      }
+      if (raw.includes('approve')) return 'approved';
+      if (raw.includes('reject')) return 'rejected';
+      if (raw.includes('hidden')) return 'hidden';
+      if (raw.includes('pending') || raw.includes('wait')) return 'pending';
+      return raw;
+    };
+
+    c.status = normalizeStatus(c.status);
     return c;
   };
 
@@ -176,13 +193,9 @@ const CommentsPanel = ({ blog, onClose }) => {
         total = response.total || response.totalComments || newFlatComments.length || 0;
       }
       // Patch: inject user info and parentId for comments missing them
-      // Also override status: Owner comments should be approved
       const patchedComments = newFlatComments.map(c => {
         const patched = patchUserInfo(c);
-        // If comment is from hotel_owner (roleId = 2) and status is pending, change to approved
-        if (patched.user?.roleId === 2 && patched.status === 'pending') {
-          patched.status = 'approved';
-        }
+        // Keep original status from API - don't override
         return patched;
       });
       setTotalComments(total);
@@ -250,9 +263,9 @@ const CommentsPanel = ({ blog, onClose }) => {
           avatar: user.avatar,
         };
         
-        // Determine status: owner comments are auto-approved, staff comments are pending
-        const isOwner = user.roleId === 2; // USER_ROLES.HOTEL_OWNER
-        const commentStatus = isOwner ? 'approved' : 'pending';
+        // Determine status: both owner and staff comments are auto-approved
+        const isStaffOrOwner = user.roleId === 2 || user.roleId === 6; // USER_ROLES.HOTEL_OWNER (2) or STAFF (6)
+        const commentStatus = isStaffOrOwner ? 'approved' : 'pending';
         
         createdComment = { 
           ...createdComment, 
@@ -269,7 +282,7 @@ const CommentsPanel = ({ blog, onClose }) => {
       // Show success notification
       setNotification({
         show: true,
-        message: user?.roleId === 2 ? '✅ Bình luận đã được gửi!' : '⏳ Bình luận đang chờ duyệt',
+        message: (user?.roleId === 2 || user?.roleId === 6) ? '✅ Bình luận đã được gửi!' : '⏳ Bình luận đang chờ duyệt',
         type: 'success'
       });
     } catch (error) {
@@ -284,12 +297,18 @@ const CommentsPanel = ({ blog, onClose }) => {
 
   const handleReplySubmit = async (parentComment, content) => {
     try {
-      const commentData = {
-        content: content.trim(),
-        parent_comment_id: parentComment.commentId || parentComment.comment_id
-      };
       const blogId = blog.blogId || blog.id;
-      const response = await commentService.createComment(blogId, commentData);
+      const commentId = parentComment.commentId || parentComment.comment_id;
+      
+      // Determine if user is staff or owner to auto-approve
+      const isStaffOrOwner = user?.roleId === 2 || user?.roleId === 6; // HOTEL_OWNER (2) or STAFF (6)
+      
+      const replyData = {
+        content: content.trim(),
+        autoApprove: isStaffOrOwner // Staff và Owner tự động approved
+      };
+      
+      const response = await commentService.replyComment(blogId, commentId, replyData);
       let createdComment = response.data || response;
 
       // Frontend patch: Manually merge current user's info to match the structure
@@ -302,9 +321,8 @@ const CommentsPanel = ({ blog, onClose }) => {
           avatar: user.avatar,
         };
         
-        // Determine status: owner replies are auto-approved, staff replies are pending
-        const isOwner = user.roleId === 2; // USER_ROLES.HOTEL_OWNER
-        const replyStatus = isOwner ? 'approved' : 'pending';
+        // Status được set bởi backend dựa vào autoApprove (backend auto-approved for staff/owner)
+        const replyStatus = isStaffOrOwner ? 'approved' : 'pending';
         
         createdComment = { 
           ...createdComment, 
@@ -326,7 +344,7 @@ const CommentsPanel = ({ blog, onClose }) => {
       // Show success notification
       setNotification({
         show: true,
-        message: user?.roleId === 2 ? '✅ Phản hồi đã được gửi!' : '⏳ Phản hồi đang chờ duyệt',
+        message: (user?.roleId === 2 || user?.roleId === 6) ? '✅ Phản hồi đã được gửi!' : '⏳ Phản hồi đang chờ duyệt',
         type: 'success'
       });
     } catch (error) {
@@ -416,7 +434,7 @@ const CommentsPanel = ({ blog, onClose }) => {
         </div>
 
         {/* Comments List */}
-        <div className="flex-1 overflow-y-auto p-0">
+        <div className="flex-1 overflow-y-auto overflow-x-auto p-0">
           {loading && flatComments.length === 0 ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">

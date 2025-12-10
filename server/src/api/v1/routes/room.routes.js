@@ -44,6 +44,19 @@ router.get('/room-type/:roomTypeId', async (req, res) => {
   await roomController.getRoomsByRoomTypeId(req, res);
 });
 
+// ⚠️ IMPORTANT: Bulk routes MUST come BEFORE /:id routes
+// Otherwise Express matches /bulk as /:id with id="bulk"
+
+// Bulk create rooms
+router.post('/bulk', async (req, res) => {
+  await roomController.createRoomsBulk(req, res);
+});
+
+// Bulk delete rooms
+router.delete('/bulk', async (req, res) => {
+  await roomController.deleteRoomsBulk(req, res);
+});
+
 // Get room by ID
 router.get('/:id', async (req, res) => {
   await roomController.getRoomById(req, res);

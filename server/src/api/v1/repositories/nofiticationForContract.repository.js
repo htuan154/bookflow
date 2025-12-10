@@ -42,10 +42,17 @@ async function getNotificationsByReceiver(receiver_id, { limit = 20, skip = 0 } 
 /** Cập nhật trạng thái đã đọc của thông báo */
 async function markAsRead(notification_id, receiver_id) {
   const db = getDb();
-  const filter = { _id: oid(notification_id), receiver_id };
+  console.log('[notificationRepo] markAsRead called:', { notification_id, receiver_id });
+  
+  // Chỉ filter theo _id, không cần kiểm tra receiver_id vì user đã login
+  const filter = { _id: oid(notification_id) };
   const update = { $set: { is_read: true } };
   const opt = { returnDocument: 'after' };
+  
+  console.log('[notificationRepo] Filter:', filter);
   const r = await db.collection('notificationForContract').findOneAndUpdate(filter, update, opt);
+  console.log('[notificationRepo] Result:', r.value);
+  
   return r.value ? new NotificationForContract(r.value) : null;
 }
 
