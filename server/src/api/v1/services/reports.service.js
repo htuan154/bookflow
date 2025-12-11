@@ -1,6 +1,7 @@
 // src/api/v1/services/reports.service.js
 'use strict';
 const reportsRepository = require('../repositories/reports.repository');
+const pool = require('../../../config/db');
 
 class ReportsService {
   
@@ -100,15 +101,46 @@ class ReportsService {
   /**
    * Lấy báo cáo thanh toán của Hotel Owner (với ownership check)
    */
-  async getOwnerPaymentsReport({ userId, hotelId, dateFrom, dateTo }) {
-    // TODO: Implement ownership validation
-    // const isOwner = await this._validateHotelOwnership(userId, hotelId);
-    // if (!isOwner) throw new Error('Access denied: Not hotel owner');
+  async getOwnerPaymentsReport({ userId, userRole, hotelId, dateFrom, dateTo }) {
+    // Check if user is staff (role = 'hotel_staff' or role_id = 6)
+    let effectiveUserId = userId;
+    let effectiveHotelId = hotelId;
     
-    const hotelIds = hotelId && hotelId !== 'ALL' ? [hotelId] : null;
+    if (userRole === 'hotel_staff' || userRole === 6) {
+      // Staff: lấy hotel_id từ bảng hotel_staff
+      const staffQuery = await pool.query(
+        'SELECT hotel_id FROM hotel_staff WHERE user_id = $1 AND status = \'active\' LIMIT 1',
+        [userId]
+      );
+      
+      if (staffQuery.rows.length === 0) {
+        throw new Error('Staff not found or not assigned to any hotel');
+      }
+      
+      const staffHotelId = staffQuery.rows[0].hotel_id;
+      
+      // Staff chỉ được xem hotel của mình, override hotelId
+      effectiveHotelId = staffHotelId;
+      
+      // Lấy owner_id của hotel đó để query
+      const hotelQuery = await pool.query(
+        'SELECT owner_id FROM hotels WHERE hotel_id = $1',
+        [staffHotelId]
+      );
+      
+      if (hotelQuery.rows.length === 0) {
+        throw new Error('Hotel not found');
+      }
+      
+      effectiveUserId = hotelQuery.rows[0].owner_id;
+      
+      console.log(`👤 Staff (${userId}) accessing hotel ${staffHotelId}, using owner_id ${effectiveUserId} for query`);
+    }
+    
+    const hotelIds = effectiveHotelId && effectiveHotelId !== 'ALL' ? [effectiveHotelId] : null;
     
     const payments = await reportsRepository.getHotelOwnerPayments({
-      userId,
+      userId: effectiveUserId,
       hotelIds,
       dateFrom,
       dateTo
@@ -123,7 +155,7 @@ class ReportsService {
       summary: {
         total_payments: payments.length,
         date_range: { from: dateFrom, to: dateTo },
-        hotel_id: hotelId
+        hotel_id: effectiveHotelId
       }
     };
   }
@@ -131,13 +163,46 @@ class ReportsService {
   /**
    * Lấy báo cáo payout của Hotel Owner
    */
-  async getOwnerPayoutsReport({ userId, hotelId, dateFrom, dateTo }) {
-    // TODO: Implement ownership validation
+  async getOwnerPayoutsReport({ userId, userRole, hotelId, dateFrom, dateTo }) {
+    // Check if user is staff (role = 'hotel_staff' or role_id = 6)
+    let effectiveUserId = userId;
+    let effectiveHotelId = hotelId;
     
-    const hotelIds = hotelId && hotelId !== 'ALL' ? [hotelId] : null;
+    if (userRole === 'hotel_staff' || userRole === 6) {
+      // Staff: lấy hotel_id từ bảng hotel_staff
+      const staffQuery = await pool.query(
+        'SELECT hotel_id FROM hotel_staff WHERE user_id = $1 AND status = \'active\' LIMIT 1',
+        [userId]
+      );
+      
+      if (staffQuery.rows.length === 0) {
+        throw new Error('Staff not found or not assigned to any hotel');
+      }
+      
+      const staffHotelId = staffQuery.rows[0].hotel_id;
+      
+      // Staff chỉ được xem hotel của mình, override hotelId
+      effectiveHotelId = staffHotelId;
+      
+      // Lấy owner_id của hotel đó để query
+      const hotelQuery = await pool.query(
+        'SELECT owner_id FROM hotels WHERE hotel_id = $1',
+        [staffHotelId]
+      );
+      
+      if (hotelQuery.rows.length === 0) {
+        throw new Error('Hotel not found');
+      }
+      
+      effectiveUserId = hotelQuery.rows[0].owner_id;
+      
+      console.log(`👤 Staff (${userId}) accessing hotel ${staffHotelId}, using owner_id ${effectiveUserId} for query`);
+    }
+    
+    const hotelIds = effectiveHotelId && effectiveHotelId !== 'ALL' ? [effectiveHotelId] : null;
     
     const payouts = await reportsRepository.getHotelOwnerPayouts({
-      userId,
+      userId: effectiveUserId,
       hotelIds,
       dateFrom,
       dateTo
@@ -151,7 +216,7 @@ class ReportsService {
       summary: {
         total_payouts: payouts.length,
         date_range: { from: dateFrom, to: dateTo },
-        hotel_id: hotelId
+        hotel_id: effectiveHotelId
       }
     };
   }

@@ -102,9 +102,18 @@ exports.getOwnerPayments = async (req, res, next) => {
     const hotel_id  = req.query.hotel_id  ?? req.query.hotelId ?? null;
 
     const userId = req.user?.id ?? req.user?.userId ?? null;
+    const userRole = req.user?.role ?? req.user?.roleId ?? req.user?.role_id ?? null;
+    
+    // Debug log
+    console.log('🔍 [getOwnerPayments] User info:', {
+      userId,
+      userRole,
+      userObject: req.user
+    });
 
     const result = await reportsService.getOwnerPaymentsReport({
       userId,
+      userRole,
       hotelId: hotel_id,
       dateFrom: date_from,
       dateTo: date_to
@@ -131,9 +140,18 @@ exports.getOwnerPayouts = async (req, res, next) => {
     const hotel_id  = req.query.hotel_id  ?? req.query.hotelId ?? null;
 
     const userId = req.user?.id ?? req.user?.userId ?? null;
+    const userRole = req.user?.role ?? req.user?.roleId ?? req.user?.role_id ?? null;
+    
+    // Debug log
+    console.log('🔍 [getOwnerPayouts] User info:', {
+      userId,
+      userRole,
+      userObject: req.user
+    });
 
     const result = await reportsService.getOwnerPayoutsReport({
       userId,
+      userRole,
       hotelId: hotel_id,
       dateFrom: date_from,
       dateTo: date_to
