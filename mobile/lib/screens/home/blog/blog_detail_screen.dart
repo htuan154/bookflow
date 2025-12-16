@@ -539,7 +539,33 @@ class _BlogDetailScreenState extends State<BlogDetailScreen> {
               '(${comments.length})',
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
-
+            const SizedBox(width: 12),
+            // NÚT REFRESH Ở ĐÂY
+            GestureDetector(
+              onTap: isLoadingComments ? null : _loadBlogComments,
+              child: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: isLoadingComments
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation(Colors.orange),
+                        ),
+                      )
+                    : Icon(
+                        Icons.refresh,
+                        size: 18,
+                        color: Colors.orange,
+                      ),
+              ),
+            ),
             Spacer(), // Đẩy nút like sang bên phải
             // NÚT LIKE Ở ĐÂY
             GestureDetector(
