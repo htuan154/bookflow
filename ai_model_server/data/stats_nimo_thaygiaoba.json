@@ -1,0 +1,31 @@
+{
+  "total_comments": 14816,
+  "processing_time_seconds": 680.33,
+  "requests_per_second": 21.78,
+  "label_statistics": {
+    "SẠCH": {
+      "count": 9162,
+      "percentage": 61.84
+    },
+    "CHỬI BỚI": {
+      "count": 3434,
+      "percentage": 23.18
+    },
+    "REVIEW": {
+      "count": 1504,
+      "percentage": 10.15
+    },
+    "KÍCH ĐỘNG": {
+      "count": 568,
+      "percentage": 3.83
+    },
+    "HTTP_ERROR_400": {
+      "count": 134,
+      "percentage": 0.9
+    },
+    "SPAM": {
+      "count": 14,
+      "percentage": 0.09
+    }
+  }
+}
